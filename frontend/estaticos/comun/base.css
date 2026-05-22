@@ -1,0 +1,293 @@
+/* ============================================================
+   base.css — Variables globales y estilos base de DiabCare Analytics
+   Tema: Violeta profundo + gris carbón
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Fondo */
+  --fondo:        #0d0d14;
+  --fondo2:       #13131e;
+  --fondo3:       #1a1a28;
+  --fondo4:       #222234;
+
+  /* Acento violeta */
+  --violeta:      #7c3aed;
+  --violeta2:     #a855f7;
+  --violeta3:     #c084fc;
+  --violeta4:     rgba(124,58,237,0.15);
+
+  /* Semáforo */
+  --verde:        #22c55e;
+  --rojo:         #ef4444;
+  --amarillo:     #f59e0b;
+
+  /* Texto */
+  --texto:        #e2e0f0;
+  --texto2:       #8b88a8;
+  --texto3:       #4a4870;
+
+  /* Bordes */
+  --borde:        rgba(124,58,237,0.18);
+  --borde2:       rgba(124,58,237,0.08);
+
+  /* Sombras */
+  --sombra:       0 4px 24px rgba(124,58,237,0.12);
+  --sombra2:      0 0 40px rgba(124,58,237,0.20);
+
+  /* Tarjeta */
+  --tarjeta:      rgba(19,19,30,0.90);
+
+  /* Radio */
+  --radio:        14px;
+  --radio-sm:     8px;
+  --radio-lg:     20px;
+}
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--fondo);
+  color: var(--texto);
+  display: flex;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Fondo con textura sutil */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 0% 0%, rgba(124,58,237,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 100% 100%, rgba(168,85,247,0.04) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Tipografía ── */
+h1, h2, h3 {
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: -0.5px;
+}
+
+code, .mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--fondo4); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--violeta); }
+
+/* ── Animaciones globales ── */
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulsar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Spinner ── */
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+
+/* ── Botones globales ── */
+.btn-primario {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--violeta);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radio-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-primario:hover {
+  background: var(--violeta2);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(124,58,237,0.4);
+}
+
+.btn-primario:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secundario {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--violeta3);
+  border: 1px solid var(--borde);
+  padding: 9px 16px;
+  border-radius: var(--radio-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.btn-secundario:hover {
+  background: var(--violeta4);
+  border-color: rgba(124,58,237,0.4);
+}
+
+.btn-peligro {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--rojo);
+  border: 1px solid rgba(239,68,68,0.3);
+  padding: 9px 16px;
+  border-radius: var(--radio-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.btn-peligro:hover {
+  background: rgba(239,68,68,0.08);
+}
+
+/* ── Alertas ── */
+.alerta {
+  padding: 12px 16px;
+  border-radius: var(--radio-sm);
+  font-size: 13px;
+  margin-top: 12px;
+  display: none;
+  animation: aparecer 0.2s ease;
+}
+
+.alerta.ok {
+  background: rgba(34,197,94,0.08);
+  border: 1px solid rgba(34,197,94,0.2);
+  color: var(--verde);
+}
+
+.alerta.error {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.2);
+  color: var(--rojo);
+}
+
+/* ── Tarjeta base ── */
+.tarjeta {
+  background: var(--tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  backdrop-filter: blur(16px);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tarjeta:hover {
+  border-color: rgba(124,58,237,0.3);
+  box-shadow: var(--sombra);
+}
+
+/* ── Input base ── */
+.campo {
+  background: var(--fondo3);
+  border: 1px solid var(--borde);
+  color: var(--texto);
+  padding: 9px 14px;
+  border-radius: var(--radio-sm);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.18s;
+}
+
+.campo:focus {
+  border-color: rgba(124,58,237,0.5);
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.08);
+}
+
+/* ── Estado vacío ── */
+.vacio {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--texto3);
+  font-size: 13px;
+}
+
+.vacio .icono {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 10px;
+  opacity: 0.4;
+}
+
+/* ── Encabezado de sección ── */
+.encabezado-seccion {
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--borde2);
+}
+
+.encabezado-seccion h2 {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--texto);
+  margin-bottom: 4px;
+}
+
+.encabezado-seccion h2 span {
+  color: var(--violeta3);
+}
+
+.encabezado-seccion p {
+  color: var(--texto2);
+  font-size: 14px;
+  font-weight: 300;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .grid-2 { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 768px) {
+  .sidebar { width: 60px !important; }
+  .sidebar .nombre-nav, .sidebar .logo-nombre, .sidebar .logo-tag,
+  .sidebar .pie-version p { display: none; }
+  .contenido-principal { margin-left: 60px !important; }
+}

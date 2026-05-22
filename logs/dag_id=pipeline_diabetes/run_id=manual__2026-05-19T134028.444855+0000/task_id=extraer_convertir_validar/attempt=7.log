@@ -1,0 +1,58 @@
+[2026-05-19T14:15:38.918+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-05-19T14:15:38.943+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: pipeline_diabetes.extraer_convertir_validar manual__2026-05-19T13:40:28.444855+00:00 [queued]>
+[2026-05-19T14:15:38.953+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: pipeline_diabetes.extraer_convertir_validar manual__2026-05-19T13:40:28.444855+00:00 [queued]>
+[2026-05-19T14:15:38.954+0000] {taskinstance.py:2306} INFO - Starting attempt 7 of 8
+[2026-05-19T14:15:38.972+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): extraer_convertir_validar> on 2026-05-19 13:40:28.444855+00:00
+[2026-05-19T14:15:38.981+0000] {warnings.py:110} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61: DeprecationWarning: This process (pid=869) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-05-19T14:15:38.983+0000] {standard_task_runner.py:63} INFO - Started process 871 to run task
+[2026-05-19T14:15:38.983+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'pipeline_diabetes', 'extraer_convertir_validar', 'manual__2026-05-19T13:40:28.444855+00:00', '--job-id', '17', '--raw', '--subdir', 'DAGS_FOLDER/pipeline_diabetes.py', '--cfg-path', '/tmp/tmph28ebvsj']
+[2026-05-19T14:15:38.986+0000] {standard_task_runner.py:91} INFO - Job 17: Subtask extraer_convertir_validar
+[2026-05-19T14:15:39.067+0000] {task_command.py:426} INFO - Running <TaskInstance: pipeline_diabetes.extraer_convertir_validar manual__2026-05-19T13:40:28.444855+00:00 [running]> on host e09a269110ba
+[2026-05-19T14:15:39.166+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='loor' AIRFLOW_CTX_DAG_ID='pipeline_diabetes' AIRFLOW_CTX_TASK_ID='extraer_convertir_validar' AIRFLOW_CTX_EXECUTION_DATE='2026-05-19T13:40:28.444855+00:00' AIRFLOW_CTX_TRY_NUMBER='7' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-05-19T13:40:28.444855+00:00'
+[2026-05-19T14:15:39.168+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-05-19T14:15:54.299+0000] {local_task_job_runner.py:310} WARNING - State of this instance has been externally set to restarting. Terminating instance.
+[2026-05-19T14:15:54.305+0000] {local_task_job_runner.py:222} INFO - ::endgroup::
+[2026-05-19T14:15:54.314+0000] {process_utils.py:132} INFO - Sending 15 to group 871. PIDs of all processes in the group: [872, 871]
+[2026-05-19T14:15:54.316+0000] {process_utils.py:87} INFO - Sending the signal 15 to group 871
+[2026-05-19T14:15:54.318+0000] {taskinstance.py:2611} ERROR - Received SIGTERM. Terminating subprocesses.
+[2026-05-19T14:15:54.338+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-05-19T14:15:54.346+0000] {process_utils.py:80} INFO - Process psutil.Process(pid=872, status='terminated', started='14:15:38') (872) terminated with exit code None
+[2026-05-19T14:15:54.360+0000] {taskinstance.py:2905} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 465, in _execute_task
+    result = _execute_callable(context=context, **execute_callable_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 432, in _execute_callable
+    return execute_callable(context=context, **execute_callable_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/baseoperator.py", line 400, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 235, in execute
+    return_value = self.execute_callable()
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 252, in execute_callable
+    return self.python_callable(*self.op_args, **self.op_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/dags/pipeline_diabetes.py", line 34, in validar_extraccion_y_conversion
+    resultado = subprocess.run(
+                ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/subprocess.py", line 2115, in _communicate
+    ready = selector.select(timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/selectors.py", line 415, in select
+    fd_event_list = self._selector.poll(timeout)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 2613, in signal_handler
+    raise AirflowTaskTerminated("Task received SIGTERM signal")
+airflow.exceptions.AirflowTaskTerminated: Task received SIGTERM signal
+[2026-05-19T14:15:54.388+0000] {taskinstance.py:1206} INFO - Marking task as UP_FOR_RETRY. dag_id=pipeline_diabetes, task_id=extraer_convertir_validar, run_id=manual__2026-05-19T13:40:28.444855+00:00, execution_date=20260519T134028, start_date=20260519T141538, end_date=20260519T141554
+[2026-05-19T14:15:54.482+0000] {process_utils.py:80} INFO - Process psutil.Process(pid=871, status='terminated', exitcode=2, started='14:15:38') (871) terminated with exit code 2

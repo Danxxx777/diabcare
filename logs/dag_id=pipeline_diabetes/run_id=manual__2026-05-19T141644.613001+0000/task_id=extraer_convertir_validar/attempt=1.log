@@ -1,0 +1,253 @@
+[2026-05-19T14:16:47.203+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2026-05-19T14:16:47.234+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: pipeline_diabetes.extraer_convertir_validar manual__2026-05-19T14:16:44.613001+00:00 [queued]>
+[2026-05-19T14:16:47.247+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: pipeline_diabetes.extraer_convertir_validar manual__2026-05-19T14:16:44.613001+00:00 [queued]>
+[2026-05-19T14:16:47.248+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 2
+[2026-05-19T14:16:47.266+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): extraer_convertir_validar> on 2026-05-19 14:16:44.613001+00:00
+[2026-05-19T14:16:47.274+0000] {warnings.py:110} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61: DeprecationWarning: This process (pid=942) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2026-05-19T14:16:47.276+0000] {standard_task_runner.py:63} INFO - Started process 944 to run task
+[2026-05-19T14:16:47.277+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'pipeline_diabetes', 'extraer_convertir_validar', 'manual__2026-05-19T14:16:44.613001+00:00', '--job-id', '20', '--raw', '--subdir', 'DAGS_FOLDER/pipeline_diabetes.py', '--cfg-path', '/tmp/tmptp5zlj1n']
+[2026-05-19T14:16:47.280+0000] {standard_task_runner.py:91} INFO - Job 20: Subtask extraer_convertir_validar
+[2026-05-19T14:16:47.372+0000] {task_command.py:426} INFO - Running <TaskInstance: pipeline_diabetes.extraer_convertir_validar manual__2026-05-19T14:16:44.613001+00:00 [running]> on host e09a269110ba
+[2026-05-19T14:16:47.472+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='loor' AIRFLOW_CTX_DAG_ID='pipeline_diabetes' AIRFLOW_CTX_TASK_ID='extraer_convertir_validar' AIRFLOW_CTX_EXECUTION_DATE='2026-05-19T14:16:44.613001+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-05-19T14:16:44.613001+00:00'
+[2026-05-19T14:16:47.475+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2026-05-19T14:17:04.231+0000] {logging_mixin.py:188} INFO - ============================================================
+  DiabCare — Extracción y Conversión a Parquet
+============================================================
+🔑 Autenticando en PocketBase...
+   Token obtenido correctamente.
+📥 Extrayendo registros de 'diabetes_dataset'...
+   Página 1/200 — 500 registros acumulados
+   Página 2/200 — 1000 registros acumulados
+   Página 3/200 — 1500 registros acumulados
+   Página 4/200 — 2000 registros acumulados
+   Página 5/200 — 2500 registros acumulados
+   Página 6/200 — 3000 registros acumulados
+   Página 7/200 — 3500 registros acumulados
+   Página 8/200 — 4000 registros acumulados
+   Página 9/200 — 4500 registros acumulados
+   Página 10/200 — 5000 registros acumulados
+   Página 11/200 — 5500 registros acumulados
+   Página 12/200 — 6000 registros acumulados
+   Página 13/200 — 6500 registros acumulados
+   Página 14/200 — 7000 registros acumulados
+   Página 15/200 — 7500 registros acumulados
+   Página 16/200 — 8000 registros acumulados
+   Página 17/200 — 8500 registros acumulados
+   Página 18/200 — 9000 registros acumulados
+   Página 19/200 — 9500 registros acumulados
+   Página 20/200 — 10000 registros acumulados
+   Página 21/200 — 10500 registros acumulados
+   Página 22/200 — 11000 registros acumulados
+   Página 23/200 — 11500 registros acumulados
+   Página 24/200 — 12000 registros acumulados
+   Página 25/200 — 12500 registros acumulados
+   Página 26/200 — 13000 registros acumulados
+   Página 27/200 — 13500 registros acumulados
+   Página 28/200 — 14000 registros acumulados
+   Página 29/200 — 14500 registros acumulados
+   Página 30/200 — 15000 registros acumulados
+   Página 31/200 — 15500 registros acumulados
+   Página 32/200 — 16000 registros acumulados
+   Página 33/200 — 16500 registros acumulados
+   Página 34/200 — 17000 registros acumulados
+   Página 35/200 — 17500 registros acumulados
+   Página 36/200 — 18000 registros acumulados
+   Página 37/200 — 18500 registros acumulados
+   Página 38/200 — 19000 registros acumulados
+   Página 39/200 — 19500 registros acumulados
+   Página 40/200 — 20000 registros acumulados
+   Página 41/200 — 20500 registros acumulados
+   Página 42/200 — 21000 registros acumulados
+   Página 43/200 — 21500 registros acumulados
+   Página 44/200 — 22000 registros acumulados
+   Página 45/200 — 22500 registros acumulados
+   Página 46/200 — 23000 registros acumulados
+   Página 47/200 — 23500 registros acumulados
+   Página 48/200 — 24000 registros acumulados
+   Página 49/200 — 24500 registros acumulados
+   Página 50/200 — 25000 registros acumulados
+   Página 51/200 — 25500 registros acumulados
+   Página 52/200 — 26000 registros acumulados
+   Página 53/200 — 26500 registros acumulados
+   Página 54/200 — 27000 registros acumulados
+   Página 55/200 — 27500 registros acumulados
+   Página 56/200 — 28000 registros acumulados
+   Página 57/200 — 28500 registros acumulados
+   Página 58/200 — 29000 registros acumulados
+   Página 59/200 — 29500 registros acumulados
+   Página 60/200 — 30000 registros acumulados
+   Página 61/200 — 30500 registros acumulados
+   Página 62/200 — 31000 registros acumulados
+   Página 63/200 — 31500 registros acumulados
+   Página 64/200 — 32000 registros acumulados
+   Página 65/200 — 32500 registros acumulados
+   Página 66/200 — 33000 registros acumulados
+   Página 67/200 — 33500 registros acumulados
+   Página 68/200 — 34000 registros acumulados
+   Página 69/200 — 34500 registros acumulados
+   Página 70/200 — 35000 registros acumulados
+   Página 71/200 — 35500 registros acumulados
+   Página 72/200 — 36000 registros acumulados
+   Página 73/200 — 36500 registros acumulados
+   Página 74/200 — 37000 registros acumulados
+   Página 75/200 — 37500 registros acumulados
+   Página 76/200 — 38000 registros acumulados
+   Página 77/200 — 38500 registros acumulados
+   Página 78/200 — 39000 registros acumulados
+   Página 79/200 — 39500 registros acumulados
+   Página 80/200 — 40000 registros acumulados
+   Página 81/200 — 40500 registros acumulados
+   Página 82/200 — 41000 registros acumulados
+   Página 83/200 — 41500 registros acumulados
+   Página 84/200 — 42000 registros acumulados
+   Página 85/200 — 42500 registros acumulados
+   Página 86/200 — 43000 registros acumulados
+   Página 87/200 — 43500 registros acumulados
+   Página 88/200 — 44000 registros acumulados
+   Página 89/200 — 44500 registros acumulados
+   Página 90/200 — 45000 registros acumulados
+   Página 91/200 — 45500 registros acumulados
+   Página 92/200 — 46000 registros acumulados
+   Página 93/200 — 46500 registros acumulados
+   Página 94/200 — 47000 registros acumulados
+   Página 95/200 — 47500 registros acumulados
+   Página 96/200 — 48000 registros acumulados
+   Página 97/200 — 48500 registros acumulados
+   Página 98/200 — 49000 registros acumulados
+   Página 99/200 — 49500 registros acumulados
+   Página 100/200 — 50000 registros acumulados
+   Página 101/200 — 50500 registros acumulados
+   Página 102/200 — 51000 registros acumulados
+   Página 103/200 — 51500 registros acumulados
+   Página 104/200 — 52000 registros acumulados
+   Página 105/200 — 52500 registros acumulados
+   Página 106/200 — 53000 registros acumulados
+   Página 107/200 — 53500 registros acumulados
+   Página 108/200 — 54000 registros acumulados
+   Página 109/200 — 54500 registros acumulados
+   Página 110/200 — 55000 registros acumulados
+   Página 111/200 — 55500 registros acumulados
+   Página 112/200 — 56000 registros acumulados
+   Página 113/200 — 56500 registros acumulados
+   Página 114/200 — 57000 registros acumulados
+   Página 115/200 — 57500 registros acumulados
+   Página 116/200 — 58000 registros acumulados
+   Página 117/200 — 58500 registros acumulados
+   Página 118/200 — 59000 registros acumulados
+   Página 119/200 — 59500 registros acumulados
+   Página 120/200 — 60000 registros acumulados
+   Página 121/200 — 60500 registros acumulados
+   Página 122/200 — 61000 registros acumulados
+   Página 123/200 — 61500 registros acumulados
+   Página 124/200 — 62000 registros acumulados
+   Página 125/200 — 62500 registros acumulados
+   Página 126/200 — 63000 registros acumulados
+   Página 127/200 — 63500 registros acumulados
+   Página 128/200 — 64000 registros acumulados
+   Página 129/200 — 64500 registros acumulados
+   Página 130/200 — 65000 registros acumulados
+   Página 131/200 — 65500 registros acumulados
+   Página 132/200 — 66000 registros acumulados
+   Página 133/200 — 66500 registros acumulados
+   Página 134/200 — 67000 registros acumulados
+   Página 135/200 — 67500 registros acumulados
+   Página 136/200 — 68000 registros acumulados
+   Página 137/200 — 68500 registros acumulados
+   Página 138/200 — 69000 registros acumulados
+   Página 139/200 — 69500 registros acumulados
+   Página 140/200 — 70000 registros acumulados
+   Página 141/200 — 70500 registros acumulados
+   Página 142/200 — 71000 registros acumulados
+   Página 143/200 — 71500 registros acumulados
+   Página 144/200 — 72000 registros acumulados
+   Página 145/200 — 72500 registros acumulados
+   Página 146/200 — 73000 registros acumulados
+   Página 147/200 — 73500 registros acumulados
+   Página 148/200 — 74000 registros acumulados
+   Página 149/200 — 74500 registros acumulados
+   Página 150/200 — 75000 registros acumulados
+   Página 151/200 — 75500 registros acumulados
+   Página 152/200 — 76000 registros acumulados
+   Página 153/200 — 76500 registros acumulados
+   Página 154/200 — 77000 registros acumulados
+   Página 155/200 — 77500 registros acumulados
+   Página 156/200 — 78000 registros acumulados
+   Página 157/200 — 78500 registros acumulados
+   Página 158/200 — 79000 registros acumulados
+   Página 159/200 — 79500 registros acumulados
+   Página 160/200 — 80000 registros acumulados
+   Página 161/200 — 80500 registros acumulados
+   Página 162/200 — 81000 registros acumulados
+   Página 163/200 — 81500 registros acumulados
+   Página 164/200 — 82000 registros acumulados
+   Página 165/200 — 82500 registros acumulados
+   Página 166/200 — 83000 registros acumulados
+   Página 167/200 — 83500 registros acumulados
+   Página 168/200 — 84000 registros acumulados
+   Página 169/200 — 84500 registros acumulados
+   Página 170/200 — 85000 registros acumulados
+   Página 171/200 — 85500 registros acumulados
+   Página 172/200 — 86000 registros acumulados
+   Página 173/200 — 86500 registros acumulados
+   Página 174/200 — 87000 registros acumulados
+   Página 175/200 — 87500 registros acumulados
+   Página 176/200 — 88000 registros acumulados
+   Página 177/200 — 88500 registros acumulados
+   Página 178/200 — 89000 registros acumulados
+   Página 179/200 — 89500 registros acumulados
+   Página 180/200 — 90000 registros acumulados
+   Página 181/200 — 90500 registros acumulados
+   Página 182/200 — 91000 registros acumulados
+   Página 183/200 — 91500 registros acumulados
+   Página 184/200 — 92000 registros acumulados
+   Página 185/200 — 92500 registros acumulados
+   Página 186/200 — 93000 registros acumulados
+   Página 187/200 — 93500 registros acumulados
+   Página 188/200 — 94000 registros acumulados
+   Página 189/200 — 94500 registros acumulados
+   Página 190/200 — 95000 registros acumulados
+   Página 191/200 — 95500 registros acumulados
+   Página 192/200 — 96000 registros acumulados
+   Página 193/200 — 96500 registros acumulados
+   Página 194/200 — 97000 registros acumulados
+   Página 195/200 — 97500 registros acumulados
+   Página 196/200 — 98000 registros acumulados
+   Página 197/200 — 98500 registros acumulados
+   Página 198/200 — 99000 registros acumulados
+   Página 199/200 — 99500 registros acumulados
+   Página 200/200 — 100000 registros acumulados
+   Total extraídos: 100000
+🔄 Convirtiendo a DataFrame...
+   DataFrame listo: 100000 filas × 16 columnas
+💾 Parquet guardado en: /opt/***/dags/scripts/../stage/diabetes_dataset_20260519_141703.parquet  (0.55 MB)
+
+✅ Proceso completado.
+   Archivo listo en: /opt/***/dags/scripts/../stage/diabetes_dataset_20260519_141703.parquet
+[2026-05-19T14:17:04.233+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2026-05-19T14:17:04.234+0000] {taskinstance.py:2905} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 465, in _execute_task
+    result = _execute_callable(context=context, **execute_callable_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/taskinstance.py", line 432, in _execute_callable
+    return execute_callable(context=context, **execute_callable_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/models/baseoperator.py", line 400, in wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 235, in execute
+    return_value = self.execute_callable()
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/airflow/.local/lib/python3.12/site-packages/airflow/operators/python.py", line 252, in execute_callable
+    return self.python_callable(*self.op_args, **self.op_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/airflow/dags/pipeline_diabetes.py", line 46, in validar_extraccion_y_conversion
+    raise Exception("No se genero el archivo Parquet en stage/")
+Exception: No se genero el archivo Parquet en stage/
+[2026-05-19T14:17:04.256+0000] {taskinstance.py:1206} INFO - Marking task as UP_FOR_RETRY. dag_id=pipeline_diabetes, task_id=extraer_convertir_validar, run_id=manual__2026-05-19T14:16:44.613001+00:00, execution_date=20260519T141644, start_date=20260519T141647, end_date=20260519T141704
+[2026-05-19T14:17:04.275+0000] {standard_task_runner.py:110} ERROR - Failed to execute job 20 for task extraer_convertir_validar (No se genero el archivo Parquet en stage/; 944)
+[2026-05-19T14:17:04.293+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 1
+[2026-05-19T14:17:04.319+0000] {taskinstance.py:3498} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2026-05-19T14:17:04.322+0000] {local_task_job_runner.py:222} INFO - ::endgroup::
