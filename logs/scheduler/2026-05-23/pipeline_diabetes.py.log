@@ -775,3 +775,17 @@
 [2026-05-23T04:12:23.075+0000] {logging_mixin.py:188} INFO - [2026-05-23T04:12:23.075+0000] {dag.py:3096} INFO - Sync 1 DAGs
 [2026-05-23T04:12:23.088+0000] {logging_mixin.py:188} INFO - [2026-05-23T04:12:23.088+0000] {dag.py:3954} INFO - Setting next_dagrun for pipeline_diabetes to None, run_after=None
 [2026-05-23T04:12:23.108+0000] {processor.py:183} INFO - Processing /opt/airflow/dags/pipeline_diabetes.py took 0.092 seconds
+[2026-05-23T04:12:53.406+0000] {processor.py:161} INFO - Started process (PID=861) to work on /opt/airflow/dags/pipeline_diabetes.py
+[2026-05-23T04:12:53.407+0000] {processor.py:830} INFO - Processing file /opt/airflow/dags/pipeline_diabetes.py for tasks to queue
+[2026-05-23T04:12:53.410+0000] {logging_mixin.py:188} INFO - [2026-05-23T04:12:53.410+0000] {dagbag.py:545} INFO - Filling up the DagBag from /opt/airflow/dags/pipeline_diabetes.py
+[2026-05-23T04:12:53.455+0000] {processor.py:840} INFO - DAG(s) 'pipeline_diabetes' retrieved from /opt/airflow/dags/pipeline_diabetes.py
+[2026-05-23T04:12:53.482+0000] {logging_mixin.py:188} INFO - [2026-05-23T04:12:53.482+0000] {dag.py:3096} INFO - Sync 1 DAGs
+[2026-05-23T04:12:53.494+0000] {logging_mixin.py:188} INFO - [2026-05-23T04:12:53.494+0000] {dag.py:3954} INFO - Setting next_dagrun for pipeline_diabetes to None, run_after=None
+[2026-05-23T04:12:53.513+0000] {processor.py:183} INFO - Processing /opt/airflow/dags/pipeline_diabetes.py took 0.117 seconds
+[2026-05-23T04:13:23.680+0000] {processor.py:161} INFO - Started process (PID=868) to work on /opt/airflow/dags/pipeline_diabetes.py
+[2026-05-23T04:13:23.683+0000] {processor.py:830} INFO - Processing file /opt/airflow/dags/pipeline_diabetes.py for tasks to queue
+[2026-05-23T04:13:23.686+0000] {logging_mixin.py:188} INFO - [2026-05-23T04:13:23.685+0000] {dagbag.py:545} INFO - Filling up the DagBag from /opt/airflow/dags/pipeline_diabetes.py
+[2026-05-23T04:13:23.727+0000] {processor.py:840} INFO - DAG(s) 'pipeline_diabetes' retrieved from /opt/airflow/dags/pipeline_diabetes.py
+[2026-05-23T04:13:23.750+0000] {logging_mixin.py:188} INFO - [2026-05-23T04:13:23.750+0000] {dag.py:3096} INFO - Sync 1 DAGs
+[2026-05-23T04:13:23.759+0000] {logging_mixin.py:188} INFO - [2026-05-23T04:13:23.759+0000] {dag.py:3954} INFO - Setting next_dagrun for pipeline_diabetes to None, run_after=None
+[2026-05-23T04:13:23.776+0000] {processor.py:183} INFO - Processing /opt/airflow/dags/pipeline_diabetes.py took 0.106 seconds
