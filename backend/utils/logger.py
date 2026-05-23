@@ -1,0 +1,1 @@
+# Logger centralizado del sistema
