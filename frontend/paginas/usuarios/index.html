@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Usuarios</title>
+<link rel="stylesheet" href="/estaticos/estilos.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="logo-mark">D</div>
+    <div>
+      <div class="logo-text">DiabCare</div>
+      <div class="logo-sub">ANALYTICS v2.0</div>
+    </div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Principal</div>
+
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Análisis</span>
+        <i class="nav-chevron">&#8250;</i>
+      </div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
+        <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Registros clínicos</span>
+        <i class="nav-chevron">&#8250;</i>
+      </div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Crear registro</span></a>
+        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Dataset</span>
+        <i class="nav-chevron">&#8250;</i>
+      </div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
+        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header open" onclick="toggle(this)">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Usuarios</span>
+        <i class="nav-chevron">&#8250;</i>
+      </div>
+      <div class="nav-sub open">
+        <a class="nav-sub-item active" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
+      </div>
+    </div>
+
+    <div class="nav-section">Datos</div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Predicción ML</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Pipeline ETL</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Modelo ML</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-section">Sistema</div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Reportes</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Auditoría</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Notificaciones</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Configuración</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Benchmarking</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Integraciones</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="user-row" onclick="cerrarSesion()">
+      <div class="user-avatar" id="userAvatar">A</div>
+      <div>
+        <div class="user-name" id="userName">Cargando...</div>
+        <div class="user-rol"  id="userRol">—</div>
+      </div>
+    </div>
+    <div class="ver-info">DiabCare Analytics v2.0</div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span>
+    <span class="tb-sep">/</span>
+    <span class="tb-page">Usuarios</span>
+    <div class="tb-right">
+      <div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Gestión de <span>usuarios</span></div>
+        <div class="page-sub">Administra usuarios, roles y accesos del sistema</div>
+      </div>
+      <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo usuario</button>
+    </div>
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="stat-label">Total usuarios</div><div class="stat-value blue" id="st-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Administradores</div><div class="stat-value" id="st-admin">—</div></div>
+      <div class="stat-card"><div class="stat-label">Médicos</div><div class="stat-value green" id="st-medico">—</div></div>
+      <div class="stat-card"><div class="stat-label">Analistas</div><div class="stat-value amber" id="st-analista">—</div></div>
+    </div>
+
+    <div class="tabla-card">
+      <div class="tabla-top">
+        <span class="tabla-title">Lista de usuarios</span>
+        <input class="search" id="busqueda" placeholder="Buscar por nombre o email..." oninput="filtrar()">
+        <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Recargar</button>
+        <span class="tabla-info" id="info">—</span>
+      </div>
+      <div class="tabla-wrap">
+        <div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando usuarios...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Nuevo <span>usuario</span></div>
+    <div class="fg" id="nombreGrp"><label class="fl">Nombre completo</label><input class="fi" id="f-nombre" placeholder="ej. Byron Loor"></div>
+    <div class="fg" id="emailGrp"><label class="fl">Email</label><input class="fi" id="f-email" type="email" placeholder="usuario@diabcare.com"></div>
+    <div class="fg" id="passGrp"><label class="fl">Contraseña</label><input class="fi" id="f-pass" type="password" placeholder="••••••••"></div>
+    <div class="fg"><label class="fl">Rol</label>
+      <select class="fs" id="f-rol">
+        <option value="medico">Médico</option>
+        <option value="analista">Analista</option>
+        <option value="administrador">Administrador</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btnGuardar" onclick="guardar()">Crear usuario</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+const API = 'http://localhost:8000';
+const token = localStorage.getItem('token');
+let usuarios = [], modoEd = null;
+
+function toggle(h) {
+  h.classList.toggle('open');
+  const s = h.nextElementSibling;
+  if (s) s.classList.toggle('open');
+}
+
+function initUser() {
+  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  // Protección por rol — solo administrador
+  if (u.rol !== 'administrador') {
+    window.location.href = '/paginas/analisis/index.html';
+    return;
+  }
+  if (u.nombre) {
+    document.getElementById('userName').textContent    = u.nombre;
+    document.getElementById('userRol').textContent     = u.rol || '';
+    document.getElementById('userAvatar').textContent  = u.nombre[0].toUpperCase();
+  }
+}
+
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function actualizarStats(data) {
+  document.getElementById('st-total').textContent   = data.length;
+  document.getElementById('st-admin').textContent   = data.filter(u => u.rol === 'administrador').length;
+  document.getElementById('st-medico').textContent  = data.filter(u => u.rol === 'medico').length;
+  document.getElementById('st-analista').textContent= data.filter(u => u.rol === 'analista').length;
+}
+
+async function cargar() {
+  document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const r = await fetch(API + '/api/usuarios/', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    if (r.status === 403) { toast('Sin permisos para ver usuarios', 'error'); return; }
+    usuarios = await r.json();
+    actualizarStats(usuarios);
+    render(usuarios);
+  } catch {
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
+  }
+}
+
+function rolBadge(r) {
+  if (r === 'administrador') return 'b-admin';
+  if (r === 'medico')        return 'b-medico';
+  if (r === 'analista')      return 'b-analista';
+  return '';
+}
+
+function render(data) {
+  document.getElementById('info').textContent = data.length + ' usuario' + (data.length !== 1 ? 's' : '');
+  if (!data.length) {
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin usuarios registrados</div>';
+    return;
+  }
+  let h = `<table><thead><tr>
+    <th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Registrado</th><th>Acciones</th>
+  </tr></thead><tbody>`;
+  data.forEach(u => {
+    const f = u.creado_en ? u.creado_en.split('T')[0] : '—';
+    h += `<tr>
+      <td class="name">${u.nombre}</td>
+      <td class="mono">${u.email}</td>
+      <td><span class="badge ${rolBadge(u.rol)}">${u.rol || 'sin rol'}</span></td>
+      <td><span class="badge ${u.activo ? 'b-activo' : 'b-inactivo'}">${u.activo ? 'activo' : 'inactivo'}</span></td>
+      <td class="mono">${f}</td>
+      <td><div class="acciones">
+        <button class="btn btn-sm btn-edit" onclick="editarRol('${u.id}','${u.rol || 'medico'}')">Rol</button>
+        ${u.activo ? `<button class="btn btn-sm btn-del" onclick="desactivar('${u.id}','${u.nombre}')">Desactivar</button>` : ''}
+      </div></td>
+    </tr>`;
+  });
+  h += '</tbody></table>';
+  document.getElementById('tablaBody').innerHTML = h;
+}
+
+function filtrar() {
+  const q = document.getElementById('busqueda').value.toLowerCase();
+  render(usuarios.filter(u => u.nombre.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)));
+}
+
+function abrirModal() {
+  modoEd = null;
+  document.getElementById('modalTitle').innerHTML = 'Nuevo <span>usuario</span>';
+  document.getElementById('f-nombre').value = '';
+  document.getElementById('f-email').value  = '';
+  document.getElementById('f-pass').value   = '';
+  document.getElementById('f-rol').value    = 'medico';
+  document.getElementById('nombreGrp').style.display = 'flex';
+  document.getElementById('emailGrp').style.display  = 'flex';
+  document.getElementById('passGrp').style.display   = 'flex';
+  document.getElementById('btnGuardar').textContent  = 'Crear usuario';
+  document.getElementById('overlay').classList.add('show');
+}
+
+function editarRol(id, rol) {
+  modoEd = id;
+  document.getElementById('modalTitle').innerHTML = 'Cambiar <span>rol</span>';
+  document.getElementById('f-rol').value = rol;
+  document.getElementById('nombreGrp').style.display = 'none';
+  document.getElementById('emailGrp').style.display  = 'none';
+  document.getElementById('passGrp').style.display   = 'none';
+  document.getElementById('btnGuardar').textContent  = 'Actualizar rol';
+  document.getElementById('overlay').classList.add('show');
+}
+
+function cerrarModal() { document.getElementById('overlay').classList.remove('show'); }
+
+async function guardar() {
+  if (modoEd) {
+    const r = await fetch(API + '/api/usuarios/' + modoEd + '/rol', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ rol: document.getElementById('f-rol').value })
+    });
+    const d = await r.json();
+    cerrarModal(); cargar();
+    toast(r.ok ? 'Rol actualizado' : d.detail, r.ok ? 'success' : 'error');
+  } else {
+    const b = {
+      nombre:   document.getElementById('f-nombre').value,
+      email:    document.getElementById('f-email').value,
+      password: document.getElementById('f-pass').value,
+      rol:      document.getElementById('f-rol').value
+    };
+    if (!b.nombre || !b.email || !b.password) { toast('Completa todos los campos', 'error'); return; }
+    const r = await fetch(API + '/api/usuarios/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(b)
+    });
+    const d = await r.json();
+    cerrarModal(); cargar();
+    toast(r.ok ? 'Usuario ' + b.nombre + ' creado' : d.detail, r.ok ? 'success' : 'error');
+  }
+}
+
+async function desactivar(id, nombre) {
+  if (!confirm('¿Desactivar a ' + nombre + '?')) return;
+  const r = await fetch(API + '/api/usuarios/' + id, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  cargar();
+  toast(r.ok ? nombre + ' desactivado' : 'Error al desactivar', r.ok ? 'success' : 'error');
+}
+
+initUser();
+cargar();
+</script>
+</body>
+</html>

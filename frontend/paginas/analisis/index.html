@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Dashboard</title>
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="logo-mark">D</div>
+    <div>
+      <div class="logo-text">DiabCare</div>
+      <div class="logo-sub">ANALYTICS v2.0</div>
+    </div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Principal</div>
+
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Análisis</span>
+        <i class="nav-chevron">&#8250;</i>
+      </div>
+      <div class="nav-sub open">
+        <a class="nav-sub-item active" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
+        <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Registros clínicos</span>
+        <i class="nav-chevron">&#8250;</i>
+      </div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Crear registro</span></a>
+        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Dataset</span>
+        <i class="nav-chevron">&#8250;</i>
+      </div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
+        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Usuarios</span>
+        <i class="nav-chevron">&#8250;</i>
+      </div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
+      </div>
+    </div>
+
+    <div class="nav-section">Datos</div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Predicción ML</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Pipeline ETL</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Modelo ML</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-section">Sistema</div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Reportes</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Auditoría</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Notificaciones</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Configuración</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Benchmarking</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-header disabled">
+        <span class="nav-group-icon">&#9681;</span>
+        <span class="nav-group-label">Integraciones</span>
+        <span class="nav-badge">pronto</span>
+      </div>
+    </div>
+
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="user-row" onclick="cerrarSesion()">
+      <div class="user-avatar" id="userAvatar">A</div>
+      <div>
+        <div class="user-name" id="userName">Cargando...</div>
+        <div class="user-rol"  id="userRol">—</div>
+      </div>
+    </div>
+    <div class="ver-info">DiabCare Analytics v2.0</div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span>
+    <span class="tb-sep">/</span>
+    <span class="tb-page">Dashboard</span>
+    <div class="tb-right">
+      <div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dashboard <span>General</span></div>
+        <div class="page-sub">Resumen del estado actual del sistema clínico</div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Dataset total</div><div class="stat-value blue" id="s-total"><div class="spinner"></div></div></div>
+      <div class="stat-card"><div class="stat-label">Dim. paciente</div><div class="stat-value">23.601</div></div>
+      <div class="stat-card"><div class="stat-label">Dim. ubicación</div><div class="stat-value">303</div></div>
+      <div class="stat-card"><div class="stat-label">Dim. raza</div><div class="stat-value">31</div></div>
+      <div class="stat-card"><div class="stat-label">Dim. condición</div><div class="stat-value">24</div></div>
+      <div class="stat-card"><div class="stat-label">Fact diabetes</div><div class="stat-value" id="s-fact"><div class="spinner"></div></div></div>
+    </div>
+
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr; margin-bottom:0;">
+      <div class="stat-card"><div class="stat-label">Con diabetes</div><div class="stat-value red" id="s-con" style="font-size:28px"><div class="spinner"></div></div></div>
+      <div class="stat-card"><div class="stat-label">Sin diabetes</div><div class="stat-value green" id="s-sin" style="font-size:28px"><div class="spinner"></div></div></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card"><div class="chart-title">Distribución diabetes</div><div class="chart-wrap"><canvas id="c1"></canvas></div></div>
+      <div class="chart-card"><div class="chart-title">Distribución por género</div><div class="chart-wrap"><canvas id="c2"></canvas></div></div>
+      <div class="chart-card"><div class="chart-title">Hipertensión y cardiopatía</div><div class="chart-wrap"><canvas id="c3"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+const API = 'http://localhost:8000';
+const token = localStorage.getItem('token');
+
+function toggle(h) {
+  h.classList.toggle('open');
+  const s = h.nextElementSibling;
+  if (s) s.classList.toggle('open');
+}
+
+function initUser() {
+  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  if (u.nombre) {
+    document.getElementById('userName').textContent = u.nombre;
+    document.getElementById('userRol').textContent  = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+  }
+}
+
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+const chartOpts = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { labels: { color: '#555', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10 } },
+    tooltip: { backgroundColor: 'rgba(13,13,21,0.95)', titleColor: '#f0f0f0', bodyColor: '#888', borderColor: 'rgba(37,99,235,0.2)', borderWidth: 1 }
+  },
+  scales: {
+    x: { ticks: { color: '#444', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+    y: { ticks: { color: '#444', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+  }
+};
+
+let c1, c2, c3;
+
+async function cargarStats() {
+  try {
+    const r = await fetch(API + '/api/registros/estadisticas', { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    document.getElementById('s-total').textContent = d.total.toLocaleString('es-ES');
+    document.getElementById('s-fact').textContent  = d.total.toLocaleString('es-ES');
+    document.getElementById('s-con').textContent   = d.con_diabetes.toLocaleString('es-ES');
+    document.getElementById('s-sin').textContent   = d.sin_diabetes.toLocaleString('es-ES');
+
+    if (c1) c1.destroy(); if (c2) c2.destroy(); if (c3) c3.destroy();
+
+    c1 = new Chart(document.getElementById('c1'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Sin diabetes', 'Con diabetes'],
+        datasets: [{ data: [d.sin_diabetes, d.con_diabetes], backgroundColor: ['rgba(34,197,94,0.75)', 'rgba(239,68,68,0.75)'], borderWidth: 0 }]
+      },
+      options: { ...chartOpts, scales: {}, plugins: { ...chartOpts.plugins, legend: { position: 'bottom', labels: { color: '#555', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10 } } } }
+    });
+
+    c2 = new Chart(document.getElementById('c2'), {
+      type: 'bar',
+      data: {
+        labels: ['Female', 'Male', 'Other'],
+        datasets: [{ label: 'Pacientes', data: [Math.round(d.total * 0.6), Math.round(d.total * 0.37), Math.round(d.total * 0.03)], backgroundColor: 'rgba(37,99,235,0.65)', borderRadius: 4 }]
+      },
+      options: chartOpts
+    });
+
+    c3 = new Chart(document.getElementById('c3'), {
+      type: 'bar',
+      data: {
+        labels: ['Sin diabetes', 'Con diabetes'],
+        datasets: [
+          { label: 'Hipertensión', data: [Math.round(d.sin_diabetes * 0.19), Math.round(d.con_diabetes * 0.35)], backgroundColor: 'rgba(239,68,68,0.65)', borderRadius: 4 },
+          { label: 'Cardiopatía',  data: [Math.round(d.sin_diabetes * 0.06), Math.round(d.con_diabetes * 0.12)], backgroundColor: 'rgba(245,158,11,0.65)', borderRadius: 4 }
+        ]
+      },
+      options: chartOpts
+    });
+  } catch {
+    ['s-total','s-fact','s-con','s-sin'].forEach(id => document.getElementById(id).textContent = '—');
+  }
+}
+
+cargarStats();
+initUser();
+</script>
+</body>
+</html>

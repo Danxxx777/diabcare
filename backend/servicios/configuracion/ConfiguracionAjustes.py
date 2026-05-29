@@ -1,0 +1,6 @@
+﻿PUERTO_API = 8000
+POCKETBASE_URL = "http://localhost:8090"
+POCKETBASE_EMAIL = "bloorm2@uteq.edu.ec"
+POCKETBASE_PASSWORD = "BDLM2106eslm2006.2018"
+MINIO_BUCKET = "diabetes-data"
+MINIO_STAGE_PATH = "stage/"

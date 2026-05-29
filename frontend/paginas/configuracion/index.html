@@ -1,1 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Configuración</title>
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<style>
+.config-section { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:16px; }
+.config-title   { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
+.config-sub     { font-size:11px; color:var(--text3); margin-bottom:16px; }
+.config-grid    { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.config-row     { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:0.5px solid var(--border); }
+.config-row:last-child { border-bottom:none; }
+.config-row-label { font-size:12px; color:var(--text2); }
+.config-row-sub   { font-size:10px; color:var(--text3); margin-top:2px; }
+.toggle { width:36px; height:20px; background:rgba(255,255,255,0.1); border-radius:10px; cursor:pointer; position:relative; transition:background 0.2s; flex-shrink:0; }
+.toggle.on { background:var(--accent); }
+.toggle::after { content:''; position:absolute; width:14px; height:14px; background:white; border-radius:50%; top:3px; left:3px; transition:left 0.2s; }
+.toggle.on::after { left:19px; }
+</style>
+</head>
+<body>
 
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="logo-mark">D</div>
+    <div><div class="logo-text">DiabCare</div><div class="logo-sub">ANALYTICS v2.0</div></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Principal</div>
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Análisis</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
+        <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Registros clínicos</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Dataset</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
+        <a class="nav-sub-item" href="/paginas/dataset/index.html#generador"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Usuarios</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
+      </div>
+    </div>
+    <div class="nav-section">Datos</div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Modelo ML</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-section">Sistema</div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Reportes</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Auditoría</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Notificaciones</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group">
+      <div class="nav-group-header open" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Configuración</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub open">
+        <a class="nav-sub-item active" href="/paginas/configuracion/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ajustes del sistema</span></a>
+      </div>
+    </div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Benchmarking</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="user-row" onclick="cerrarSesion()">
+      <div class="user-avatar" id="userAvatar">A</div>
+      <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
+    </div>
+    <div class="ver-info">DiabCare Analytics v2.0</div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Configuración</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Configuración del <span>sistema</span></div>
+        <div class="page-sub">Ajustes de infraestructura y conexiones</div>
+      </div>
+      <button class="btn btn-primary" onclick="guardar()">Guardar cambios</button>
+    </div>
+
+    <!-- MinIO -->
+    <div class="config-section">
+      <div class="config-title">Conexión MinIO</div>
+      <div class="config-sub">Configuración del almacenamiento de objetos</div>
+      <div class="config-grid">
+        <div class="fg"><label class="fl">Endpoint</label><input class="fi" id="minio-endpoint" value="localhost:9000"></div>
+        <div class="fg"><label class="fl">Bucket principal</label><input class="fi" id="minio-bucket" value="diabetes-data"></div>
+        <div class="fg"><label class="fl">Access Key</label><input class="fi" id="minio-access" value="admin"></div>
+        <div class="fg"><label class="fl">Secret Key</label><input class="fi" id="minio-secret" type="password" value="password123"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="testMinio()">&#9654; Probar conexión</button>
+        <span id="minio-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);"></span>
+      </div>
+    </div>
+
+    <!-- Sistema -->
+    <div class="config-section">
+      <div class="config-title">Ajustes generales</div>
+      <div class="config-sub">Comportamiento del sistema</div>
+      <div class="config-row">
+        <div><div class="config-row-label">Modo debug</div><div class="config-row-sub">Mostrar logs detallados en consola</div></div>
+        <div class="toggle" id="t-debug" onclick="toggleSwitch(this)"></div>
+      </div>
+      <div class="config-row">
+        <div><div class="config-row-label">Auditoría automática</div><div class="config-row-sub">Registrar todas las acciones del sistema</div></div>
+        <div class="toggle on" id="t-auditoria" onclick="toggleSwitch(this)"></div>
+      </div>
+      <div class="config-row">
+        <div><div class="config-row-label">Cache de dataset</div><div class="config-row-sub">Mantener dataset en memoria para consultas rápidas</div></div>
+        <div class="toggle on" id="t-cache" onclick="toggleSwitch(this)"></div>
+      </div>
+      <div class="config-row">
+        <div><div class="config-row-label">Notificaciones por email</div><div class="config-row-sub">Enviar alertas críticas por correo</div></div>
+        <div class="toggle" id="t-email" onclick="toggleSwitch(this)"></div>
+      </div>
+    </div>
+
+    <!-- Info del sistema -->
+    <div class="config-section">
+      <div class="config-title">Información del sistema</div>
+      <div class="config-sub">Estado actual de la plataforma</div>
+      <div class="config-row"><div><div class="config-row-label">Versión</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">DiabCare Analytics v2.0.0</span></div>
+      <div class="config-row"><div><div class="config-row-label">Backend</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">FastAPI + Python 3.11</span></div>
+      <div class="config-row"><div><div class="config-row-label">Almacenamiento</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">MinIO + Parquet</span></div>
+      <div class="config-row"><div><div class="config-row-label">Dataset origen</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">PocketBase</span></div>
+      <div class="config-row"><div><div class="config-row-label">Puerto API</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">8000</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+const API = 'http://localhost:8000';
+const token = localStorage.getItem('token');
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+function toggleSwitch(el) { el.classList.toggle('on'); }
+
+function initUser() {
+  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  if (u.rol !== 'administrador') { window.location.href = '/paginas/analisis/index.html'; return; }
+  if (u.nombre) {
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+  }
+}
+
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function testMinio() {
+  const st = document.getElementById('minio-status');
+  st.textContent = 'Probando...';
+  st.style.color = 'var(--text3)';
+  try {
+    const r = await fetch(`${API}/api/health`, { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (d.minio === 'conectado') {
+      st.textContent = '✓ MinIO conectado correctamente';
+      st.style.color = 'var(--green)';
+    } else {
+      st.textContent = '✗ MinIO sin conexión';
+      st.style.color = 'var(--red)';
+    }
+  } catch {
+    st.textContent = '✗ Error al conectar';
+    st.style.color = 'var(--red)';
+  }
+}
+
+async function guardar() {
+  try {
+    const config = {
+      minio_endpoint: document.getElementById('minio-endpoint').value,
+      minio_bucket:   document.getElementById('minio-bucket').value,
+      minio_access:   document.getElementById('minio-access').value,
+      debug:          document.getElementById('t-debug').classList.contains('on'),
+      auditoria:      document.getElementById('t-auditoria').classList.contains('on'),
+      cache:          document.getElementById('t-cache').classList.contains('on'),
+      email:          document.getElementById('t-email').classList.contains('on'),
+    };
+    const r = await fetch(`${API}/api/configuracion/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(config)
+    });
+    toast(r.ok ? 'Configuración guardada' : 'Error al guardar', r.ok ? 'success' : 'error');
+  } catch {
+    toast('Error de conexión', 'error');
+  }
+}
+
+initUser();
+</script>
+</body>
+</html>

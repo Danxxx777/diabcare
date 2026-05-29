@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Registros Clínicos</title>
+<link rel="stylesheet" href="/estaticos/estilos.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="logo-mark">D</div>
+    <div><div class="logo-text">DiabCare</div><div class="logo-sub">ANALYTICS v2.0</div></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Principal</div>
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Análisis</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
+        <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-header open" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Registros clínicos</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub open">
+        <a class="nav-sub-item active" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Dataset</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
+        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Usuarios</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
+      </div>
+    </div>
+    <div class="nav-section">Datos</div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Modelo ML</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-section">Sistema</div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Reportes</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Auditoría</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Notificaciones</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Configuración</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Benchmarking</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="user-row" onclick="cerrarSesion()">
+      <div class="user-avatar" id="userAvatar">A</div>
+      <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
+    </div>
+    <div class="ver-info">DiabCare Analytics v2.0</div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Registros clínicos</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Registros <span>clínicos</span></div>
+        <div class="page-sub">Consulta y filtra los registros del sistema clínico</div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total registros</div><div class="stat-value blue" id="st-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Con diabetes</div><div class="stat-value red" id="st-con">—</div></div>
+      <div class="stat-card"><div class="stat-label">Sin diabetes</div><div class="stat-value green" id="st-sin">—</div></div>
+      <div class="stat-card"><div class="stat-label">Página actual</div><div class="stat-value" id="st-pag">1</div></div>
+    </div>
+
+    <div class="tabla-card">
+      <div class="tabla-top">
+        <span class="tabla-title">Registros</span>
+        <select class="search" id="f-diabetes" style="width:160px" onchange="cargar()">
+          <option value="">Todos</option>
+          <option value="1">Con diabetes</option>
+          <option value="0">Sin diabetes</option>
+        </select>
+        <select class="search" id="f-genero" style="width:130px" onchange="cargar()">
+          <option value="">Género</option>
+          <option value="Female">Female</option>
+          <option value="Male">Male</option>
+          <option value="Other">Other</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="pag=1;cargar()">↺ Recargar</button>
+        <span class="tabla-info" id="info">—</span>
+      </div>
+      <div class="tabla-wrap">
+        <div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando registros...</div></div>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="prevPag()">&#8592; Anterior</button>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono)" id="pagInfo">Pág 1</span>
+        <button class="btn btn-ghost btn-sm" onclick="nextPag()">Siguiente &#8594;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+const API = 'http://localhost:8000';
+const token = localStorage.getItem('token');
+let pag = 1, totalPags = 1;
+const LIMIT = 50;
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+
+function initUser() {
+  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  if (u.nombre) {
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+  }
+}
+
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function cargar() {
+  document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const diabetes = document.getElementById('f-diabetes').value;
+    const genero   = document.getElementById('f-genero').value;
+    let url = `${API}/api/registros/?skip=${(pag-1)*LIMIT}&limit=${LIMIT}`;
+    if (diabetes !== '') url += `&diabetes=${diabetes}`;
+    if (genero)          url += `&genero=${genero}`;
+
+    const [rData, rStats] = await Promise.all([
+      fetch(url, { headers: { 'Authorization': 'Bearer ' + token } }),
+      fetch(`${API}/api/registros/estadisticas`, { headers: { 'Authorization': 'Bearer ' + token } })
+    ]);
+
+    if (rData.status === 401) { window.location.href = '/'; return; }
+    const data  = await rData.json();
+    const stats = rStats.ok ? await rStats.json() : {};
+
+    if (stats.total) {
+      document.getElementById('st-total').textContent = stats.total.toLocaleString('es-ES');
+      document.getElementById('st-con').textContent   = stats.con_diabetes.toLocaleString('es-ES');
+      document.getElementById('st-sin').textContent   = stats.sin_diabetes.toLocaleString('es-ES');
+    }
+
+    const registros = Array.isArray(data) ? data : (data.registros || data.items || []);
+    document.getElementById('info').textContent = registros.length + ' registros en esta página';
+    document.getElementById('st-pag').textContent = pag;
+    document.getElementById('pagInfo').textContent = `Pág ${pag}`;
+
+    if (!registros.length) {
+      document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin registros</div>';
+      return;
+    }
+
+    const cols = Object.keys(registros[0]).slice(0, 8);
+    let h = `<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+    registros.forEach(r => {
+      h += `<tr>${cols.map(c => {
+        const v = r[c];
+        if (c === 'diabetes' || c === 'Diabetes') {
+          return `<td><span class="badge ${v == 1 ? 'b-inactivo' : 'b-activo'}">${v == 1 ? 'sí' : 'no'}</span></td>`;
+        }
+        return `<td class="mono">${v ?? '—'}</td>`;
+      }).join('')}</tr>`;
+    });
+    h += '</tbody></table>';
+    document.getElementById('tablaBody').innerHTML = h;
+  } catch(e) {
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
+  }
+}
+
+function prevPag() { if (pag > 1) { pag--; cargar(); } }
+function nextPag() { pag++; cargar(); }
+
+initUser();
+cargar();
+</script>
+</body>
+</html>

@@ -1,1 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Dataset</title>
+<link rel="stylesheet" href="/estaticos/estilos.css">
+</head>
+<body>
 
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="logo-mark">D</div>
+    <div><div class="logo-text">DiabCare</div><div class="logo-sub">ANALYTICS v2.0</div></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Principal</div>
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Análisis</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
+        <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Registros clínicos</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-header open" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Dataset</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub open">
+        <a class="nav-sub-item active" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
+        <a class="nav-sub-item" href="/paginas/dataset/index.html#generador"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Usuarios</span><i class="nav-chevron">&#8250;</i></div>
+      <div class="nav-sub">
+        <a class="nav-sub-item" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
+      </div>
+    </div>
+    <div class="nav-section">Datos</div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Modelo ML</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-section">Sistema</div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Reportes</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Auditoría</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Notificaciones</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Configuración</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Benchmarking</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="user-row" onclick="cerrarSesion()">
+      <div class="user-avatar" id="userAvatar">A</div>
+      <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
+    </div>
+    <div class="ver-info">DiabCare Analytics v2.0</div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Dataset</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dataset <span>clínico</span></div>
+        <div class="page-sub">Explora las tablas del dataset de diabetes hospitalaria</div>
+      </div>
+    </div>
+
+    <div class="stats-grid" style="margin-bottom:18px;">
+      <div class="stat-card"><div class="stat-label">Fact diabetes</div><div class="stat-value blue" id="st-fact">—</div></div>
+      <div class="stat-card"><div class="stat-label">Dim. paciente</div><div class="stat-value">23.601</div></div>
+      <div class="stat-card"><div class="stat-label">Dim. ubicación</div><div class="stat-value">303</div></div>
+      <div class="stat-card"><div class="stat-label">Dim. raza</div><div class="stat-value">31</div></div>
+      <div class="stat-card"><div class="stat-label">Dim. condición</div><div class="stat-value">24</div></div>
+    </div>
+
+    <!-- Selector de tabla -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm tab-btn" data-tabla="hechos" onclick="selTabla(this)">Hechos diabetes</button>
+      <button class="btn btn-ghost btn-sm tab-btn" data-tabla="paciente" onclick="selTabla(this)">Dim. paciente</button>
+      <button class="btn btn-ghost btn-sm tab-btn" data-tabla="ubicacion" onclick="selTabla(this)">Dim. ubicación</button>
+      <button class="btn btn-ghost btn-sm tab-btn" data-tabla="raza" onclick="selTabla(this)">Dim. raza</button>
+      <button class="btn btn-ghost btn-sm tab-btn" data-tabla="condicion" onclick="selTabla(this)">Dim. condición</button>
+    </div>
+
+    <div class="tabla-card">
+      <div class="tabla-top">
+        <span class="tabla-title" id="tablaActual">Hechos diabetes</span>
+        <button class="btn btn-ghost btn-sm" onclick="cargarTabla()">↺ Recargar</button>
+        <span class="tabla-info" id="info">—</span>
+      </div>
+      <div class="tabla-wrap">
+        <div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando tabla...</div></div>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="prevPag()">&#8592; Anterior</button>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono)" id="pagInfo">Pág 1</span>
+        <button class="btn btn-ghost btn-sm" onclick="nextPag()">Siguiente &#8594;</button>
+      </div>
+    </div>
+
+    <!-- Generador -->
+    <div id="generador" style="margin-top:24px;">
+      <div class="page-header" style="margin-bottom:14px;">
+        <div>
+          <div class="page-title" style="font-size:16px;">Generador de <span>datos</span></div>
+          <div class="page-sub">Genera registros sintéticos para el dataset</div>
+        </div>
+      </div>
+      <div class="tabla-card" style="padding:20px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+          <div class="fg" style="margin-bottom:0"><label class="fl">Cantidad de registros</label><input class="fi" id="g-cantidad" type="number" value="1000" min="1" max="100000"></div>
+          <div class="fg" style="margin-bottom:0"><label class="fl">Semilla aleatoria</label><input class="fi" id="g-seed" type="number" value="42"></div>
+        </div>
+        <button class="btn btn-primary" id="btnGenerar" onclick="generar()">&#9654; Generar datos</button>
+        <div id="g-resultado" style="margin-top:12px;font-size:12px;color:var(--text3);font-family:var(--mono);"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+const API = 'http://localhost:8000';
+const token = localStorage.getItem('token');
+let pag = 1, tablaActual = 'hechos';
+const LIMIT = 50;
+
+const RUTAS = {
+  hechos:    '/api/dataset/hechos',
+  paciente:  '/api/dataset/dimension/paciente',
+  ubicacion: '/api/dataset/dimension/ubicacion',
+  raza:      '/api/dataset/dimension/raza',
+  condicion: '/api/dataset/dimension/condicion',
+};
+
+const NOMBRES = {
+  hechos: 'Hechos diabetes', paciente: 'Dim. paciente',
+  ubicacion: 'Dim. ubicación', raza: 'Dim. raza', condicion: 'Dim. condición'
+};
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+
+function initUser() {
+  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  if (u.nombre) {
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+  }
+}
+
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function selTabla(btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => { b.className = 'btn btn-ghost btn-sm tab-btn'; });
+  btn.className = 'btn btn-primary btn-sm tab-btn';
+  tablaActual = btn.dataset.tabla;
+  document.getElementById('tablaActual').textContent = NOMBRES[tablaActual];
+  pag = 1;
+  cargarTabla();
+}
+
+async function cargarTabla() {
+  document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const url = `${API}${RUTAS[tablaActual]}?skip=${(pag-1)*LIMIT}&limit=${LIMIT}`;
+    const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    const data = await r.json();
+    const rows = Array.isArray(data) ? data : (data.datos || data.items || data.registros || []);
+
+    document.getElementById('info').textContent = rows.length + ' filas';
+    document.getElementById('pagInfo').textContent = `Pág ${pag}`;
+
+    if (!rows.length) { document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin datos</div>'; return; }
+
+    const cols = Object.keys(rows[0]);
+    let h = `<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+    rows.forEach(row => {
+      h += `<tr>${cols.map(c => `<td class="mono">${row[c] ?? '—'}</td>`).join('')}</tr>`;
+    });
+    h += '</tbody></table>';
+    document.getElementById('tablaBody').innerHTML = h;
+
+    if (tablaActual === 'hechos') document.getElementById('st-fact').textContent = '300.000';
+  } catch {
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
+  }
+}
+
+function prevPag() { if (pag > 1) { pag--; cargarTabla(); } }
+function nextPag() { pag++; cargarTabla(); }
+
+async function generar() {
+  const btn = document.getElementById('btnGenerar');
+  btn.textContent = 'Generando...';
+  btn.disabled = true;
+  document.getElementById('g-resultado').textContent = '';
+  try {
+    const r = await fetch(`${API}/api/dataset/generar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ cantidad: parseInt(document.getElementById('g-cantidad').value), seed: parseInt(document.getElementById('g-seed').value) })
+    });
+    const d = await r.json();
+    document.getElementById('g-resultado').textContent = r.ok ? '✓ ' + (d.mensaje || 'Datos generados correctamente') : '✗ ' + (d.detail || 'Error al generar');
+    if (r.ok) toast('Datos generados', 'success');
+  } catch {
+    document.getElementById('g-resultado').textContent = '✗ Error de conexión';
+  } finally {
+    btn.textContent = '▶ Generar datos';
+    btn.disabled = false;
+  }
+}
+
+initUser();
+cargarTabla();
+</script>
+</body>
+</html>
