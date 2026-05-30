@@ -6,162 +6,164 @@
 <title>DiabCare — Dashboard</title>
 <link rel="stylesheet" href="/estaticos/estilos.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── Layout ── */
+.dash-row   { display:grid; gap:14px; margin-bottom:14px; }
+.dash-2     { grid-template-columns:1fr 1fr; }
+.dash-3     { grid-template-columns:1fr 1fr 1fr; }
+.dash-4     { grid-template-columns:repeat(4,1fr); }
+.dash-3-1   { grid-template-columns:2fr 1fr; }
+.dash-1-2   { grid-template-columns:1fr 2fr; }
+
+/* ── KPI cards ── */
+.kpi-card {
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:18px 20px; position:relative; overflow:hidden;
+}
+.kpi-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; }
+.kpi-card.blue::after  { background:rgba(37,99,235,0.7); }
+.kpi-card.red::after   { background:rgba(239,68,68,0.7); }
+.kpi-card.green::after { background:rgba(34,197,94,0.7); }
+.kpi-card.amber::after { background:rgba(245,158,11,0.7); }
+.kpi-label { font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:10px; }
+.kpi-val   { font-size:28px; font-weight:700; font-family:var(--mono); line-height:1; }
+.kpi-val.blue  { color:rgba(37,99,235,0.9); }
+.kpi-val.red   { color:rgba(239,68,68,0.9); }
+.kpi-val.green { color:rgba(34,197,94,0.9); }
+.kpi-val.amber { color:rgba(245,158,11,0.9); }
+.kpi-sub { font-size:10px; color:var(--muted); margin-top:7px; font-family:var(--mono); }
+
+/* ── Panel base ── */
+.panel {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:10px; padding:18px 20px;
+}
+.panel-title {
+  font-size:10px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--muted); margin-bottom:14px;
+}
+
+/* ── Accesos rápidos ── */
+.quick-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.quick-btn {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 14px; border-radius:8px;
+  border:1px solid var(--border); background:rgba(255,255,255,0.02);
+  cursor:pointer; text-decoration:none; transition:all .2s;
+}
+.quick-btn:hover { border-color:rgba(37,99,235,0.4); background:rgba(37,99,235,0.06); transform:translateY(-1px); }
+.quick-icon { width:30px; height:30px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.quick-icon.blue  { background:rgba(37,99,235,0.12); }
+.quick-icon.green { background:rgba(34,197,94,0.12); }
+.quick-icon.amber { background:rgba(245,158,11,0.12); }
+.quick-icon.purple{ background:rgba(139,92,246,0.12); }
+.quick-label { font-size:11px; color:var(--text); font-weight:500; }
+.quick-sub   { font-size:10px; color:var(--muted); margin-top:1px; }
+
+/* ── Sistema rows ── */
+.sys-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); }
+.sys-row:last-child { border-bottom:none; }
+.sys-label { font-size:11px; color:var(--text); }
+.sys-badge { font-size:10px; font-family:var(--mono); padding:2px 8px; border-radius:10px; }
+.sys-badge.ok   { background:rgba(34,197,94,0.08); color:rgba(34,197,94,0.85); border:1px solid rgba(34,197,94,0.2); }
+.sys-badge.warn { background:rgba(245,158,11,0.08); color:rgba(245,158,11,0.85); border:1px solid rgba(245,158,11,0.2); }
+.sys-badge.err  { background:rgba(239,68,68,0.08);  color:rgba(239,68,68,0.85);  border:1px solid rgba(239,68,68,0.2); }
+
+/* ── Alertas ── */
+.alert-item { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+.alert-item:last-child { border-bottom:none; }
+.alert-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+.alert-dot.red   { background:rgba(239,68,68,0.8); box-shadow:0 0 6px rgba(239,68,68,0.4); }
+.alert-dot.amber { background:rgba(245,158,11,0.8); box-shadow:0 0 6px rgba(245,158,11,0.4); }
+.alert-dot.green { background:rgba(34,197,94,0.8); box-shadow:0 0 6px rgba(34,197,94,0.4); }
+.alert-dot.blue  { background:rgba(37,99,235,0.8); box-shadow:0 0 6px rgba(37,99,235,0.4); }
+.alert-text { font-size:11px; color:var(--text); line-height:1.5; flex:1; }
+.alert-sub  { font-size:10px; color:var(--muted); margin-top:2px; }
+
+/* ── Top ubicaciones ── */
+.top-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.top-row:last-child { border-bottom:none; }
+.top-rank { font-size:11px; font-family:var(--mono); color:var(--muted); width:16px; flex-shrink:0; }
+.top-name { font-size:11px; color:var(--text); flex:1; }
+.top-track { flex:2; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; }
+.top-fill  { height:100%; border-radius:2px; background:rgba(37,99,235,0.5); }
+.top-val   { font-size:10px; font-family:var(--mono); color:var(--muted); width:52px; text-align:right; }
+
+/* ── MinIO archivos ── */
+.file-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.file-row:last-child { border-bottom:none; }
+.file-icon { font-size:12px; flex-shrink:0; opacity:.6; }
+.file-name { font-size:10px; font-family:var(--mono); color:var(--text); flex:1; word-break:break-all; }
+.file-meta { font-size:10px; color:var(--muted); flex-shrink:0; text-align:right; }
+
+/* ── Donut mini ── */
+.donut-wrap { height:140px; display:flex; align-items:center; justify-content:center; }
+</style>
 </head>
 <body>
 
 <aside class="sidebar">
   <div class="logo-area">
     <div class="logo-mark">D</div>
-    <div>
-      <div class="logo-text">DiabCare</div>
-      <div class="logo-sub">ANALYTICS v2.0</div>
-    </div>
+    <div><div class="logo-text">DiabCare</div></div>
   </div>
   <nav class="nav">
     <div class="nav-section">Principal</div>
-
     <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Análisis</span>
-        <i class="nav-chevron">&#8250;</i>
-      </div>
+      <div class="nav-group-header open" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Análisis</span><i class="nav-chevron">&#8250;</i></div>
       <div class="nav-sub open">
         <a class="nav-sub-item active" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
         <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
       </div>
     </div>
-
     <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Registros clínicos</span>
-        <i class="nav-chevron">&#8250;</i>
-      </div>
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Registros clínicos</span><i class="nav-chevron">&#8250;</i></div>
       <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Crear registro</span></a>
         <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
       </div>
     </div>
-
     <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Dataset</span>
-        <i class="nav-chevron">&#8250;</i>
-      </div>
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Dataset</span><i class="nav-chevron">&#8250;</i></div>
       <div class="nav-sub">
         <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
-        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
+        <a class="nav-sub-item" href="/paginas/dataset/generador.html"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
       </div>
     </div>
-
     <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Usuarios</span>
-        <i class="nav-chevron">&#8250;</i>
-      </div>
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Usuarios</span><i class="nav-chevron">&#8250;</i></div>
       <div class="nav-sub">
         <a class="nav-sub-item" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
       </div>
     </div>
-
     <div class="nav-section">Datos</div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Predicción ML</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Pipeline ETL</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Modelo ML</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Modelo ML</span><span class="nav-badge">pronto</span></div></div>
     <div class="nav-section">Sistema</div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Reportes</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Auditoría</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Notificaciones</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Configuración</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Benchmarking</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Integraciones</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Reportes</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Auditoría</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Notificaciones</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Configuración</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Benchmarking</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
   </nav>
   <div class="sidebar-bottom">
-    <div class="user-row" onclick="cerrarSesion()">
+    <div class="user-row-wrap" style="display:flex;flex-direction:row;align-items:center;gap:6px;">
+  <div class="user-row">
       <div class="user-avatar" id="userAvatar">A</div>
-      <div>
-        <div class="user-name" id="userName">Cargando...</div>
-        <div class="user-rol"  id="userRol">—</div>
-      </div>
+      <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
     </div>
+  <button class="btn-logout" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
+  </div>
     <div class="ver-info">DiabCare Analytics v2.0</div>
   </div>
 </aside>
 
 <div class="main">
   <div class="topbar">
-    <span class="tb-crumb">DiabCare</span>
-    <span class="tb-sep">/</span>
-    <span class="tb-page">Dashboard</span>
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Dashboard</span>
     <div class="tb-right">
+      <button class="btn btn-ghost btn-sm" onclick="cargar()" style="margin-right:8px">↺ Actualizar</button>
       <div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div>
     </div>
   </div>
@@ -169,119 +171,282 @@
   <div class="content">
     <div class="page-header">
       <div>
-        <div class="page-title">Dashboard <span>General</span></div>
-        <div class="page-sub">Resumen del estado actual del sistema clínico</div>
+        <div class="page-title">Dashboard <span>general</span></div>
+        <div class="page-sub">Resumen ejecutivo del sistema — actualizado <span id="ts" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span></div>
       </div>
     </div>
 
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Dataset total</div><div class="stat-value blue" id="s-total"><div class="spinner"></div></div></div>
-      <div class="stat-card"><div class="stat-label">Dim. paciente</div><div class="stat-value">23.601</div></div>
-      <div class="stat-card"><div class="stat-label">Dim. ubicación</div><div class="stat-value">303</div></div>
-      <div class="stat-card"><div class="stat-label">Dim. raza</div><div class="stat-value">31</div></div>
-      <div class="stat-card"><div class="stat-label">Dim. condición</div><div class="stat-value">24</div></div>
-      <div class="stat-card"><div class="stat-label">Fact diabetes</div><div class="stat-value" id="s-fact"><div class="spinner"></div></div></div>
+    <!-- Fila 1: KPI -->
+    <div class="dash-row dash-4">
+      <div class="kpi-card blue">
+        <div class="kpi-label">Total registros</div>
+        <div class="kpi-val blue" id="k-total"><div class="spinner"></div></div>
+        <div class="kpi-sub">dataset completo</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-label">Con diabetes</div>
+        <div class="kpi-val red" id="k-con"><div class="spinner"></div></div>
+        <div class="kpi-sub" id="k-con-pct">—</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Sin diabetes</div>
+        <div class="kpi-val green" id="k-sin"><div class="spinner"></div></div>
+        <div class="kpi-sub" id="k-sin-pct">—</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Prevalencia</div>
+        <div class="kpi-val amber" id="k-prev"><div class="spinner"></div></div>
+        <div class="kpi-sub">tasa de diabetes</div>
+      </div>
     </div>
 
-    <div class="stats-grid" style="grid-template-columns:1fr 1fr; margin-bottom:0;">
-      <div class="stat-card"><div class="stat-label">Con diabetes</div><div class="stat-value red" id="s-con" style="font-size:28px"><div class="spinner"></div></div></div>
-      <div class="stat-card"><div class="stat-label">Sin diabetes</div><div class="stat-value green" id="s-sin" style="font-size:28px"><div class="spinner"></div></div></div>
+    <!-- Fila 2: Donut + Accesos rápidos + Alertas -->
+    <div class="dash-row dash-3">
+
+      <!-- Donut mini -->
+      <div class="panel">
+        <div class="panel-title">Distribución diabetes</div>
+        <div class="donut-wrap"><canvas id="c-donut"></canvas></div>
+        <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;">
+          <span style="font-size:10px;color:rgba(239,68,68,0.8);font-family:var(--mono)">● Con diabetes <span id="d-con-pct">—</span></span>
+          <span style="font-size:10px;color:rgba(34,197,94,0.8);font-family:var(--mono)">● Sin diabetes <span id="d-sin-pct">—</span></span>
+        </div>
+      </div>
+
+      <!-- Accesos rápidos -->
+      <div class="panel">
+        <div class="panel-title">Accesos rápidos</div>
+        <div class="quick-grid">
+          <a class="quick-btn" href="/paginas/estadisticas/index.html">
+            <div class="quick-icon blue">📊</div>
+            <div><div class="quick-label">Estadísticas</div><div class="quick-sub">Análisis completo</div></div>
+          </a>
+          <a class="quick-btn" href="/paginas/registros_clinicos/index.html">
+            <div class="quick-icon green">🔍</div>
+            <div><div class="quick-label">Registros</div><div class="quick-sub">Consultar / Filtrar</div></div>
+          </a>
+          <a class="quick-btn" href="/paginas/dataset/index.html">
+            <div class="quick-icon amber">🗄️</div>
+            <div><div class="quick-label">Dataset</div><div class="quick-sub">Ver tablas</div></div>
+          </a>
+          <a class="quick-btn" href="/paginas/dataset/generador.html">
+            <div class="quick-icon purple">⚡</div>
+            <div><div class="quick-label">Generador</div><div class="quick-sub">Crear registros</div></div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Alertas clínicas -->
+      <div class="panel">
+        <div class="panel-title">Alertas clínicas</div>
+        <div id="alertas-list">
+          <div style="font-size:11px;color:var(--muted)">Cargando...</div>
+        </div>
+      </div>
+
     </div>
 
-    <div class="charts-grid">
-      <div class="chart-card"><div class="chart-title">Distribución diabetes</div><div class="chart-wrap"><canvas id="c1"></canvas></div></div>
-      <div class="chart-card"><div class="chart-title">Distribución por género</div><div class="chart-wrap"><canvas id="c2"></canvas></div></div>
-      <div class="chart-card"><div class="chart-title">Hipertensión y cardiopatía</div><div class="chart-wrap"><canvas id="c3"></canvas></div></div>
+    <!-- Fila 3: Promedios + Top ubicaciones + Sistema + MinIO -->
+    <div class="dash-row dash-4">
+
+      <!-- Promedios clínicos -->
+      <div class="panel">
+        <div class="panel-title">Promedios clínicos</div>
+        <div class="sys-row"><span class="sys-label">BMI con diabetes</span><span class="sys-badge ok" id="p-bmi-con">—</span></div>
+        <div class="sys-row"><span class="sys-label">BMI sin diabetes</span><span class="sys-badge ok" id="p-bmi-sin">—</span></div>
+        <div class="sys-row"><span class="sys-label">HbA1c con diabetes</span><span class="sys-badge ok" id="p-hba-con">—</span></div>
+        <div class="sys-row"><span class="sys-label">HbA1c sin diabetes</span><span class="sys-badge ok" id="p-hba-sin">—</span></div>
+        <div class="sys-row"><span class="sys-label">Glucosa con diabetes</span><span class="sys-badge ok" id="p-glc-con">—</span></div>
+        <div class="sys-row"><span class="sys-label">Glucosa sin diabetes</span><span class="sys-badge ok" id="p-glc-sin">—</span></div>
+      </div>
+
+      <!-- Top ubicaciones -->
+      <div class="panel">
+        <div class="panel-title">Top ubicaciones</div>
+        <div id="top-ubicaciones"><div style="font-size:11px;color:var(--muted)">Cargando...</div></div>
+      </div>
+
+      <!-- Estado del sistema -->
+      <div class="panel">
+        <div class="panel-title">Estado del sistema</div>
+        <div class="sys-row"><span class="sys-label">MinIO</span><span class="sys-badge ok">conectado</span></div>
+        <div class="sys-row"><span class="sys-label">Dataset</span><span class="sys-badge ok" id="sys-dataset">cargado</span></div>
+        <div class="sys-row"><span class="sys-label">API Backend</span><span class="sys-badge ok">activo</span></div>
+        <div class="sys-row"><span class="sys-label">Autenticación</span><span class="sys-badge ok">JWT activo</span></div>
+        <div class="sys-row"><span class="sys-label">Modelo ML</span><span class="sys-badge warn">no entrenado</span></div>
+        <div class="sys-row"><span class="sys-label">Pipeline ETL</span><span class="sys-badge warn">pendiente</span></div>
+      </div>
+
+      <!-- Últimos archivos MinIO -->
+      <div class="panel">
+        <div class="panel-title">Últimos archivos MinIO</div>
+        <div id="minio-files"><div style="font-size:11px;color:var(--muted)">Cargando...</div></div>
+      </div>
+
     </div>
+
   </div>
 </div>
 
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
 
 <script>
-const API = 'http://localhost:8000';
+const API   = 'http://localhost:8000';
 const token = localStorage.getItem('token');
+let donutChart = null;
 
-function toggle(h) {
-  h.classList.toggle('open');
-  const s = h.nextElementSibling;
-  if (s) s.classList.toggle('open');
-}
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
 
 function initUser() {
   if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
   const u = JSON.parse(localStorage.getItem('usuario') || '{}');
   if (u.nombre) {
-    document.getElementById('userName').textContent = u.nombre;
-    document.getElementById('userRol').textContent  = u.rol || '';
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
     document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
   }
 }
 
 function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
 
-const chartOpts = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { labels: { color: '#555', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10 } },
-    tooltip: { backgroundColor: 'rgba(13,13,21,0.95)', titleColor: '#f0f0f0', bodyColor: '#888', borderColor: 'rgba(37,99,235,0.2)', borderWidth: 1 }
-  },
-  scales: {
-    x: { ticks: { color: '#444', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-    y: { ticks: { color: '#444', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+function renderAlertas(d) {
+  const alertas = [];
+  const pct = Math.round((d.con_diabetes / d.total) * 100);
+
+  if (pct > 50)
+    alertas.push({ color:'red',   texto:'Prevalencia de diabetes supera el 50%', sub:`${pct}% del dataset tiene diabetes` });
+  else if (pct > 40)
+    alertas.push({ color:'amber', texto:'Prevalencia de diabetes elevada', sub:`${pct}% — considera revisar el balance` });
+  else
+    alertas.push({ color:'green', texto:'Prevalencia dentro de rango normal', sub:`${pct}% del dataset tiene diabetes` });
+
+  if (d.promedios) {
+    if (d.promedios.hba1c.con > 7.5)
+      alertas.push({ color:'red',   texto:'HbA1c promedio crítico en pacientes diabéticos', sub:`Promedio: ${d.promedios.hba1c.con} — umbral normal: 7.0` });
+    else
+      alertas.push({ color:'amber', texto:'HbA1c promedio en rango controlado', sub:`Promedio con diabetes: ${d.promedios.hba1c.con}` });
+
+    if (d.promedios.bmi.con > 32)
+      alertas.push({ color:'amber', texto:'BMI promedio elevado en pacientes diabéticos', sub:`Promedio: ${d.promedios.bmi.con} — sobrepeso clínico` });
   }
-};
 
-let c1, c2, c3;
+  if (d.total < 1000)
+    alertas.push({ color:'blue', texto:'Dataset con pocos registros', sub:`Solo ${d.total.toLocaleString('es-ES')} registros — genera más datos` });
+  else
+    alertas.push({ color:'green', texto:'Volumen de datos adecuado', sub:`${d.total.toLocaleString('es-ES')} registros disponibles` });
 
-async function cargarStats() {
+  document.getElementById('alertas-list').innerHTML = alertas.slice(0,4).map(a => `
+    <div class="alert-item">
+      <div class="alert-dot ${a.color}"></div>
+      <div><div class="alert-text">${a.texto}</div><div class="alert-sub">${a.sub}</div></div>
+    </div>`).join('');
+}
+
+function renderTopUbicaciones(ubicaciones) {
+  if (!ubicaciones) return;
+  const entries = Object.entries(ubicaciones).slice(0, 6);
+  const max = entries[0]?.[1] || 1;
+  document.getElementById('top-ubicaciones').innerHTML = entries.map(([nombre, val], i) => `
+    <div class="top-row">
+      <span class="top-rank">${i+1}</span>
+      <span class="top-name">${nombre}</span>
+      <div class="top-track"><div class="top-fill" style="width:${Math.round(val/max*100)}%"></div></div>
+      <span class="top-val">${val.toLocaleString('es-ES')}</span>
+    </div>`).join('');
+}
+
+async function cargarArchivosMinIO() {
   try {
-    const r = await fetch(API + '/api/registros/estadisticas', { headers: { 'Authorization': 'Bearer ' + token } });
+    const r = await fetch(`${API}/api/dataset/estadisticas`, { headers: { 'Authorization': 'Bearer ' + token } });
     const d = await r.json();
-    document.getElementById('s-total').textContent = d.total.toLocaleString('es-ES');
-    document.getElementById('s-fact').textContent  = d.total.toLocaleString('es-ES');
-    document.getElementById('s-con').textContent   = d.con_diabetes.toLocaleString('es-ES');
-    document.getElementById('s-sin').textContent   = d.sin_diabetes.toLocaleString('es-ES');
-
-    if (c1) c1.destroy(); if (c2) c2.destroy(); if (c3) c3.destroy();
-
-    c1 = new Chart(document.getElementById('c1'), {
-      type: 'doughnut',
-      data: {
-        labels: ['Sin diabetes', 'Con diabetes'],
-        datasets: [{ data: [d.sin_diabetes, d.con_diabetes], backgroundColor: ['rgba(34,197,94,0.75)', 'rgba(239,68,68,0.75)'], borderWidth: 0 }]
-      },
-      options: { ...chartOpts, scales: {}, plugins: { ...chartOpts.plugins, legend: { position: 'bottom', labels: { color: '#555', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10 } } } }
-    });
-
-    c2 = new Chart(document.getElementById('c2'), {
-      type: 'bar',
-      data: {
-        labels: ['Female', 'Male', 'Other'],
-        datasets: [{ label: 'Pacientes', data: [Math.round(d.total * 0.6), Math.round(d.total * 0.37), Math.round(d.total * 0.03)], backgroundColor: 'rgba(37,99,235,0.65)', borderRadius: 4 }]
-      },
-      options: chartOpts
-    });
-
-    c3 = new Chart(document.getElementById('c3'), {
-      type: 'bar',
-      data: {
-        labels: ['Sin diabetes', 'Con diabetes'],
-        datasets: [
-          { label: 'Hipertensión', data: [Math.round(d.sin_diabetes * 0.19), Math.round(d.con_diabetes * 0.35)], backgroundColor: 'rgba(239,68,68,0.65)', borderRadius: 4 },
-          { label: 'Cardiopatía',  data: [Math.round(d.sin_diabetes * 0.06), Math.round(d.con_diabetes * 0.12)], backgroundColor: 'rgba(245,158,11,0.65)', borderRadius: 4 }
-        ]
-      },
-      options: chartOpts
-    });
+    const cols = d.columnas || [];
+    document.getElementById('minio-files').innerHTML = `
+      <div class="file-row">
+        <span class="file-icon">📄</span>
+        <span class="file-name">diabetes_dataset_stage.parquet</span>
+        <span class="file-meta">${(d.total||0).toLocaleString('es-ES')} reg.</span>
+      </div>
+      <div class="file-row">
+        <span class="file-icon">📋</span>
+        <span class="file-name">Columnas disponibles</span>
+        <span class="file-meta">${cols.length} cols</span>
+      </div>
+      ${cols.slice(0,4).map(c => `
+      <div class="file-row">
+        <span class="file-icon" style="opacity:.3">—</span>
+        <span class="file-name" style="color:var(--muted)">${c}</span>
+      </div>`).join('')}
+      ${cols.length > 4 ? `<div class="file-row"><span class="file-name" style="color:var(--muted);font-size:10px">+${cols.length-4} columnas más</span></div>` : ''}
+    `;
   } catch {
-    ['s-total','s-fact','s-con','s-sin'].forEach(id => document.getElementById(id).textContent = '—');
+    document.getElementById('minio-files').innerHTML = '<div style="font-size:11px;color:var(--muted)">No disponible</div>';
   }
 }
 
-cargarStats();
+async function cargar() {
+  document.getElementById('ts').textContent = new Date().toLocaleTimeString('es-ES');
+  try {
+    const r = await fetch(`${API}/api/registros/estadisticas`, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    const d = await r.json();
+
+    const pct = Math.round((d.con_diabetes / d.total) * 100);
+
+    // KPI
+    document.getElementById('k-total').textContent   = d.total.toLocaleString('es-ES');
+    document.getElementById('k-con').textContent     = d.con_diabetes.toLocaleString('es-ES');
+    document.getElementById('k-sin').textContent     = d.sin_diabetes.toLocaleString('es-ES');
+    document.getElementById('k-prev').textContent    = pct + '%';
+    document.getElementById('k-con-pct').textContent = pct + '% del total';
+    document.getElementById('k-sin-pct').textContent = (100-pct) + '% del total';
+
+    // Donut
+    document.getElementById('d-con-pct').textContent = pct + '%';
+    document.getElementById('d-sin-pct').textContent = (100-pct) + '%';
+    if (donutChart) donutChart.destroy();
+    donutChart = new Chart(document.getElementById('c-donut'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Sin diabetes','Con diabetes'],
+        datasets: [{ data: [d.sin_diabetes, d.con_diabetes], backgroundColor: ['rgba(34,197,94,0.75)','rgba(239,68,68,0.75)'], borderWidth: 0, hoverOffset: 4 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '72%',
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(13,13,21,0.95)', titleColor: '#f0f0f0', bodyColor: '#888' } }
+      }
+    });
+
+    // Alertas
+    renderAlertas(d);
+
+    // Promedios
+    if (d.promedios) {
+      const p = d.promedios;
+      document.getElementById('p-bmi-con').textContent = p.bmi.con;
+      document.getElementById('p-bmi-sin').textContent = p.bmi.sin;
+      document.getElementById('p-hba-con').textContent = p.hba1c.con;
+      document.getElementById('p-hba-sin').textContent = p.hba1c.sin;
+      document.getElementById('p-glc-con').textContent = p.glucosa.con;
+      document.getElementById('p-glc-sin').textContent = p.glucosa.sin;
+    }
+
+    // Top ubicaciones
+    if (d.ubicaciones) renderTopUbicaciones(d.ubicaciones);
+
+    // Dataset status
+    document.getElementById('sys-dataset').textContent = d.total > 0 ? d.total.toLocaleString('es-ES') + ' reg.' : 'vacío';
+    document.getElementById('sys-dataset').className   = d.total > 0 ? 'sys-badge ok' : 'sys-badge warn';
+
+  } catch(e) {
+    console.error(e);
+    ['k-total','k-con','k-sin','k-prev'].forEach(id => document.getElementById(id).textContent = '—');
+  }
+
+  cargarArchivosMinIO();
+}
+
 initUser();
+cargar();
 </script>
 </body>
 </html>

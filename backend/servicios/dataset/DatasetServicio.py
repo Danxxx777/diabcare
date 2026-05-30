@@ -6,8 +6,21 @@ from datetime import datetime
 from servicios.configuracion.ConfiguracionClienteMinio import get_cliente
 from servicios.configuracion.ConfiguracionAjustes import MINIO_BUCKET, MINIO_STAGE_PATH
 
-UBICACIONES = ["Alabama","California","Texas","Florida","New York","Georgia","Ohio","Michigan","Arizona","Nevada","Colorado","Washington","Oregon","Illinois","Pennsylvania"]
-RAZAS = {"race_AfricanAmerican":0,"race_Asian":0,"race_Caucasian":0,"race_Hispanic":0,"race_Other":0}
+UBICACIONES = [
+    "Alabama", "California", "Texas", "Florida", "Nueva York",
+    "Georgia", "Ohio", "Michigan", "Arizona", "Nevada",
+    "Colorado", "Washington", "Oregón", "Illinois", "Pensilvania"
+]
+
+RAZAS = {
+    "race_AfricanAmerican": 0,
+    "race_Asian": 0,
+    "race_Caucasian": 0,
+    "race_Hispanic": 0,
+    "race_Other": 0
+}
+
+HISTORIAL_TABAQUISMO = ["nunca", "actual", "no actual", "Sin información"]
 
 def generar_registro(year: int) -> dict:
     edad = round(random.uniform(1, 80), 1)
@@ -21,13 +34,13 @@ def generar_registro(year: int) -> dict:
     raza[random.choice(list(RAZAS.keys()))] = 1
     return {
         "year": year,
-        "gender": random.choice(["Male", "Female", "Other"]),
+        "gender": random.choice(["Masculino", "Femenino", "Otro"]),
         "age": edad,
         "location": random.choice(UBICACIONES),
         **raza,
         "hypertension": hiper,
         "heart_disease": cardio,
-        "smoking_history": random.choice(["never", "current", "not current", "No Info"]),
+        "smoking_history": random.choice(HISTORIAL_TABAQUISMO),
         "bmi": bmi,
         "hbA1c_level": hba1c,
         "blood_glucose_level": glucosa,

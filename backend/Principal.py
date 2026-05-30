@@ -1,5 +1,8 @@
-﻿# DiabCare Analytics — Punto de entrada principal
+# DiabCare Analytics — Punto de entrada principal
 # Ejecutar: uvicorn Principal:app --reload --port 8000
+
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +23,6 @@ from api.configuracion.ConfiguracionRutas import router as router_configuracion
 from api.benchmarking.BenchmarkingRutas import router as router_benchmarking
 from api.modelo_ml.ModeloMlRutas import router as router_modelo_ml
 from api.integraciones.IntegracionesRutas import router as router_integraciones
-from api.dataset.DatasetRutas import router as router_dataset
 
 # Servicios de infraestructura
 from servicios.configuracion.ConfiguracionClienteMinio import inicializar_buckets, verificar_conexion
@@ -59,7 +61,6 @@ app.include_router(router_configuracion)
 app.include_router(router_benchmarking)
 app.include_router(router_modelo_ml)
 app.include_router(router_integraciones)
-app.include_router(router_dataset)
 
 # ── FRONTEND ESTÁTICO ──
 app.mount("/estaticos", StaticFiles(directory="../frontend/estaticos"), name="estaticos")
@@ -67,6 +68,11 @@ app.mount("/estaticos", StaticFiles(directory="../frontend/estaticos"), name="es
 @app.get("/", include_in_schema=False)
 def inicio():
     return FileResponse("../frontend/paginas/autenticacion/index.html")
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    from fastapi.responses import Response
+    return Response(status_code=204)
 
 # ── HEALTH CHECK ──
 @app.get("/api/health", tags=["Sistema"])
@@ -87,19 +93,11 @@ async def startup():
     print("[DiabCare] Sistema listo en http://localhost:8000")
     print("[DiabCare] Documentación en http://localhost:8000/docs")
 
+# ── PÁGINAS FRONTEND ──
+@app.get("/paginas/{modulo}/{archivo}", include_in_schema=False)
+def pagina_archivo(modulo: str, archivo: str):
+    return FileResponse(f"../frontend/paginas/{modulo}/{archivo}")
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("Principal:app", host="0.0.0.0", port=PUERTO_API, reload=True)
-
-@app.get("/paginas/{modulo}/index.html", include_in_schema=False)
-def pagina(modulo: str):
-    return FileResponse(f"../frontend/paginas/{modulo}/index.html")
-
-@app.get("/paginas/{modulo}/index.html", include_in_schema=False)
-def pagina(modulo: str):
-    return FileResponse(f"../frontend/paginas/{modulo}/index.html")
-
-@app.get("/paginas/{modulo}/index.html", include_in_schema=False)
-def pagina(modulo: str):
-    return FileResponse(f"../frontend/paginas/{modulo}/index.html")

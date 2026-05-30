@@ -1,208 +1,156 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare — Usuarios</title>
 <link rel="stylesheet" href="/estaticos/estilos.css">
+<style>
+.u-tabla-wrap { background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.u-tabla-top  { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.u-search     { background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:7px; font-size:12px; font-family:var(--mono); outline:none; width:240px; transition:border-color .2s; }
+.u-search:focus { border-color:rgba(37,99,235,0.5); }
+.u-info       { font-size:11px; color:var(--muted); font-family:var(--mono); margin-left:auto; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+thead th { background:rgba(255,255,255,0.02); color:var(--muted); font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; padding:10px 16px; text-align:left; border-bottom:1px solid var(--border); }
+tbody tr { border-bottom:1px solid rgba(255,255,255,0.03); transition:background .1s; }
+tbody tr:hover { background:rgba(255,255,255,0.02); }
+tbody td { padding:12px 16px; color:var(--text2); }
+.td-nombre { font-weight:600; color:var(--text); font-size:13px; }
+.td-email  { font-family:var(--mono); font-size:11px; }
+.td-fecha  { font-family:var(--mono); font-size:11px; color:var(--muted); }
+.badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:10px; font-family:var(--mono); font-weight:500; }
+.badge-admin    { background:rgba(139,92,246,0.12); color:rgba(167,139,250,0.9); border:1px solid rgba(139,92,246,0.25); }
+.badge-medico   { background:rgba(34,197,94,0.1);  color:rgba(34,197,94,0.85);  border:1px solid rgba(34,197,94,0.25); }
+.badge-analista { background:rgba(37,99,235,0.1);  color:rgba(96,165,250,0.9);  border:1px solid rgba(37,99,235,0.25); }
+.badge-activo   { background:rgba(34,197,94,0.08); color:rgba(34,197,94,0.8);   border:1px solid rgba(34,197,94,0.2); }
+.badge-inactivo { background:rgba(239,68,68,0.08); color:rgba(239,68,68,0.8);   border:1px solid rgba(239,68,68,0.2); }
+.acciones { display:flex; gap:6px; }
+.btn-rol    { padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; font-family:var(--mono); background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.25); color:rgba(167,139,250,0.9); transition:all .15s; }
+.btn-rol:hover { background:rgba(139,92,246,0.18); }
+.btn-desact { padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; font-family:var(--mono); background:rgba(239,68,68,0.07); border:1px solid rgba(239,68,68,0.2); color:rgba(239,68,68,0.8); transition:all .15s; }
+.btn-desact:hover { background:rgba(239,68,68,0.15); }
+.u-avatar { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; }
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:100; display:none; align-items:center; justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:28px; width:440px; max-width:95vw; }
+.modal-title { font-size:16px; font-weight:700; margin-bottom:20px; }
+.modal-title span { color:rgba(37,99,235,0.9); }
+.fg { margin-bottom:14px; }
+.fl { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:6px; }
+.fi, .fs { width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--text); padding:9px 12px; border-radius:7px; font-size:13px; font-family:inherit; outline:none; transition:border-color .2s; box-sizing:border-box; }
+.fi:focus, .fs:focus { border-color:rgba(37,99,235,0.5); }
+.fs { cursor:pointer; }
+.modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+.btn-cancel { background:transparent; border:1px solid var(--border); color:var(--text2); padding:9px 16px; border-radius:7px; font-size:12px; cursor:pointer; transition:border-color .15s; }
+.btn-cancel:hover { border-color:var(--muted); }
+.modal-overlay { backdrop-filter:blur(4px); }
+.modal { background:#13131f !important; }
+</style>
 </head>
 <body>
 
 <aside class="sidebar">
   <div class="logo-area">
     <div class="logo-mark">D</div>
-    <div>
-      <div class="logo-text">DiabCare</div>
-      <div class="logo-sub">ANALYTICS v2.0</div>
-    </div>
+    <div><div class="logo-text">DiabCare</div></div>
   </div>
   <nav class="nav">
     <div class="nav-section">Principal</div>
-
     <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Análisis</span>
-        <i class="nav-chevron">&#8250;</i>
-      </div>
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Análisis</span><i class="nav-chevron">&#8250;</i></div>
       <div class="nav-sub">
         <a class="nav-sub-item" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
         <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
       </div>
     </div>
-
     <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Registros clínicos</span>
-        <i class="nav-chevron">&#8250;</i>
-      </div>
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Registros clínicos</span><i class="nav-chevron">&#8250;</i></div>
       <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Crear registro</span></a>
         <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
       </div>
     </div>
-
     <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Dataset</span>
-        <i class="nav-chevron">&#8250;</i>
-      </div>
+      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Dataset</span><i class="nav-chevron">&#8250;</i></div>
       <div class="nav-sub">
         <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
-        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
+        <a class="nav-sub-item" href="/paginas/dataset/generador.html"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
       </div>
     </div>
-
     <div class="nav-group">
-      <div class="nav-group-header open" onclick="toggle(this)">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Usuarios</span>
-        <i class="nav-chevron">&#8250;</i>
-      </div>
+      <div class="nav-group-header open" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Usuarios</span><i class="nav-chevron">&#8250;</i></div>
       <div class="nav-sub open">
         <a class="nav-sub-item active" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
       </div>
     </div>
-
     <div class="nav-section">Datos</div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Predicción ML</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Pipeline ETL</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Modelo ML</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Modelo ML</span><span class="nav-badge">pronto</span></div></div>
     <div class="nav-section">Sistema</div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Reportes</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Auditoría</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Notificaciones</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Configuración</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Benchmarking</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-header disabled">
-        <span class="nav-group-icon">&#9681;</span>
-        <span class="nav-group-label">Integraciones</span>
-        <span class="nav-badge">pronto</span>
-      </div>
-    </div>
-
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Reportes</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Auditoría</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Notificaciones</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Configuración</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Benchmarking</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
   </nav>
   <div class="sidebar-bottom">
-    <div class="user-row" onclick="cerrarSesion()">
+    <div class="user-row-wrap" style="display:flex;flex-direction:row;align-items:center;gap:6px;">
+  <div class="user-row">
       <div class="user-avatar" id="userAvatar">A</div>
-      <div>
-        <div class="user-name" id="userName">Cargando...</div>
-        <div class="user-rol"  id="userRol">—</div>
-      </div>
+      <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
     </div>
+  <button class="btn-logout" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
+  </div>
     <div class="ver-info">DiabCare Analytics v2.0</div>
   </div>
 </aside>
 
 <div class="main">
   <div class="topbar">
-    <span class="tb-crumb">DiabCare</span>
-    <span class="tb-sep">/</span>
-    <span class="tb-page">Usuarios</span>
-    <div class="tb-right">
-      <div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div>
-    </div>
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Usuarios</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div></div>
   </div>
-
   <div class="content">
     <div class="page-header">
       <div>
         <div class="page-title">Gestión de <span>usuarios</span></div>
         <div class="page-sub">Administra usuarios, roles y accesos del sistema</div>
       </div>
-      <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo usuario</button>
+      <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nuevo usuario</button>
     </div>
 
-    <div class="stats-grid" id="statsGrid">
-      <div class="stat-card"><div class="stat-label">Total usuarios</div><div class="stat-value blue" id="st-total">—</div></div>
-      <div class="stat-card"><div class="stat-label">Administradores</div><div class="stat-value" id="st-admin">—</div></div>
-      <div class="stat-card"><div class="stat-label">Médicos</div><div class="stat-value green" id="st-medico">—</div></div>
-      <div class="stat-card"><div class="stat-label">Analistas</div><div class="stat-value amber" id="st-analista">—</div></div>
+    <div class="stats-grid" style="margin-bottom:18px;">
+      <div class="stat-card"><div class="stat-label">Total usuarios</div><div class="stat-value blue" id="k-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value green" id="k-activos">—</div></div>
+      <div class="stat-card"><div class="stat-label">Inactivos</div><div class="stat-value red" id="k-inactivos">—</div></div>
+      <div class="stat-card"><div class="stat-label">Administradores</div><div class="stat-value amber" id="k-admins">—</div></div>
     </div>
 
-    <div class="tabla-card">
-      <div class="tabla-top">
-        <span class="tabla-title">Lista de usuarios</span>
-        <input class="search" id="busqueda" placeholder="Buscar por nombre o email..." oninput="filtrar()">
+    <div class="u-tabla-wrap">
+      <div class="u-tabla-top">
+        <input class="u-search" id="busqueda" type="search" autocomplete="off" placeholder="Buscar por nombre o email..." oninput="filtrar()">
         <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Recargar</button>
-        <span class="tabla-info" id="info">—</span>
+        <span class="u-info" id="u-info">—</span>
       </div>
-      <div class="tabla-wrap">
-        <div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando usuarios...</div></div>
+      <div id="tablaBody">
+        <div class="loading"><div class="spinner"></div>Cargando usuarios...</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Modal -->
-<div class="overlay" id="overlay" onclick="if(event.target===this)cerrarModal()">
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)cerrarModal()">
   <div class="modal">
-    <div class="modal-title" id="modalTitle">Nuevo <span>usuario</span></div>
-    <div class="fg" id="nombreGrp"><label class="fl">Nombre completo</label><input class="fi" id="f-nombre" placeholder="ej. Byron Loor"></div>
-    <div class="fg" id="emailGrp"><label class="fl">Email</label><input class="fi" id="f-email" type="email" placeholder="usuario@diabcare.com"></div>
-    <div class="fg" id="passGrp"><label class="fl">Contraseña</label><input class="fi" id="f-pass" type="password" placeholder="••••••••"></div>
-    <div class="fg"><label class="fl">Rol</label>
+    <div class="modal-title" id="modalTitulo">Nuevo <span>usuario</span></div>
+    <div id="camposCrear">
+      <div class="fg"><label class="fl">Nombre completo</label><input class="fi" id="f-nombre" autocomplete="off" placeholder="ej. Byron Loor"></div>
+      <div class="fg"><label class="fl">Email</label><input class="fi" id="f-email" type="email" autocomplete="off" placeholder="usuario@diabcare.com"></div>
+      <div class="fg"><label class="fl">Contraseña</label><input class="fi" id="f-pass" type="password" autocomplete="new-password" placeholder="••••••••"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">Rol</label>
       <select class="fs" id="f-rol">
         <option value="medico">Médico</option>
         <option value="analista">Analista</option>
@@ -211,7 +159,7 @@
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn btn-primary" id="btnGuardar" onclick="guardar()">Crear usuario</button>
+      <button class="btn btn-primary btn-sm" id="btnGuardar" onclick="guardar()">Guardar</button>
     </div>
   </div>
 </div>
@@ -219,28 +167,22 @@
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
 
 <script>
-const API = 'http://localhost:8000';
+const API   = 'http://localhost:8000';
 const token = localStorage.getItem('token');
-let usuarios = [], modoEd = null;
+let usuarios = [];
+let modoEdicion = null;
 
-function toggle(h) {
-  h.classList.toggle('open');
-  const s = h.nextElementSibling;
-  if (s) s.classList.toggle('open');
-}
+const COLORES = ['rgba(37,99,235,0.7)','rgba(139,92,246,0.7)','rgba(20,184,166,0.7)','rgba(245,158,11,0.7)','rgba(239,68,68,0.7)'];
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
 
 function initUser() {
-  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
+  if (!token) { window.location.href = '/'; return; }
   const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  // Protección por rol — solo administrador
-  if (u.rol !== 'administrador') {
-    window.location.href = '/paginas/analisis/index.html';
-    return;
-  }
   if (u.nombre) {
-    document.getElementById('userName').textContent    = u.nombre;
-    document.getElementById('userRol').textContent     = u.rol || '';
-    document.getElementById('userAvatar').textContent  = u.nombre[0].toUpperCase();
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
   }
 }
 
@@ -254,54 +196,36 @@ function toast(msg, type = 'success') {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-function actualizarStats(data) {
-  document.getElementById('st-total').textContent   = data.length;
-  document.getElementById('st-admin').textContent   = data.filter(u => u.rol === 'administrador').length;
-  document.getElementById('st-medico').textContent  = data.filter(u => u.rol === 'medico').length;
-  document.getElementById('st-analista').textContent= data.filter(u => u.rol === 'analista').length;
+function badgeRol(rol) {
+  const cls = rol === 'administrador' ? 'badge-admin' : rol === 'medico' ? 'badge-medico' : 'badge-analista';
+  return `<span class="badge ${cls}">${rol}</span>`;
 }
 
-async function cargar() {
-  document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
-  try {
-    const r = await fetch(API + '/api/usuarios/', { headers: { 'Authorization': 'Bearer ' + token } });
-    if (r.status === 401) { window.location.href = '/'; return; }
-    if (r.status === 403) { toast('Sin permisos para ver usuarios', 'error'); return; }
-    usuarios = await r.json();
-    actualizarStats(usuarios);
-    render(usuarios);
-  } catch {
-    document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
-  }
-}
-
-function rolBadge(r) {
-  if (r === 'administrador') return 'b-admin';
-  if (r === 'medico')        return 'b-medico';
-  if (r === 'analista')      return 'b-analista';
-  return '';
-}
-
-function render(data) {
-  document.getElementById('info').textContent = data.length + ' usuario' + (data.length !== 1 ? 's' : '');
+function renderTabla(data) {
+  document.getElementById('u-info').textContent = data.length + ' usuarios';
   if (!data.length) {
-    document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin usuarios registrados</div>';
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin usuarios</div>';
     return;
   }
   let h = `<table><thead><tr>
-    <th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Registrado</th><th>Acciones</th>
+    <th>Usuario</th><th>Email</th><th>Rol</th><th>Estado</th><th>Creado</th><th>Acciones</th>
   </tr></thead><tbody>`;
-  data.forEach(u => {
-    const f = u.creado_en ? u.creado_en.split('T')[0] : '—';
+  data.forEach((u, i) => {
+    const color  = COLORES[i % COLORES.length];
+    const inicial = (u.nombre || '?')[0].toUpperCase();
+    const fecha  = u.creado_en ? u.creado_en.split('T')[0] : '—';
     h += `<tr>
-      <td class="name">${u.nombre}</td>
-      <td class="mono">${u.email}</td>
-      <td><span class="badge ${rolBadge(u.rol)}">${u.rol || 'sin rol'}</span></td>
-      <td><span class="badge ${u.activo ? 'b-activo' : 'b-inactivo'}">${u.activo ? 'activo' : 'inactivo'}</span></td>
-      <td class="mono">${f}</td>
+      <td><div style="display:flex;align-items:center;gap:10px;">
+        <div class="u-avatar" style="background:${color}">${inicial}</div>
+        <span class="td-nombre">${u.nombre}</span>
+      </div></td>
+      <td class="td-email">${u.email}</td>
+      <td>${badgeRol(u.rol || 'analista')}</td>
+      <td><span class="badge ${u.activo ? 'badge-activo' : 'badge-inactivo'}">${u.activo ? 'activo' : 'inactivo'}</span></td>
+      <td class="td-fecha">${fecha}</td>
       <td><div class="acciones">
-        <button class="btn btn-sm btn-edit" onclick="editarRol('${u.id}','${u.rol || 'medico'}')">Rol</button>
-        ${u.activo ? `<button class="btn btn-sm btn-del" onclick="desactivar('${u.id}','${u.nombre}')">Desactivar</button>` : ''}
+        <button class="btn-rol" onclick="abrirEditar('${u.id}','${u.rol||'analista'}')">Cambiar rol</button>
+        ${u.activo ? `<button class="btn-desact" onclick="desactivar('${u.id}','${u.nombre}')">Desactivar</button>` : ''}
       </div></td>
     </tr>`;
   });
@@ -309,79 +233,100 @@ function render(data) {
   document.getElementById('tablaBody').innerHTML = h;
 }
 
+function actualizarKPI(data) {
+  const activos   = data.filter(u => u.activo).length;
+  const inactivos = data.length - activos;
+  const admins    = data.filter(u => u.rol === 'administrador').length;
+  document.getElementById('k-total').textContent     = data.length;
+  document.getElementById('k-activos').textContent   = activos;
+  document.getElementById('k-inactivos').textContent = inactivos;
+  document.getElementById('k-admins').textContent    = admins;
+}
+
+async function cargar() {
+  document.getElementById('busqueda').value = '';
+  document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/usuarios/`, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    usuarios = await r.json();
+    renderTabla(usuarios);
+    actualizarKPI(usuarios);
+  } catch {
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
+  }
+}
+
 function filtrar() {
   const q = document.getElementById('busqueda').value.toLowerCase();
-  render(usuarios.filter(u => u.nombre.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)));
+  renderTabla(usuarios.filter(u =>
+    (u.nombre || '').toLowerCase().includes(q) ||
+    (u.email  || '').toLowerCase().includes(q)
+  ));
 }
 
 function abrirModal() {
-  modoEd = null;
-  document.getElementById('modalTitle').innerHTML = 'Nuevo <span>usuario</span>';
+  modoEdicion = null;
+  document.getElementById('modalTitulo').innerHTML  = 'Nuevo <span>usuario</span>';
+  document.getElementById('camposCrear').style.display = 'block';
   document.getElementById('f-nombre').value = '';
   document.getElementById('f-email').value  = '';
   document.getElementById('f-pass').value   = '';
   document.getElementById('f-rol').value    = 'medico';
-  document.getElementById('nombreGrp').style.display = 'flex';
-  document.getElementById('emailGrp').style.display  = 'flex';
-  document.getElementById('passGrp').style.display   = 'flex';
-  document.getElementById('btnGuardar').textContent  = 'Crear usuario';
-  document.getElementById('overlay').classList.add('show');
+  document.getElementById('btnGuardar').textContent = 'Guardar';
+  document.getElementById('modalOverlay').classList.add('show');
 }
 
-function editarRol(id, rol) {
-  modoEd = id;
-  document.getElementById('modalTitle').innerHTML = 'Cambiar <span>rol</span>';
-  document.getElementById('f-rol').value = rol;
-  document.getElementById('nombreGrp').style.display = 'none';
-  document.getElementById('emailGrp').style.display  = 'none';
-  document.getElementById('passGrp').style.display   = 'none';
-  document.getElementById('btnGuardar').textContent  = 'Actualizar rol';
-  document.getElementById('overlay').classList.add('show');
+function abrirEditar(id, rolActual) {
+  modoEdicion = id;
+  document.getElementById('modalTitulo').innerHTML  = 'Cambiar <span>rol</span>';
+  document.getElementById('camposCrear').style.display = 'none';
+  document.getElementById('f-rol').value = rolActual;
+  document.getElementById('btnGuardar').textContent = 'Actualizar rol';
+  document.getElementById('modalOverlay').classList.add('show');
 }
 
-function cerrarModal() { document.getElementById('overlay').classList.remove('show'); }
+function cerrarModal() { document.getElementById('modalOverlay').classList.remove('show'); }
 
 async function guardar() {
-  if (modoEd) {
-    const r = await fetch(API + '/api/usuarios/' + modoEd + '/rol', {
+  if (modoEdicion) {
+    const r = await fetch(`${API}/api/usuarios/${modoEdicion}/rol`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ rol: document.getElementById('f-rol').value })
     });
     const d = await r.json();
     cerrarModal(); cargar();
-    toast(r.ok ? 'Rol actualizado' : d.detail, r.ok ? 'success' : 'error');
+    toast(r.ok ? 'Rol actualizado' : (d.detail || 'Error'), r.ok ? 'success' : 'error');
   } else {
-    const b = {
-      nombre:   document.getElementById('f-nombre').value,
-      email:    document.getElementById('f-email').value,
+    const body = {
+      nombre:   document.getElementById('f-nombre').value.trim(),
+      email:    document.getElementById('f-email').value.trim(),
       password: document.getElementById('f-pass').value,
       rol:      document.getElementById('f-rol').value
     };
-    if (!b.nombre || !b.email || !b.password) { toast('Completa todos los campos', 'error'); return; }
-    const r = await fetch(API + '/api/usuarios/', {
+    if (!body.nombre || !body.email || !body.password) { toast('Completa todos los campos', 'error'); return; }
+    const r = await fetch(`${API}/api/usuarios/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify(b)
+      body: JSON.stringify(body)
     });
     const d = await r.json();
     cerrarModal(); cargar();
-    toast(r.ok ? 'Usuario ' + b.nombre + ' creado' : d.detail, r.ok ? 'success' : 'error');
+    toast(r.ok ? `Usuario ${body.nombre} creado` : (d.detail || 'Error'), r.ok ? 'success' : 'error');
   }
 }
 
 async function desactivar(id, nombre) {
-  if (!confirm('¿Desactivar a ' + nombre + '?')) return;
-  const r = await fetch(API + '/api/usuarios/' + id, {
-    method: 'DELETE',
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
+  if (!confirm(`¿Desactivar a ${nombre}?`)) return;
+  const r = await fetch(`${API}/api/usuarios/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+  const d = await r.json();
   cargar();
-  toast(r.ok ? nombre + ' desactivado' : 'Error al desactivar', r.ok ? 'success' : 'error');
+  toast(r.ok ? `${nombre} desactivado` : (d.detail || 'Error'), r.ok ? 'success' : 'error');
 }
 
 initUser();
-cargar();
+setTimeout(cargar, 150);
 </script>
 </body>
 </html>

@@ -7,8 +7,33 @@
 <link rel="stylesheet" href="/estaticos/estilos.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
+/* ── Grid layouts ── */
 .charts-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
 .charts-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+.charts-grid-full { display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:14px; }
+
+/* ── KPI extra cards ── */
+.stats-grid-2 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+.stat-card-sm { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 18px; }
+.stat-card-sm .stat-label { font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:6px; }
+.stat-card-sm .stat-value { font-size:20px; font-weight:700; font-family:'JetBrains Mono',monospace; }
+.stat-card-sm .stat-sub { font-size:10px; color:var(--muted); margin-top:3px; }
+
+/* ── Section divider ── */
+.section-label {
+  font-size:10px; text-transform:uppercase; letter-spacing:.1em;
+  color:var(--muted); margin:18px 0 10px;
+  display:flex; align-items:center; gap:10px;
+}
+.section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ── Promedios bar ── */
+.promedio-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.promedio-label { font-size:10px; color:var(--muted); width:60px; flex-shrink:0; }
+.promedio-track { flex:1; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
+.promedio-fill-con { height:100%; border-radius:3px; background:rgba(239,68,68,0.7); transition:width .6s ease; }
+.promedio-fill-sin { height:100%; border-radius:3px; background:rgba(34,197,94,0.7); transition:width .6s ease; }
+.promedio-val { font-size:10px; font-family:'JetBrains Mono',monospace; color:#aaa; width:44px; text-align:right; }
 </style>
 </head>
 <body>
@@ -16,7 +41,7 @@
 <aside class="sidebar">
   <div class="logo-area">
     <div class="logo-mark">D</div>
-    <div><div class="logo-text">DiabCare</div><div class="logo-sub">ANALYTICS v2.0</div></div>
+    <div><div class="logo-text">DiabCare</div></div>
   </div>
   <nav class="nav">
     <div class="nav-section">Principal</div>
@@ -59,10 +84,13 @@
     <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
   </nav>
   <div class="sidebar-bottom">
-    <div class="user-row" onclick="cerrarSesion()">
+    <div class="user-row-wrap" style="display:flex;flex-direction:row;align-items:center;gap:6px;">
+  <div class="user-row">
       <div class="user-avatar" id="userAvatar">A</div>
       <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
     </div>
+  <button class="btn-logout" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
+  </div>
     <div class="ver-info">DiabCare Analytics v2.0</div>
   </div>
 </aside>
@@ -81,6 +109,7 @@
       <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Actualizar</button>
     </div>
 
+    <!-- KPI principales -->
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Total registros</div><div class="stat-value blue" id="s-total"><div class="spinner"></div></div></div>
       <div class="stat-card"><div class="stat-label">Con diabetes</div><div class="stat-value red" id="s-con"><div class="spinner"></div></div></div>
@@ -88,25 +117,115 @@
       <div class="stat-card"><div class="stat-label">Prevalencia</div><div class="stat-value amber" id="s-prev"><div class="spinner"></div></div></div>
     </div>
 
+    <!-- KPI clínicos secundarios -->
+    <div class="section-label">Indicadores clínicos promedio</div>
+    <div class="stats-grid-2">
+      <div class="stat-card-sm">
+        <div class="stat-label">BMI promedio</div>
+        <div style="display:flex;gap:16px;margin-top:4px;">
+          <div><div class="stat-value red" id="k-bmi-con" style="font-size:18px">—</div><div class="stat-sub">Con diabetes</div></div>
+          <div><div class="stat-value green" id="k-bmi-sin" style="font-size:18px">—</div><div class="stat-sub">Sin diabetes</div></div>
+        </div>
+      </div>
+      <div class="stat-card-sm">
+        <div class="stat-label">HbA1c promedio</div>
+        <div style="display:flex;gap:16px;margin-top:4px;">
+          <div><div class="stat-value red" id="k-hba-con" style="font-size:18px">—</div><div class="stat-sub">Con diabetes</div></div>
+          <div><div class="stat-value green" id="k-hba-sin" style="font-size:18px">—</div><div class="stat-sub">Sin diabetes</div></div>
+        </div>
+      </div>
+      <div class="stat-card-sm">
+        <div class="stat-label">Glucosa promedio (mg/dL)</div>
+        <div style="display:flex;gap:16px;margin-top:4px;">
+          <div><div class="stat-value red" id="k-glc-con" style="font-size:18px">—</div><div class="stat-sub">Con diabetes</div></div>
+          <div><div class="stat-value green" id="k-glc-sin" style="font-size:18px">—</div><div class="stat-sub">Sin diabetes</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Distribución general -->
+    <div class="section-label">Distribución general</div>
     <div class="charts-grid-2">
       <div class="chart-card"><div class="chart-title">Distribución diabetes</div><div class="chart-wrap"><canvas id="c-pie"></canvas></div></div>
       <div class="chart-card"><div class="chart-title">Distribución por género</div><div class="chart-wrap"><canvas id="c-genero"></canvas></div></div>
     </div>
 
-    <div class="charts-grid-3">
+    <!-- Comorbilidades -->
+    <div class="section-label">Comorbilidades</div>
+    <div class="charts-grid-2">
       <div class="chart-card"><div class="chart-title">Hipertensión vs diabetes</div><div class="chart-wrap"><canvas id="c-hiper"></canvas></div></div>
       <div class="chart-card"><div class="chart-title">Cardiopatía vs diabetes</div><div class="chart-wrap"><canvas id="c-cardio"></canvas></div></div>
-      <div class="chart-card"><div class="chart-title">Edad promedio estimada</div><div class="chart-wrap"><canvas id="c-edad"></canvas></div></div>
     </div>
+
+    <!-- Demografía -->
+    <div class="section-label">Demografía</div>
+    <div class="charts-grid-2">
+      <div class="chart-card"><div class="chart-title">Distribución por edad</div><div class="chart-wrap"><canvas id="c-edad"></canvas></div></div>
+      <div class="chart-card"><div class="chart-title">Distribución por raza</div><div class="chart-wrap"><canvas id="c-raza"></canvas></div></div>
+    </div>
+
+    <!-- Factores de riesgo -->
+    <div class="section-label">Factores de riesgo</div>
+    <div class="charts-grid-2">
+      <div class="chart-card"><div class="chart-title">Historial de tabaquismo vs diabetes</div><div class="chart-wrap"><canvas id="c-tabaco"></canvas></div></div>
+      <div class="chart-card"><div class="chart-title">Top 10 ubicaciones</div><div class="chart-wrap"><canvas id="c-ubicacion"></canvas></div></div>
+    </div>
+
+    <!-- Tendencia temporal -->
+    <div class="section-label">Tendencia temporal</div>
+    <div class="charts-grid-full">
+      <div class="chart-card"><div class="chart-title">Registros por año</div><div class="chart-wrap" style="height:180px"><canvas id="c-tendencia"></canvas></div></div>
+    </div>
+
+    <!-- Promedios clínicos comparativos (barras inline) -->
+    <div class="section-label">Comparación clínica con / sin diabetes</div>
+    <div class="charts-grid-full">
+      <div class="chart-card">
+        <div class="chart-title">Valores promedio comparativos</div>
+        <div style="padding:16px 8px" id="promedios-bars">
+          <div class="promedio-row">
+            <span class="promedio-label">BMI con</span>
+            <div class="promedio-track"><div class="promedio-fill-con" id="bar-bmi-con" style="width:0%"></div></div>
+            <span class="promedio-val" id="v-bmi-con">—</span>
+          </div>
+          <div class="promedio-row">
+            <span class="promedio-label">BMI sin</span>
+            <div class="promedio-track"><div class="promedio-fill-sin" id="bar-bmi-sin" style="width:0%"></div></div>
+            <span class="promedio-val" id="v-bmi-sin">—</span>
+          </div>
+          <div class="promedio-row" style="margin-top:10px">
+            <span class="promedio-label">HbA1c con</span>
+            <div class="promedio-track"><div class="promedio-fill-con" id="bar-hba-con" style="width:0%"></div></div>
+            <span class="promedio-val" id="v-hba-con">—</span>
+          </div>
+          <div class="promedio-row">
+            <span class="promedio-label">HbA1c sin</span>
+            <div class="promedio-track"><div class="promedio-fill-sin" id="bar-hba-sin" style="width:0%"></div></div>
+            <span class="promedio-val" id="v-hba-sin">—</span>
+          </div>
+          <div class="promedio-row" style="margin-top:10px">
+            <span class="promedio-label">Glucosa con</span>
+            <div class="promedio-track"><div class="promedio-fill-con" id="bar-glc-con" style="width:0%"></div></div>
+            <span class="promedio-val" id="v-glc-con">—</span>
+          </div>
+          <div class="promedio-row">
+            <span class="promedio-label">Glucosa sin</span>
+            <div class="promedio-track"><div class="promedio-fill-sin" id="bar-glc-sin" style="width:0%"></div></div>
+            <span class="promedio-val" id="v-glc-sin">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
 
 <script>
-const API = 'http://localhost:8000';
+const API   = 'http://localhost:8000';
 const token = localStorage.getItem('token');
-let charts = {};
+let charts  = {};
 
 function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
 
@@ -125,7 +244,7 @@ function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
 const baseOpts = {
   responsive: true, maintainAspectRatio: false,
   plugins: {
-    legend: { labels: { color: '#555', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10 } },
+    legend: { labels: { color: '#666', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10 } },
     tooltip: { backgroundColor: 'rgba(13,13,21,0.95)', titleColor: '#f0f0f0', bodyColor: '#888', borderColor: 'rgba(37,99,235,0.2)', borderWidth: 1 }
   },
   scales: {
@@ -136,12 +255,21 @@ const baseOpts = {
 
 function mkChart(id, type, labels, datasets, extraOpts = {}) {
   if (charts[id]) charts[id].destroy();
-  charts[id] = new Chart(document.getElementById(id), {
-    type,
-    data: { labels, datasets },
-    options: { ...baseOpts, ...extraOpts }
-  });
+  const merged = JSON.parse(JSON.stringify(baseOpts));
+  Object.assign(merged, extraOpts);
+  if (extraOpts.plugins) Object.assign(merged.plugins, extraOpts.plugins);
+  if (extraOpts.scales)  Object.assign(merged.scales,  extraOpts.scales);
+  charts[id] = new Chart(document.getElementById(id), { type, data: { labels, datasets }, options: merged });
 }
+
+// Mapas de traducción
+const GENERO_ES  = { 'Male':'Masculino', 'Female':'Femenino', 'Other':'Otro',
+                     'Masculino':'Masculino', 'Femenino':'Femenino', 'Otro':'Otro' };
+const TABACO_ES  = { 'never':'Nunca', 'current':'Actual', 'not current':'No actual',
+                     'No Info':'Sin info', 'nunca':'Nunca', 'actual':'Actual',
+                     'no actual':'No actual', 'Sin información':'Sin info' };
+const RAZA_ES    = { 'race_AfricanAmerican':'Afroamericano', 'race_Asian':'Asiático',
+                     'race_Caucasian':'Caucásico', 'race_Hispanic':'Hispano', 'race_Other':'Otro' };
 
 async function cargar() {
   try {
@@ -149,40 +277,128 @@ async function cargar() {
     if (r.status === 401) { window.location.href = '/'; return; }
     const d = await r.json();
 
+    // ── KPI principales ──
     document.getElementById('s-total').textContent = d.total.toLocaleString('es-ES');
     document.getElementById('s-con').textContent   = d.con_diabetes.toLocaleString('es-ES');
     document.getElementById('s-sin').textContent   = d.sin_diabetes.toLocaleString('es-ES');
     document.getElementById('s-prev').textContent  = Math.round((d.con_diabetes / d.total) * 100) + '%';
 
+    // ── KPI clínicos ──
+    if (d.promedios) {
+      const p = d.promedios;
+      document.getElementById('k-bmi-con').textContent = p.bmi.con;
+      document.getElementById('k-bmi-sin').textContent = p.bmi.sin;
+      document.getElementById('k-hba-con').textContent = p.hba1c.con;
+      document.getElementById('k-hba-sin').textContent = p.hba1c.sin;
+      document.getElementById('k-glc-con').textContent = p.glucosa.con;
+      document.getElementById('k-glc-sin').textContent = p.glucosa.sin;
+
+      // barras inline comparativas
+      const maxBmi = Math.max(p.bmi.con, p.bmi.sin, 45);
+      const maxHba = Math.max(p.hba1c.con, p.hba1c.sin, 9);
+      const maxGlc = Math.max(p.glucosa.con, p.glucosa.sin, 300);
+      document.getElementById('bar-bmi-con').style.width = (p.bmi.con / maxBmi * 100) + '%';
+      document.getElementById('bar-bmi-sin').style.width = (p.bmi.sin / maxBmi * 100) + '%';
+      document.getElementById('bar-hba-con').style.width = (p.hba1c.con / maxHba * 100) + '%';
+      document.getElementById('bar-hba-sin').style.width = (p.hba1c.sin / maxHba * 100) + '%';
+      document.getElementById('bar-glc-con').style.width = (p.glucosa.con / maxGlc * 100) + '%';
+      document.getElementById('bar-glc-sin').style.width = (p.glucosa.sin / maxGlc * 100) + '%';
+      document.getElementById('v-bmi-con').textContent = p.bmi.con;
+      document.getElementById('v-bmi-sin').textContent = p.bmi.sin;
+      document.getElementById('v-hba-con').textContent = p.hba1c.con;
+      document.getElementById('v-hba-sin').textContent = p.hba1c.sin;
+      document.getElementById('v-glc-con').textContent = p.glucosa.con;
+      document.getElementById('v-glc-sin').textContent = p.glucosa.sin;
+    }
+
+    // ── Donut diabetes ──
     mkChart('c-pie', 'doughnut',
       ['Sin diabetes', 'Con diabetes'],
       [{ data: [d.sin_diabetes, d.con_diabetes], backgroundColor: ['rgba(34,197,94,0.75)', 'rgba(239,68,68,0.75)'], borderWidth: 0 }],
-      { scales: {}, plugins: { ...baseOpts.plugins, legend: { position: 'bottom', labels: { color: '#555', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10 } } } }
+      { scales: {}, plugins: { legend: { position: 'bottom', labels: { color: '#666', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10 } } } }
     );
 
-    mkChart('c-genero', 'bar',
-      ['Female', 'Male', 'Other'],
-      [{ label: 'Pacientes', data: [Math.round(d.total*0.6), Math.round(d.total*0.37), Math.round(d.total*0.03)], backgroundColor: 'rgba(37,99,235,0.65)', borderRadius: 4 }]
-    );
+    // ── Género ──
+    if (d.genero) {
+      const gLabels = Object.keys(d.genero).map(k => GENERO_ES[k] || k);
+      const gVals   = Object.values(d.genero);
+      mkChart('c-genero', 'bar', gLabels,
+        [{ label: 'Pacientes', data: gVals, backgroundColor: ['rgba(37,99,235,0.65)','rgba(139,92,246,0.65)','rgba(20,184,166,0.65)'], borderRadius: 4 }]
+      );
+    }
 
-    mkChart('c-hiper', 'bar',
-      ['Sin diabetes', 'Con diabetes'],
-      [{ label: 'Con hipertensión', data: [Math.round(d.sin_diabetes*0.19), Math.round(d.con_diabetes*0.35)], backgroundColor: 'rgba(239,68,68,0.65)', borderRadius: 4 },
-       { label: 'Sin hipertensión', data: [Math.round(d.sin_diabetes*0.81), Math.round(d.con_diabetes*0.65)], backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4 }]
-    );
+    // ── Hipertensión ──
+    if (d.comorbilidades) {
+      const h = d.comorbilidades.hipertension;
+      mkChart('c-hiper', 'bar',
+        ['Sin diabetes', 'Con diabetes'],
+        [{ label: 'Con hipertensión', data: [h.sin_diabetes_con, h.con_diabetes_con], backgroundColor: 'rgba(239,68,68,0.65)', borderRadius: 4 },
+         { label: 'Sin hipertensión', data: [h.sin_diabetes_sin, h.con_diabetes_sin], backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4 }]
+      );
 
-    mkChart('c-cardio', 'bar',
-      ['Sin diabetes', 'Con diabetes'],
-      [{ label: 'Con cardiopatía', data: [Math.round(d.sin_diabetes*0.06), Math.round(d.con_diabetes*0.12)], backgroundColor: 'rgba(245,158,11,0.65)', borderRadius: 4 },
-       { label: 'Sin cardiopatía', data: [Math.round(d.sin_diabetes*0.94), Math.round(d.con_diabetes*0.88)], backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4 }]
-    );
+      // ── Cardiopatía ──
+      const c = d.comorbilidades.cardiopatia;
+      mkChart('c-cardio', 'bar',
+        ['Sin diabetes', 'Con diabetes'],
+        [{ label: 'Con cardiopatía', data: [c.sin_diabetes_con, c.con_diabetes_con], backgroundColor: 'rgba(245,158,11,0.65)', borderRadius: 4 },
+         { label: 'Sin cardiopatía', data: [c.sin_diabetes_sin, c.con_diabetes_sin], backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4 }]
+      );
+    }
 
-    mkChart('c-edad', 'bar',
-      ['20-30', '31-40', '41-50', '51-60', '61-70', '70+'],
-      [{ label: 'Sin diabetes', data: [18, 22, 19, 16, 14, 11].map(v => Math.round(d.sin_diabetes * v / 100)), backgroundColor: 'rgba(34,197,94,0.55)', borderRadius: 4 },
-       { label: 'Con diabetes',  data: [5, 9, 16, 24, 26, 20].map(v => Math.round(d.con_diabetes  * v / 100)), backgroundColor: 'rgba(239,68,68,0.55)',  borderRadius: 4 }]
-    );
-  } catch {
+    // ── Edad ──
+    if (d.edad) {
+      const eLabels = Object.keys(d.edad);
+      mkChart('c-edad', 'bar', eLabels,
+        [{ label: 'Sin diabetes', data: eLabels.map(l => d.edad[l].sin_diabetes), backgroundColor: 'rgba(34,197,94,0.55)', borderRadius: 4 },
+         { label: 'Con diabetes',  data: eLabels.map(l => d.edad[l].con_diabetes),  backgroundColor: 'rgba(239,68,68,0.55)', borderRadius: 4 }]
+      );
+    }
+
+    // ── Raza ──
+    if (d.razas) {
+      const rLabels = Object.keys(d.razas).map(k => RAZA_ES[k] || k);
+      const rCon    = Object.values(d.razas).map(v => v.con_diabetes);
+      const rSin    = Object.values(d.razas).map(v => v.sin_diabetes);
+      mkChart('c-raza', 'bar', rLabels,
+        [{ label: 'Con diabetes', data: rCon, backgroundColor: 'rgba(239,68,68,0.6)', borderRadius: 4 },
+         { label: 'Sin diabetes', data: rSin, backgroundColor: 'rgba(37,99,235,0.4)', borderRadius: 4 }]
+      );
+    }
+
+    // ── Tabaquismo ──
+    if (d.tabaquismo) {
+      const tLabels = Object.keys(d.tabaquismo).map(k => TABACO_ES[k] || k);
+      const tCon    = Object.values(d.tabaquismo).map(v => v.con_diabetes);
+      const tSin    = Object.values(d.tabaquismo).map(v => v.sin_diabetes);
+      mkChart('c-tabaco', 'bar', tLabels,
+        [{ label: 'Con diabetes', data: tCon, backgroundColor: 'rgba(239,68,68,0.6)', borderRadius: 4 },
+         { label: 'Sin diabetes', data: tSin, backgroundColor: 'rgba(34,197,94,0.4)', borderRadius: 4 }]
+      );
+    }
+
+    // ── Ubicaciones ──
+    if (d.ubicaciones) {
+      const uLabels = Object.keys(d.ubicaciones);
+      const uVals   = Object.values(d.ubicaciones);
+      mkChart('c-ubicacion', 'bar', uLabels,
+        [{ label: 'Pacientes', data: uVals, backgroundColor: 'rgba(20,184,166,0.6)', borderRadius: 4 }],
+        { indexAxis: 'y' }
+      );
+    }
+
+    // ── Tendencia por año ──
+    if (d.tendencia && d.tendencia.length > 0) {
+      const tYears  = d.tendencia.map(t => t.year);
+      const tTotal  = d.tendencia.map(t => t.total);
+      const tDiab   = d.tendencia.map(t => t.con_diabetes);
+      mkChart('c-tendencia', 'line', tYears,
+        [{ label: 'Total registros', data: tTotal, borderColor: 'rgba(37,99,235,0.8)', backgroundColor: 'rgba(37,99,235,0.08)', fill: true, tension: 0.4, pointRadius: 4 },
+         { label: 'Con diabetes',    data: tDiab,  borderColor: 'rgba(239,68,68,0.8)',  backgroundColor: 'rgba(239,68,68,0.06)',  fill: true, tension: 0.4, pointRadius: 4 }]
+      );
+    }
+
+  } catch(e) {
+    console.error(e);
     ['s-total','s-con','s-sin','s-prev'].forEach(id => document.getElementById(id).textContent = '—');
   }
 }

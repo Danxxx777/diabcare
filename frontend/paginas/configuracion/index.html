@@ -25,7 +25,7 @@
 <aside class="sidebar">
   <div class="logo-area">
     <div class="logo-mark">D</div>
-    <div><div class="logo-text">DiabCare</div><div class="logo-sub">ANALYTICS v2.0</div></div>
+    <div><div class="logo-text">DiabCare</div></div>
   </div>
   <nav class="nav">
     <div class="nav-section">Principal</div>
@@ -73,10 +73,13 @@
     <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
   </nav>
   <div class="sidebar-bottom">
-    <div class="user-row" onclick="cerrarSesion()">
+    <div class="user-row-wrap" style="display:flex;flex-direction:row;align-items:center;gap:6px;">
+  <div class="user-row">
       <div class="user-avatar" id="userAvatar">A</div>
       <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
     </div>
+  <button class="btn-logout" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
+  </div>
     <div class="ver-info">DiabCare Analytics v2.0</div>
   </div>
 </aside>

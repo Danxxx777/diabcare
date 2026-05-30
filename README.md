@@ -12,7 +12,7 @@ Plataforma SaaS de anÃ¡lisis clÃ­nico de datos de diabetes hospitalaria.
 | Almacenamiento | MinIO (Parquet columnar) |
 | OrquestaciÃ³n ETL | Apache Airflow |
 | Fuente de datos | PocketBase |
-| Machine Learning | scikit-learn |
+| Machine Learning | scikit-learn |cd backend
 
 ## Modelo de Datos
 
@@ -100,3 +100,4 @@ diabcare/
 | Administrador | Usuarios, configuraciÃ³n, auditorÃ­a, dataset |
 | Analista | Dashboards, benchmarking, modelo ML |
 | Sistema (Airflow) | Pipeline ETL automatizado |
+
