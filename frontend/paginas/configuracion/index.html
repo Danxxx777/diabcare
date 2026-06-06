@@ -56,8 +56,8 @@
       </div>
     </div>
     <div class="nav-section">Datos</div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><span class="nav-badge">pronto</span></div></div>
+    <div class="nav-group"><div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><i class="nav-chevron">&#8250;</i></div><div class="nav-sub"><a class="nav-sub-item" href="/paginas/prediccion/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Predecir / Métricas</span></a></div></div>
+    <div class="nav-group"><div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><i class="nav-chevron">&#8250;</i></div><div class="nav-sub"><a class="nav-sub-item" href="/paginas/pipeline_etl/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estado / Archivos</span></a></div></div>
     <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Modelo ML</span><span class="nav-badge">pronto</span></div></div>
     <div class="nav-section">Sistema</div>
     <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Reportes</span><span class="nav-badge">pronto</span></div></div>
@@ -170,6 +170,22 @@ function initUser() {
 }
 
 function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+function aplicarRoles() {
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const rol = u.rol || '';
+  const OCULTAR = {
+    'medico':   ['Dataset','Usuarios','Pipeline ETL','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
+    'analista': ['Registros clínicos','Usuarios','Pipeline ETL','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
+  };
+  const ocultar = OCULTAR[rol] || [];
+  document.querySelectorAll('.nav-group').forEach(g => {
+    const label = g.querySelector('.nav-group-label');
+    if (!label) return;
+    const txt = label.textContent.trim();
+if (ocultar.some(o => txt.includes(o))) g.style.display = 'none';
+  });
+}
 
 function toast(msg, type = 'success') {
   const t = document.getElementById('toast');

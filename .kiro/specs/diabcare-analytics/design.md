@@ -1,13 +1,13 @@
-# Documento de Diseño — DiabCare Analytics
+# Documento de Diseño — DiabCare Analytics v2.0
 
 ## Visión General
 
-DiabCare Analytics es una aplicación web académica de análisis de datos clínicos de diabetes hospitalaria. El sistema lee un archivo `.parquet` almacenado en MinIO, genera tablas de hecho y dimensiones en memoria con pandas, y expone visualizaciones analíticas, consultas de tablas, operaciones CRUD y la información corporativa de la empresa ficticia DiabCare Analytics.
+DiabCare Analytics es una plataforma SaaS de análisis clínico de diabetes hospitalaria. El sistema lee archivos `.parquet` almacenados en MinIO, calcula estadísticas con pandas, y expone una interfaz web multi-página con autenticación JWT, gestión de usuarios y visualizaciones clínicas interactivas.
 
-El diseño sigue una arquitectura de dos capas activas:
-
-- **Capa de presentación**: SPA servida como plantilla Jinja2 (`frontend/paginas/Inicio.html`) con HTML/CSS/JS vanilla.
-- **Capa de aplicación + datos**: API REST construida con FastAPI + Uvicorn en `backend/Principal.py`. No hay base de datos relacional. Los datos viven en un DataFrame de pandas en memoria, cargado desde MinIO al primer acceso.
+La arquitectura es de tres capas:
+- **Presentación**: Frontend multi-página HTML/CSS/JS vanilla servido por FastAPI como archivos estáticos.
+- **Aplicación**: API REST con FastAPI + Uvicorn, autenticación JWT, lógica de negocio en servicios Python.
+- **Datos**: MinIO (object storage Parquet), PocketBase (usuarios origen), Apache Airflow (orquestación ELT).
 
 ---
 
@@ -15,32 +15,34 @@ El diseño sigue una arquitectura de dos capas activas:
 
 ```mermaid
 graph TD
-    Browser["Navegador (HTML/JS vanilla)"]
-    FastAPI["FastAPI + Uvicorn\n(backend/Principal.py)"]
-    Cache["Cache en memoria\n(_df_cache: pd.DataFrame)"]
-    MinIO["MinIO\nlocalhost:9000\ndiabetes-data/stage/*.parquet"]
-    Airflow["Apache Airflow\n(orquestacion/flujos/FlujoDiabetes.py)"]
-    PocketBase["PocketBase\n(Fuente original)"]
+    Browser["Navegador (HTML/JS vanilla)\nMulti-página"]
+    FastAPI["FastAPI + Uvicorn\nbackend/Principal.py\nlocalhost:8000"]
+    JWT["JWT Auth\nHS256 · 8h"]
+    MinIO["MinIO\nlocalhost:9000\ndiabetes-data/stage/*.parquet\ndiabcare-app/usuarios/*.parquet"]
+    PocketBase["PocketBase\nlocalhost:8090\nFuente de usuarios"]
+    Airflow["Apache Airflow 2.9.1\nDocker Compose\nPipeline ELT"]
 
-    Browser -- "HTTP GET/POST/PUT/DELETE" --> FastAPI
-    FastAPI -- "Jinja2 render" --> Browser
-    FastAPI -- "lee/escribe" --> Cache
-    FastAPI -- "descarga parquet (minio-py)" --> MinIO
+    Browser -- "fetch() + Bearer Token" --> FastAPI
+    FastAPI -- "FileResponse HTML" --> Browser
+    FastAPI -- "verificar_token()" --> JWT
+    FastAPI -- "minio-py read/write" --> MinIO
     PocketBase -- "API REST" --> Airflow
-    Airflow -- "sube parquet" --> MinIO
+    Airflow -- "sube parquet stage/" --> MinIO
 ```
 
-### Flujo de solicitud típico
+### Flujo de autenticación
+1. Usuario envía `POST /api/auth/login` con email y password.
+2. Backend verifica credenciales contra `diabcare-app/usuarios/usuarios.parquet`.
+3. Si válido, genera JWT con `sub`, `email`, `rol`, `exp` (8h).
+4. Frontend almacena token en `localStorage` y redirige al Dashboard.
+5. Cada request incluye `Authorization: Bearer {token}` en headers.
+6. `Dependencias.py` valida el token y el rol antes de cada endpoint protegido.
 
-1. El navegador carga `/` → FastAPI renderiza `frontend/paginas/Inicio.html` con Jinja2.
-2. El JS del frontend llama a los endpoints `/api/*` con `fetch()`.
-3. FastAPI invoca `get_df()` que retorna la Cache_DF si existe, o descarga el parquet desde MinIO.
-4. Las funciones de dimensión/hecho generan DataFrames derivados en memoria.
-5. La respuesta JSON es consumida por el JS para actualizar el DOM.
-
-### Pipeline externo (fuera del alcance del Sistema)
-
-`PocketBase → Airflow (orquestacion/flujos/FlujoDiabetes.py) → Parquet → MinIO diabetes-data/stage/`
+### Flujo de datos clínicos
+1. Airflow extrae datos de PocketBase y genera archivos `.parquet` en MinIO `stage/`.
+2. El generador sintético (`DatasetServicio.py`) crea registros y los sube a `stage/`.
+3. `RegistrosClinicosServicio._extraer()` lista todos los `.parquet` en `stage/`, los concatena y retorna un DataFrame unificado.
+4. Los endpoints de estadísticas calculan métricas desde ese DataFrame con pandas.
 
 ---
 
@@ -49,199 +51,189 @@ graph TD
 ```
 diabcare/
 ├── backend/
-│   ├── Principal.py              ← Servidor FastAPI principal (main de la app)
+│   ├── Principal.py                      ← Entry point FastAPI, rutas frontend, favicon
 │   ├── api/
-│   │   ├── RutasDataset.py       ← GET /api/stats, GET /api/tabla, POST /api/cargar-dataset
-│   │   ├── RutasCrud.py          ← GET/PUT/DELETE /api/fact/{id}
-│   │   ├── RutasDimensiones.py   ← Endpoints de dimensiones
-│   │   ├── RutasPrediccion.py    ← POST /api/prediccion
-│   │   ├── RutasReportes.py      ← GET/POST /api/reportes
-│   │   └── RutasAutenticacion.py ← POST /api/auth/ingresar y salir
+│   │   ├── autenticacion/
+│   │   │   └── AutenticacionRutas.py     ← POST /api/auth/login, logout, cambiar-password, recuperar
+│   │   ├── usuarios/
+│   │   │   └── UsuariosRutas.py          ← CRUD /api/usuarios/
+│   │   ├── registros_clinicos/
+│   │   │   └── RegistrosClinicosRutas.py ← GET/POST/PUT/DELETE /api/registros/ + /estadisticas
+│   │   ├── dataset/
+│   │   │   └── DatasetRutas.py           ← GET /api/dataset/hechos, dimensiones, POST /generar
+│   │   ├── prediccion/PrediccionRutas.py
+│   │   ├── reportes/ReportesRutas.py
+│   │   ├── pipeline_etl/PipelineEtlRutas.py
+│   │   ├── notificaciones/NotificacionesRutas.py
+│   │   ├── auditoria/AuditoriaRutas.py
+│   │   ├── configuracion/ConfiguracionRutas.py
+│   │   ├── benchmarking/BenchmarkingRutas.py
+│   │   ├── modelo_ml/ModeloMlRutas.py
+│   │   └── integraciones/IntegracionesRutas.py
 │   ├── servicios/
-│   │   ├── ServicioMinio.py      ← Conexión MinIO, lectura/escritura Parquet
-│   │   ├── ServicioDataset.py    ← Carga Parquet en memoria, gestión caché
-│   │   ├── ServicioCrud.py       ← Operaciones CRUD sobre DataFrame
-│   │   ├── ServicioPrediccion.py ← Carga modelo ML, predicciones
-│   │   └── ServicioReporte.py    ← Generación PDF/CSV, subida a MinIO
-│   ├── modelos/
-│   │   ├── HechoDiabetes.py      ← Modelo tabla de hechos
-│   │   ├── DimPaciente.py
-│   │   ├── DimUbicacion.py
-│   │   ├── DimRaza.py
-│   │   ├── DimCondicion.py
-│   │   └── DimTiempo.py
-│   ├── base_de_datos/
-│   │   └── ClienteMinio.py       ← Cliente MinIO: localhost:9000
+│   │   ├── autenticacion/
+│   │   │   └── AutenticacionServicio.py  ← JWT encode/decode, login, reset password
+│   │   ├── usuarios/
+│   │   │   └── UsuariosServicio.py       ← CRUD usuarios en MinIO Parquet
+│   │   ├── registros_clinicos/
+│   │   │   └── RegistrosClinicosServicio.py ← _extraer(), estadisticas(), CRUD registros
+│   │   ├── dataset/
+│   │   │   └── DatasetServicio.py        ← generar_y_subir() datos sintéticos
+│   │   └── configuracion/
+│   │       ├── ConfiguracionClienteMinio.py ← get_cliente(), inicializar_buckets()
+│   │       └── ConfiguracionAjustes.py      ← constantes (bucket, prefix, puerto, secret)
 │   └── utilidades/
-│       ├── UtilidadesParquet.py
-│       └── Registrador.py
+│       └── Dependencias.py               ← require_auth, require_admin, require_modulo()
 │
 ├── frontend/
+│   ├── estaticos/
+│   │   └── estilos.css                   ← Design system compartido (variables CSS, componentes)
 │   └── paginas/
-│       └── Inicio.html           ← SPA principal (Jinja2 template)
-│
-├── orquestacion/
-│   ├── flujos/
-│   │   └── FlujoDiabetes.py      ← DAG Airflow: PocketBase → Parquet → MinIO
-│   └── scripts/
-│       ├── ExtraerConvertir.py
-│       ├── CargarMinio.py
-│       └── ValidarCarga.py
-│
-├── ml/
-│   ├── modelos/
-│   │   ├── Entrenador.py
-│   │   └── Predictor.py
-│   └── evaluacion/
-│       └── Metricas.py
-│
-├── pruebas/
-│   ├── api/
-│   │   ├── PruebaCrud.py
-│   │   └── PruebaDataset.py
-│   ├── ml/
-│   │   └── PruebaPrediccion.py
-│   └── integracion/
-│       └── PruebaFlujo.py
-│
-├── configuracion/
-│   └── Ajustes.py
-└── almacenamiento/
-    ├── diabetes-data/
-    │   ├── etapa/
-    │   ├── sinteticos/
-    │   └── procesados/
-    └── aplicacion/
-        ├── modelos/
-        ├── reportes/
-        └── exportaciones/
+│       ├── autenticacion/index.html      ← Login
+│       ├── analisis/index.html           ← Dashboard ejecutivo
+│       ├── estadisticas/index.html       ← Estadísticas clínicas detalladas
+│       ├── registros_clinicos/index.html ← Consultar y filtrar registros
+│       ├── dataset/
+│       │   ├── index.html                ← Ver tablas del dataset
+│       │   └── generador.html            ← Generador de datos sintéticos
+│       └── usuarios/index.html           ← Gestión de usuarios
 ```
 
 ---
 
 ## Componentes e Interfaces
 
-### Backend — `backend/Principal.py`
+### Backend — Endpoints principales
 
-| Endpoint | Método | Descripción |
-|---|---|---|
-| `/` | GET | Sirve `frontend/paginas/Inicio.html` vía Jinja2 |
-| `/api/cargar-dataset` | POST | Invalida caché y fuerza recarga desde MinIO |
-| `/api/stats` | GET | Conteos del Dataset y las 5 Tablas_Virtuales |
-| `/api/tabla/{nombre}` | GET | Filas paginadas de una Tabla_Virtual |
-| `/api/fact/{id_fact}` | GET | Registro individual por índice |
-| `/api/fact/{id_fact}` | PUT | Actualiza campos clínicos en Cache_DF |
-| `/api/fact/{id_fact}` | DELETE | Elimina registro y reindexea |
-| `/api/chart/diabetes-por-anio` | GET | Conteos agrupados por `year` |
-| `/api/chart/pacientes-por-ubicacion` | GET | Top-15 ubicaciones |
-| `/api/chart/distribucion-bmi` | GET | Distribución en 6 rangos de BMI |
-| `/api/chart/glucosa-vs-diabetes` | GET | Promedio de glucosa por grupo |
-| `/api/empresa` | GET | Datos corporativos estáticos |
+| Módulo | Endpoint | Método | Auth | Descripción |
+|---|---|---|---|---|
+| Auth | `/api/auth/login` | POST | No | Login, retorna JWT |
+| Auth | `/api/auth/logout` | POST | Sí | Cierre de sesión |
+| Auth | `/api/auth/cambiar-password` | PUT | Sí | Cambio de contraseña |
+| Usuarios | `/api/usuarios/` | GET | Admin | Listar usuarios |
+| Usuarios | `/api/usuarios/` | POST | Admin | Crear usuario |
+| Usuarios | `/api/usuarios/{id}/rol` | PUT | Admin | Cambiar rol |
+| Usuarios | `/api/usuarios/{id}` | DELETE | Admin | Desactivar usuario |
+| Registros | `/api/registros/` | GET | Auth | Listar con paginación |
+| Registros | `/api/registros/estadisticas` | GET | Auth | Estadísticas completas |
+| Registros | `/api/registros/buscar` | GET | Auth | Filtrar registros |
+| Registros | `/api/registros/` | POST | Auth | Crear registro |
+| Registros | `/api/registros/{id}` | PUT/DELETE | Auth | Editar/eliminar |
+| Dataset | `/api/dataset/hechos` | GET | Auth | Tabla de hechos paginada |
+| Dataset | `/api/dataset/dimension/{nombre}` | GET | Auth | Dimensiones |
+| Dataset | `/api/dataset/generar` | POST | Auth | Generar datos sintéticos |
+| Dataset | `/api/dataset/estadisticas` | GET | Auth | Stats del dataset |
+| Sistema | `/api/health` | GET | No | Health check |
 
-### Gestión de la caché — `backend/servicios/ServicioDataset.py`
+### Servicio de estadísticas — `RegistrosClinicosServicio.estadisticas()`
 
-```python
-_df_cache: pd.DataFrame = None
+Calcula desde el DataFrame unificado:
+- Conteos: total, con_diabetes, sin_diabetes
+- Género: value_counts() del campo gender
+- Tabaquismo: agrupado por smoking_history, con/sin diabetes
+- Razas: suma de flags por raza, con/sin diabetes
+- Edad: pd.cut en rangos [<20, 20-30, 31-40, 41-50, 51-60, 61-70, 70+]
+- Promedios: mean() de bmi, hbA1c_level, blood_glucose_level por grupo diabetes
+- Comorbilidades: cruce hipertension/heart_disease × diabetes
+- Ubicaciones: top 10 por value_counts()
+- Tendencia: groupby year con count y sum de diabetes
 
-def get_df() -> pd.DataFrame:
-    global _df_cache
-    if _df_cache is not None:
-        return _df_cache
-    client = get_minio_client()
-    objects = list(client.list_objects(MINIO_BUCKET, prefix=MINIO_PREFIX))
-    parquet_files = [o for o in objects if o.object_name.endswith(".parquet")]
-    latest = sorted(parquet_files, key=lambda o: o.last_modified, reverse=True)[0]
-    response = client.get_object(MINIO_BUCKET, latest.object_name)
-    _df_cache = pd.read_parquet(BytesIO(response.read()))
-    return _df_cache
-```
-
-### Conexión MinIO — `backend/base_de_datos/ClienteMinio.py`
-
-```python
-def get_minio_client():
-    return Minio(
-        "localhost:9000",
-        access_key="admin",
-        secret_key="password123",
-        secure=False
-    )
-```
-
-### Tablas Virtuales — `backend/servicios/ServicioCrud.py`
+### Autenticación — `Dependencias.py`
 
 ```python
-def get_dim_paciente(df):
-    dim = df[["gender", "age"]].drop_duplicates().reset_index(drop=True)
-    dim.index.name = "id_paciente"
-    return dim.reset_index()
-
-def get_dim_ubicacion(df):
-    dim = df[["location", "year"]].drop_duplicates().reset_index(drop=True)
-    dim.index.name = "id_ubicacion"
-    return dim.reset_index()
-
-def get_dim_raza(df):
-    cols = ["race_AfricanAmerican","race_Asian","race_Caucasian","race_Hispanic","race_Other"]
-    dim = df[cols].drop_duplicates().reset_index(drop=True)
-    dim.index.name = "id_raza"
-    return dim.reset_index()
-
-def get_dim_condicion(df):
-    cols = ["hypertension", "heart_disease", "smoking_history"]
-    dim = df[cols].drop_duplicates().reset_index(drop=True)
-    dim.index.name = "id_condicion"
-    return dim.reset_index()
-
-def get_fact_diabetes(df):
-    fact = df[["bmi", "hbA1c_level", "blood_glucose_level", "diabetes"]].copy()
-    fact.index.name = "id_fact"
-    return fact.reset_index()
-```
-
-**TABLAS_MAP** (definido en `backend/Principal.py`):
-```python
-TABLAS_MAP = {
-    "diabetes_dataset": lambda df: df,
-    "dim_paciente":     get_dim_paciente,
-    "dim_ubicacion":    get_dim_ubicacion,
-    "dim_raza":         get_dim_raza,
-    "dim_condicion":    get_dim_condicion,
-    "fact_diabetes":    get_fact_diabetes,
+PERMISOS_MODULOS = {
+    "usuarios":      ["administrador"],
+    "configuracion": ["administrador"],
+    "auditoria":     ["administrador"],
+    "registros":     ["administrador", "medico"],
+    "analisis":      ["administrador", "medico"],
+    "prediccion":    ["administrador", "medico"],
+    "reportes":      ["administrador", "medico"],
+    "dataset":       ["administrador", "analista"],
+    "pipeline_etl":  ["administrador", "analista"],
+    "modelo_ml":     ["administrador", "analista"],
+    "integraciones": ["administrador", "analista"],
+    "notificaciones":["administrador", "medico", "analista"],
 }
 ```
 
-### Frontend — `frontend/paginas/Inicio.html`
+### Generador de datos sintéticos — `DatasetServicio.generar_registro()`
 
-SPA de una sola página con navegación por secciones. Vanilla JS con `fetch()`.
+Campos generados:
+- `year`: parámetro de entrada
+- `gender`: Masculino / Femenino / Otro
+- `age`: float uniforme [1, 80]
+- `location`: ciudades de EE.UU. en español (Alabama, California, Texas...)
+- `race_*`: un flag activo por registro
+- `hypertension`: probabilístico según BMI
+- `heart_disease`: probabilístico según diabetes
+- `smoking_history`: nunca / actual / no actual / Sin información
+- `bmi`: float uniforme [15, 45]
+- `hbA1c_level`: float uniforme [3.5, 9.0]
+- `blood_glucose_level`: int uniforme [80, 300]
+- `diabetes`: 1 si hbA1c>6.5 o glucosa>200, probabilístico en otros casos
 
-| Sección | ID DOM | Datos fuente |
+---
+
+## Frontend — Design System
+
+### Variables CSS (`estilos.css`)
+
+```css
+:root {
+  --bg: #09090f;       /* Fondo principal */
+  --bg2: #0d0d15;      /* Sidebar y cards */
+  --bg3: #111118;      /* Inputs y hover states */
+  --border: rgba(255,255,255,0.07);
+  --accent: #2563eb;   /* Azul primario */
+  --accent2: #3b82f6;
+  --green: #22c55e;
+  --red: #ef4444;
+  --amber: #f59e0b;
+  --mono: 'JetBrains Mono', monospace;
+}
+```
+
+### Componentes compartidos
+- `.sidebar` + `.nav-group` + `.nav-sub-item` — navegación colapsable
+- `.stat-card` + `.stat-value` — KPI cards con colores semánticos
+- `.tabla-card` + `table` — tablas de datos con hover
+- `.btn` + `.btn-primary` + `.btn-ghost` + `.btn-sm` — botones
+- `.overlay` + `.modal` — modales con animación
+- `.toast` — notificaciones flotantes con auto-dismiss
+- `.spinner` — indicador de carga
+- `.user-row-wrap` + `.btn-logout` — fila de usuario con botón de cerrar sesión
+
+### Páginas y su fuente de datos
+
+| Página | Ruta | Endpoints consumidos |
 |---|---|---|
-| Dashboard | `sec-dashboard` | `GET /api/stats` |
-| Ver Tablas | `sec-tablas` | `GET /api/tabla/{nombre}` |
-| CRUD Fact | `sec-crud` | `GET/PUT/DELETE /api/fact/{id}` |
-| Pipeline | `sec-pipeline` | Estático + `POST /api/cargar-dataset` |
-| Empresa | `sec-empresa` | `GET /api/empresa` (cacheado en `empresaData`) |
-| Objetivos | `sec-objetivos` | `GET /api/empresa` (cacheado en `empresaData`) |
+| Login | `/paginas/autenticacion/index.html` | `POST /api/auth/login` |
+| Dashboard | `/paginas/analisis/index.html` | `GET /api/registros/estadisticas`, `GET /api/dataset/estadisticas` |
+| Estadísticas | `/paginas/estadisticas/index.html` | `GET /api/registros/estadisticas` |
+| Registros | `/paginas/registros_clinicos/index.html` | `GET /api/registros/`, `GET /api/registros/buscar`, `GET /api/registros/estadisticas` |
+| Ver tablas | `/paginas/dataset/index.html` | `GET /api/dataset/hechos`, `GET /api/dataset/dimension/*` |
+| Generador | `/paginas/dataset/generador.html` | `POST /api/dataset/generar` |
+| Usuarios | `/paginas/usuarios/index.html` | `GET/POST/PUT/DELETE /api/usuarios/` |
 
 ---
 
 ## Modelos de Datos
 
-### Esquema del Dataset (parquet fuente en `almacenamiento/diabetes-data/etapa/`)
+### Dataset clínico (Parquet en MinIO `diabetes-data/stage/`)
 
 | Columna | Tipo | Descripción |
 |---|---|---|
-| `gender` | string | Género del paciente |
+| `gender` | string | Masculino / Femenino / Otro |
 | `age` | float | Edad del paciente |
-| `location` | string | Ubicación geográfica |
+| `location` | string | Ciudad (en español) |
 | `year` | int | Año del registro |
 | `hypertension` | int (0/1) | Hipertensión preexistente |
-| `heart_disease` | int (0/1) | Enfermedad cardíaca preexistente |
-| `smoking_history` | string | Historial de tabaquismo |
+| `heart_disease` | int (0/1) | Cardiopatía preexistente |
+| `smoking_history` | string | nunca / actual / no actual / Sin información |
 | `bmi` | float | Índice de masa corporal |
-| `hbA1c_level` | float | Nivel de hemoglobina glicosilada |
-| `blood_glucose_level` | int | Nivel de glucosa en sangre |
+| `hbA1c_level` | float | Hemoglobina glicosilada |
+| `blood_glucose_level` | int | Glucosa en sangre (mg/dL) |
 | `diabetes` | int (0/1) | Diagnóstico de diabetes |
 | `race_AfricanAmerican` | int (0/1) | Indicador de raza |
 | `race_Asian` | int (0/1) | Indicador de raza |
@@ -249,15 +241,30 @@ SPA de una sola página con navegación por secciones. Vanilla JS con `fetch()`.
 | `race_Hispanic` | int (0/1) | Indicador de raza |
 | `race_Other` | int (0/1) | Indicador de raza |
 
+### Usuarios (Parquet en MinIO `diabcare-app/usuarios/usuarios.parquet`)
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `id` | string (UUID) | Identificador único |
+| `nombre` | string | Nombre completo |
+| `email` | string | Email único |
+| `password_hash` | string | SHA-256 del password |
+| `rol` | string | administrador / medico / analista |
+| `activo` | bool | Estado del usuario |
+| `creado_en` | string (ISO) | Fecha de creación |
+
 ---
 
 ## Manejo de Errores
 
-| Situación | Código HTTP | Campo `detail` |
+| Situación | HTTP | Detail |
 |---|---|---|
-| Tabla no en TABLAS_MAP | 400 | `"Tabla no permitida. Opciones: [...]"` |
-| `limit` fuera de rango | 422 | Mensaje de validación de FastAPI |
-| MinIO sin archivos en `stage/` | 404 | `"No hay archivos parquet en MinIO stage/"` |
-| MinIO sin archivos `.parquet` | 404 | `"No se encontraron archivos .parquet"` |
-| Error de conexión a MinIO | 500 | Descripción de la excepción |
-| `id_fact` fuera de rango | 404 | `"Registro no encontrado"` |
+| Credenciales incorrectas | 401 | "Credenciales incorrectas" |
+| Token ausente | 401 | "Token requerido" |
+| Token expirado | 401 | "Token expirado" |
+| Rol no reconocido | 401 | "Rol del token no reconocido" |
+| Sin permisos para módulo | 403 | "Su rol '{rol}' no tiene acceso al módulo '{modulo}'" |
+| Usuario no encontrado | 404 | "Usuario no encontrado" |
+| Email ya registrado | 400 | "Email ya registrado" |
+| Registro no encontrado | 404 | "Registro no encontrado" |
+| MinIO sin archivos | 200 | DataFrame vacío, retorna lista vacía |

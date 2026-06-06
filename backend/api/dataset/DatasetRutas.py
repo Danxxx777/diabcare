@@ -1,4 +1,4 @@
-import io
+﻿import io
 from fastapi import APIRouter, Header
 from pydantic import BaseModel
 from typing import Optional
@@ -25,15 +25,18 @@ def _leer_parquet_minio(bucket: str, path: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 def _leer_ultimo_parquet(prefix: str) -> pd.DataFrame:
-    """Lee el parquet más reciente bajo un prefix en el bucket principal."""
+    """Concatena todos los parquets bajo un prefix en el bucket principal."""
     try:
         c = get_cliente()
         objetos = list(c.list_objects(MINIO_BUCKET, prefix=prefix, recursive=True))
-        if not objetos:
+        parquets = [o for o in objetos if o.object_name.endswith('.parquet')]
+        if not parquets:
             return pd.DataFrame()
-        ultimo = sorted(objetos, key=lambda o: o.last_modified, reverse=True)[0]
-        obj = c.get_object(MINIO_BUCKET, ultimo.object_name)
-        return pd.read_parquet(io.BytesIO(obj.read()))
+        dfs = []
+        for o in parquets:
+            obj = c.get_object(MINIO_BUCKET, o.object_name)
+            dfs.append(pd.read_parquet(io.BytesIO(obj.read())))
+        return pd.concat(dfs, ignore_index=True)
     except Exception:
         return pd.DataFrame()
 
@@ -45,17 +48,35 @@ def generar(datos: GenerarEntrada):
 # ── HECHOS ──
 @router.get("/hechos")
 def listar_hechos(skip: int = 0, limit: int = 50, authorization: Optional[str] = Header(None)):
-    df = _leer_ultimo_parquet("stage/")
-    if df.empty:
+    try:
+        c = get_cliente()
+        objetos = list(c.list_objects(MINIO_BUCKET, prefix="stage/", recursive=True))
+        parquets = sorted([o for o in objetos if o.object_name.endswith('.parquet')],
+                         key=lambda o: o.last_modified, reverse=True)
+        if not parquets:
+            return {"datos": [], "total": 0, "skip": skip, "limit": limit}
+
+        import pyarrow.parquet as pq
+
+        # Conteo rápido leyendo solo metadata de cada parquet
+        total = 0
+        for o in parquets:
+            obj = c.get_object(MINIO_BUCKET, o.object_name)
+            pf = pq.ParquetFile(io.BytesIO(obj.read()))
+            total += pf.metadata.num_rows
+
+        # Solo carga datos del más reciente para mostrar
+        obj = c.get_object(MINIO_BUCKET, parquets[0].object_name)
+        df = pd.read_parquet(io.BytesIO(obj.read()))
+        chunk = df.iloc[skip:skip+limit]
+        return {
+            "datos": chunk.fillna("").to_dict(orient="records"),
+            "total": total,
+            "skip": skip,
+            "limit": limit
+        }
+    except Exception as e:
         return {"datos": [], "total": 0, "skip": skip, "limit": limit}
-    total = len(df)
-    chunk = df.iloc[skip:skip+limit]
-    return {
-        "datos": chunk.fillna("").to_dict(orient="records"),
-        "total": total,
-        "skip": skip,
-        "limit": limit
-    }
 
 # ── DIMENSIONES ──
 @router.get("/dimension/paciente")
@@ -118,18 +139,29 @@ def dim_condicion(skip: int = 0, limit: int = 50, authorization: Optional[str] =
 # ── ESTADISTICAS ──
 @router.get("/estadisticas")
 def estadisticas_dataset(authorization: Optional[str] = Header(None)):
-    df = _leer_ultimo_parquet("stage/")
-    if df.empty:
+    try:
+        import pyarrow.parquet as pq
+        c = get_cliente()
+        objetos = list(c.list_objects(MINIO_BUCKET, prefix="stage/", recursive=True))
+        parquets = [o for o in objetos if o.object_name.endswith('.parquet')]
+        if not parquets:
+            return {"total": 0, "con_diabetes": 0, "sin_diabetes": 0, "columnas": []}
+        total = 0
+        for o in parquets:
+            obj = c.get_object(MINIO_BUCKET, o.object_name)
+            pf = pq.ParquetFile(io.BytesIO(obj.read()))
+            total += pf.metadata.num_rows
+        # Columnas y diabetes del más reciente
+        ultimo = sorted(parquets, key=lambda o: o.last_modified, reverse=True)[0]
+        obj = c.get_object(MINIO_BUCKET, ultimo.object_name)
+        df = pd.read_parquet(io.BytesIO(obj.read()))
+        col = next((c for c in ["diabetes", "Diabetes"] if c in df.columns), None)
+        con = int(df[col].sum()) if col else 0
+        return {
+            "total": total,
+            "con_diabetes": con,
+            "sin_diabetes": total - con,
+            "columnas": list(df.columns)
+        }
+    except Exception:
         return {"total": 0, "con_diabetes": 0, "sin_diabetes": 0, "columnas": []}
-    col = next((c for c in ["diabetes", "Diabetes"] if c in df.columns), None)
-    if col:
-        con = int(df[col].sum())
-        sin = len(df) - con
-    else:
-        con, sin = 0, len(df)
-    return {
-        "total": len(df),
-        "con_diabetes": con,
-        "sin_diabetes": sin,
-        "columnas": list(df.columns)
-    }
