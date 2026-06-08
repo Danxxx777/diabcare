@@ -11,14 +11,16 @@
 | P5 — Estadísticas clínicas | ✅ Completado |
 | P6 — Dashboard ejecutivo | ✅ Completado |
 | P7 — Frontend multi-página | ✅ Completado |
-| P8 — Predicción ML | ⏳ Pendiente |
-| P9 — Pipeline ETL visual | ⏳ Pendiente |
-| P10 — Modelo ML | ⏳ Pendiente |
-| P11 — Reportes | ⏳ Pendiente |
-| P12 — Auditoría | ⏳ Pendiente |
-| P13 — Benchmarking | ⏳ Pendiente |
-| P14 — Pruebas PBT | ⏳ Pendiente |
-| P15 — Pruebas integración | ⏳ Pendiente |
+| P8 — Predicción ML | ✅ Completado |
+| P9 — Pipeline ETL visual | ✅ Completado |
+| P10 — Control de roles en sidebar | ✅ Completado |
+| P11 — Conteo eficiente con pyarrow | ✅ Completado |
+| P12 — Reportes | ⏳ Pendiente |
+| P13 — Auditoría | ⏳ Pendiente |
+| P14 — Modelo ML (versionado) | ⏳ Pendiente |
+| P15 — Benchmarking | ⏳ Pendiente |
+| P16 — Pruebas PBT | ⏳ Pendiente |
+| P17 — Pruebas integración | ⏳ Pendiente |
 
 ---
 
@@ -26,11 +28,11 @@
 
 ### ✅ Tarea 1: Autenticación JWT
 
-- [x] 1.1 Implementar `POST /api/auth/login` con validación de credenciales y generación de JWT (HS256, 8h).
+- [x] 1.1 Implementar `POST /api/auth/login` con validación SHA-256 y generación de JWT HS256 (8h).
 - [x] 1.2 Implementar `verificar_token()` en `AutenticacionServicio.py` con validación de rol.
 - [x] 1.3 Implementar `Dependencias.py` con `require_auth`, `require_admin`, `require_modulo()`.
 - [x] 1.4 Definir `PERMISOS_MODULOS` con restricciones por rol para 12 módulos.
-- [x] 1.5 Implementar usuario admin por defecto `admin@diabcare.com / Admin2026*`.
+- [x] 1.5 Implementar usuario admin por defecto `admin@diabcare.com / Admin2026*` en startup.
 - [x] 1.6 Implementar `POST /api/auth/recuperar` y `POST /api/auth/resetear` para reset de password.
 - [x] 1.7 Implementar `PUT /api/auth/cambiar-password` con validación de password actual.
 - [x] 1.8 Frontend login con validación de campos, spinner y redirección al Dashboard.
@@ -46,11 +48,11 @@
 - [x] 2.3 Implementar `PUT /api/usuarios/{id}/rol` para cambio de rol.
 - [x] 2.4 Implementar `DELETE /api/usuarios/{id}` como desactivación (activo=False).
 - [x] 2.5 Implementar `UsuariosServicio.py` con persistencia en `diabcare-app/usuarios/usuarios.parquet`.
-- [x] 2.6 Frontend gestión con KPI cards (total, activos, inactivos, admins).
+- [x] 2.6 Frontend con KPI cards (total, activos, inactivos, admins).
 - [x] 2.7 Frontend con búsqueda en tiempo real por nombre/email.
 - [x] 2.8 Frontend con modal para crear usuario y cambiar rol.
 - [x] 2.9 Frontend con avatares de inicial y colores por índice.
-- [x] 2.10 Corrección de `rol: null` en usuario admin via script Python directo.
+- [x] 2.10 Corrección de `rol: null` en usuario admin via script Python directo en MinIO.
 
 **Archivos:** `api/usuarios/UsuariosRutas.py`, `servicios/usuarios/UsuariosServicio.py`, `frontend/paginas/usuarios/index.html`
 
@@ -62,11 +64,9 @@
 - [x] 3.2 Implementar `GET /api/registros/` con paginación skip/limit.
 - [x] 3.3 Implementar `GET /api/registros/buscar` con filtros: diabetes, gender, location, age_min, age_max.
 - [x] 3.4 Implementar `POST /api/registros/`, `PUT /api/registros/{id}`, `DELETE /api/registros/{id}`.
-- [x] 3.5 Implementar `GET /api/registros/estadisticas` con cálculo completo desde DataFrame.
-- [x] 3.6 Estadísticas incluyen: genero, tabaquismo, razas, edad (rangos), promedios, comorbilidades, ubicaciones, tendencia.
-- [x] 3.7 Frontend consulta con tabla paginada y filtros.
-
-**Nota:** La ruta `/estadisticas` debe declararse ANTES de `/{encounter_id}` en el router para evitar colisión.
+- [x] 3.5 Implementar `GET /api/registros/estadisticas` declarado ANTES de `/{encounter_id}` en el router.
+- [x] 3.6 Estadísticas calculan: genero, tabaquismo, razas, edad (rangos pd.cut), promedios, comorbilidades, ubicaciones (top 10), tendencia por año.
+- [x] 3.7 Frontend con tabla paginada y filtros por diabetes, género, ubicación y edad.
 
 **Archivos:** `api/registros_clinicos/RegistrosClinicosRutas.py`, `servicios/registros_clinicos/RegistrosClinicosServicio.py`, `frontend/paginas/registros_clinicos/index.html`
 
@@ -74,15 +74,17 @@
 
 ### ✅ Tarea 4: Dataset y Generador Sintético
 
-- [x] 4.1 Implementar `GET /api/dataset/hechos` con paginación.
+- [x] 4.1 Implementar `GET /api/dataset/hechos` con paginación y conteo rápido via pyarrow.
 - [x] 4.2 Implementar `GET /api/dataset/dimension/{nombre}` para paciente, ubicacion, raza, condicion.
 - [x] 4.3 Implementar `POST /api/dataset/generar` con parámetros `cantidad` y `year`.
-- [x] 4.4 `generar_registro()` genera campos en español (género, tabaquismo, ubicaciones).
+- [x] 4.4 `generar_registro()` genera campos en español (género, tabaquismo, ubicaciones en español).
 - [x] 4.5 Generador sube archivo Parquet a MinIO con nombre `sinteticos_{year}_{timestamp}.parquet`.
 - [x] 4.6 Frontend generador con presets 1K/10K/50K/100K/500K.
 - [x] 4.7 Frontend con barra de progreso animada y pasos: Generando → Parquet → MinIO → Completado.
 - [x] 4.8 Frontend muestra card de resultado con registros, año, formato y nombre de archivo.
-- [x] 4.9 Frontend ver tablas separado del generador en páginas independientes.
+- [x] 4.9 Frontend ver tablas separado del generador en páginas independientes con 5 tabs.
+- [x] 4.10 `GET /api/dataset/estadisticas` usa pyarrow para conteo rápido sin cargar todo en memoria.
+- [x] 4.11 Frontend ver tablas muestra el total real concatenado de todos los parquets.
 
 **Archivos:** `api/dataset/DatasetRutas.py`, `servicios/dataset/DatasetServicio.py`, `frontend/paginas/dataset/index.html`, `frontend/paginas/dataset/generador.html`
 
@@ -92,14 +94,14 @@
 
 - [x] 5.1 Dashboard consume `/api/registros/estadisticas` y `/api/dataset/estadisticas`.
 - [x] 5.2 Dashboard muestra 4 KPI cards con barras de color inferiores.
-- [x] 5.3 Dashboard muestra donut compacto con porcentajes.
+- [x] 5.3 Dashboard muestra donut compacto con porcentajes calculados desde datos reales.
 - [x] 5.4 Dashboard muestra 4 accesos rápidos con iconos.
-- [x] 5.5 Dashboard genera alertas clínicas dinámicas (prevalencia, HbA1c, BMI, volumen).
-- [x] 5.6 Dashboard muestra promedios clínicos con badges.
+- [x] 5.5 Dashboard genera alertas clínicas dinámicas: prevalencia > 50% → rojo, HbA1c > 7.5 → rojo, volumen < 1000 → azul.
+- [x] 5.6 Dashboard muestra promedios clínicos con badges de color.
 - [x] 5.7 Dashboard muestra top 6 ubicaciones con barras proporcionales.
-- [x] 5.8 Dashboard muestra estado del sistema con badges ok/warn.
-- [x] 5.9 Dashboard muestra archivos MinIO con columnas del dataset.
-- [x] 5.10 Página estadísticas con 10+ gráficas reales (Chart.js): donut, género, comorbilidades, edad, raza, tabaquismo, ubicaciones, tendencia.
+- [x] 5.8 Dashboard muestra estado del sistema: MinIO, Dataset, API, Auth, Modelo ML, Pipeline.
+- [x] 5.9 Dashboard muestra últimos archivos en MinIO con columnas del dataset.
+- [x] 5.10 Página estadísticas con 10+ gráficas Chart.js: donut, género, comorbilidades, edad, raza, tabaquismo, ubicaciones, tendencia.
 - [x] 5.11 KPI clínicos secundarios con BMI, HbA1c y glucosa promedio con/sin diabetes.
 - [x] 5.12 Barras comparativas inline con animación CSS.
 
@@ -109,77 +111,125 @@
 
 ### ✅ Tarea 6: Infraestructura y Sistema
 
-- [x] 6.1 `Principal.py` sirve frontend multi-página con ruta dinámica `/{modulo}/{archivo}`.
-- [x] 6.2 `inicializar_buckets()` crea buckets MinIO en startup si no existen.
-- [x] 6.3 `inicializar_admin()` crea usuario admin por defecto si tabla vacía.
-- [x] 6.4 `warnings.filterwarnings("ignore")` para suprimir logs de JWT key length.
-- [x] 6.5 `GET /favicon.ico` retorna 204 para suprimir logs de 404.
+- [x] 6.1 `Principal.py` sirve frontend multi-página con ruta dinámica `/paginas/{modulo}/{archivo}`.
+- [x] 6.2 `inicializar_buckets()` crea buckets `diabetes-data` y `diabcare-app` en startup si no existen.
+- [x] 6.3 `inicializar_admin()` crea usuario admin por defecto si Parquet de usuarios está vacío.
+- [x] 6.4 `warnings.filterwarnings("ignore", category=UserWarning)` suprime logs de JWT key length.
+- [x] 6.5 `GET /favicon.ico` retorna HTTP 204 para suprimir logs de 404.
 - [x] 6.6 Uvicorn con `--no-access-log` para logs limpios en desarrollo.
 - [x] 6.7 `estilos.css` como design system compartido con variables CSS y componentes reutilizables.
-- [x] 6.8 Sidebar consistente en todas las páginas con `.user-row-wrap` + `.btn-logout`.
-- [x] 6.9 `ANALYTICS v2.0` removido del logo en todas las páginas.
+- [x] 6.8 Sidebar consistente en todas las páginas con `.user-row-wrap` + `.btn-logout` (icono ⏻).
 
 **Archivos:** `Principal.py`, `servicios/configuracion/ConfiguracionClienteMinio.py`, `frontend/estaticos/estilos.css`
 
 ---
 
+### ✅ Tarea 7: Predicción ML
+
+- [x] 7.1 Instalar scikit-learn: `pip install scikit-learn --break-system-packages`.
+- [x] 7.2 Implementar `PrediccionServicio.py` con `entrenar()`, `predecir()`, `obtener_metricas()`, `modelo_disponible()`.
+- [x] 7.3 `entrenar()` carga DataFrame completo via `_extraer()`, entrena `RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)` con split 80/20 estratificado.
+- [x] 7.4 Modelo serializado con pickle junto a métricas en MinIO `diabcare-app/modelos/modelo_diabetes.pkl`.
+- [x] 7.5 `_modelo_cache = {"modelo": None, "metricas": None}` para caché en memoria.
+- [x] 7.6 Features: `["age", "bmi", "hbA1c_level", "blood_glucose_level", "hypertension", "heart_disease"]`.
+- [x] 7.7 Nivel de riesgo: probabilidad >= 0.7 → Alto, >= 0.4 → Medio, < 0.4 → Bajo.
+- [x] 7.8 Implementar `PrediccionRutas.py` con `POST /entrenar`, `POST /`, `GET /metricas`, `GET /estado`.
+- [x] 7.9 Frontend `prediccion/index.html` con 4 metric cards, formulario 6 campos y resultado visual.
+- [x] 7.10 Resultado muestra diagnóstico, barra de probabilidad animada y badge de riesgo.
+- [x] 7.11 Llamar `aplicarRoles()` dentro de la función `predecir()` para evitar flash del sidebar.
+- [x] 7.12 Métricas reales del modelo: Accuracy 96%, Precision 99%, Recall 93%, F1 96% (248.800 train / 62.200 test).
+
+**Archivos:** `api/prediccion/PrediccionRutas.py`, `servicios/prediccion/PrediccionServicio.py`, `frontend/paginas/prediccion/index.html`
+
+---
+
+### ✅ Tarea 8: Pipeline ETL Visual
+
+- [x] 8.1 Implementar `GET /api/pipeline/estado` que lista archivos `.parquet` en MinIO `stage/` con nombre, tamaño MB y fecha, ordenados por fecha descendente, retorna top 10.
+- [x] 8.2 Frontend `pipeline_etl/index.html` con flujo visual 5 nodos: PocketBase → Airflow → MinIO → Parquet → FastAPI con iconos y colores diferenciados.
+- [x] 8.3 4 KPI cards: Estado MinIO, Archivos Parquet, Último archivo, Última carga.
+- [x] 8.4 Lista de archivos Parquet con nombre, tamaño MB y fecha.
+- [x] 8.5 4 pasos del pipeline con descripción y comando técnico (GET, pd.DataFrame, put_object, GET estadísticas).
+- [x] 8.6 Botón "Ejecutar pipeline" ejecuta 4 pasos en secuencia con estados visuales:
+  - Paso 1: delay 1.2s simulando extracción PocketBase
+  - Paso 2: delay 1.0s simulando transformación pandas
+  - Paso 3: llama `GET /api/pipeline/estado` para verificar MinIO
+  - Paso 4: llama `GET /api/registros/estadisticas` para verificar FastAPI
+- [x] 8.7 Estados por paso: pending (—) → running (⏳ + animación pulse) → done (✓ verde) → error (✗ rojo).
+- [x] 8.8 Función `resetSteps()` limpia todos los pasos antes de cada ejecución.
+
+**Archivos:** `api/pipeline_etl/PipelineEtlRutas.py`, `frontend/paginas/pipeline_etl/index.html`
+
+---
+
+### ✅ Tarea 9: Control de Roles en Sidebar
+
+- [x] 9.1 Función `aplicarRoles()` implementada en todas las páginas del frontend.
+- [x] 9.2 Médico: oculta Dataset, Usuarios, Pipeline, Modelo ML, Reportes, Auditoría, Notificaciones, Configuración, Benchmarking, Integraciones.
+- [x] 9.3 Analista: oculta Registros clínicos, Usuarios, Modelo ML, Reportes, Auditoría, Notificaciones, Configuración, Benchmarking, Integraciones.
+- [x] 9.4 Administrador: ve todos los módulos.
+- [x] 9.5 Comparación con `txt.includes(o)` en lugar de igualdad exacta para evitar problemas de encoding con tildes.
+- [x] 9.6 `setTimeout(aplicarRoles, 50)` para evitar flash del sidebar al cargar.
+- [x] 9.7 `aplicarRoles()` llamada dentro de `predecir()` para evitar flash al rerenderizar el DOM.
+
+---
+
+### ✅ Tarea 10: Conteo Eficiente con pyarrow
+
+- [x] 10.1 Instalar pyarrow: ya incluido como dependencia de pandas.
+- [x] 10.2 `GET /api/dataset/hechos` usa `pq.ParquetFile(BytesIO(...)).metadata.num_rows` para sumar total de registros de todos los parquets sin cargarlos en memoria.
+- [x] 10.3 `GET /api/dataset/estadisticas` usa la misma técnica para el total; carga solo el parquet más reciente para columnas y conteo de diabetes.
+- [x] 10.4 Frontend `dataset/index.html` muestra el total real en la KPI card "Fact diabetes" desde la respuesta del endpoint, no hardcodeado.
+
+**Archivos:** `api/dataset/DatasetRutas.py`
+
+---
+
 ## Tareas Pendientes
 
-### ⏳ Tarea 7: Predicción ML
+### ⏳ Tarea 11: Reportes PDF
 
-- [ ] 7.1 Entrenar modelo scikit-learn (RandomForest o LogisticRegression) con el dataset.
-- [ ] 7.2 Guardar modelo en MinIO `diabcare-app/modelos/modelo_diabetes.pkl`.
-- [ ] 7.3 Implementar `POST /api/prediccion/` que reciba campos clínicos y retorne probabilidad de diabetes.
-- [ ] 7.4 Frontend con formulario de predicción individual y resultado visual.
-- [ ] 7.5 Métricas del modelo: accuracy, precision, recall, F1 en `/api/prediccion/metricas`.
-
-**Archivos:** `api/prediccion/PrediccionRutas.py`, `servicios/prediccion/`, `frontend/paginas/prediccion/index.html`
+- [ ] 11.1 Implementar `POST /api/reportes/generar` que genere PDF con estadísticas usando reportlab.
+- [ ] 11.2 Subir PDF generado a MinIO `diabcare-app/reportes/`.
+- [ ] 11.3 Implementar `GET /api/reportes/` que liste reportes disponibles.
+- [ ] 11.4 Frontend con generación, listado y descarga de reportes.
 
 ---
 
-### ⏳ Tarea 8: Pipeline ETL Visual
+### ⏳ Tarea 12: Auditoría
 
-- [ ] 8.1 Implementar endpoint que retorne estado del DAG de Airflow.
-- [ ] 8.2 Frontend con visualización del flujo PocketBase → Airflow → MinIO.
-- [ ] 8.3 Botón para disparar ejecución manual del DAG.
-- [ ] 8.4 Historial de ejecuciones con estado y timestamp.
-
----
-
-### ⏳ Tarea 9: Reportes
-
-- [ ] 9.1 Implementar `POST /api/reportes/generar` que genere PDF con estadísticas.
-- [ ] 9.2 Subir PDF generado a MinIO `diabcare-app/reportes/`.
-- [ ] 9.3 Implementar `GET /api/reportes/` que liste reportes disponibles.
-- [ ] 9.4 Frontend con generación y descarga de reportes.
+- [ ] 12.1 Registrar en MinIO cada operación CRUD con usuario, acción, timestamp y datos afectados.
+- [ ] 12.2 Implementar `GET /api/auditoria/` con filtros por usuario, fecha y tipo de acción.
+- [ ] 12.3 Frontend con tabla de auditoría paginada.
 
 ---
 
-### ⏳ Tarea 10: Auditoría
+### ⏳ Tarea 13: Gestión de Versiones del Modelo ML
 
-- [ ] 10.1 Registrar en MinIO cada operación CRUD con usuario, acción, timestamp y datos afectados.
-- [ ] 10.2 Implementar `GET /api/auditoria/` con filtros por usuario, fecha y tipo de acción.
-- [ ] 10.3 Frontend con tabla de auditoría paginada.
-
----
-
-### ⏳ Tarea 11: Pruebas PBT (Property-Based Testing)
-
-- [ ] 11.1 Crear `pruebas/test_unitario.py` con Hypothesis para endpoints de estadísticas.
-- [ ] 11.2 Crear `pruebas/test_tablas.py` para validar estructura de DataFrames generados.
-- [ ] 11.3 Crear `pruebas/test_stats_servicio.py` para estadísticas con DataFrames aleatorios.
-- [ ] 11.4 Crear `pruebas/test_charts_servicio.py` para validar gráficas con datos variados.
-- [ ] 11.5 Crear `pruebas/test_empresa_servicio.py` para datos corporativos.
-- [ ] 11.6 Ejecutar `pytest pruebas/ -v` y confirmar que todos pasan.
+- [ ] 13.1 Guardar cada modelo entrenado con timestamp en MinIO `diabcare-app/modelos/`.
+- [ ] 13.2 Implementar `GET /api/modelo_ml/versiones` que liste todas las versiones.
+- [ ] 13.3 Implementar `PUT /api/modelo_ml/activar/{version}` para cambiar el modelo activo.
+- [ ] 13.4 Frontend con historial de versiones y botón de activar/rollback.
 
 ---
 
-### ⏳ Tarea 12: Pruebas de Integración
+### ⏳ Tarea 14: Pruebas PBT (Property-Based Testing)
 
-- [ ] 12.1 Crear `pruebas/test_integracion.py` con flujo completo: login → estadísticas → generar datos → verificar.
-- [ ] 12.2 Prueba de flujo de usuarios: crear → listar → cambiar rol → desactivar.
-- [ ] 12.3 Prueba de autenticación: token válido → acceso; token expirado → 401; rol incorrecto → 403.
-- [ ] 12.4 Ejecutar con MinIO real en `localhost:9000`.
+- [ ] 14.1 Instalar Hypothesis: `pip install hypothesis --break-system-packages`.
+- [ ] 14.2 Crear `pruebas/test_unitario.py` con tests para endpoints de estadísticas.
+- [ ] 14.3 Crear `pruebas/test_prediccion.py` para validar que el modelo retorna siempre 0 o 1 con probabilidad [0,1].
+- [ ] 14.4 Crear `pruebas/test_dataset.py` para validar estructura de DataFrames generados.
+- [ ] 14.5 Ejecutar `pytest pruebas/ -v` y confirmar que todos pasan.
+
+---
+
+### ⏳ Tarea 15: Pruebas de Integración
+
+- [ ] 15.1 Crear `pruebas/test_integracion.py` con flujo completo: login → estadísticas → generar datos → verificar.
+- [ ] 15.2 Prueba de flujo de usuarios: crear → listar → cambiar rol → desactivar.
+- [ ] 15.3 Prueba de autenticación: token válido → acceso; token expirado → 401; rol incorrecto → 403.
+- [ ] 15.4 Prueba de predicción: entrenar → predecir → verificar métricas.
+- [ ] 15.5 Ejecutar con MinIO real en `localhost:9000`.
 
 ---
 
@@ -194,3 +244,10 @@
 | 2026-05 | Datos sintéticos en español | Consistencia con la interfaz en español |
 | 2026-05 | SHA-256 para passwords | Simple para entorno académico, suficiente para el proyecto |
 | 2026-05 | `warnings.filterwarnings` para JWT | Clave de 20 bytes genera warnings, suficiente para desarrollo |
+| 2026-06 | RandomForest 100 árboles con n_jobs=-1 | Balance entre accuracy y tiempo de entrenamiento |
+| 2026-06 | pickle para serializar modelo | Serialización nativa de Python, compatible con scikit-learn |
+| 2026-06 | `_modelo_cache` en memoria | Evitar descarga repetida del modelo desde MinIO en cada predicción |
+| 2026-06 | pyarrow.ParquetFile.metadata.num_rows | Lee solo el footer del parquet sin deserializar datos — conteo instantáneo |
+| 2026-06 | `txt.includes(o)` para roles en sidebar | Evita problemas de encoding con tildes en nombres de módulos |
+| 2026-06 | `setTimeout(aplicarRoles, 50)` | Evita flash del sidebar incorrecto al cargar la página |
+| 2026-06 | Pipeline simulado con 4 pasos visuales | DAGs de Airflow no configurados — simulación demuestra el concepto del flujo ELT |
