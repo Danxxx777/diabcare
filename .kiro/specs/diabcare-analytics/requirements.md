@@ -1,6 +1,6 @@
-# Documento de Requisitos — DiabCare Analytics v2.0
+# Requirements Document
 
-## Introducción
+## Introduction
 
 DiabCare Analytics es una plataforma SaaS académica (6to semestre — Construcción del Software) para la gestión y análisis de datos clínicos de diabetes hospitalaria. El sistema lee archivos `.parquet` almacenados en MinIO, genera estadísticas clínicas con pandas, expone visualizaciones analíticas, gestión de usuarios, registros clínicos, predicción ML y pipeline ELT con autenticación JWT por roles.
 
@@ -8,7 +8,7 @@ DiabCare Analytics es una plataforma SaaS académica (6to semestre — Construcc
 
 ---
 
-## Glosario
+## Glossary
 
 - **Sistema**: La aplicación web DiabCare Analytics (backend FastAPI + frontend HTML/JS multi-página).
 - **API**: Endpoints REST expuestos por el backend FastAPI en `localhost:8000`.
@@ -22,149 +22,159 @@ DiabCare Analytics es una plataforma SaaS académica (6to semestre — Construcc
 
 ---
 
-## Requisitos Funcionales
+## Requirements
 
-### Requisito 1: Autenticación y Sesión
+### Requirement 1: Autenticación y Sesión
 
 **User Story:** Como usuario, quiero iniciar sesión con email y contraseña para acceder al sistema con mi rol asignado.
 
-#### Criterios de Aceptación
+#### Acceptance Criteria
 
-1. THE Sistema SHALL exponer `POST /api/auth/login` que valide credenciales y retorne un token JWT con `sub`, `email`, `rol` y `exp`.
-2. WHEN las credenciales son correctas, THE Sistema SHALL retornar HTTP 200 con `token`, `tipo` y `usuario` (id, nombre, email, rol).
-3. IF las credenciales son incorrectas, THE Sistema SHALL retornar HTTP 401 con `detail: "Credenciales incorrectas"`.
-4. THE Sistema SHALL tener un usuario administrador por defecto: `admin@diabcare.com` / `Admin2026*`.
-5. THE Frontend SHALL almacenar el token en `localStorage` y redirigir al Dashboard tras login exitoso.
-6. WHEN el token expira o es inválido, THE Sistema SHALL retornar HTTP 401 y THE Frontend SHALL redirigir al login.
-7. THE Sistema SHALL exponer `POST /api/auth/logout` que retorne confirmación de cierre de sesión.
-8. THE Sistema SHALL exponer `PUT /api/auth/cambiar-password` con validación de password actual.
-9. THE Sistema SHALL exponer `POST /api/auth/recuperar` y `POST /api/auth/resetear` para reset de password vía código.
+1. THE Sistema SHALL exponer `POST /api/auth/login` que valide credenciales y retorne un token JWT con `sub`, `email`, `rol` y `exp` con expiración de 8 horas.
+2. WHEN las credenciales son correctas, THE Sistema SHALL retornar HTTP 200 con `token` (string JWT), `tipo` (string "bearer") y `usuario` (objeto con id, nombre, email, rol).
+3. IF las credenciales son incorrectas o el usuario no existe, THE Sistema SHALL retornar HTTP 401 con `detail: "Credenciales incorrectas"` sin distinguir cuál campo es incorrecto.
+4. IF el usuario existe pero tiene `activo=False`, THE Sistema SHALL retornar HTTP 401 con `detail: "Credenciales incorrectas"` (sin revelar que la cuenta está desactivada).
+5. THE Sistema SHALL garantizar que existe al menos un usuario administrador por defecto con email `admin@diabcare.com` al arrancar si no hay usuarios en el sistema.
+6. WHEN el login es exitoso, THE Frontend SHALL almacenar el token JWT en `localStorage` bajo la clave `token` y el objeto usuario bajo la clave `usuario`, luego redirigir a `/paginas/analisis/index.html`.
+7. WHEN el token expira o su firma es inválida, THE Sistema SHALL retornar HTTP 401 en cualquier endpoint protegido, y THE Frontend SHALL eliminar `token` y `usuario` de `localStorage` y redirigir a `/paginas/autenticacion/index.html`.
+8. THE Sistema SHALL exponer `POST /api/auth/logout` que retorne HTTP 200 con `{"mensaje": "Sesión cerrada"}`.
+9. THE Sistema SHALL exponer `PUT /api/auth/cambiar-password` que valide el password actual antes de actualizar el hash SHA-256 en MinIO; IF el password actual no coincide, SHALL retornar HTTP 400.
+10. THE Sistema SHALL exponer `POST /api/auth/recuperar` que acepte `{"email": string}` y retorne HTTP 200 independientemente de si el email existe, para no revelar la existencia de cuentas.
+11. THE Sistema SHALL exponer `POST /api/auth/resetear` que acepte un código de reset válido y un nuevo password; IF el código es inválido o expirado, SHALL retornar HTTP 400.
 
 ---
 
-### Requisito 2: Gestión de Usuarios
+### Requirement 2: Gestión de Usuarios
 
 **User Story:** Como administrador, quiero gestionar usuarios del sistema para controlar quién accede y con qué rol.
 
-#### Criterios de Aceptación
+#### Acceptance Criteria
 
-1. THE Sistema SHALL exponer `GET /api/usuarios/` que retorne lista de usuarios con id, nombre, email, rol, activo, creado_en (sin password_hash).
-2. THE Sistema SHALL exponer `POST /api/usuarios/` para crear usuarios con nombre, email, password y rol.
-3. IF el email ya existe, THE Sistema SHALL retornar HTTP 400 con `detail: "Email ya registrado"`.
-4. THE Sistema SHALL exponer `PUT /api/usuarios/{id}/rol` para cambiar el rol de un usuario.
-5. THE Sistema SHALL exponer `DELETE /api/usuarios/{id}` que desactiva el usuario (activo=False) sin eliminarlo.
-6. THE Sistema SHALL almacenar usuarios en formato Parquet en MinIO (`diabcare-app/usuarios/usuarios.parquet`).
-7. THE Sistema SHALL encriptar contraseñas con SHA-256 antes de almacenarlas.
-8. THE Frontend SHALL mostrar KPI cards con total, activos, inactivos y administradores.
-9. THE Frontend SHALL permitir búsqueda en tiempo real por nombre o email.
-10. THE Frontend SHALL mostrar avatares con inicial del nombre y colores por índice.
-11. THE Frontend SHALL restringir la página de usuarios solo al rol administrador mediante `aplicarRoles()`.
+1. WHEN un usuario con rol `administrador` realiza `GET /api/usuarios/`, THE Sistema SHALL retornar HTTP 200 con lista de usuarios conteniendo id, nombre, email, rol, activo, creado_en por cada usuario, sin incluir el campo `password_hash`.
+2. WHEN un administrador realiza `POST /api/usuarios/` con nombre, email, password y rol válidos, THE Sistema SHALL crear el usuario con `activo=True`, `creado_en` en formato ISO 8601, y password almacenado como hash SHA-256, retornando HTTP 201.
+3. IF el email proporcionado en `POST /api/usuarios/` ya existe en el sistema (activo o inactivo), THE Sistema SHALL retornar HTTP 400 con `detail: "Email ya registrado"`.
+4. IF el rol proporcionado en `POST /api/usuarios/` o `PUT /api/usuarios/{id}/rol` no es uno de `administrador`, `medico`, `analista`, THE Sistema SHALL retornar HTTP 400 con `detail: "Rol inválido"`.
+5. WHEN un administrador realiza `PUT /api/usuarios/{id}/rol` con un rol válido, THE Sistema SHALL actualizar el rol del usuario y retornar HTTP 200 con el usuario actualizado.
+6. IF el `id` en `PUT /api/usuarios/{id}/rol` o `DELETE /api/usuarios/{id}` no corresponde a ningún usuario, THE Sistema SHALL retornar HTTP 404 con `detail: "Usuario no encontrado"`.
+7. WHEN un administrador realiza `DELETE /api/usuarios/{id}`, THE Sistema SHALL establecer `activo=False` en el registro del usuario sin eliminarlo del Parquet, retornando HTTP 200.
+8. IF un administrador intenta desactivarse a sí mismo o cambiar su propio rol, THE Sistema SHALL retornar HTTP 400 con `detail: "No puede modificar su propia cuenta"`.
+9. THE Sistema SHALL persistir todos los cambios de usuarios en formato Parquet en MinIO en la ruta `diabcare-app/usuarios/usuarios.parquet`, sobrescribiendo el archivo completo tras cada modificación.
+10. THE Frontend SHALL mostrar 4 KPI cards con los conteos de: total de usuarios, usuarios activos, usuarios inactivos y usuarios con rol administrador.
+11. WHEN el usuario escribe en el campo de búsqueda, THE Frontend SHALL filtrar la lista de usuarios en tiempo real (máximo 300ms de latencia) mostrando solo los que coincidan con nombre o email (búsqueda case-insensitive).
+12. THE Frontend SHALL mostrar un avatar circular para cada usuario con la inicial en mayúscula de su nombre y un color de fondo determinado por `índice % colores.length`.
+13. WHEN un usuario sin rol `administrador` intenta acceder a `/paginas/usuarios/index.html`, THE Frontend SHALL redirigir a `/paginas/analisis/index.html` al ejecutarse `aplicarRoles()`.
 
 ---
 
-### Requisito 3: Dataset y Generación de Datos
+### Requirement 3: Dataset y Generación de Datos
 
 **User Story:** Como analista, quiero explorar el dataset clínico y generar datos sintéticos para poblar MinIO.
 
-#### Criterios de Aceptación
+#### Acceptance Criteria
 
-1. THE Sistema SHALL exponer `GET /api/dataset/hechos` con paginación (`skip`, `limit`) que retorne el total real de registros usando `pyarrow.parquet.ParquetFile.metadata.num_rows` y los datos del parquet más reciente.
-2. THE Sistema SHALL exponer `GET /api/dataset/dimension/{nombre}` para las dimensiones: `paciente`, `ubicacion`, `raza`, `condicion`.
-3. THE Sistema SHALL exponer `GET /api/dataset/estadisticas` que retorne total, con_diabetes, sin_diabetes y columnas usando pyarrow para conteo rápido sin cargar todo el dataset en memoria.
-4. THE Sistema SHALL exponer `POST /api/dataset/generar` que genere `cantidad` registros sintéticos y los suba a MinIO en formato Parquet.
-5. WHEN la generación es exitosa, THE Sistema SHALL retornar `mensaje`, `archivo` (ruta en MinIO) y `total` (registros generados).
-6. THE Sistema SHALL generar registros con campos en español: year, gender (Masculino/Femenino/Otro), age, location (ciudades en español), razas (flags 0/1), hypertension, heart_disease, smoking_history (nunca/actual/no actual/Sin información), bmi, hbA1c_level, blood_glucose_level, diabetes.
-7. THE Frontend SHALL mostrar presets de cantidad (1K, 10K, 50K, 100K, 500K).
-8. THE Frontend SHALL mostrar barra de progreso animada con pasos: Generando → Parquet → MinIO → Completado.
-9. THE Frontend SHALL mostrar card de resultado con registros generados, año y nombre del archivo.
-10. THE Frontend (ver tablas) SHALL mostrar el total real de registros de todos los parquets concatenados.
+1. WHEN se realiza `GET /api/dataset/hechos` con parámetros `skip` (entero ≥ 0, default 0) y `limit` (entero 1–1000, default 100), THE Sistema SHALL retornar HTTP 200 con `total` (suma de `num_rows` de todos los Parquet en `stage/` via pyarrow footer) y `registros` (filas del Parquet más reciente en el rango solicitado). IF no hay archivos en `stage/`, SHALL retornar `{"total": 0, "registros": []}`.
+2. WHEN se realiza `GET /api/dataset/dimension/{nombre}` con `nombre` en `["paciente", "ubicacion", "raza", "condicion"]`, THE Sistema SHALL retornar HTTP 200 con los valores únicos de esa dimensión. IF `nombre` no está en la lista permitida, SHALL retornar HTTP 404 con `detail: "Dimensión no encontrada"`.
+3. WHEN se realiza `GET /api/dataset/estadisticas`, THE Sistema SHALL retornar HTTP 200 con `total`, `con_diabetes`, `sin_diabetes` y `columnas`, calculando `total` usando `pyarrow.parquet.ParquetFile.metadata.num_rows` sin cargar los datos en memoria. IF no hay archivos Parquet, SHALL retornar `{"total": 0, "con_diabetes": 0, "sin_diabetes": 0, "columnas": []}`.
+4. WHEN se realiza `POST /api/dataset/generar` con `cantidad` (entero 1–500000) y `year` (entero 2010–2030), THE Sistema SHALL generar exactamente `cantidad` registros sintéticos y subirlos a MinIO `diabetes-data/stage/` en formato Parquet con nombre `datos_{year}_{timestamp}.parquet`.
+5. IF `cantidad` está fuera del rango [1, 500000] o `year` está fuera del rango [2010, 2030], THE Sistema SHALL retornar HTTP 422 con detalle de los campos inválidos.
+6. WHEN la generación es exitosa, THE Sistema SHALL retornar HTTP 200 con `mensaje` (string), `archivo` (ruta completa en MinIO incluyendo bucket y prefijo) y `total` (entero igual a `cantidad` solicitada).
+7. THE Sistema SHALL generar cada registro con los siguientes campos y rangos: `year` (igual al parámetro), `gender` (uno de: "Masculino", "Femenino", "Otro"), `age` (float 1.0–80.0), `location` (string de ciudad en español), exactamente una de las flags de raza en 1 (`race_AfricanAmerican`, `race_Asian`, `race_Caucasian`, `race_Hispanic`, `race_Other`), `hypertension` (0/1), `heart_disease` (0/1), `smoking_history` (uno de: "nunca", "actual", "no actual", "Sin información"), `bmi` (float 15.0–45.0), `hbA1c_level` (float 3.5–9.0), `blood_glucose_level` (entero 80–300), `diabetes` (0/1).
+8. WHEN se carga la página del generador, THE Frontend SHALL mostrar 5 botones de preset con los valores 1000, 10000, 50000, 100000 y 500000 que al hacer clic completen automáticamente el campo `cantidad`.
+9. WHILE la generación está en progreso, THE Frontend SHALL mostrar una barra de progreso animada avanzando secuencialmente por los pasos: "Generando registros", "Convirtiendo a Parquet", "Subiendo a MinIO", "Completado".
+10. WHEN la generación completa exitosamente, THE Frontend SHALL mostrar una card de resultado con: número de registros generados, el año de los datos y el nombre del archivo subido a MinIO.
+11. WHEN se carga la página de ver tablas, THE Frontend SHALL obtener `total` desde `GET /api/dataset/hechos` o `GET /api/dataset/estadisticas` y mostrarlo como el total real de registros concatenados de todos los Parquets en `stage/`.
 
 ---
 
-### Requisito 4: Registros Clínicos
+### Requirement 4: Registros Clínicos
 
 **User Story:** Como médico, quiero consultar y filtrar registros clínicos del dataset para análisis específicos.
 
-#### Criterios de Aceptación
+#### Acceptance Criteria
 
-1. THE Sistema SHALL exponer `GET /api/registros/` con paginación y retornar `total` y `registros`.
-2. THE Sistema SHALL exponer `GET /api/registros/buscar` con filtros opcionales: `diabetes`, `gender`, `location`, `age_min`, `age_max`.
-3. THE Sistema SHALL exponer `POST /api/registros/` para crear nuevos registros clínicos.
-4. THE Sistema SHALL exponer `PUT /api/registros/{id}` para actualizar campos clínicos.
-5. THE Sistema SHALL exponer `DELETE /api/registros/{id}` para eliminar un registro.
-6. THE Frontend SHALL mostrar tabla paginada con navegación anterior/siguiente.
-7. THE Frontend SHALL permitir filtros por diabetes, género, ubicación y rango de edad.
-8. NOTA: La ruta `/estadisticas` DEBE declararse ANTES de `/{encounter_id}` en el router FastAPI para evitar colisión de paths.
+1. WHEN se realiza `GET /api/registros/` con parámetros opcionales `limit` (entero 1–500, default 50) y `offset` (entero ≥ 0, default 0), THE Sistema SHALL retornar HTTP 200 con `total` (conteo total sin paginación) y `registros` (lista de registros en el rango solicitado).
+2. WHEN se realiza `GET /api/registros/buscar` con filtros opcionales `diabetes` (0/1), `gender` (string), `location` (string), `age_min` (float 0–120), `age_max` (float 0–120), THE Sistema SHALL retornar HTTP 200 con hasta 100 registros que satisfagan todos los filtros activos simultáneamente. IF `age_min > age_max`, SHALL retornar HTTP 422.
+3. WHEN se realiza `POST /api/registros/` con todos los campos clínicos requeridos, THE Sistema SHALL crear el registro y retornar HTTP 201 con el registro creado incluyendo su `encounter_id` generado. IF faltan campos requeridos, SHALL retornar HTTP 422 con detalle de los campos faltantes.
+4. WHEN se realiza `PUT /api/registros/{encounter_id}` con campos clínicos válidos, THE Sistema SHALL actualizar el registro y retornar HTTP 200 con el registro actualizado. IF el `encounter_id` no existe, SHALL retornar HTTP 404 con `detail: "Registro no encontrado"`.
+5. WHEN se realiza `DELETE /api/registros/{encounter_id}`, THE Sistema SHALL eliminar el registro y retornar HTTP 200 con confirmación. IF el `encounter_id` no existe, SHALL retornar HTTP 404 con `detail: "Registro no encontrado"`.
+6. WHEN se realiza `GET /api/registros/{encounter_id}`, THE Sistema SHALL retornar HTTP 200 con el registro individual. IF el `encounter_id` no existe, SHALL retornar HTTP 404 con `detail: "Registro no encontrado"`.
+7. THE Frontend SHALL mostrar los registros en una tabla paginada con botones de navegación "Anterior" y "Siguiente", deshabilitando "Anterior" en la primera página y "Siguiente" en la última.
+8. THE Frontend SHALL permitir al usuario filtrar la tabla por: estado de diabetes (desplegable: Todos/Con diabetes/Sin diabetes), género, ubicación y rango de edad (edad mínima y máxima), aplicando todos los filtros seleccionados simultáneamente.
+9. THE Sistema SHALL declarar la ruta `GET /api/registros/estadisticas` antes de `GET /api/registros/{encounter_id}` en el router FastAPI para evitar que `"estadisticas"` sea interpretado como un `encounter_id`.
 
 ---
 
-### Requisito 5: Estadísticas Clínicas
+### Requirement 5: Estadísticas Clínicas
 
 **User Story:** Como analista, quiero ver estadísticas detalladas del dataset para identificar patrones clínicos.
 
-#### Criterios de Aceptación
+#### Acceptance Criteria
 
-1. THE Sistema SHALL exponer `GET /api/registros/estadisticas` que retorne datos reales calculados desde el DataFrame concatenado de todos los parquets en `stage/`.
-2. THE endpoint SHALL retornar: total, con_diabetes, sin_diabetes, genero, tabaquismo, razas, edad (rangos pd.cut), promedios (bmi/hba1c/glucosa con/sin diabetes), comorbilidades, ubicaciones (top 10), tendencia (por año).
-3. THE Frontend SHALL mostrar KPI cards con total, con_diabetes, sin_diabetes, prevalencia.
-4. THE Frontend SHALL mostrar 10+ gráficas Chart.js: donut, género, comorbilidades, edad, raza, tabaquismo, top ubicaciones, tendencia por año.
-5. THE Frontend SHALL mostrar barras comparativas inline de promedios clínicos.
+1. WHEN se realiza `GET /api/registros/estadisticas`, THE Sistema SHALL retornar HTTP 200 con datos calculados desde el DataFrame resultante de concatenar todos los Parquets en `diabetes-data/stage/` cargados en memoria con pandas. IF no hay archivos Parquet disponibles en MinIO, THE Sistema SHALL retornar HTTP 200 con todos los campos numéricos en 0 y las listas vacías.
+2. THE endpoint SHALL retornar un objeto JSON con los campos: `total` (entero), `con_diabetes` (entero), `sin_diabetes` (entero), `prevalencia` (float, porcentaje redondeado a 2 decimales = con_diabetes/total*100), `genero` (dict de conteos por valor de `gender`), `tabaquismo` (dict de conteos por `smoking_history` cruzado con `diabetes`), `razas` (dict de sumas de cada flag `race_*` separadas por grupo diabetes), `edad` (dict de conteos por rangos: <20, 20-30, 31-40, 41-50, 51-60, 61-70, >70), `promedios` (objeto con `bmi`, `hbA1c_level`, `blood_glucose_level` cada uno con `con_diabetes` y `sin_diabetes` redondeados a 2 decimales), `comorbilidades` (dict cruzando `hypertension`/`heart_disease` con `diabetes`), `ubicaciones` (lista de las 10 ubicaciones con mayor conteo con nombre y conteo), `tendencia` (lista de objetos por año con `year`, `total` y `con_diabetes`).
+3. THE Frontend SHALL mostrar 4 KPI cards con los valores: total de registros, cantidad con diabetes, cantidad sin diabetes, y prevalencia (porcentaje con 2 decimales y símbolo %).
+4. THE Frontend SHALL mostrar al menos las siguientes gráficas Chart.js: donut de distribución diabetes, barras de distribución por género, barras de comorbilidades, barras de distribución por rango de edad, barras de distribución por raza, barras de historial de tabaquismo, barras horizontales del top 10 de ubicaciones, línea de tendencia por año.
+5. THE Frontend SHALL mostrar barras comparativas de promedios clínicos (bmi, HbA1c, glucosa) mostrando el valor con diabetes vs. sin diabetes en la misma barra con colores diferenciados.
 
 ---
 
-### Requisito 6: Dashboard Ejecutivo
+### Requirement 6: Dashboard Ejecutivo
 
 **User Story:** Como usuario, quiero ver un resumen ejecutivo del sistema al ingresar.
 
-#### Criterios de Aceptación
+#### Acceptance Criteria
 
-1. THE Dashboard SHALL consumir `GET /api/registros/estadisticas` y `GET /api/dataset/estadisticas`.
-2. THE Dashboard SHALL mostrar 4 KPI cards: total registros, con diabetes, sin diabetes, prevalencia.
-3. THE Dashboard SHALL mostrar donut compacto de distribución diabetes con porcentajes.
-4. THE Dashboard SHALL mostrar 4 accesos rápidos a: Estadísticas, Registros, Dataset, Generador.
-5. THE Dashboard SHALL generar alertas clínicas dinámicas: prevalencia > 50% → alerta roja, HbA1c > 7.5 → alerta roja, volumen < 1000 → alerta azul.
-6. THE Dashboard SHALL mostrar promedios clínicos con/sin diabetes con badges de color.
-7. THE Dashboard SHALL mostrar top 6 ubicaciones con barras proporcionales.
-8. THE Dashboard SHALL mostrar estado del sistema: MinIO, Dataset, API Backend, Autenticación, Modelo ML, Pipeline.
-9. THE Dashboard SHALL mostrar últimos archivos en MinIO con columnas del dataset.
+1. WHEN se carga el Dashboard, THE Frontend SHALL realizar llamadas a `GET /api/registros/estadisticas` y `GET /api/dataset/estadisticas` en paralelo y poblar los componentes con los datos recibidos.
+2. IF alguna de las llamadas a la API falla o excede 15 segundos, THE Frontend SHALL mostrar un estado de error en los componentes afectados con el mensaje "Error al cargar datos" sin bloquear los componentes que sí respondieron.
+3. THE Dashboard SHALL mostrar 4 KPI cards con los valores: total de registros, cantidad con diabetes, cantidad sin diabetes, y prevalencia (float redondeado a 2 decimales con símbolo %).
+4. THE Dashboard SHALL mostrar un gráfico donut de distribución diabetes con los porcentajes de con_diabetes y sin_diabetes como etiquetas.
+5. THE Dashboard SHALL mostrar 4 tarjetas de acceso rápido con enlaces a: `/paginas/estadisticas/index.html`, `/paginas/registros_clinicos/index.html`, `/paginas/dataset/index.html`, `/paginas/dataset/generador.html`.
+6. IF la prevalencia supera el 50%, THE Dashboard SHALL mostrar una alerta con estilo visual rojo con el texto indicando el porcentaje de prevalencia.
+7. IF el valor promedio de `hbA1c_level` con diabetes supera 7.5, THE Dashboard SHALL mostrar una alerta con estilo visual rojo indicando el valor de HbA1c.
+8. IF el `total` de registros es menor a 1000, THE Dashboard SHALL mostrar una alerta con estilo visual azul indicando el bajo volumen de datos.
+9. THE Dashboard SHALL mostrar promedios clínicos (bmi, HbA1c, glucosa) para el grupo con diabetes y sin diabetes, con badge verde si el valor con diabetes es mayor que sin diabetes y badge rojo en caso contrario.
+10. THE Dashboard SHALL mostrar las top 6 ubicaciones con mayor cantidad de registros con barras proporcionales cuyo ancho máximo representa la ubicación con más registros.
+11. THE Dashboard SHALL mostrar el estado de cada componente del sistema: MinIO, Dataset, API Backend, Autenticación, Modelo ML, Pipeline; mostrando "Operacional" si el componente responde correctamente o "No disponible" si no responde.
+12. THE Dashboard SHALL mostrar los últimos 5 archivos Parquet en MinIO con nombre de archivo y columnas del dataset obtenidos desde `GET /api/pipeline/estado`.
 
 ---
 
-### Requisito 7: Predicción ML
+### Requirement 7: Predicción ML
 
 **User Story:** Como médico, quiero predecir si un paciente tiene diabetes ingresando sus datos clínicos.
 
-#### Criterios de Aceptación
+#### Acceptance Criteria
 
-1. THE Sistema SHALL exponer `POST /api/prediccion/entrenar` que entrene un modelo RandomForest (100 árboles) con el dataset completo concatenado desde MinIO, con split 80/20 estratificado.
-2. WHEN el entrenamiento termina, THE Sistema SHALL guardar el modelo serializado con pickle en MinIO `diabcare-app/modelos/modelo_diabetes.pkl` junto con las métricas calculadas.
-3. THE Sistema SHALL exponer `POST /api/prediccion/` que reciba `age`, `bmi`, `hbA1c_level`, `blood_glucose_level`, `hypertension`, `heart_disease` y retorne `diagnostico` (0/1), `resultado` (texto), `probabilidad` (float) y `riesgo` (Alto/Medio/Bajo).
-4. THE Sistema SHALL exponer `GET /api/prediccion/metricas` que retorne accuracy, precision, recall, f1, registros_entrenamiento, registros_prueba.
-5. THE Sistema SHALL exponer `GET /api/prediccion/estado` que indique si el modelo está disponible en MinIO.
-6. THE Sistema SHALL cachear el modelo en memoria (`_modelo_cache`) para evitar descargarlo en cada predicción.
-7. THE Frontend SHALL mostrar 4 metric cards: Accuracy, Precision, Recall, F1-Score.
-8. THE Frontend SHALL mostrar formulario con 6 campos clínicos y botón de predicción.
-9. THE Frontend SHALL mostrar resultado con diagnóstico, barra de probabilidad animada y badge de riesgo (Alto/Medio/Bajo).
-10. THE Frontend SHALL mostrar referencia clínica: HbA1c > 6.5% indica diabetes, Glucosa > 200 mg/dL indica diabetes, BMI > 30 factor de riesgo.
-11. THE Frontend SHALL aplicar `aplicarRoles()` dentro de la función de predicción para evitar flash del sidebar incorrecto.
+1. WHEN se realiza `POST /api/prediccion/entrenar`, THE Sistema SHALL cargar el DataFrame completo desde todos los Parquets en `diabetes-data/stage/`, entrenar un `RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)` con split estratificado 80/20, y retornar HTTP 200 con las métricas calculadas. IF no hay datos disponibles, SHALL retornar HTTP 400 con `detail: "No hay datos disponibles para entrenar"`.
+2. WHEN el entrenamiento termina exitosamente, THE Sistema SHALL serializar el modelo y las métricas con pickle en un dict `{"modelo": ..., "metricas": ...}` y subirlo a MinIO en `diabcare-app/modelos/modelo_diabetes.pkl`, sobreescribiendo versiones anteriores.
+3. WHEN se realiza `POST /api/prediccion/` con campos válidos `age` (float 1–120), `bmi` (float 10–60), `hbA1c_level` (float 3–15), `blood_glucose_level` (float 50–500), `hypertension` (0/1), `heart_disease` (0/1), THE Sistema SHALL retornar HTTP 200 con `diagnostico` (0/1), `resultado` (string "Con diabetes" o "Sin diabetes"), `probabilidad` (float 0.0–1.0 redondeado a 4 decimales) y `riesgo` (string: "Alto" si probabilidad ≥ 0.7, "Medio" si ≥ 0.4, "Bajo" si < 0.4).
+4. IF se realiza `POST /api/prediccion/` y el modelo no está disponible en MinIO ni en caché, THE Sistema SHALL retornar HTTP 400 con `detail: "Modelo no disponible. Entrena el modelo primero en POST /api/prediccion/entrenar"`.
+5. IF algún campo de `POST /api/prediccion/` está fuera de sus rangos válidos, THE Sistema SHALL retornar HTTP 422 con detalle de los campos inválidos.
+6. THE Sistema SHALL exponer `GET /api/prediccion/metricas` que retorne HTTP 200 con `accuracy`, `precision`, `recall`, `f1` (todos float 0.0–1.0), `registros_entrenamiento` (int) y `registros_prueba` (int). IF el modelo no está disponible, SHALL retornar HTTP 400 con `detail: "Modelo no disponible"`.
+7. THE Sistema SHALL exponer `GET /api/prediccion/estado` que retorne HTTP 200 con `{"disponible": true}` si el archivo `diabcare-app/modelos/modelo_diabetes.pkl` existe en MinIO, o `{"disponible": false}` si no existe.
+8. THE Sistema SHALL mantener el modelo en caché en memoria tras la primera carga exitosa desde MinIO para evitar re-descargas en predicciones subsecuentes, invalidando la caché al completar un nuevo entrenamiento.
+9. THE Frontend SHALL mostrar 4 metric cards con los valores de Accuracy, Precision, Recall y F1-Score obtenidos de `GET /api/prediccion/metricas`, formateados como porcentaje con 1 decimal.
+10. THE Frontend SHALL mostrar un formulario con 6 campos: Edad, BMI, HbA1c, Glucosa en sangre, Hipertensión (checkbox), Cardiopatía (checkbox), y un botón "Predecir".
+11. WHEN la predicción retorna resultado, THE Frontend SHALL mostrar: diagnóstico textual ("Con diabetes" / "Sin diabetes"), barra de progreso animada mostrando el valor de probabilidad de 0 a 100%, y un badge de riesgo ("Alto" en rojo, "Medio" en ámbar, "Bajo" en verde).
+12. THE Frontend SHALL mostrar una sección de referencia clínica estática con: HbA1c > 6.5% indica diabetes, Glucosa > 200 mg/dL indica diabetes, BMI > 30 es factor de riesgo.
+13. THE Frontend SHALL llamar a `aplicarRoles()` dentro de la función de predicción tras actualizar el DOM para evitar que el sidebar muestre ítems no autorizados después de la re-renderización.
 
 ---
 
-### Requisito 8: Pipeline ETL
+### Requirement 8: Pipeline ETL
 
 **User Story:** Como administrador, quiero ver y ejecutar el pipeline ELT para verificar el flujo de datos.
 
-#### Criterios de Aceptación
+#### Acceptance Criteria
 
-1. THE Sistema SHALL exponer `GET /api/pipeline/estado` que liste los archivos Parquet en MinIO `stage/` con nombre, ruta, tamaño en MB y fecha de modificación, ordenados por fecha descendente.
-2. THE endpoint SHALL retornar: estado, bucket, prefix, total_archivos, ultimo_archivo, ultima_fecha, archivos (top 10).
-3. THE Frontend SHALL mostrar flujo visual con 5 nodos: PocketBase → Airflow → MinIO → Parquet → FastAPI.
-4. THE Frontend SHALL mostrar 4 KPI cards: Estado MinIO, Archivos Parquet, Último archivo, Última carga.
-5. THE Frontend SHALL mostrar lista de archivos Parquet con nombre, tamaño MB y fecha.
-6. THE Frontend SHALL mostrar los 4 pasos del pipeline ELT con descripción y comando técnico.
-7. THE Frontend SHALL tener botón "Ejecutar pipeline" que simule visualmente los 4 pasos en secuencia: Extracción (⏳ running → ✓ done), Transformación, Carga MinIO (verifica via `/api/pipeline/estado`), Consumo FastAPI (verifica via `/api/registros/estadisticas`).
-8. WHEN un paso está ejecutando, THE Frontend SHALL mostrar animación pulse en el número del paso.
-9. WHEN un paso completa, THE Frontend SHALL mostrar el número en verde con ✓.
+1. WHEN se realiza `GET /api/pipeline/estado`, THE Sistema SHALL conectarse a MinIO y listar los archivos Parquet en `diabetes-data/stage/`, retornando HTTP 200 con los campos: `estado` ("activo" si MinIO responde, "inactivo" si no), `bucket` ("diabetes-data"), `prefix` ("stage/"), `total_archivos` (entero), `ultimo_archivo` (nombre del archivo más reciente o null), `ultima_fecha` (fecha ISO 8601 del archivo más reciente o null), `archivos` (lista de los 10 archivos más recientes con nombre, ruta, tamaño_mb redondeado a 2 decimales y fecha_modificacion en ISO 8601). IF MinIO no es accesible, SHALL retornar HTTP 200 con `estado: "inactivo"` y listas vacías.
+2. THE Frontend SHALL mostrar un flujo visual con exactamente 5 nodos en secuencia: "PocketBase" → "Airflow" → "MinIO" → "Parquet" → "FastAPI", con líneas de conexión entre nodos adyacentes.
+3. THE Frontend SHALL mostrar 4 KPI cards con: estado de MinIO ("Operacional" / "No disponible"), cantidad de archivos Parquet en `stage/`, nombre del último archivo subido, y fecha de la última carga en formato legible.
+4. THE Frontend SHALL mostrar la lista de archivos Parquet retornada por el endpoint con columnas: nombre del archivo, tamaño en MB y fecha de modificación.
+5. THE Frontend SHALL mostrar los 4 pasos del pipeline ETL numerados (1–4) con descripción textual y el comando técnico asociado a cada paso.
+6. WHEN el usuario hace clic en "Ejecutar pipeline", THE Frontend SHALL ejecutar los 4 pasos en secuencia, mostrando animación pulse (CSS `animation: pulse`) en el número del paso activo.
+7. WHEN cada paso completa, THE Frontend SHALL cambiar el número del paso a color verde (#22c55e) con símbolo ✓, y avanzar al siguiente paso. Los pasos 3 y 4 verifican el estado real llamando a `GET /api/pipeline/estado` y `GET /api/registros/estadisticas` respectivamente, completando exitosamente si reciben HTTP 200.
+8. IF cualquier paso del pipeline falla (recibe HTTP distinto de 200 o timeout > 30 segundos), THE Frontend SHALL mostrar el número del paso en rojo con símbolo ✗ y detener la secuencia mostrando un mensaje de error con el paso que falló.
 
 ---
 

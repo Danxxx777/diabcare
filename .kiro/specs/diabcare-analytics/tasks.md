@@ -1,30 +1,12 @@
-# Tareas de Implementación — DiabCare Analytics v2.0
+# Implementation Plan
 
-## Estado General
+## Overview
 
-| Fase | Estado |
-|---|---|
-| P1 — Autenticación JWT | ✅ Completado |
-| P2 — Gestión de usuarios | ✅ Completado |
-| P3 — Registros clínicos (CRUD) | ✅ Completado |
-| P4 — Dataset y generador sintético | ✅ Completado |
-| P5 — Estadísticas clínicas | ✅ Completado |
-| P6 — Dashboard ejecutivo | ✅ Completado |
-| P7 — Frontend multi-página | ✅ Completado |
-| P8 — Predicción ML | ✅ Completado |
-| P9 — Pipeline ETL visual | ✅ Completado |
-| P10 — Control de roles en sidebar | ✅ Completado |
-| P11 — Conteo eficiente con pyarrow | ✅ Completado |
-| P12 — Reportes | ⏳ Pendiente |
-| P13 — Auditoría | ⏳ Pendiente |
-| P14 — Modelo ML (versionado) | ⏳ Pendiente |
-| P15 — Benchmarking | ⏳ Pendiente |
-| P16 — Pruebas PBT | ⏳ Pendiente |
-| P17 — Pruebas integración | ⏳ Pendiente |
+Este plan de implementación cubre el ciclo completo de desarrollo de DiabCare Analytics v2.0, una plataforma SaaS académica para la gestión y análisis de datos clínicos de diabetes hospitalaria. El sistema está implementado con FastAPI + Python 3.14 (backend), MinIO (object storage), pandas + pyarrow (ELT), scikit-learn (ML) y HTML/CSS/JS vanilla (frontend multi-página).
 
----
+Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están completadas. Las fases P12–P16 son las tareas pendientes: Reportes PDF, Auditoría, Gestión de versiones del modelo ML, Pruebas PBT con Hypothesis y Pruebas de integración.
 
-## Tareas Completadas
+## Tasks
 
 ### ✅ Tarea 1: Autenticación JWT
 
@@ -185,55 +167,129 @@
 
 ---
 
-## Tareas Pendientes
-
 ### ⏳ Tarea 11: Reportes PDF
 
-- [ ] 11.1 Implementar `POST /api/reportes/generar` que genere PDF con estadísticas usando reportlab.
-- [ ] 11.2 Subir PDF generado a MinIO `diabcare-app/reportes/`.
-- [ ] 11.3 Implementar `GET /api/reportes/` que liste reportes disponibles.
-- [ ] 11.4 Frontend con generación, listado y descarga de reportes.
+- [ ] 11.1 Instalar reportlab: `pip install reportlab --break-system-packages`.
+- [ ] 11.2 Implementar `ReportesServicio.py` con `generar_pdf(estadisticas)` que construya un PDF con KPIs, promedios clínicos y top ubicaciones usando reportlab.
+- [ ] 11.3 Implementar `POST /api/reportes/generar` que llame a `generar_pdf()` y suba el resultado a MinIO `diabcare-app/reportes/reporte_{timestamp}.pdf`.
+- [ ] 11.4 Implementar `GET /api/reportes/` que liste los reportes disponibles en MinIO con nombre, tamaño y fecha.
+- [ ] 11.5 Implementar `GET /api/reportes/{nombre}` que descargue el PDF como `FileResponse` con `media_type="application/pdf"`.
+- [ ] 11.6 Frontend `reportes/index.html` con botón "Generar reporte", tabla de reportes disponibles y botón de descarga por fila.
+
+**Archivos:** `api/reportes/ReportesRutas.py`, `servicios/reportes/ReportesServicio.py`, `frontend/paginas/reportes/index.html`
 
 ---
 
 ### ⏳ Tarea 12: Auditoría
 
-- [ ] 12.1 Registrar en MinIO cada operación CRUD con usuario, acción, timestamp y datos afectados.
-- [ ] 12.2 Implementar `GET /api/auditoria/` con filtros por usuario, fecha y tipo de acción.
-- [ ] 12.3 Frontend con tabla de auditoría paginada.
+- [ ] 12.1 Crear `AuditoriaServicio.py` con `registrar(usuario_id, accion, modulo, datos_afectados)` que añada una fila a `diabcare-app/auditoria/auditoria.parquet` en MinIO.
+- [ ] 12.2 Llamar `registrar()` en los endpoints CRUD de usuarios y registros clínicos (crear, actualizar, eliminar).
+- [ ] 12.3 Implementar `GET /api/auditoria/` con filtros opcionales `usuario_id`, `fecha_desde`, `fecha_hasta` y `accion`, retornando lista paginada.
+- [ ] 12.4 Frontend `auditoria/index.html` con tabla paginada que muestre usuario, módulo, acción, timestamp y datos afectados.
+
+**Archivos:** `api/auditoria/AuditoriaRutas.py`, `servicios/auditoria/AuditoriaServicio.py`, `frontend/paginas/auditoria/index.html`
 
 ---
 
 ### ⏳ Tarea 13: Gestión de Versiones del Modelo ML
 
-- [ ] 13.1 Guardar cada modelo entrenado con timestamp en MinIO `diabcare-app/modelos/`.
-- [ ] 13.2 Implementar `GET /api/modelo_ml/versiones` que liste todas las versiones.
-- [ ] 13.3 Implementar `PUT /api/modelo_ml/activar/{version}` para cambiar el modelo activo.
-- [ ] 13.4 Frontend con historial de versiones y botón de activar/rollback.
+- [ ] 13.1 Modificar `PrediccionServicio.entrenar()` para guardar el modelo con timestamp: `diabcare-app/modelos/modelo_{timestamp}.pkl` además del `modelo_diabetes.pkl` activo.
+- [ ] 13.2 Implementar `GET /api/modelo_ml/versiones` que liste todos los archivos `.pkl` en `diabcare-app/modelos/` con nombre, tamaño y fecha.
+- [ ] 13.3 Implementar `PUT /api/modelo_ml/activar/{nombre}` que copie el archivo `{nombre}.pkl` como `modelo_diabetes.pkl` e invalide el `_modelo_cache`.
+- [ ] 13.4 Frontend con historial de versiones, columnas nombre/fecha/tamaño, y botón "Activar" que llame al endpoint de activación con confirmación modal.
+
+**Archivos:** `api/modelo_ml/ModeloMlRutas.py`, `servicios/prediccion/PrediccionServicio.py`, `frontend/paginas/modelo_ml/index.html`
 
 ---
 
 ### ⏳ Tarea 14: Pruebas PBT (Property-Based Testing)
 
 - [ ] 14.1 Instalar Hypothesis: `pip install hypothesis --break-system-packages`.
-- [ ] 14.2 Crear `pruebas/test_unitario.py` con tests para endpoints de estadísticas.
-- [ ] 14.3 Crear `pruebas/test_prediccion.py` para validar que el modelo retorna siempre 0 o 1 con probabilidad [0,1].
-- [ ] 14.4 Crear `pruebas/test_dataset.py` para validar estructura de DataFrames generados.
-- [ ] 14.5 Ejecutar `pytest pruebas/ -v` y confirmar que todos pasan.
+- [ ] 14.2 Crear `pruebas/test_autenticacion.py` — Property 1: credenciales incorrectas siempre retornan 401 usando `st.text()`.
+- [ ] 14.3 Crear `pruebas/test_usuarios.py` — Property 2: round-trip creación de usuario; Property 3: email duplicado rechazado.
+- [ ] 14.4 Crear `pruebas/test_dataset.py` — Property 4: invariante `con_diabetes + sin_diabetes == total`; Property 5: generación exacta de N filas.
+- [ ] 14.5 Crear `pruebas/test_registros.py` — Property 6: todos los registros retornados satisfacen los filtros activos.
+- [ ] 14.6 Crear `pruebas/test_prediccion.py` — Property 7: round-trip serialización del modelo; Property 8: probabilidad en [0,1] y riesgo consistente; Property 9: métricas en [0,1].
+- [ ] 14.7 Ejecutar `pytest pruebas/ -v` y confirmar que todas las propiedades pasan con mínimo 100 ejemplos.
+
+**Archivos:** `pruebas/test_autenticacion.py`, `pruebas/test_usuarios.py`, `pruebas/test_dataset.py`, `pruebas/test_registros.py`, `pruebas/test_prediccion.py`
 
 ---
 
 ### ⏳ Tarea 15: Pruebas de Integración
 
-- [ ] 15.1 Crear `pruebas/test_integracion.py` con flujo completo: login → estadísticas → generar datos → verificar.
-- [ ] 15.2 Prueba de flujo de usuarios: crear → listar → cambiar rol → desactivar.
-- [ ] 15.3 Prueba de autenticación: token válido → acceso; token expirado → 401; rol incorrecto → 403.
-- [ ] 15.4 Prueba de predicción: entrenar → predecir → verificar métricas.
-- [ ] 15.5 Ejecutar con MinIO real en `localhost:9000`.
+- [ ] 15.1 Crear `pruebas/test_integracion.py` con flujo completo: login → estadísticas → generar datos → verificar conteo actualizado.
+- [ ] 15.2 Prueba de flujo de usuarios: crear → listar (verificar presencia) → cambiar rol → desactivar → listar (verificar activo=False).
+- [ ] 15.3 Prueba de autenticación: token válido → acceso OK; token expirado → 401; rol incorrecto para módulo → 403.
+- [ ] 15.4 Prueba de predicción: verificar estado (disponible=false) → entrenar → verificar estado (disponible=true) → predecir → verificar métricas en rango.
+- [ ] 15.5 Ejecutar con MinIO real en `localhost:9000`; documentar en README los pasos para levantar el entorno de pruebas.
+
+**Archivos:** `pruebas/test_integracion.py`
 
 ---
 
-## Registro de Decisiones Técnicas
+## Task Dependency Graph
+
+```json
+{
+  "waves": [
+    {
+      "wave": 1,
+      "tasks": ["T1", "T6"],
+      "description": "Infraestructura base: autenticación JWT y configuración del sistema"
+    },
+    {
+      "wave": 2,
+      "tasks": ["T2", "T3", "T4", "T8"],
+      "description": "Módulos core que dependen de autenticación JWT (T1) y buckets MinIO (T6)"
+    },
+    {
+      "wave": 3,
+      "tasks": ["T5", "T9", "T10"],
+      "description": "Estadísticas y optimizaciones que dependen de datos en MinIO (T3, T4)"
+    },
+    {
+      "wave": 4,
+      "tasks": ["T7"],
+      "description": "Predicción ML que requiere datos de entrenamiento disponibles (T4, T5)"
+    },
+    {
+      "wave": 5,
+      "tasks": ["T11", "T12", "T13"],
+      "description": "Reportes PDF (T3/T5), Auditoría (T1–T4) y Versiones ML (T7) — módulos pendientes independientes"
+    },
+    {
+      "wave": 6,
+      "tasks": ["T14", "T15"],
+      "description": "Pruebas PBT e integración — requieren todas las implementaciones previas (T1–T13)"
+    }
+  ]
+}
+```
+
+## Notes
+
+### Estado de Implementación
+
+| Fase | Estado |
+|---|---|
+| T1 — Autenticación JWT | ✅ Completado |
+| T2 — Gestión de usuarios | ✅ Completado |
+| T3 — Registros clínicos (CRUD) | ✅ Completado |
+| T4 — Dataset y generador sintético | ✅ Completado |
+| T5 — Estadísticas clínicas y Dashboard | ✅ Completado |
+| T6 — Infraestructura y Sistema | ✅ Completado |
+| T7 — Predicción ML | ✅ Completado |
+| T8 — Pipeline ETL visual | ✅ Completado |
+| T9 — Control de roles en sidebar | ✅ Completado |
+| T10 — Conteo eficiente con pyarrow | ✅ Completado |
+| T11 — Reportes PDF | ⏳ Pendiente |
+| T12 — Auditoría | ⏳ Pendiente |
+| T13 — Gestión de versiones del Modelo ML | ⏳ Pendiente |
+| T14 — Pruebas PBT | ⏳ Pendiente |
+| T15 — Pruebas de integración | ⏳ Pendiente |
+
+### Registro de Decisiones Técnicas
 
 | Fecha | Decisión | Razón |
 |---|---|---|

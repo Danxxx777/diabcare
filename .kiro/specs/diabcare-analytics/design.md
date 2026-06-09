@@ -1,6 +1,6 @@
 # Documento de Diseño — DiabCare Analytics v2.0
 
-## Visión General
+## Overview
 
 DiabCare Analytics es una plataforma SaaS de análisis clínico de diabetes hospitalaria. El sistema lee archivos `.parquet` almacenados en MinIO, calcula estadísticas con pandas, entrena modelos de predicción con scikit-learn, y expone una interfaz web multi-página con autenticación JWT, gestión de usuarios, visualizaciones clínicas interactivas, predicción ML y monitoreo de pipeline ETL.
 
@@ -11,7 +11,7 @@ La arquitectura es de tres capas:
 
 ---
 
-## Arquitectura
+## Architecture
 
 ```mermaid
 graph TD
@@ -109,7 +109,7 @@ diabcare/
 
 ---
 
-## Componentes e Interfaces
+## Components and Interfaces
 
 ### Backend — Endpoints completos
 
@@ -266,7 +266,7 @@ function aplicarRoles() {
 
 ---
 
-## Modelos de Datos
+## Data Models
 
 ### Dataset clínico (Parquet en MinIO `diabetes-data/stage/`)
 
@@ -319,7 +319,67 @@ function aplicarRoles() {
 
 ---
 
-## Manejo de Errores
+## Correctness Properties
+
+*Una propiedad es una característica o comportamiento que debe ser verdadero en todas las ejecuciones válidas del sistema — esencialmente, un enunciado formal sobre lo que el sistema debe hacer. Las propiedades sirven como puente entre las especificaciones legibles por humanos y las garantías de corrección verificables automáticamente.*
+
+### Property 1: Credenciales incorrectas siempre reciben 401
+
+*For any* par (email, password) que no coincida con las credenciales almacenadas de ningún usuario activo, el endpoint `POST /api/auth/login` debe retornar HTTP 401.
+
+**Validates: Requirements 1.3**
+
+### Property 2: Creación de usuario es un round-trip
+
+*For any* conjunto de datos de usuario válidos (nombre, email, password, rol), crear el usuario y luego recuperarlo con `GET /api/usuarios/` debe retornar un objeto con el mismo nombre, email y rol, sin exponer el password_hash.
+
+**Validates: Requirements 2.1, 2.2, 2.7**
+
+### Property 3: Email duplicado siempre es rechazado
+
+*For any* email, intentar crear dos usuarios con ese mismo email debe resultar en HTTP 400 en la segunda operación, sin importar cuáles sean los demás campos del segundo usuario.
+
+**Validates: Requirements 2.3**
+
+### Property 4: Invariante de conteo de estadísticas
+
+*For any* dataset cargado desde MinIO, la suma `con_diabetes + sin_diabetes` debe ser siempre igual al campo `total` retornado por `GET /api/dataset/estadisticas` y `GET /api/registros/estadisticas`.
+
+**Validates: Requirements 3.3, 5.1, 5.2**
+
+### Property 5: Generación de datos es exacta
+
+*For any* cantidad `N` solicitada al endpoint `POST /api/dataset/generar`, el archivo Parquet resultante subido a MinIO debe contener exactamente `N` filas, verificable vía `pyarrow.parquet.ParquetFile.metadata.num_rows`.
+
+**Validates: Requirements 3.4, 3.5**
+
+### Property 6: Filtros de registros son consistentes
+
+*For any* combinación de filtros aplicada a `GET /api/registros/buscar` (diabetes, gender, location, age_min, age_max), todos los registros retornados deben satisfacer todos los filtros activos sin excepción.
+
+**Validates: Requirements 4.2**
+
+### Property 7: Round-trip de serialización del modelo ML
+
+*For any* dataset de entrenamiento, el modelo entrenado, serializado con pickle y subido a MinIO, al descargarse y deserializarse debe producir predicciones idénticas a las del modelo original en memoria para cualquier vector de entrada.
+
+**Validates: Requirements 7.1, 7.2**
+
+### Property 8: Probabilidad y clasificación de riesgo son consistentes
+
+*For any* vector de entrada válido con los 6 features clínicos, la probabilidad retornada por `POST /api/prediccion/` debe estar en el rango [0.0, 1.0], y el nivel de riesgo debe ser consistente con los umbrales definidos (Alto ≥ 0.7, Medio ≥ 0.4, Bajo < 0.4).
+
+**Validates: Requirements 7.3**
+
+### Property 9: Métricas del modelo están en rango válido
+
+*For any* modelo entrenado sobre cualquier dataset clínico, las métricas retornadas por `GET /api/prediccion/metricas` (accuracy, precision, recall, f1) deben estar todas en el rango [0.0, 1.0].
+
+**Validates: Requirements 7.4**
+
+---
+
+## Error Handling
 
 | Situación | HTTP | Detail |
 |---|---|---|
@@ -333,3 +393,76 @@ function aplicarRoles() {
 | Registro no encontrado | 404 | "Registro no encontrado" |
 | Modelo no entrenado | 200 | `{"error": "Modelo no entrenado. Llama primero a POST /api/prediccion/entrenar"}` |
 | MinIO sin archivos | 200 | DataFrame vacío, retorna lista vacía o total 0 |
+
+---
+
+## Testing Strategy
+
+### Enfoque dual: pruebas unitarias + pruebas basadas en propiedades
+
+La estrategia combina pruebas de ejemplo para casos concretos con pruebas basadas en propiedades (PBT) para validar invariantes universales. Se utiliza **Hypothesis** como librería PBT para Python, configurada con mínimo 100 iteraciones por propiedad.
+
+### Pruebas basadas en propiedades (Hypothesis)
+
+Cada propiedad del documento se implementa como un test de Hypothesis con el decorador `@given`. Se etiquetan con el formato:
+`# Feature: diabcare-analytics, Property {N}: {descripción}`
+
+| Propiedad | Test | Estrategia de generación |
+|---|---|---|
+| Property 1: Credenciales incorrectas → 401 | `test_invalid_credentials_always_401` | `st.text()` para email y password no registrados |
+| Property 2: Round-trip creación de usuario | `test_user_creation_roundtrip` | `st.builds(UsuarioData)` con campos aleatorios válidos |
+| Property 3: Email duplicado → 400 | `test_duplicate_email_rejected` | `st.emails()` para email base |
+| Property 4: Invariante de conteo | `test_stats_count_invariant` | DataFrames sintéticos con `st.integers(min_value=0)` |
+| Property 5: Generación exacta de N filas | `test_dataset_generation_exact_count` | `st.integers(min_value=1, max_value=1000)` |
+| Property 6: Filtros consistentes | `test_filter_results_satisfy_filters` | `st.from_type(FiltroRegistros)` |
+| Property 7: Round-trip serialización ML | `test_model_serialization_roundtrip` | DataFrames de entrenamiento sintéticos |
+| Property 8: Probabilidad y riesgo coherentes | `test_prediction_probability_range` | `st.builds(InputPrediccion)` con rangos clínicos válidos |
+| Property 9: Métricas en rango válido | `test_metrics_in_valid_range` | DataFrames con distribuciones variables |
+
+Ejemplo de estructura de test:
+
+```python
+from hypothesis import given, settings
+import hypothesis.strategies as st
+
+# Feature: diabcare-analytics, Property 4: Invariante de conteo de estadísticas
+@given(st.integers(min_value=0, max_value=10000),
+       st.integers(min_value=0, max_value=10000))
+@settings(max_examples=100)
+def test_stats_count_invariant(con_diabetes, sin_diabetes):
+    df = crear_dataframe_sintetico(con_diabetes, sin_diabetes)
+    stats = calcular_estadisticas(df)
+    assert stats["con_diabetes"] + stats["sin_diabetes"] == stats["total"]
+```
+
+### Pruebas unitarias de ejemplo
+
+Se escriben para casos concretos que complementan las propiedades:
+
+- **Autenticación**: Login exitoso con credenciales del admin por defecto; logout retorna confirmación.
+- **Usuarios**: Cambio de rol, desactivación de usuario (activo=False), listado sin exponer password_hash.
+- **Dataset**: Respuesta de `GET /api/dataset/hechos` incluye campos `total` y `registros`; dimensiones retornan las columnas esperadas.
+- **Predicción**: Respuesta de `POST /api/prediccion/` incluye `diagnostico`, `resultado`, `probabilidad` y `riesgo`; `GET /api/prediccion/estado` retorna False si no existe modelo.
+- **Pipeline**: `GET /api/pipeline/estado` retorna estructura con `estado`, `total_archivos`, `archivos`.
+- **Frontend (ejemplo)**: Página de login contiene formulario con campos email y password.
+
+### Pruebas de integración
+
+Se usan 1-3 ejemplos representativos para operaciones con MinIO y Airflow:
+
+- Verificar que `inicializar_buckets()` crea los buckets si no existen.
+- Verificar que `POST /api/dataset/generar` sube efectivamente un archivo Parquet a MinIO `stage/`.
+- Verificar que `GET /api/pipeline/estado` lista correctamente archivos reales en MinIO.
+- Verificar que el flujo completo entrenamiento → predicción funciona con datos reales.
+
+### Cobertura objetivo
+
+| Módulo | Tipo de test prioritario |
+|---|---|
+| `AutenticacionServicio` | Property (credenciales) + Example (login exitoso) |
+| `UsuariosServicio` | Property (round-trip, email único) |
+| `DatasetServicio` | Property (conteo exacto, invariante estadísticas) |
+| `RegistrosClinicosServicio` | Property (filtros consistentes, invariante conteo) |
+| `PrediccionServicio` | Property (serialización, probabilidad, métricas) |
+| `ConfiguracionClienteMinio` | Integration (buckets, conectividad) |
+| Frontend páginas | Example (estructura HTML, endpoints consumidos) |
