@@ -1,0 +1,23 @@
+---
+alwaysApply: true
+---
+
+<!-- SPECKIT START -->
+Project: DiabCare Analytics — SaaS clinical diabetes analytics platform.
+
+Governance: Read `.specify/memory/constitution.md` (v1.1.0) before planning or
+implementing features. All work must comply with its six core principles.
+
+Stack: Python 3 + FastAPI backend, Vanilla JS frontend, MinIO/Parquet storage,
+Airflow ETL, PocketBase source, scikit-learn ML. Structure follows 15 functional
+packages (P1–P15) under `backend/api/`, `backend/servicios/`, `frontend/paginas/`.
+
+Deliverables (presentación académica aparte del código):
+- `specs/requirements.md` — requisitos consolidados (R)
+- `specs/design.md` — diseño y arquitectura (D)
+- `specs/tasks.md` — plan de implementación (T)
+- `specs/003-operativo/` — especificación operativa y paquetes P01–P15
+
+Spec Kit (`.cursor/`, `.specify/`) genera y mantiene esos artefactos vía
+/speckit-specify, /speckit-plan, /speckit-tasks; no sustituye la carpeta `specs/`.
+<!-- SPECKIT END -->

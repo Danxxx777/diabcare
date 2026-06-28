@@ -1,0 +1,15 @@
+README.md
+.git/
+pruebas/
+ml/
+logs/
+docker-compose.yaml
+pytest.ini
+pipeline_diabetes.py
+**/__pycache__/
+**/.pytest_cache/
+**/*.pyc
+**/*.parquet
+documentacion/
+*.docx
+*.pdf
