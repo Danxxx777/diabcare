@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare — Dashboard</title>
 <link rel="stylesheet" href="/estaticos/estilos.css">
+<script src="/estaticos/navegacion.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 /* ── Layout ── */
@@ -102,62 +103,7 @@
 </head>
 <body>
 
-<aside class="sidebar">
-  <div class="logo-area">
-    <div class="logo-mark">D</div>
-    <div><div class="logo-text">DiabCare</div></div>
-  </div>
-  <nav class="nav">
-    <div class="nav-section">Principal</div>
-    <div class="nav-group">
-      <div class="nav-group-header open" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Análisis</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub open">
-        <a class="nav-sub-item active" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
-        <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Registros clínicos</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Dataset</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
-        <a class="nav-sub-item" href="/paginas/dataset/generador.html"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Usuarios</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
-      </div>
-    </div>
-    <div class="nav-section">Datos</div>
-    <div class="nav-group"><div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><i class="nav-chevron">&#8250;</i></div><div class="nav-sub"><a class="nav-sub-item" href="/paginas/prediccion/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Predecir / Métricas</span></a></div></div>
-    <div class="nav-group"><div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><i class="nav-chevron">&#8250;</i></div><div class="nav-sub"><a class="nav-sub-item" href="/paginas/pipeline_etl/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estado / Archivos</span></a></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Modelo ML</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-section">Sistema</div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Reportes</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Auditoría</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Notificaciones</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Configuración</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Benchmarking</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
-  </nav>
-  <div class="sidebar-bottom">
-    <div class="user-row-wrap" style="display:flex;flex-direction:row;align-items:center;gap:6px;">
-  <div class="user-row">
-      <div class="user-avatar" id="userAvatar">A</div>
-      <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
-    </div>
-  <button class="btn-logout" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
-  </div>
-    <div class="ver-info">DiabCare Analytics v2.0</div>
-  </div>
-</aside>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
 
 <div class="main">
   <div class="topbar">
@@ -273,14 +219,17 @@
         <div class="sys-row"><span class="sys-label">Dataset</span><span class="sys-badge ok" id="sys-dataset">cargado</span></div>
         <div class="sys-row"><span class="sys-label">API Backend</span><span class="sys-badge ok">activo</span></div>
         <div class="sys-row"><span class="sys-label">Autenticación</span><span class="sys-badge ok">JWT activo</span></div>
-        <div class="sys-row"><span class="sys-label">Modelo ML</span><span class="sys-badge warn">no entrenado</span></div>
-        <div class="sys-row"><span class="sys-label">Pipeline ETL</span><span class="sys-badge warn">pendiente</span></div>
+        <div class="sys-row"><span class="sys-label">Modelo ML</span><span class="sys-badge warn" id="sys-ml">—</span></div>
+        <div class="sys-row"><span class="sys-label">Pipeline ELT</span><span class="sys-badge warn" id="sys-etl">—</span></div>
       </div>
 
-      <!-- Últimos archivos MinIO -->
-      <div class="panel">
-        <div class="panel-title">Últimos archivos MinIO</div>
-        <div id="minio-files"><div style="font-size:11px;color:var(--muted)">Cargando...</div></div>
+      <!-- Trazabilidad reciente (admin) -->
+      <div class="panel" id="panel-trazabilidad">
+        <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Trazabilidad reciente</span>
+          <a href="/paginas/auditoria/index.html" style="font-size:10px;color:rgba(37,99,235,0.8);text-decoration:none">Ver todo →</a>
+        </div>
+        <div id="audit-reciente"><div style="font-size:11px;color:var(--muted)">Cargando...</div></div>
       </div>
 
     </div>
@@ -291,51 +240,18 @@
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
 
 <script>
-const API   = 'http://localhost:8000';
-const token = localStorage.getItem('token');
+DiabCareNav.init();
+const API = DiabCareNav.getApi();
 let donutChart = null;
 
-function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
-
-function initUser() {
-  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  if (u.nombre) {
-    document.getElementById('userName').textContent   = u.nombre;
-    document.getElementById('userRol').textContent    = u.rol || '';
-    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
-  }
-  const rol = u.rol || '';
-  const ACCESO = {
-    'administrador': ['analisis','registros','dataset','usuarios','prediccion','pipeline','modelo','reportes','auditoria','notificaciones','configuracion','benchmarking','integraciones'],
-    'medico':        ['analisis','registros','prediccion'],
-    'analista':      ['analisis','dataset','prediccion'],
-  };
-  const permitidos = ACCESO[rol] || [];
-  document.querySelectorAll('.nav-group').forEach(g => {
-    const label = g.querySelector('.nav-group-label');
-    if (!label) return;
-    const texto = label.textContent.toLowerCase();
-    const visible = permitidos.some(p => texto.includes(p === 'analisis' ? 'nál' : p === 'registros' ? 'egistro' : p === 'dataset' ? 'ataset' : p === 'usuarios' ? 'suario' : p === 'prediccion' ? 'redicci' : p === 'pipeline' ? 'ipeline' : p === 'modelo' ? 'odelo m' : p === 'reportes' ? 'eporte' : p === 'auditoria' ? 'uditor' : p === 'notificaciones' ? 'otificac' : p === 'configuracion' ? 'onfigur' : p === 'benchmarking' ? 'enchmark' : p === 'integraciones' ? 'ntegrac' : p));
-    if (!visible) g.style.display = 'none';
-  });
+function authHdr() {
+  const t = localStorage.getItem('token');
+  return t ? { Authorization: 'Bearer ' + t } : {};
 }
 
-function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
-
-function aplicarRoles() {
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  const rol = u.rol || '';
-  const OCULTAR = {
-    'medico':   ['Dataset','Usuarios','Pipeline ETL','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-    'analista': ['Registros clínicos','Usuarios','Pipeline ETL','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-  };
-  const ocultar = OCULTAR[rol] || [];
-  document.querySelectorAll('.nav-group').forEach(g => {
-    const label = g.querySelector('.nav-group-label');
-    if (!label) return;
-    const txt = label.textContent.trim();
-if (ocultar.some(o => txt.includes(o))) g.style.display = 'none';
+function limpiarKpis(msg) {
+  ['k-total','k-con','k-sin','k-prev'].forEach(id => {
+    document.getElementById(id).textContent = msg || '—';
   });
 }
 
@@ -385,40 +301,70 @@ function renderTopUbicaciones(ubicaciones) {
     </div>`).join('');
 }
 
-async function cargarArchivosMinIO() {
+async function cargarTrazabilidad() {
+  const panel = document.getElementById('panel-trazabilidad');
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const esAdmin = (u.rol || '') === 'administrador';
+  if (!esAdmin) {
+    panel.innerHTML = `<div class="panel-title">Seguridad</div>
+      <div class="sys-row"><span class="sys-label">Sesión activa</span><span class="sys-badge ok">JWT</span></div>
+      <div class="sys-row"><span class="sys-label">Rol</span><span class="sys-badge ok">${u.rol || '—'}</span></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:10px">Las acciones quedan registradas en auditoría (solo admin).</div>`;
+    return;
+  }
   try {
-    const r = await fetch(`${API}/api/dataset/estadisticas`, { headers: { 'Authorization': 'Bearer ' + token } });
+    const r = await fetch(`${API}/api/auditoria/?limit=5`, { headers: authHdr() });
+    if (r.status === 403) {
+      document.getElementById('audit-reciente').innerHTML = '<div style="font-size:11px;color:var(--muted)">Sin permiso de auditoría</div>';
+      return;
+    }
     const d = await r.json();
-    const cols = d.columnas || [];
-    document.getElementById('minio-files').innerHTML = `
-      <div class="file-row">
-        <span class="file-icon">📄</span>
-        <span class="file-name">diabetes_dataset_stage.parquet</span>
-        <span class="file-meta">${(d.total||0).toLocaleString('es-ES')} reg.</span>
-      </div>
-      <div class="file-row">
-        <span class="file-icon">📋</span>
-        <span class="file-name">Columnas disponibles</span>
-        <span class="file-meta">${cols.length} cols</span>
-      </div>
-      ${cols.slice(0,4).map(c => `
-      <div class="file-row">
-        <span class="file-icon" style="opacity:.3">—</span>
-        <span class="file-name" style="color:var(--muted)">${c}</span>
-      </div>`).join('')}
-      ${cols.length > 4 ? `<div class="file-row"><span class="file-name" style="color:var(--muted);font-size:10px">+${cols.length-4} columnas más</span></div>` : ''}
-    `;
+    const evs = (d.eventos || []).slice(0, 5);
+    if (!evs.length) {
+      document.getElementById('audit-reciente').innerHTML = '<div style="font-size:11px;color:var(--muted)">Sin eventos aún</div>';
+      return;
+    }
+    document.getElementById('audit-reciente').innerHTML = evs.map(e => {
+      const hora = e.fecha ? new Date(e.fecha).toLocaleString('es-ES', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'short' }) : '—';
+      const color = e.tipo === 'error' ? 'red' : e.tipo === 'consulta' ? 'blue' : 'amber';
+      return `<div class="alert-item">
+        <div class="alert-dot ${color}"></div>
+        <div><div class="alert-text">${e.modulo}: ${e.detalle || e.tipo}</div>
+        <div class="alert-sub">${e.usuario} · ${hora}</div></div>
+      </div>`;
+    }).join('');
   } catch {
-    document.getElementById('minio-files').innerHTML = '<div style="font-size:11px;color:var(--muted)">No disponible</div>';
+    document.getElementById('audit-reciente').innerHTML = '<div style="font-size:11px;color:var(--muted)">No disponible</div>';
   }
 }
 
 async function cargar() {
+  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
   document.getElementById('ts').textContent = new Date().toLocaleTimeString('es-ES');
+  document.getElementById('top-ubicaciones').innerHTML =
+    '<div style="font-size:11px;color:var(--muted)">Calculando estadísticas… puede tardar ~20 s con datasets grandes</div>';
   try {
-    const r = await fetch(`${API}/api/registros/estadisticas`, { headers: { 'Authorization': 'Bearer ' + token } });
+    const r = await fetch(`${API}/api/registros/estadisticas`, { headers: authHdr() });
     if (r.status === 401) { window.location.href = '/'; return; }
+    if (r.status === 403) {
+      limpiarKpis('—');
+      document.getElementById('alertas-list').innerHTML =
+        '<div class="alert-item"><div class="alert-dot red"></div><div><div class="alert-text">Sin permiso para estadísticas</div><div class="alert-sub">Cierre sesión (menú lateral) y vuelva a entrar. Si persiste, pida al admin revisar su rol.</div></div></div>';
+      document.getElementById('top-ubicaciones').innerHTML =
+        '<div style="font-size:11px;color:var(--muted)">Sin acceso a datos analíticos</div>';
+      return;
+    }
     const d = await r.json();
+    if (!d.total) {
+      limpiarKpis('0');
+      document.getElementById('alertas-list').innerHTML =
+        '<div class="alert-item"><div class="alert-dot blue"></div><div><div class="alert-text">Dataset vacío</div><div class="alert-sub">Genere datos desde Dataset → Generador</div></div></div>';
+      document.getElementById('top-ubicaciones').innerHTML =
+        '<div style="font-size:11px;color:var(--muted)">Sin registros aún</div>';
+      cargarTrazabilidad();
+      cargarEstadoSistema();
+      return;
+    }
 
     const pct = Math.round((d.con_diabetes / d.total) * 100);
 
@@ -469,14 +415,49 @@ async function cargar() {
 
   } catch(e) {
     console.error(e);
-    ['k-total','k-con','k-sin','k-prev'].forEach(id => document.getElementById(id).textContent = '—');
+    limpiarKpis('—');
+    document.getElementById('top-ubicaciones').innerHTML =
+      '<div style="font-size:11px;color:var(--muted)">Error al conectar con ' + API + ' — ¿está el backend en marcha?</div>';
+    document.getElementById('alertas-list').innerHTML =
+      '<div class="alert-item"><div class="alert-dot red"></div><div><div class="alert-text">No se pudo cargar el dashboard</div><div class="alert-sub">Abra la app en <b>http://localhost:8000</b> y verifique que Uvicorn esté activo.</div></div></div>';
   }
 
-  cargarArchivosMinIO();
+  cargarTrazabilidad();
+  cargarEstadoSistema();
 }
 
-initUser();
-aplicarRoles();
+async function cargarEstadoSistema() {
+  const hdr = authHdr();
+  try {
+    const r = await fetch(`${API}/api/modelo-ml/info`, { headers: hdr });
+    if (r.ok) {
+      const d = await r.json();
+      const el = document.getElementById('sys-ml');
+      if (d.disponible && d.metricas) {
+        el.textContent = (d.metricas.accuracy * 100).toFixed(1) + '% acc.';
+        el.className = 'sys-badge ok';
+      } else {
+        el.textContent = 'no entrenado';
+        el.className = 'sys-badge warn';
+      }
+    }
+  } catch {}
+  try {
+    const r = await fetch(`${API}/api/pipeline/estado`, { headers: hdr });
+    if (r.ok) {
+      const d = await r.json();
+      const el = document.getElementById('sys-etl');
+      if (d.estado === 'activo' && d.total_archivos > 0) {
+        el.textContent = d.total_archivos + ' archivos';
+        el.className = 'sys-badge ok';
+      } else {
+        el.textContent = d.estado === 'error' ? 'error' : 'sin archivos';
+        el.className = 'sys-badge warn';
+      }
+    }
+  } catch {}
+}
+
 cargar();
 </script>
 </body>

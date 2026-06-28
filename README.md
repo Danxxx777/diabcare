@@ -1,36 +1,36 @@
 ﻿# DiabCare Analytics
 
-Plataforma SaaS de anÃ¡lisis clÃ­nico de datos de diabetes hospitalaria.  
-**59 casos de uso Â· 15 paquetes funcionales Â· Arquitectura Data Warehouse**
+Plataforma SaaS de análisis clínico de datos de diabetes hospitalaria.  
+**59 casos de uso · 15 paquetes funcionales · Arquitectura Data Warehouse**
 
-## TecnologÃ­as
+## Tecnologías
 
-| Capa | TecnologÃ­a |
+| Capa | Tecnología |
 |------|-----------|
 | Frontend | HTML5 + CSS3 + JavaScript Vanilla |
 | Backend | Python 3 + FastAPI + Uvicorn |
 | Almacenamiento | MinIO (Parquet columnar) |
-| OrquestaciÃ³n ETL | Apache Airflow |
+| Orquestación ETL | Apache Airflow |
 | Fuente de datos | PocketBase |
-| Machine Learning | scikit-learn |cd backend
+| Machine Learning | scikit-learn |
 
 ## Modelo de Datos
 
 Arquitectura **Data Warehouse** con 21 tablas: 1 tabla de hechos, 5 dimensiones y 15 tablas operativas.
 
-| Tabla | Tipo | DescripciÃ³n |
+| Tabla | Tipo | Descripción |
 |-------|------|-------------|
-| `HechosDiabetes` | Hechos | Tabla de hechos principal (encounter_id, glucosa, BMI, HbA1c, diagnÃ³stico) |
-| `DimensionPaciente` | DimensiÃ³n | Datos del paciente (gÃ©nero, edad) |
-| `DimensionUbicacion` | DimensiÃ³n | UbicaciÃ³n geogrÃ¡fica |
-| `DimensionRaza` | DimensiÃ³n | Raza/etnia del paciente |
-| `DimensionCondicion` | DimensiÃ³n | CondiciÃ³n mÃ©dica (hipertensiÃ³n, cardiopatÃ­a) |
-| `DimensionTiempo` | DimensiÃ³n | AÃ±o del registro clÃ­nico |
+| `HechosDiabetes` | Hechos | Tabla de hechos principal (encounter_id, glucosa, BMI, HbA1c, diagnóstico) |
+| `DimensionPaciente` | Dimensión | Datos del paciente (género, edad) |
+| `DimensionUbicacion` | Dimensión | Ubicación geográfica |
+| `DimensionRaza` | Dimensión | Raza/etnia del paciente |
+| `DimensionCondicion` | Dimensión | Condición médica (hipertensión, cardiopatía) |
+| `DimensionTiempo` | Dimensión | Año del registro clínico |
 
 ## Flujo de Datos
 
 ```
-PocketBase â†’ Airflow (DAGs) â†’ Parquet (stage/) â†’ MinIO â†’ FastAPI â†’ Frontend
+PocketBase → Airflow (DAGs) → Parquet (stage/) → MinIO → FastAPI → Frontend
 ```
 
 ## Paquetes de Casos de Uso
@@ -39,65 +39,76 @@ El sistema cuenta con **59 casos de uso** organizados en **15 paquetes funcional
 
 | Paquete | Nombre | Carpeta | CUs |
 |---------|--------|---------|-----|
-| P1 | AutenticaciÃ³n y seguridad | `autenticacion` | CU01â€“CU04 |
-| P2 | GestiÃ³n de usuarios | `usuarios` | CU05â€“CU08 |
-| P3 | GestiÃ³n de registros clÃ­nicos | `registros_clinicos` | CU09â€“CU13 |
-| P4 | Dataset y datos sintÃ©ticos | `dataset` | CU14â€“CU17 |
-| P5 | AnÃ¡lisis y visualizaciÃ³n | `analisis` | CU18â€“CU21 |
-| P6 | PredicciÃ³n ML | `prediccion` | CU22â€“CU25 |
-| P7 | Reportes | `reportes` | CU26â€“CU29 |
-| P8 | Pipeline ETL | `pipeline_etl` | CU30â€“CU33 |
-| P9 | InformaciÃ³n corporativa | `corporativo` | CU34â€“CU36 |
-| P10 | Notificaciones y alertas | `notificaciones` | CU37â€“CU40 |
-| P11 | AuditorÃ­a y trazabilidad | `auditoria` | CU41â€“CU44 |
-| P12 | ConfiguraciÃ³n del sistema | `configuracion` | CU45â€“CU48 |
-| P13 | ComparaciÃ³n y benchmarking | `benchmarking` | CU49â€“CU52 |
-| P14 | GestiÃ³n del modelo ML | `modelo_ml` | CU53â€“CU56 |
-| P15 | API pÃºblica e integraciones | `integraciones` | CU57â€“CU59 |
+| P1 | Autenticación y seguridad | `autenticacion` | CU01–CU04 |
+| P2 | Gestión de usuarios | `usuarios` | CU05–CU08 |
+| P3 | Gestión de registros clínicos | `registros_clinicos` | CU09–CU13 |
+| P4 | Dataset y datos sintéticos | `dataset` | CU14–CU17 |
+| P5 | Análisis y visualización | `analisis` | CU18–CU21 |
+| P6 | Predicción ML | `prediccion` | CU22–CU25 |
+| P7 | Reportes | `reportes` | CU26–CU29 |
+| P8 | Pipeline ETL | `pipeline_etl` | CU30–CU33 |
+| P9 | Información corporativa | `corporativo` | CU34–CU36 |
+| P10 | Notificaciones y alertas | `notificaciones` | CU37–CU40 |
+| P11 | Auditoría y trazabilidad | `auditoria` | CU41–CU44 |
+| P12 | Configuración del sistema | `configuracion` | CU45–CU48 |
+| P13 | Comparación y benchmarking | `benchmarking` | CU49–CU52 |
+| P14 | Gestión del modelo ML | `modelo_ml` | CU53–CU56 |
+| P15 | API pública e integraciones | `integraciones` | CU57–CU59 |
 
 ## Estructura del Proyecto
 
 ```
 diabcare/
-â”œâ”€â”€ backend/
-â”‚   â”œâ”€â”€ api/               Rutas FastAPI por paquete (P1-P15)
-â”‚   â”œâ”€â”€ servicios/         LÃ³gica de negocio por paquete
-â”‚   â”œâ”€â”€ modelos/           Modelos de datos (hechos + dimensiones)
-â”‚   â””â”€â”€ utilidades/        Helpers, logger, Parquet utils
-â”œâ”€â”€ frontend/
-â”‚   â”œâ”€â”€ paginas/           PÃ¡ginas HTML por paquete (P1-P15)
-â”‚   â”œâ”€â”€ componentes/       Componentes reutilizables por paquete
-â”‚   â””â”€â”€ estaticos/         CSS, JS y assets por mÃ³dulo
-â”œâ”€â”€ ml/
-â”‚   â”œâ”€â”€ modelos/           Entrenador y Predictor (scikit-learn)
-â”‚   â”œâ”€â”€ evaluacion/        MÃ©tricas de desempeÃ±o
-â”‚   â”œâ”€â”€ datos_entrenamiento/
-â”‚   â”œâ”€â”€ versiones/         Versiones del modelo guardadas
-â”‚   â””â”€â”€ cuadernos/         AnÃ¡lisis exploratorio (.ipynb)
-â”œâ”€â”€ almacenamiento/
-â”‚   â”œâ”€â”€ aplicacion/        Buckets: exportaciones, logs, modelos, reportes
-â”‚   â””â”€â”€ diabetes-data/     Parquet: etapa, procesados, sintÃ©ticos
-â”œâ”€â”€ documentacion/
-â”‚   â”œâ”€â”€ casos_de_uso/      Diagramas UML de los 15 paquetes
-â”‚   â”œâ”€â”€ diagramas/         ER, arquitectura, flujos
-â”‚   â”œâ”€â”€ api/               DocumentaciÃ³n Swagger/OpenAPI
-â”‚   â””â”€â”€ entregables/       PDFs y documentos de entrega
-â”œâ”€â”€ pruebas/
-â”‚   â”œâ”€â”€ api/               Tests de endpoints
-â”‚   â”œâ”€â”€ integracion/       Tests de flujo completo
-â”‚   â””â”€â”€ ml/                Tests de predicciÃ³n
-â”œâ”€â”€ dags/                  DAGs de Apache Airflow
-â”œâ”€â”€ config/                ConfiguraciÃ³n global del sistema
-â”œâ”€â”€ logs/                  Logs de ejecuciÃ³n (no se suben a Git)
-â””â”€â”€ stage/                 Parquet temporal (no se sube a Git)
+├── backend/
+│   ├── api/               Rutas FastAPI por paquete (P1–P15)
+│   ├── servicios/         Lógica de negocio por paquete
+│   ├── modelos/           Hechos y dimensiones (Data Warehouse)
+│   └── utilidades/        JWT, Parquet, logger
+├── frontend/
+│   ├── paginas/           Páginas HTML por paquete (P1–P15)
+│   └── estaticos/         CSS, JS compartidos (navegación, estilos)
+├── specs/                 Especificaciones SDD (entrega académica)
+│   ├── requirements.md    Requisitos consolidados (R)
+│   ├── design.md          Diseño y arquitectura (D)
+│   ├── tasks.md           Plan de implementación (T)
+│   ├── 000-sistema-general/
+│   └── 003-operativo/     Spec operativa y paquetes P01–P15
+├── .cursor/               Spec Kit — skills /speckit-* para Cursor
+├── .specify/              Spec Kit — plantillas, scripts, constitución
+├── pruebas/               pytest (API por módulo)
+├── ml/                    Entrenamiento y evaluación ML
+├── docker-compose.yaml    MinIO, PocketBase, Airflow
+└── pipeline_diabetes.py   DAG ETL de referencia
 ```
 
 ## Actores del Sistema
 
 | Actor | Rol |
 |-------|-----|
-| MÃ©dico | Registros clÃ­nicos, predicciones, reportes |
-| Administrador | Usuarios, configuraciÃ³n, auditorÃ­a, dataset |
+| Médico | Registros clínicos, predicciones, reportes |
+| Administrador | Usuarios, configuración, auditoría, dataset |
 | Analista | Dashboards, benchmarking, modelo ML |
 | Sistema (Airflow) | Pipeline ETL automatizado |
 
+## Arranque rápido
+
+```bash
+docker compose up -d
+cd backend
+pip install -r requirements.txt
+uvicorn Principal:app --reload --port 8000
+```
+
+- **App:** http://localhost:8000  
+- **Admin:** `admin@diabcare.com` / `Admin2026*`
+
+## Pruebas
+
+```bash
+cd backend
+py -m pytest ../pruebas/api -q
+```
+
+## Spec-Driven Development
+
+Metodología **Spec Kit** (GitHub): usar en Cursor los skills `/speckit-constitution`, `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`. Los artefactos de presentación viven en `specs/`; la herramienta en `.cursor/` y `.specify/`.

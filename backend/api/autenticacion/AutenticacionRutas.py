@@ -29,6 +29,11 @@ def login(datos: LoginEntrada):
     resultado = iniciar_sesion(datos.email, datos.password)
     if "error" in resultado:
         raise HTTPException(status_code=401, detail=resultado["error"])
+    try:
+        from servicios.auditoria.AuditoriaServicio import registrar
+        registrar(datos.email, "login", "autenticacion", "Inicio de sesión exitoso")
+    except Exception:
+        pass
     return resultado
 
 @router.post("/logout")

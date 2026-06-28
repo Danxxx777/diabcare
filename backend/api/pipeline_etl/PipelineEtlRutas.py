@@ -4,7 +4,7 @@ from typing import Optional
 from servicios.configuracion.ConfiguracionClienteMinio import get_cliente
 from servicios.configuracion.ConfiguracionAjustes import MINIO_BUCKET, MINIO_STAGE_PATH
 
-router = APIRouter(prefix='/api/pipeline', tags=['Pipeline ETL'])
+router = APIRouter(prefix='/api/pipeline', tags=['Pipeline ELT'])
 
 
 @router.get("/estado")

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare — Predicción ML</title>
 <link rel="stylesheet" href="/estaticos/estilos.css">
+<script src="/estaticos/navegacion.js"></script>
 <style>
 .pred-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
 
@@ -69,6 +70,11 @@
 .badge-riesgo.Alto   { background:rgba(239,68,68,0.1);  color:rgba(239,68,68,0.9);  border:1px solid rgba(239,68,68,0.2); }
 .badge-riesgo.Medio  { background:rgba(245,158,11,0.1); color:rgba(245,158,11,0.9); border:1px solid rgba(245,158,11,0.2); }
 .badge-riesgo.Bajo   { background:rgba(34,197,94,0.1);  color:rgba(34,197,94,0.9);  border:1px solid rgba(34,197,94,0.2); }
+.factor-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:11px; }
+.factor-row:last-child { border-bottom:none; }
+.factor-nivel { font-size:10px; font-family:var(--mono); padding:2px 7px; border-radius:8px; }
+.factor-nivel.alto  { background:rgba(239,68,68,0.1); color:rgba(239,68,68,0.9); }
+.factor-nivel.medio { background:rgba(245,158,11,0.1); color:rgba(245,158,11,0.9); }
 
 .no-modelo {
   background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2);
@@ -80,67 +86,7 @@
 </head>
 <body>
 
-<aside class="sidebar">
-  <div class="logo-area">
-    <div class="logo-mark">D</div>
-    <div><div class="logo-text">DiabCare</div></div>
-  </div>
-  <nav class="nav">
-    <div class="nav-section">Principal</div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Análisis</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
-        <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Registros clínicos</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Dataset</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
-        <a class="nav-sub-item" href="/paginas/dataset/generador.html"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Usuarios</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
-      </div>
-    </div>
-    <div class="nav-section">Datos</div>
-    <div class="nav-group">
-      <div class="nav-group-header open" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub open">
-        <a class="nav-sub-item active" href="/paginas/prediccion/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Predecir / Métricas</span></a>
-      </div>
-    </div>
-    <div class="nav-group"><div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><i class="nav-chevron">&#8250;</i></div><div class="nav-sub"><a class="nav-sub-item" href="/paginas/pipeline_etl/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estado / Archivos</span></a></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Modelo ML</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-section">Sistema</div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Reportes</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Auditoría</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Notificaciones</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Configuración</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Benchmarking</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
-  </nav>
-  <div class="sidebar-bottom">
-    <div class="user-row-wrap" style="display:flex;flex-direction:row;align-items:center;gap:6px;">
-      <div class="user-row">
-        <div class="user-avatar" id="userAvatar">A</div>
-        <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
-      </div>
-      <button class="btn-logout" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
-    </div>
-    <div class="ver-info">DiabCare Analytics v2.0</div>
-  </div>
-</aside>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
 
 <div class="main">
   <div class="topbar">
@@ -214,6 +160,10 @@
           <div class="result-row"><span class="result-label">Probabilidad de diabetes</span><span class="result-val" id="rProbabilidad">—</span></div>
           <div class="result-row"><span class="result-label">Nivel de riesgo</span><span class="result-val" id="rRiesgo">—</span></div>
           <div class="result-row"><span class="result-label">Diagnóstico</span><span class="result-val" id="rDiag">—</span></div>
+          <div id="factoresBox" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Factores clínicos detectados</div>
+            <div id="factoresList"></div>
+          </div>
         </div>
       </div>
 
@@ -241,38 +191,11 @@
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
 
 <script>
+DiabCareNav.init();
 const API   = 'http://localhost:8000';
 const token = localStorage.getItem('token');
 
 function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
-
-function initUser() {
-  if (!token) { window.location.href = '/'; return; }
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  if (u.nombre) {
-    document.getElementById('userName').textContent   = u.nombre;
-    document.getElementById('userRol').textContent    = u.rol || '';
-    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
-  }
-}
-
-function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
-
-function aplicarRoles() {
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  const rol = u.rol || '';
-  const OCULTAR = {
-    'medico':   ['Dataset','Usuarios','Pipeline','Modelo','Reportes','Auditor','Notificac','Configur','Benchmark','Integrac'],
-    'analista': ['Registros','Usuarios','Pipeline','Modelo','Reportes','Auditor','Notificac','Configur','Benchmark','Integrac'],
-  };
-  const ocultar = OCULTAR[rol] || [];
-  document.querySelectorAll('.nav-group').forEach(g => {
-    const label = g.querySelector('.nav-group-label');
-    if (!label) return;
-    const txt = label.textContent.trim();
-    if (ocultar.some(o => txt.includes(o))) g.style.display = 'none';
-  });
-}
 
 function toast(msg, type='success') {
   const t = document.getElementById('toast');
@@ -351,7 +274,6 @@ async function predecir() {
     const esDiab = d.diagnostico === 1;
     const cls    = esDiab ? 'rojo' : 'verde';
     const prob   = Math.round(d.probabilidad * 100);
-    aplicarRoles();
     const box = document.getElementById('resultBox');
     box.className = `result-box show ${cls}`;
 
@@ -364,6 +286,21 @@ async function predecir() {
     document.getElementById('rRiesgo').innerHTML       = `<span class="badge-riesgo ${d.riesgo}">${d.riesgo}</span>`;
     document.getElementById('rDiag').textContent       = d.diagnostico === 1 ? 'Positivo (1)' : 'Negativo (0)';
 
+    const factores = d.factores_riesgo || [];
+    const fb = document.getElementById('factoresBox');
+    const fl = document.getElementById('factoresList');
+    if (factores.length) {
+      fb.style.display = 'block';
+      fl.innerHTML = factores.map(f => `
+        <div class="factor-row">
+          <span>${f.factor}: <strong>${f.valor}</strong> <span style="color:var(--muted)">(${f.umbral})</span></span>
+          <span class="factor-nivel ${f.nivel}">${f.nivel}</span>
+        </div>`).join('');
+    } else {
+      fb.style.display = 'block';
+      fl.innerHTML = '<div style="font-size:11px;color:var(--muted)">Sin factores de riesgo clínicos destacados</div>';
+    }
+
   } catch {
     toast('Error de conexión', 'error');
   } finally {
@@ -372,9 +309,7 @@ async function predecir() {
   }
 }
 
-initUser();
 cargarMetricas();
-setTimeout(aplicarRoles, 100);
 </script>
 </body>
 </html>

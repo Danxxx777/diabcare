@@ -38,10 +38,21 @@ def _cargar(df: pd.DataFrame):
     except Exception as e:
         print(f"[ELT] Error cargando: {e}")
 
-def listar(limit: int = 50, offset: int = 0) -> dict:
+def listar(limit: int = 50, offset: int = 0, filtros: dict = None) -> dict:
     df = _extraer()
+    if filtros:
+        if filtros.get("diabetes") is not None:
+            df = df[df["diabetes"] == filtros["diabetes"]]
+        if filtros.get("gender"):
+            df = df[df["gender"] == filtros["gender"]]
+        if filtros.get("location"):
+            df = df[df["location"].str.contains(str(filtros["location"]), case=False, na=False)]
+        if filtros.get("age_min") is not None:
+            df = df[df["age"] >= filtros["age_min"]]
+        if filtros.get("age_max") is not None:
+            df = df[df["age"] <= filtros["age_max"]]
     total = len(df)
-    chunk = df.iloc[offset:offset+limit]
+    chunk = df.iloc[offset:offset + limit]
     return {"total": total, "registros": chunk.fillna("").to_dict(orient="records")}
 
 def obtener(encounter_id: int) -> dict:

@@ -5,65 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare — Registros Clínicos</title>
 <link rel="stylesheet" href="/estaticos/estilos.css">
+<script src="/estaticos/navegacion.js"></script>
 </head>
 <body>
 
-<aside class="sidebar">
-  <div class="logo-area">
-    <div class="logo-mark">D</div>
-    <div><div class="logo-text">DiabCare</div></div>
-  </div>
-  <nav class="nav">
-    <div class="nav-section">Principal</div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Análisis</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
-        <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header open" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Registros clínicos</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub open">
-        <a class="nav-sub-item active" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Dataset</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
-        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Usuarios</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
-      </div>
-    </div>
-    <div class="nav-section">Datos</div>
-    <div class="nav-group"><div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><i class="nav-chevron">&#8250;</i></div><div class="nav-sub"><a class="nav-sub-item" href="/paginas/prediccion/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Predecir / Métricas</span></a></div></div>
-    <div class="nav-group"><div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><i class="nav-chevron">&#8250;</i></div><div class="nav-sub"><a class="nav-sub-item" href="/paginas/pipeline_etl/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estado / Archivos</span></a></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Modelo ML</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-section">Sistema</div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Reportes</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Auditoría</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Notificaciones</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Configuración</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Benchmarking</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
-  </nav>
-  <div class="sidebar-bottom">
-    <div class="user-row-wrap" style="display:flex;flex-direction:row;align-items:center;gap:6px;">
-  <div class="user-row">
-      <div class="user-avatar" id="userAvatar">A</div>
-      <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
-    </div>
-  <button class="btn-logout" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
-  </div>
-    <div class="ver-info">DiabCare Analytics v2.0</div>
-  </div>
-</aside>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
 
 <div class="main">
   <div class="topbar">
@@ -93,13 +39,16 @@
           <option value="1">Con diabetes</option>
           <option value="0">Sin diabetes</option>
         </select>
-        <select class="search" id="f-genero" style="width:130px" onchange="cargar()">
+        <select class="search" id="f-genero" style="width:130px" onchange="pag=1;cargar()">
           <option value="">Género</option>
           <option value="Female">Female</option>
           <option value="Male">Male</option>
           <option value="Other">Other</option>
         </select>
-        <button class="btn btn-ghost btn-sm" onclick="pag=1;cargar()">↺ Recargar</button>
+        <input class="search" id="f-ubicacion" placeholder="Ubicación" style="width:140px" onkeydown="if(event.key==='Enter'){pag=1;cargar()}">
+        <input class="search" id="f-edad-min" type="number" placeholder="Edad min" style="width:90px" min="0">
+        <input class="search" id="f-edad-max" type="number" placeholder="Edad max" style="width:90px" min="0">
+        <button class="btn btn-primary btn-sm" onclick="pag=1;cargar()">Filtrar</button>
         <span class="tabla-info" id="info">—</span>
       </div>
       <div class="tabla-wrap">
@@ -117,6 +66,7 @@
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
 
 <script>
+DiabCareNav.init();
 const API = 'http://localhost:8000';
 const token = localStorage.getItem('token');
 let pag = 1, totalPags = 1;
@@ -154,8 +104,8 @@ function aplicarRoles() {
   const u = JSON.parse(localStorage.getItem('usuario') || '{}');
   const rol = u.rol || '';
   const OCULTAR = {
-    'medico':   ['Dataset','Usuarios','Pipeline ETL','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-    'analista': ['Registros clínicos','Usuarios','Pipeline ETL','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
+    'medico':   ['Dataset','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
+    'analista': ['Registros clínicos','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
   };
   const ocultar = OCULTAR[rol] || [];
   document.querySelectorAll('.nav-group').forEach(g => {
@@ -179,58 +129,62 @@ async function cargar() {
   try {
     const diabetes = document.getElementById('f-diabetes').value;
     const genero   = document.getElementById('f-genero').value;
-    let url = `${API}/api/registros/?skip=${(pag-1)*LIMIT}&limit=${LIMIT}`;
+    const ubicacion = document.getElementById('f-ubicacion').value.trim();
+    const edadMin  = document.getElementById('f-edad-min').value;
+    const edadMax  = document.getElementById('f-edad-max').value;
+    let url = `${API}/api/registros/?offset=${(pag-1)*LIMIT}&limit=${LIMIT}`;
     if (diabetes !== '') url += `&diabetes=${diabetes}`;
-    if (genero)          url += `&genero=${genero}`;
+    if (genero)          url += `&gender=${encodeURIComponent(genero)}`;
+    if (ubicacion)       url += `&location=${encodeURIComponent(ubicacion)}`;
+    if (edadMin)         url += `&age_min=${edadMin}`;
+    if (edadMax)         url += `&age_max=${edadMax}`;
 
-    const [rData, rStats] = await Promise.all([
-      fetch(url, { headers: { 'Authorization': 'Bearer ' + token } }),
-      fetch(`${API}/api/registros/estadisticas`, { headers: { 'Authorization': 'Bearer ' + token } })
-    ]);
-
+    const rData = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
     if (rData.status === 401) { window.location.href = '/'; return; }
-    const data  = await rData.json();
-    const stats = rStats.ok ? await rStats.json() : {};
+    if (rData.status === 403) { toast('Sin permiso para registros clínicos', 'error'); return; }
+    const data = await rData.json();
 
-    if (stats.total) {
-      document.getElementById('st-total').textContent = stats.total.toLocaleString('es-ES');
-      document.getElementById('st-con').textContent   = stats.con_diabetes.toLocaleString('es-ES');
-      document.getElementById('st-sin').textContent   = stats.sin_diabetes.toLocaleString('es-ES');
-    }
+    document.getElementById('st-total').textContent = (data.total || 0).toLocaleString('es-ES');
+    document.getElementById('st-pag').textContent   = pag;
+    totalPags = Math.max(1, Math.ceil((data.total || 0) / LIMIT));
+    document.getElementById('pagInfo').textContent  = `Pág ${pag} / ${totalPags}`;
+    document.getElementById('info').textContent     = `${(data.total||0).toLocaleString('es-ES')} coincidencias`;
 
-    const registros = Array.isArray(data) ? data : (data.registros || data.items || []);
-    document.getElementById('info').textContent = registros.length + ' registros en esta página';
-    document.getElementById('st-pag').textContent = pag;
-    document.getElementById('pagInfo').textContent = `Pág ${pag}`;
-
-    if (!registros.length) {
-      document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin registros</div>';
+    const rows = data.registros || [];
+    if (!rows.length) {
+      document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin registros con esos filtros</div>';
       return;
     }
-
-    const cols = Object.keys(registros[0]).slice(0, 8);
-    let h = `<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
-    registros.forEach(r => {
-      h += `<tr>${cols.map(c => {
-        const v = r[c];
-        if (c === 'diabetes' || c === 'Diabetes') {
-          return `<td><span class="badge ${v == 1 ? 'b-inactivo' : 'b-activo'}">${v == 1 ? 'sí' : 'no'}</span></td>`;
-        }
-        return `<td class="mono">${v ?? '—'}</td>`;
-      }).join('')}</tr>`;
+    let h = '<table class="tabla"><thead><tr><th>ID</th><th>Edad</th><th>Género</th><th>Ubicación</th><th>BMI</th><th>HbA1c</th><th>Glucosa</th><th>Diabetes</th></tr></thead><tbody>';
+    rows.forEach(r => {
+      h += `<tr>
+        <td>${r.encounter_id}</td><td>${r.age}</td><td>${r.gender||'—'}</td>
+        <td>${(r.location||'—').substring(0,24)}</td><td>${r.bmi??'—'}</td>
+        <td>${r.hbA1c_level??'—'}</td><td>${r.blood_glucose_level??'—'}</td>
+        <td>${r.diabetes==1?'<span class="badge b-inactivo">Sí</span>':'<span class="badge b-activo">No</span>'}</td>
+      </tr>`;
     });
     h += '</tbody></table>';
     document.getElementById('tablaBody').innerHTML = h;
-  } catch(e) {
+  } catch {
     document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
   }
 }
 
-function prevPag() { if (pag > 1) { pag--; cargar(); } }
-function nextPag() { pag++; cargar(); }
+async function cargarEstadisticas() {
+  try {
+    const r = await fetch(`${API}/api/registros/estadisticas`, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!r.ok) return;
+    const stats = await r.json();
+    document.getElementById('st-con').textContent = (stats.con_diabetes || 0).toLocaleString('es-ES');
+    document.getElementById('st-sin').textContent = (stats.sin_diabetes || 0).toLocaleString('es-ES');
+  } catch {}
+}
 
-initUser();
-aplicarRoles();
+function prevPag() { if (pag > 1) { pag--; cargar(); } }
+function nextPag() { if (pag < totalPags) { pag++; cargar(); } }
+
+cargarEstadisticas();
 cargar();
 </script>
 </body>

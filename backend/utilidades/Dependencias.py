@@ -9,7 +9,7 @@ PERMISOS_MODULOS = {
     "auditoria":        ["administrador"],
     "benchmarking":     ["administrador"],
     "registros":        ["administrador", "medico"],
-    "analisis":         ["administrador", "medico"],
+    "analisis":         ["administrador", "medico", "analista"],
     "prediccion":       ["administrador", "medico"],
     "reportes":         ["administrador", "medico"],
     "dataset":          ["administrador", "analista"],
