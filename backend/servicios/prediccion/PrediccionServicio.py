@@ -79,11 +79,38 @@ def predecir(datos: dict) -> dict:
         X = pd.DataFrame([{f: float(datos.get(f, 0)) for f in FEATURES}])
         pred        = int(modelo.predict(X)[0])
         probabilidad = round(float(modelo.predict_proba(X)[0][1]), 4)
+
+        # Interpretación clínica de factores de riesgo (complementa la caja negra del ML)
+        factores = []
+        age = float(datos.get("age", 0))
+        bmi = float(datos.get("bmi", 0))
+        hba = float(datos.get("hbA1c_level", 0))
+        glc = float(datos.get("blood_glucose_level", 0))
+        if hba >= 6.5:
+            factores.append({"factor": "HbA1c", "valor": hba, "umbral": "≥ 6.5%", "nivel": "alto"})
+        elif hba >= 5.7:
+            factores.append({"factor": "HbA1c", "valor": hba, "umbral": "≥ 5.7%", "nivel": "medio"})
+        if glc >= 126:
+            factores.append({"factor": "Glucosa", "valor": glc, "umbral": "≥ 126 mg/dL", "nivel": "alto"})
+        elif glc >= 100:
+            factores.append({"factor": "Glucosa", "valor": glc, "umbral": "≥ 100 mg/dL", "nivel": "medio"})
+        if bmi >= 30:
+            factores.append({"factor": "BMI", "valor": bmi, "umbral": "≥ 30", "nivel": "alto"})
+        elif bmi >= 25:
+            factores.append({"factor": "BMI", "valor": bmi, "umbral": "≥ 25", "nivel": "medio"})
+        if age >= 45:
+            factores.append({"factor": "Edad", "valor": age, "umbral": "≥ 45 años", "nivel": "medio"})
+        if int(datos.get("hypertension", 0)):
+            factores.append({"factor": "Hipertensión", "valor": "Sí", "umbral": "presente", "nivel": "alto"})
+        if int(datos.get("heart_disease", 0)):
+            factores.append({"factor": "Cardiopatía", "valor": "Sí", "umbral": "presente", "nivel": "alto"})
+
         return {
             "diagnostico":   pred,
             "resultado":     "Con diabetes" if pred == 1 else "Sin diabetes",
             "probabilidad":  probabilidad,
             "riesgo":        "Alto" if probabilidad >= 0.7 else "Medio" if probabilidad >= 0.4 else "Bajo",
+            "factores_riesgo": factores,
         }
     except Exception as e:
         return {"error": str(e)}

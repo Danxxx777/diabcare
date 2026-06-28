@@ -23,6 +23,7 @@ from api.configuracion.ConfiguracionRutas import router as router_configuracion
 from api.benchmarking.BenchmarkingRutas import router as router_benchmarking
 from api.modelo_ml.ModeloMlRutas import router as router_modelo_ml
 from api.integraciones.IntegracionesRutas import router as router_integraciones
+from api.corporativo.CorporativoRutas import router as router_corporativo
 
 # Servicios de infraestructura
 from servicios.configuracion.ConfiguracionClienteMinio import inicializar_buckets, verificar_conexion
@@ -61,6 +62,7 @@ app.include_router(router_configuracion)
 app.include_router(router_benchmarking)
 app.include_router(router_modelo_ml)
 app.include_router(router_integraciones)
+app.include_router(router_corporativo)
 
 # ── FRONTEND ESTÁTICO ──
 app.mount("/estaticos", StaticFiles(directory="../frontend/estaticos"), name="estaticos")
@@ -88,8 +90,13 @@ def health():
 @app.on_event("startup")
 async def startup():
     print("[DiabCare] Iniciando sistema...")
-    inicializar_buckets()
-    inicializar_admin()
+    # El arranque es resiliente: si MinIO no está disponible la API igual levanta
+    # en modo degradado (ver /api/health) en lugar de caerse por completo.
+    try:
+        inicializar_buckets()
+        inicializar_admin()
+    except Exception as e:
+        print(f"[DiabCare] ADVERTENCIA: inicialización incompleta (MinIO?). Detalle: {e}")
     print("[DiabCare] Sistema listo en http://localhost:8000")
     print("[DiabCare] Documentación en http://localhost:8000/docs")
 

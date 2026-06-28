@@ -1,1 +1,111 @@
-﻿<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>DiabCare - benchmarking</title></head><body><h1>benchmarking</h1></body></html>
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Benchmarking</title>
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<script src="/estaticos/navegacion.js"></script>
+<style>
+.bm-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:16px; }
+.bm-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 20px; }
+.bm-val { font-size:28px; font-weight:700; font-family:var(--mono); color:rgba(37,99,235,0.9); line-height:1; }
+.bm-lbl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:10px; }
+.panel { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 20px; }
+.panel-title { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:14px; }
+.tabla { width:100%; border-collapse:collapse; font-size:12px; }
+.tabla th { text-align:left; padding:10px 8px; border-bottom:1px solid var(--border); font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+.tabla td { padding:10px 8px; border-bottom:1px solid var(--border); }
+.tabla tr:last-child td { border-bottom:none; }
+.bm-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-family:var(--mono); font-weight:600; }
+.bm-ok { background:rgba(34,197,94,0.1); color:rgba(34,197,94,0.95); border:1px solid rgba(34,197,94,0.25); }
+.bm-no { background:rgba(239,68,68,0.1); color:rgba(239,68,68,0.95); border:1px solid rgba(239,68,68,0.25); }
+.bm-na { background:rgba(148,163,184,0.12); color:rgba(148,163,184,0.95); border:1px solid rgba(148,163,184,0.25); }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Benchmarking</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Benchmarking <span>de KPIs</span></div>
+        <div class="page-sub">P13 · Indicadores reales frente a las metas del Balanced Scorecard (TA06)</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Recargar</button>
+    </div>
+
+    <div class="bm-grid">
+      <div class="bm-card"><div class="bm-lbl">Indicadores medibles</div><div class="bm-val" id="r-medibles">—</div></div>
+      <div class="bm-card"><div class="bm-lbl">Cumplen la meta</div><div class="bm-val" id="r-cumplidos">—</div></div>
+      <div class="bm-card"><div class="bm-lbl">Modelo disponible</div><div class="bm-val" id="r-modelo">—</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Comparativa frente a metas (BSC)</div>
+      <table class="tabla">
+        <thead><tr><th>Indicador</th><th>Categoría</th><th>Actual</th><th>Meta</th><th style="text-align:right">Estado</th></tr></thead>
+        <tbody id="tbody"><tr><td colspan="5" style="padding:24px;text-align:center;color:var(--muted)">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador']);
+const API = 'http://localhost:8000';
+const token = localStorage.getItem('token');
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+function initUser() {
+  if (!token) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  if (u.rol && u.rol !== 'administrador') { window.location.href = '/paginas/analisis/index.html'; return; }
+  if (u.nombre) {
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+  }
+}
+
+function badge(c) {
+  if (c === true)  return '<span class="bm-badge bm-ok">Cumple</span>';
+  if (c === false) return '<span class="bm-badge bm-no">No cumple</span>';
+  return '<span class="bm-badge bm-na">No medido</span>';
+}
+
+async function cargar() {
+  const tbody = document.getElementById('tbody');
+  try {
+    const r = await fetch(`${API}/api/benchmarking/`, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    if (r.status === 403) { window.location.href = '/paginas/analisis/index.html'; return; }
+    const d = await r.json();
+    document.getElementById('r-medibles').textContent  = d.resumen.medibles;
+    document.getElementById('r-cumplidos').textContent = d.resumen.cumplidos;
+    document.getElementById('r-modelo').textContent    = d.resumen.modelo_disponible ? 'Sí' : 'No';
+    tbody.innerHTML = (d.indicadores || []).map(i => `<tr>
+      <td>${i.indicador}</td>
+      <td style="color:var(--muted)">${i.categoria}</td>
+      <td class="mono">${i.actual === null ? '—' : i.actual + (i.unidad === '%' ? '%' : '')}</td>
+      <td class="mono">${i.objetivo}</td>
+      <td style="text-align:right">${badge(i.cumple)}</td>
+    </tr>`).join('');
+  } catch { tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--muted)">Error de conexión</td></tr>'; }
+}
+
+cargar();
+</script>
+</body>
+</html>

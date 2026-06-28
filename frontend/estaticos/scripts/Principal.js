@@ -1,1 +1,0 @@
-// DiabCare Analytics — Lógica Principal

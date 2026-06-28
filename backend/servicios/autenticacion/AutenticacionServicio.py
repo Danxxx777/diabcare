@@ -106,14 +106,3 @@ def resetear_password(email: str, codigo: str, password_nueva: str) -> dict:
 def inicializar_admin():
     print("[DiabCare] Roles: administrador | medico | analista")
     print("[DiabCare] Admin: admin@diabcare.com / Admin2026*")
-def verificar_credenciales(email, password):
-    df = _extraer()
-    if df.empty:
-        return None
-    fila = df[(df["email"] == email) & (df["activo"] == True)]
-    if fila.empty:
-        return None
-    usuario = fila.iloc[0].where(pd.notnull(fila.iloc[0]), None)  # ← fix nan
-    if usuario["password_hash"] != _hash(password):
-        return None
-    # return usuario.to_dict()

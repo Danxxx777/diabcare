@@ -1,0 +1,122 @@
+openapi: 3.0.3
+info:
+  title: DiabCare Analytics — API de Reportes (P7)
+  version: 1.0.0
+  description: >
+    Contrato de la API del módulo de Reportes PDF. Define los endpoints antes de
+    su implementación (Principio I — SDD). Todos los endpoints requieren JWT y
+    rol permitido (administrador o medico).
+servers:
+  - url: http://localhost:8000
+    description: Servidor local (uvicorn Principal:app)
+tags:
+  - name: Reportes
+    description: Generación, listado y descarga de reportes clínicos PDF
+paths:
+  /api/reportes/generar:
+    post:
+      tags: [Reportes]
+      summary: Generar un reporte clínico PDF
+      description: >
+        Genera un PDF con estadísticas del dataset, métricas del modelo y un
+        resumen de registros filtrados. Persiste el archivo en MinIO y registra
+        un evento de auditoría.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FiltroReporte'
+      responses:
+        '200':
+          description: Reporte generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReporteGenerado'
+        '400':
+          description: Filtros inválidos (p. ej. age_max < age_min)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401':
+          description: Token ausente o inválido
+        '403':
+          description: Rol sin acceso al módulo reportes
+  /api/reportes/:
+    get:
+      tags: [Reportes]
+      summary: Listar reportes disponibles
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de reportes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reportes:
+                    type: array
+                    items: { $ref: '#/components/schemas/ReporteMeta' }
+        '401': { description: Token ausente o inválido }
+        '403': { description: Rol sin acceso }
+  /api/reportes/{nombre}:
+    get:
+      tags: [Reportes]
+      summary: Descargar un reporte PDF
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: nombre
+          in: path
+          required: true
+          schema: { type: string }
+          description: Nombre del archivo (reporte_AAAAMMDD_HHMMSS.pdf)
+      responses:
+        '200':
+          description: Archivo PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '401': { description: Token ausente o inválido }
+        '403': { description: Rol sin acceso }
+        '404': { description: Reporte no encontrado }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    FiltroReporte:
+      type: object
+      description: Filtros opcionales del reporte. Si se omite, cubre todo el conjunto.
+      properties:
+        year: { type: integer, example: 2025 }
+        location: { type: string, example: "Quito" }
+        diabetes: { type: integer, enum: [0, 1] }
+        gender: { type: string, example: "Female" }
+        age_min: { type: number, format: float, minimum: 0 }
+        age_max: { type: number, format: float, minimum: 0 }
+    ReporteGenerado:
+      type: object
+      properties:
+        mensaje: { type: string, example: "Reporte generado correctamente" }
+        nombre: { type: string, example: "reporte_20260619_213000.pdf" }
+        ruta: { type: string, example: "reportes/reporte_20260619_213000.pdf" }
+        fecha: { type: string, example: "2026-06-19 21:30:00" }
+        tamano_mb: { type: number, example: 0.12 }
+    ReporteMeta:
+      type: object
+      properties:
+        nombre: { type: string }
+        fecha: { type: string }
+        tamano_mb: { type: number }
+    Error:
+      type: object
+      properties:
+        detail: { type: string }

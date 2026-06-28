@@ -1,6 +1,6 @@
 """
-pipeline_diabetes.py — DAG de Airflow que orquesta y valida el pipeline ETL
-Flujo: PocketBase -> Parquet (stage/) -> MinIO
+pipeline_diabetes.py — DAG de Airflow que orquesta y valida el pipeline ELT
+Flujo ELT: PocketBase → Load (Parquet stage/) → MinIO → Transform (pandas/API)
 Airflow solo valida que cada paso se complete correctamente.
 """
 

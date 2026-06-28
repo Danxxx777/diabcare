@@ -5,70 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare — Auditoría</title>
 <link rel="stylesheet" href="/estaticos/estilos.css">
+<script src="/estaticos/navegacion.js"></script>
 </head>
 <body>
 
-<aside class="sidebar">
-  <div class="logo-area">
-    <div class="logo-mark">D</div>
-    <div><div class="logo-text">DiabCare</div></div>
-  </div>
-  <nav class="nav">
-    <div class="nav-section">Principal</div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Análisis</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/analisis/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Dashboard</span></a>
-        <a class="nav-sub-item" href="/paginas/estadisticas/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estadísticas</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Registros clínicos</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/registros_clinicos/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Consultar / Filtrar</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Dataset</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/dataset/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Ver tablas</span></a>
-        <a class="nav-sub-item" href="/paginas/dataset/index.html#generador"><div class="nav-dot"></div><span class="nav-sub-label">Generador de datos</span></a>
-      </div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Usuarios</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub">
-        <a class="nav-sub-item" href="/paginas/usuarios/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Gestionar usuarios</span></a>
-      </div>
-    </div>
-    <div class="nav-section">Datos</div>
-    <div class="nav-group"><div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Predicción ML</span><i class="nav-chevron">&#8250;</i></div><div class="nav-sub"><a class="nav-sub-item" href="/paginas/prediccion/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Predecir / Métricas</span></a></div></div>
-    <div class="nav-group"><div class="nav-group-header" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Pipeline ETL</span><i class="nav-chevron">&#8250;</i></div><div class="nav-sub"><a class="nav-sub-item" href="/paginas/pipeline_etl/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Estado / Archivos</span></a></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Modelo ML</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-section">Sistema</div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Reportes</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group">
-      <div class="nav-group-header open" onclick="toggle(this)"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Auditoría</span><i class="nav-chevron">&#8250;</i></div>
-      <div class="nav-sub open">
-        <a class="nav-sub-item active" href="/paginas/auditoria/index.html"><div class="nav-dot"></div><span class="nav-sub-label">Registro de eventos</span></a>
-      </div>
-    </div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Notificaciones</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Configuración</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Benchmarking</span><span class="nav-badge">pronto</span></div></div>
-    <div class="nav-group"><div class="nav-group-header disabled"><span class="nav-group-icon">&#9681;</span><span class="nav-group-label">Integraciones</span><span class="nav-badge">pronto</span></div></div>
-  </nav>
-  <div class="sidebar-bottom">
-    <div class="user-row-wrap" style="display:flex;flex-direction:row;align-items:center;gap:6px;">
-  <div class="user-row">
-      <div class="user-avatar" id="userAvatar">A</div>
-      <div><div class="user-name" id="userName">Cargando...</div><div class="user-rol" id="userRol">—</div></div>
-    </div>
-  <button class="btn-logout" onclick="cerrarSesion()" title="Cerrar sesión">⏻</button>
-  </div>
-    <div class="ver-info">DiabCare Analytics v2.0</div>
-  </div>
-</aside>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
 
 <div class="main">
   <div class="topbar">
@@ -120,6 +61,8 @@
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
 
 <script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador']);
 const API = 'http://localhost:8000';
 const token = localStorage.getItem('token');
 let pag = 1;
@@ -144,8 +87,8 @@ function aplicarRoles() {
   const u = JSON.parse(localStorage.getItem('usuario') || '{}');
   const rol = u.rol || '';
   const OCULTAR = {
-    'medico':   ['Dataset','Usuarios','Pipeline ETL','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-    'analista': ['Registros clínicos','Usuarios','Pipeline ETL','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
+    'medico':   ['Dataset','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
+    'analista': ['Registros clínicos','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
   };
   const ocultar = OCULTAR[rol] || [];
   document.querySelectorAll('.nav-group').forEach(g => {
@@ -214,8 +157,6 @@ async function cargar() {
 function prevPag() { if (pag > 1) { pag--; cargar(); } }
 function nextPag() { pag++; cargar(); }
 
-initUser();
-aplicarRoles();
 cargar();
 </script>
 </body>

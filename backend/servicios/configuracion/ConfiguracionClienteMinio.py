@@ -1,6 +1,4 @@
-﻿def inicializar_buckets(): pass
-def verificar_conexion(): return True
-from minio import Minio
+﻿from minio import Minio
 from minio.error import S3Error
 
 MINIO_ENDPOINT = "localhost:9000"

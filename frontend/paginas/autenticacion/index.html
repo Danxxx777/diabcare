@@ -258,7 +258,12 @@ body {
 </div>
 
 <script>
-const API = 'http://localhost:8000';
+const API = (() => {
+  const { protocol, hostname, port, origin } = window.location;
+  if (port === '8000') return origin;
+  const host = hostname && hostname !== '' ? hostname : 'localhost';
+  return `${protocol}//${host}:8000`;
+})();
 
 document.getElementById('password').addEventListener('keydown', e => {
   if (e.key === 'Enter') login();

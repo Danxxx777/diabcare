@@ -1,1 +1,172 @@
-﻿<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>DiabCare - modelo_ml</title></head><body><h1>modelo_ml</h1></body></html>
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Modelo ML</title>
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<script src="/estaticos/navegacion.js"></script>
+<style>
+.mm-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.mm-card { background:var(--card,var(--bg2)); border:1px solid var(--border); border-radius:10px; padding:24px; }
+.mm-title { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted,var(--text3)); margin-bottom:18px; }
+.metricas-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+.metrica-card { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:14px; text-align:center; }
+.metrica-val { font-size:24px; font-weight:700; font-family:var(--mono); color:rgba(37,99,235,0.9); }
+.metrica-lbl { font-size:10px; color:var(--muted,var(--text3)); text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
+.info-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.info-row:last-child { border-bottom:none; }
+.info-label { color:var(--text2,var(--text3)); }
+.info-val { font-family:var(--mono); color:var(--text); }
+.tabla { width:100%; border-collapse:collapse; font-size:12px; }
+.tabla th { text-align:left; padding:10px 8px; border-bottom:1px solid var(--border); font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted,var(--text3)); }
+.tabla td { padding:10px 8px; border-bottom:1px solid var(--border); font-family:var(--mono); }
+.tabla tr:last-child td { border-bottom:none; }
+.vacio { padding:24px; text-align:center; color:var(--muted,var(--text3)); font-size:12px; }
+.no-modelo { background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius:8px; padding:14px 18px; font-size:12px; color:rgba(245,158,11,0.9); margin-bottom:16px; display:none; }
+.no-modelo.show { display:block; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Modelo ML</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Gestión del <span>Modelo ML</span></div>
+        <div class="page-sub">CU-O P14: información del modelo, reentrenamiento e historial de entrenamientos</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="reentrenar()" id="btnReentrenar">↺ Reentrenar modelo</button>
+    </div>
+
+    <div class="no-modelo" id="noModelo">⚠ Modelo no entrenado. Pulsa "Reentrenar modelo" para iniciar el entrenamiento.</div>
+
+    <div class="metricas-grid">
+      <div class="metrica-card"><div class="metrica-val" id="m-acc">—</div><div class="metrica-lbl">Accuracy</div></div>
+      <div class="metrica-card"><div class="metrica-val" id="m-pre">—</div><div class="metrica-lbl">Precision</div></div>
+      <div class="metrica-card"><div class="metrica-val" id="m-rec">—</div><div class="metrica-lbl">Recall</div></div>
+      <div class="metrica-card"><div class="metrica-val" id="m-f1">—</div><div class="metrica-lbl">F1-Score</div></div>
+    </div>
+
+    <div class="mm-grid">
+      <div class="mm-card">
+        <div class="mm-title">Información del modelo</div>
+        <div class="info-row"><span class="info-label">Algoritmo</span><span class="info-val" id="i-algo">—</span></div>
+        <div class="info-row"><span class="info-label">Árboles (n_estimators)</span><span class="info-val" id="i-trees">—</span></div>
+        <div class="info-row"><span class="info-label">Split</span><span class="info-val" id="i-split">—</span></div>
+        <div class="info-row"><span class="info-label">Features</span><span class="info-val" id="i-feats">—</span></div>
+        <div class="info-row"><span class="info-label">Estado</span><span class="info-val" id="i-estado">—</span></div>
+      </div>
+      <div class="mm-card">
+        <div class="mm-title">Datos de entrenamiento</div>
+        <div class="info-row"><span class="info-label">Registros entrenamiento</span><span class="info-val" id="i-train">—</span></div>
+        <div class="info-row"><span class="info-label">Registros prueba</span><span class="info-val" id="i-test">—</span></div>
+        <div class="info-row"><span class="info-label">Meta de exactitud (BSC)</span><span class="info-val">&ge; 96%</span></div>
+      </div>
+    </div>
+
+    <div class="mm-card">
+      <div class="mm-title">Historial de entrenamientos</div>
+      <table class="tabla">
+        <thead><tr><th>Fecha</th><th>Usuario</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead>
+        <tbody id="tbody"><tr><td colspan="6" class="vacio">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'analista']);
+const API = 'http://localhost:8000';
+const token = localStorage.getItem('token');
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+function pct(v) { return (v === null || v === undefined) ? '—' : Math.round(v * 100) + '%'; }
+
+function initUser() {
+  if (!token) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  if (u.rol && !['administrador', 'analista'].includes(u.rol)) { window.location.href = '/paginas/analisis/index.html'; return; }
+  if (u.nombre) {
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+  }
+}
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function cargarInfo() {
+  try {
+    const r = await fetch(`${API}/api/modelo-ml/info`, { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    document.getElementById('i-algo').textContent  = d.algoritmo || '—';
+    document.getElementById('i-trees').textContent = d.n_estimators || '—';
+    document.getElementById('i-split').textContent = d.split || '—';
+    document.getElementById('i-feats').textContent = (d.features || []).join(', ');
+    document.getElementById('i-estado').textContent = d.disponible ? '✓ Entrenado' : 'No entrenado';
+    if (!d.disponible) document.getElementById('noModelo').classList.add('show');
+    else document.getElementById('noModelo').classList.remove('show');
+    const m = d.metricas || {};
+    document.getElementById('m-acc').textContent = pct(m.accuracy);
+    document.getElementById('m-pre').textContent = pct(m.precision);
+    document.getElementById('m-rec').textContent = pct(m.recall);
+    document.getElementById('m-f1').textContent  = pct(m.f1);
+    document.getElementById('i-train').textContent = m.registros_entrenamiento ?? '—';
+    document.getElementById('i-test').textContent  = m.registros_prueba ?? '—';
+  } catch { toast('Error al cargar info', 'error'); }
+}
+
+async function cargarHistorial() {
+  const tbody = document.getElementById('tbody');
+  try {
+    const r = await fetch(`${API}/api/modelo-ml/historial`, { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    const items = d.entrenamientos || [];
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="6" class="vacio">Sin entrenamientos registrados.</td></tr>'; return; }
+    tbody.innerHTML = items.map(e => `<tr>
+      <td>${(e.fecha || '—').replace('T', ' ').split('.')[0]}</td>
+      <td>${e.usuario || '—'}</td>
+      <td>${pct(e.accuracy)}</td>
+      <td>${pct(e.precision)}</td>
+      <td>${pct(e.recall)}</td>
+      <td>${pct(e.f1)}</td>
+    </tr>`).join('');
+  } catch { tbody.innerHTML = '<tr><td colspan="6" class="vacio">Error de conexión.</td></tr>'; }
+}
+
+async function reentrenar() {
+  const btn = document.getElementById('btnReentrenar');
+  btn.textContent = 'Entrenando…'; btn.disabled = true;
+  toast('Reentrenando modelo, puede tardar 1-2 minutos…');
+  try {
+    const r = await fetch(`${API}/api/modelo-ml/reentrenar`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); return; }
+    toast(`Modelo reentrenado — Accuracy ${pct(d.accuracy)}`);
+    cargarInfo(); cargarHistorial();
+  } catch { toast('Error al reentrenar', 'error'); }
+  finally { btn.textContent = '↺ Reentrenar modelo'; btn.disabled = false; }
+}
+
+cargarInfo();
+cargarHistorial();
+</script>
+</body>
+</html>
