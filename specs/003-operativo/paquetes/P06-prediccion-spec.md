@@ -8,10 +8,10 @@
 
 **Creado**: 2026-06-19
 
-**Rutas reales**: `backend/api/prediccion/PrediccionRutas.py`,
-`backend/servicios/prediccion/PrediccionServicio.py`,
+**Rutas reales**: `backend/paquetes/prediccion/PrediccionRutas.py`,
+`backend/paquetes/prediccion/PrediccionServicio.py`,
 `ml/modelos/entrenar.py`, `ml/modelos/predecir.py`, `ml/evaluacion/metricas.py`,
-`frontend/paginas/prediccion/index.html`
+`frontend/paginas/clinico/prediccion/index.html`
 
 ## 1. Objetivo
 

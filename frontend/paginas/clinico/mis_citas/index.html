@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Mis citas</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Mis citas</span>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Mis <span>citas</span></div>
+        <div class="page-sub">Agenda asignada por administración — confirmar o registrar atención</div>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total asignadas</div><div class="stat-value blue" id="st-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Médico</div><div class="stat-value" id="st-medico" style="font-size:14px">—</div></div>
+    </div>
+    <div class="tabla-card">
+      <div class="tabla-top">
+        <input class="search" id="f-fecha" type="date" onchange="cargar()">
+        <select class="search" id="f-estado" onchange="cargar()">
+          <option value="">Todos los estados</option>
+          <option>programada</option><option>confirmada</option><option>atendida</option>
+        </select>
+      </div>
+      <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['medico']);
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+let _rows = [];
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function cargar() {
+  const body = document.getElementById('tablaBody');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando…</div>';
+  const fecha = document.getElementById('f-fecha').value;
+  const estado = document.getElementById('f-estado').value;
+  let url = `${API}/api/mis-citas?limit=100`;
+  if (fecha) url += `&fecha=${fecha}`;
+  if (estado) url += `&estado=${estado}`;
+  try {
+    const r = await fetch(url, { headers: { Authorization: 'Bearer '+token } });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const msg = data.detail || data.error || 'Sin acceso';
+      body.innerHTML = `<div class="loading">${typeof msg === 'string' ? msg : 'Sin acceso'}</div>`;
+      toast(typeof msg === 'string' ? msg : 'Sin acceso', 'error');
+      return;
+    }
+    _rows = data.citas || [];
+    document.getElementById('st-total').textContent = data.total ?? 0;
+    document.getElementById('st-medico').textContent = data.medico || JSON.parse(localStorage.getItem('usuario') || '{}').nombre || '—';
+    if (!_rows.length) {
+      body.innerHTML = '<div class="loading">Sin citas asignadas</div>';
+      return;
+    }
+    let h = '<table class="tabla"><thead><tr><th>Fecha</th><th>Hora</th><th>Paciente</th><th>Motivo</th><th>Estado</th><th></th></tr></thead><tbody>';
+    _rows.forEach(c => {
+      const acciones = [];
+      if (c.estado === 'programada') {
+        acciones.push(`<button class="btn btn-ghost btn-sm" onclick="cambiarEstado('${c.id_cita}','confirmada')">Confirmar</button>`);
+      }
+      if (c.estado === 'programada' || c.estado === 'confirmada') {
+        acciones.push(`<button class="btn btn-primary btn-sm" onclick="atender('${c.id_cita}','${c.id_paciente}')">Atender</button>`);
+      }
+      h += `<tr>
+        <td>${c.fecha||'—'}</td><td>${c.hora||'—'}</td><td>${c.paciente_nombre||'—'}</td>
+        <td>${c.motivo||'—'}</td><td><span class="badge b-activo">${c.estado||'—'}</span></td>
+        <td style="white-space:nowrap">${acciones.join(' ')||'—'}</td></tr>`;
+    });
+    h += '</tbody></table>';
+    body.innerHTML = h;
+  } catch (e) {
+    body.innerHTML = '<div class="loading">Error de conexión con el servidor</div>';
+    toast('Error de conexión', 'error');
+  }
+}
+
+async function cambiarEstado(id, estado) {
+  const r = await fetch(`${API}/api/mis-citas/${id}/estado`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+token },
+    body: JSON.stringify({ estado }),
+  });
+  const d = await r.json();
+  if (!r.ok) { toast(d.detail || d.error || 'Error', 'error'); return; }
+  toast('Cita confirmada');
+  cargar();
+}
+
+async function atender(idCita, idPaciente) {
+  const r = await fetch(`${API}/api/mis-citas/${idCita}/estado`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+token },
+    body: JSON.stringify({ estado: 'atendida' }),
+  });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    toast(d.detail || d.error || 'No se pudo marcar atendida', 'error');
+    return;
+  }
+  if (idPaciente) localStorage.setItem('diabcare_paciente_reg', idPaciente);
+  window.location.href = '/paginas/clinico/registros_clinicos/index.html';
+}
+
+document.getElementById('f-fecha').value = new Date().toISOString().slice(0, 10);
+cargar();
+</script>
+</body>
+</html>

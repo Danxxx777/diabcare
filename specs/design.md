@@ -60,51 +60,37 @@ graph TD
 ```
 diabcare/
 ├── backend/
-│   ├── Principal.py                          ← Entry point FastAPI, rutas frontend, favicon 204
-│   ├── api/
-│   │   ├── autenticacion/AutenticacionRutas.py  ← POST /api/auth/login|logout|cambiar-password|recuperar|resetear
-│   │   ├── usuarios/UsuariosRutas.py            ← GET/POST/PUT/DELETE /api/usuarios/
-│   │   ├── registros_clinicos/RegistrosClinicosRutas.py ← /api/registros/ + /estadisticas (ANTES de /{id})
-│   │   ├── dataset/DatasetRutas.py              ← /api/dataset/hechos|dimension|generar|estadisticas
-│   │   ├── prediccion/PrediccionRutas.py        ← /api/prediccion/ POST|entrenar|metricas|estado
-│   │   ├── pipeline_etl/PipelineEtlRutas.py     ← GET /api/pipeline/estado
-│   │   ├── reportes/ReportesRutas.py            ← (pendiente)
-│   │   ├── auditoria/AuditoriaRutas.py          ← (pendiente)
-│   │   ├── notificaciones/NotificacionesRutas.py ← (pendiente)
-│   │   ├── configuracion/ConfiguracionRutas.py  ← (pendiente)
-│   │   ├── benchmarking/BenchmarkingRutas.py    ← (pendiente)
-│   │   ├── modelo_ml/ModeloMlRutas.py           ← (pendiente)
-│   │   └── integraciones/IntegracionesRutas.py  ← (pendiente)
-│   ├── servicios/
-│   │   ├── autenticacion/AutenticacionServicio.py  ← JWT encode/decode, login, reset password
-│   │   ├── usuarios/UsuariosServicio.py             ← CRUD usuarios en MinIO Parquet
-│   │   ├── registros_clinicos/RegistrosClinicosServicio.py ← _extraer(), estadisticas(), CRUD
-│   │   ├── dataset/DatasetServicio.py               ← generar_y_subir(), generar_registro()
-│   │   ├── prediccion/PrediccionServicio.py         ← entrenar(), predecir(), obtener_metricas()
-│   │   └── configuracion/
-│   │       ├── ConfiguracionClienteMinio.py    ← get_cliente(), inicializar_buckets(), inicializar_admin()
-│   │       └── ConfiguracionAjustes.py         ← MINIO_BUCKET, MINIO_STAGE_PATH, SECRET_KEY, etc.
-│   └── utilidades/
-│       └── Dependencias.py                     ← require_auth, require_admin, require_modulo(), PERMISOS_MODULOS
+│   ├── Principal.py
+│   ├── nucleo/
+│   │   ├── modelos/              ← DWH hecho/dimensiones/catálogo
+│   │   └── utilidades/           ← Dependencias.py, JWT, Parquet, logs
+│   └── paquetes/                 ← Un folder por paquete (Rutas + Servicio)
+│       ├── autenticacion/
+│       ├── usuarios/
+│       ├── registros_clinicos/
+│       ├── dataset/
+│       ├── prediccion/
+│       ├── reportes/
+│       ├── pipeline_elt/
+│       ├── auditoria/
+│       ├── configuracion/
+│       ├── modelo_ml/
+│       └── clinico/
+│           ├── pacientes/
+│           ├── admisiones/
+│           └── citas/
 │
 ├── frontend/
-│   ├── estaticos/
-│   │   └── estilos.css                         ← Design system compartido
+│   ├── estaticos/                ← estilos.css, navegacion.js, api.js
 │   └── paginas/
-│       ├── autenticacion/index.html             ← Login
-│       ├── analisis/index.html                  ← Dashboard ejecutivo
-│       ├── estadisticas/index.html              ← Estadísticas clínicas 10+ gráficas
-│       ├── registros_clinicos/index.html        ← Consultar y filtrar registros
-│       ├── dataset/
-│       │   ├── index.html                       ← Ver tablas del dataset (5 tabs)
-│       │   └── generador.html                   ← Generador de datos sintéticos
-│       ├── usuarios/index.html                  ← Gestión de usuarios (solo admin)
-│       ├── prediccion/index.html                ← Predicción ML + métricas
-│       └── pipeline_etl/index.html              ← Estado y ejecución del pipeline
+│       ├── seguridad/            ← autenticacion, usuarios, perfil
+│       ├── clinico/              ← analisis, registros, prediccion, reportes, …
+│       ├── datos/                ← dataset, pipeline_elt, modelo_ml
+│       └── gobierno/             ← auditoria, configuracion
 │
-├── dags/                                        ← DAGs de Apache Airflow (vacío — pipeline simulado)
-├── docker-compose.yml                           ← MinIO, PocketBase, Airflow 2.9.1
-└── requirements.txt
+├── specs/                        ← Especificaciones SDD
+├── pruebas/                      ← pytest
+└── docker-compose.yaml
 ```
 
 ---
@@ -183,6 +169,9 @@ PERMISOS_MODULOS = {
     "usuarios":      ["administrador"],
     "configuracion": ["administrador"],
     "auditoria":     ["administrador"],
+    "pacientes":     ["administrador", "medico"],
+    "admisiones":    ["administrador"],
+    "citas":         ["administrador"],
     "registros":     ["administrador", "medico"],
     "analisis":      ["administrador", "medico"],
     "prediccion":    ["administrador", "medico"],
@@ -254,13 +243,13 @@ function aplicarRoles() {
 
 | Página | Ruta | Endpoints consumidos |
 |---|---|---|
-| Login | `/paginas/autenticacion/index.html` | `POST /api/auth/login` |
-| Dashboard | `/paginas/analisis/index.html` | `GET /api/registros/estadisticas`, `GET /api/dataset/estadisticas` |
+| Login | `/paginas/seguridad/autenticacion/index.html` | `POST /api/auth/login` |
+| Dashboard | `/paginas/clinico/analisis/index.html` | `GET /api/registros/estadisticas`, `GET /api/dataset/estadisticas` |
 | Estadísticas | `/paginas/estadisticas/index.html` | `GET /api/registros/estadisticas` |
 | Registros | `/paginas/registros_clinicos/index.html` | `GET /api/registros/`, `GET /api/registros/buscar`, `GET /api/registros/estadisticas` |
 | Ver tablas | `/paginas/dataset/index.html` | `GET /api/dataset/hechos`, `GET /api/dataset/dimension/*` |
 | Generador | `/paginas/dataset/generador.html` | `POST /api/dataset/generar` |
-| Usuarios | `/paginas/usuarios/index.html` | `GET/POST/PUT/DELETE /api/usuarios/` |
+| Usuarios | `/paginas/seguridad/usuarios/index.html` | `GET/POST/PUT/DELETE /api/usuarios/` |
 | Predicción ML | `/paginas/prediccion/index.html` | `POST /api/prediccion/entrenar`, `POST /api/prediccion/`, `GET /api/prediccion/metricas`, `GET /api/prediccion/estado` |
 | Pipeline ETL | `/paginas/pipeline_etl/index.html` | `GET /api/pipeline/estado`, `GET /api/registros/estadisticas` |
 

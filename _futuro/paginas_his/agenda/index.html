@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Agenda</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<style>
+.agenda-layout { display:grid; grid-template-columns:1fr 360px; gap:14px; }
+@media(max-width:900px){ .agenda-layout{ grid-template-columns:1fr; } }
+.cita-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px; display:flex; gap:12px; align-items:flex-start; }
+.cita-hora { font-family:var(--mono); font-size:13px; color:var(--cyan); min-width:52px; }
+.cita-estado { font-size:10px; padding:2px 8px; border-radius:10px; font-family:var(--mono); }
+.es-programada { background:rgba(34,211,238,0.12); color:var(--cyan); }
+.es-en_consulta { background:rgba(250,204,21,0.15); color:#facc15; }
+.es-completada { background:rgba(74,222,128,0.12); color:#4ade80; }
+.es-no_asistio { background:rgba(248,113,113,0.12); color:#f87171; }
+.es-cancelada { background:rgba(150,150,150,0.15); color:var(--muted); }
+.cita-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+</style>
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Agenda</span>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Agenda <span>clínica</span></div>
+        <div class="page-sub">Citas del día, ingreso, consulta y seguimiento</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nueva cita</button>
+    </div>
+
+    <div class="stats-grid" style="margin-bottom:14px;grid-template-columns:repeat(4,1fr);">
+      <div class="stat-card"><div class="stat-label">Hoy</div><div class="stat-value blue" id="st-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Programadas</div><div class="stat-value" id="st-prog">—</div></div>
+      <div class="stat-card"><div class="stat-label">En consulta</div><div class="stat-value" id="st-cons">—</div></div>
+      <div class="stat-card"><div class="stat-label">Completadas</div><div class="stat-value green" id="st-ok">—</div></div>
+    </div>
+
+    <div class="agenda-layout">
+      <div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+          <input type="date" id="fecha-filtro" class="search" style="width:auto">
+          <button class="btn btn-ghost btn-sm" onclick="cargar()">↻ Actualizar</button>
+        </div>
+        <div id="lista-citas"><div class="loading"><div class="spinner"></div>Cargando…</div></div>
+      </div>
+      <div class="panel" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div class="panel-title">Flujo clínico</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.6">
+          <p><strong>1. Programada</strong> — paciente agendado</p>
+          <p><strong>2. En consulta</strong> — médico atiende ahora</p>
+          <p><strong>3. Completada</strong> — cierra visita y agenda control a 3 meses</p>
+          <p><strong>No asistió / Cancelada</strong> — cierre sin consulta</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-cita" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;width:min(420px,92vw);">
+    <div style="font-weight:700;margin-bottom:12px">Nueva cita</div>
+    <label style="font-size:11px;display:block;margin-bottom:10px;position:relative">Paciente
+      <input id="m-pac-buscar" placeholder="Nombre, apellido o documento…" autocomplete="off" style="width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text)">
+      <input type="hidden" id="m-pac">
+      <div id="m-pac-suggest" style="display:none;position:absolute;left:0;right:0;z-index:20;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-top:4px;max-height:180px;overflow-y:auto"></div>
+    </label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <label style="font-size:11px">Fecha<input type="date" id="m-fecha" style="width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text)"></label>
+      <label style="font-size:11px">Hora<input type="time" id="m-hora" value="09:00" style="width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text)"></label>
+    </div>
+    <label style="font-size:11px;display:block;margin:10px 0">Motivo<input id="m-motivo" value="Consulta de control" style="width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text)"></label>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarCita()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico']);
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+const params = new URLSearchParams(location.search);
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function clsEstado(e) { return 'es-' + (e || 'programada'); }
+
+async function cambiarEstado(id, estado) {
+  const r = await fetch(`${API}/api/citas/${id}/estado`, {
+    method: 'PATCH', headers: { Authorization: 'Bearer '+token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ estado }),
+  });
+  const d = await r.json();
+  if (d.error) { toast(d.error, 'error'); return; }
+  toast('Estado actualizado');
+  cargar();
+}
+
+async function completar(id) {
+  const r = await fetch(`${API}/api/citas/${id}/completar`, {
+    method: 'POST', headers: { Authorization: 'Bearer '+token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ programar_seguimiento: true }),
+  });
+  const d = await r.json();
+  if (d.error) { toast(d.error, 'error'); return; }
+  toast('Consulta completada · control en 3 meses agendado');
+  cargar();
+}
+
+async function cargar() {
+  const f = document.getElementById('fecha-filtro').value || new Date().toISOString().slice(0,10);
+  const r = await fetch(`${API}/api/citas/?fecha=${f}&limit=200`, { headers: { Authorization: 'Bearer '+token } });
+  const d = await r.json();
+  const items = d.citas || [];
+  const prog = items.filter(c => c.estado === 'programada').length;
+  const cons = items.filter(c => c.estado === 'en_consulta').length;
+  const ok = items.filter(c => c.estado === 'completada').length;
+  document.getElementById('st-total').textContent = items.length;
+  document.getElementById('st-prog').textContent = prog;
+  document.getElementById('st-cons').textContent = cons;
+  document.getElementById('st-ok').textContent = ok;
+
+  if (!items.length) {
+    document.getElementById('lista-citas').innerHTML = '<div style="padding:24px;color:var(--muted);font-size:12px">Sin citas para esta fecha</div>';
+    return;
+  }
+  document.getElementById('lista-citas').innerHTML = items.map(c => `
+    <div class="cita-card">
+      <div class="cita-hora">${(c.hora||'—').slice(0,5)}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${c.paciente_nombre || 'Paciente'}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${c.motivo || ''} · ${c.sede || ''}</div>
+        <span class="cita-estado ${clsEstado(c.estado)}">${(c.estado||'').replace(/_/g,' ')}</span>
+        <div class="cita-actions">
+          ${c.estado === 'programada' ? `<button class="btn btn-ghost btn-sm" onclick="cambiarEstado('${c.id_cita}','en_consulta')">Iniciar consulta</button>` : ''}
+          ${c.estado === 'en_consulta' ? `<button class="btn btn-primary btn-sm" onclick="completar('${c.id_cita}')">Completar</button>` : ''}
+          ${c.estado === 'programada' ? `<button class="btn btn-ghost btn-sm" onclick="cambiarEstado('${c.id_cita}','no_asistio')">No asistió</button>` : ''}
+          <a class="btn btn-ghost btn-sm" href="/paginas/pacientes/index.html?p=${c.id_paciente}">Expediente →</a>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function abrirModal() {
+  document.getElementById('modal-cita').style.display = 'flex';
+  document.getElementById('m-fecha').value = document.getElementById('fecha-filtro').value || new Date().toISOString().slice(0,10);
+  document.getElementById('m-pac-buscar').value = '';
+  document.getElementById('m-pac').value = params.get('p') || '';
+  document.getElementById('m-pac-suggest').style.display = 'none';
+  if (params.get('p')) buscarPacienteLabel(params.get('p'));
+}
+function cerrarModal() { document.getElementById('modal-cita').style.display = 'none'; }
+
+let _buscarTimer = null;
+document.getElementById('m-pac-buscar').addEventListener('input', function() {
+  clearTimeout(_buscarTimer);
+  const q = this.value.trim();
+  if (q.length < 2) { document.getElementById('m-pac-suggest').style.display = 'none'; return; }
+  _buscarTimer = setTimeout(() => buscarPacientes(q), 250);
+});
+
+async function buscarPacientes(q) {
+  const r = await fetch(`${API}/api/pacientes/?q=${encodeURIComponent(q)}&limit=8`, { headers: { Authorization: 'Bearer '+token } });
+  const d = await r.json();
+  const items = d.pacientes || [];
+  const box = document.getElementById('m-pac-suggest');
+  if (!items.length) { box.style.display = 'none'; return; }
+  box.innerHTML = items.map(p => `
+    <div style="padding:10px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border)" onclick="elegirPaciente('${p.id_paciente}','${(p.nombre_completo||'').replace(/'/g,"\\'")}','${(p.documento||'').replace(/'/g,"\\'")}')">
+      <div style="font-weight:600">${p.nombre_completo}</div>
+      <div style="font-size:10px;color:var(--muted)">${p.documento||''} · ${p.edad||'?'} años</div>
+    </div>`).join('');
+  box.style.display = 'block';
+}
+
+async function buscarPacienteLabel(id) {
+  const r = await fetch(`${API}/api/pacientes/${id}`, { headers: { Authorization: 'Bearer '+token } });
+  const p = await r.json();
+  if (!p.error) {
+    document.getElementById('m-pac-buscar').value = `${p.nombre_completo} (${p.documento})`;
+    document.getElementById('m-pac').value = id;
+  }
+}
+
+function elegirPaciente(id, nombre, doc) {
+  document.getElementById('m-pac').value = id;
+  document.getElementById('m-pac-buscar').value = `${nombre} (${doc})`;
+  document.getElementById('m-pac-suggest').style.display = 'none';
+}
+
+async function guardarCita() {
+  const idPac = document.getElementById('m-pac').value.trim();
+  if (!idPac) { toast('Seleccione un paciente de la lista', 'error'); return; }
+  const body = {
+    id_paciente: idPac,
+    fecha: document.getElementById('m-fecha').value,
+    hora: document.getElementById('m-hora').value,
+    motivo: document.getElementById('m-motivo').value,
+  };
+  const r = await fetch(`${API}/api/citas/`, {
+    method: 'POST', headers: { Authorization: 'Bearer '+token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  if (d.error) { toast(d.error, 'error'); return; }
+  toast('Cita creada');
+  cerrarModal();
+  cargar();
+}
+
+document.getElementById('fecha-filtro').value = new Date().toISOString().slice(0,10);
+document.getElementById('fecha-filtro').addEventListener('change', cargar);
+cargar();
+if (params.get('nueva') === '1') abrirModal();
+</script>
+</body>
+</html>

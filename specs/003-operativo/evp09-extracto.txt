@@ -1,0 +1,2477 @@
+DiabCare Hospital -Documento de Constitución y Especificación
+Repositorio: https://github.com/Danxxx777/diabcare.git
+Video YouTube:
+Constitución del proyecto DiabCare Hospital
+Propósito y contexto
+DiabCare Hospital es una plataforma SaaS de analítica clínica hospitalaria orientada a la gestión integral de pacientes con diabetes y comorbilidades. El sistema integra un HIS modular (admisiones, agenda, consulta externa), un data Waterhouse de 63 tablas en modelo Hecho-Dimensión, pipelines ELT y modelos de machine learning para apoyo a la decisión clínica.
+Problema de negocio
+Fragmentación de datos clínicos entre sistemas operativos y analíticos.
+Dificultad para obtener KPIs de prevalencia, control metabólico y riesgo.
+Falta de trazabilidad entre objetivos estratégicos (definidos en el avance anterior) e implementación.
+Necesidad de cumplir gobernanza SDD antes de codificar funcionalidades.
+Objetivos del sistema
+Código
+Descripción
+OE1
+Penetración digital y adquisición automatizada
+OE2
+Escalabilidad comercial vía APIs
+OE3
+Infraestructura cloud alta disponibilidad
+OE4
+Inteligencia de negocio centralizada (BI + ML clínico)
+OT4.1
+DWH unificado Hecho-Dimensión en MinIO/Parquet
+OT4.2
+BI, modelos ML y reportes ejecutivos
+OO5.1.1
+JWT con control de acceso por roles
+OO5.2.1
+CRUD registros clínicos con filtros
+OO5.3.1
+Pipeline ELT automatizado
+OO5.4.1
+Datos sintéticos 1K–500K
+OO5.5.1
+Estadísticas clínicas con Chart.js
+OO5.6.1
+Predicción diabetes RandomForest
+Principios fundamentales
+Principio I. SDD: No se programa lo que no está especificado. Open API antes de implementar.
+Principio II. Paquetes: 15 paquetes funcionales P1–P15 en backend/paquetes/, backend/nucleo/ y frontend/paginas/{departamento}/.
+Principio III. Integridad DWH: Modelo Hecho-Dimensión; ELT PocketBase→Airflow→MinIO→API.
+Principio IV. Pruebas primero: pytest bajo pruebas/; endpoints nuevos con pruebas API.
+Principio V. Seguridad: JWT HS256, roles, auditoria en operaciones sensibles.
+Principio VI. Trazabilidad: OE→OT→OO→Departamento→Paquete→CU→Historia de usuario.
+Reglas de gobernanza RG-001 a RG-009
+Regla
+Enunciado
+RG-001
+Toda funcionalidad debe tener spec en specs/003-operativo/
+RG-002
+Endpoints públicos documentados en OpenAPI
+RG-003
+Lecturas analíticas solo desde Parquet materializado
+RG-004
+Roles: administrador, medico, analista
+RG-005
+Operaciones sensibles generan auditoria
+RG-006
+No almacenar contraseñas en texto plano
+RG-007
+Reportes PDF sin identificadores de paciente
+RG-008
+Pipeline ELT trazable por CU-O10
+RG-009
+Fuera de alcance del avance operativo actual: Stripe, HubSpot, CI/CD productivo
+Arquitectura y stack
+Backend Python 3 + FastAPI. Frontend Vanilla JS. Almacenamiento MinIO/Parquet. Orquestación Airflow. ML scikit-learn. Autenticación JWT (usuarios en MinIO). Fuente origen PocketBase (~100K registros). Despliegue demo: uvicorn Principal.py puerto 8000.
+Módulos funcionales
+Categoría
+Módulos
+Atención
+Pacientes/HCE, Admisiones, Consulta externa, Urgencias (Fase 2)
+Agenda
+Calendario de citas
+Datos
+Dataset/DWH, Pipeline ELT, Integraciones
+Endocrinología
+Predicción ML, Reportes PDF
+Dirección/BI
+Dashboard, Benchmarking, Corporativo
+Gobierno
+Auditoria, Configuración, Notificaciones
+Seguridad
+Usuarios, Autenticación
+Especificación operativa
+Departamentos y paquetes
+Cada paquete agrupa Rutas FastAPI y servicio en backend/paquetes/{nombre}/. Frontend por departamento: seguridad/, clinico/, datos/, gobierno/. P1–P15 en documentación SDD; no en nombres de carpeta.
+Paquete / módulo
+Backend
+Frontend
+P1 Autenticación
+paquetes/autenticacion/
+seguridad/autenticacion/
+P2 Usuarios
+paquetes/usuarios/
+seguridad/usuarios/
+P3 Registros
+paquetes/registros_clinicos/
+clinico/registros_clinicos/
+P4 Dataset
+paquetes/dataset/
+datos/dataset/
+P5 Análisis
+endpoints P3/P4
+clinico/analisis/
+P6 Predicción
+paquetes/prediccion/
+clinico/prediccion/
+P7 Reportes
+paquetes/reportes/
+clinico/reportes/
+P8 Pipeline ELT
+paquetes/pipeline_elt/
+datos/pipeline_elt/
+P11 Auditoría
+paquetes/auditoria/
+gobierno/auditoria/
+P12 Configuración
+paquetes/configuracion/
+gobierno/configuracion/
+P14 Modelo ML
+paquetes/modelo_ml/
+datos/modelo_ml/
+Pacientes HCE
+clinico/pacientes/
+clinico/pacientes/
+Admisiones
+clinico/admisiones/
+clinico/admisiones/
+Agenda
+clinico/citas/
+clinico/agenda/
+Departamento
+Paquetes
+CU-O principal
+Seguridad e Identidad
+P1, P2
+CU-O01, CU-O02
+Operaciones Clínicas
+P3, Pacientes, Admisiones, Agenda, P5, P6, P7
+CU-O02–O05, CU-O04-B, O07–O09
+Datos e Ingeniería
+P4, P8, P14
+CU-O06, CU-O10
+Gobierno y Cumplimiento
+P11, P12
+Auditoria, Configuración
+Inteligencia de Negocio
+P13, Corporativo
+Benchmarking demo
+Requisitos funcionales operativos
+ID
+Descripción
+Estado
+RF-O-001
+Autenticación JWT con roles
+Implementado
+RF-O-002
+CRUD registros clínicos
+Implementado
+RF-O-003
+Admisiones hospitalarias
+Implementado
+RF-O-004
+Agenda de citas
+Implementado
+RF-O-005
+Dataset y sintéticos
+Implementado
+RF-O-006
+Estadísticas y Dashboard
+Implementado
+RF-O-007
+Predicción ML diabetes
+Implementado
+RF-O-008
+Reportes PDF
+Implementado
+RF-O-009
+Pipeline ELT
+Implementado
+RF-O-010
+Auditoria y configuración
+Implementado
+RF-O-011
+Benchmarking BSC
+Implementado demo
+RF-O-012
+Integraciones externas
+Parcial
+RF-O-013
+Notificaciones
+Implementado
+RF-O-014
+Módulos Fase 2 HIS (urgencias, lab, farmacia)
+Placeholder
+RF-O-015
+Corporativo multi-sede
+Implementado demo
+Requisitos no funcionales
+RNF-001: Tiempo de respuesta API < 2s en operaciones CRUD (excl. agregaciones masivas).
+RNF-002: Pipeline ELT 600K registros < 15 min (objetivo definido en el avance anterior).
+RNF-003: Accuracy modelo RandomForest meta 96% (avance estratégico anterior).
+RNF-004: Interfaz responsive en navegadores modernos.
+RNF-005: Logs estructurados en operaciones de pipeline y ML.
+RNF-006: Cumplimiento principio VI trazabilidad en specs.
+Matriz trazabilidad
+CU-O
+OE
+Paquete
+Estado
+CU-O01
+OE4
+P1
+Implementado
+CU-O02
+OE4
+Pacientes HCE
+Implementado
+CU-O03
+OE4
+Admisiones
+Implementado
+CU-O04
+OE4
+Agenda / Citas
+Implementado
+CU-O05
+OE4
+P3 Registros clínicos
+Implementado
+CU-O06
+OE4
+P4 Dataset
+Implementado
+CU-O07
+OE4
+P5 Análisis
+Implementado
+CU-O08
+OE4
+P6 Predicción
+Implementado
+CU-O09
+OE4
+P7 Reportes
+Implementado
+CU-O10
+OE4
+P8 Pipeline ELT
+Implementado
+CU-O11–O13
+OE1–OE2
+P15
+Fuera demo
+CU-O14
+OE2
+P15
+Parcial /docs
+CU-O15–O16
+OE3–OE4
+—/P10
+Fuera demo / Parcial
+Los casos de uso CU-O01 a CU-O10 (más CU-O04-B Mis citas) constituyen el núcleo operativo demostrable del sistema. Cada subsección incluye precondiciones, flujo principal, flujos alternos, trazabilidad RF/RN/CA, ruta en la aplicación y espacio para captura de pantalla e imagen UML.
+CU-O01: Iniciar sesión con JWT
+Atributo
+Valor
+Paquete
+P1 Autenticación
+Actor principal
+Administrador, medico, analista
+OE / OT / OO
+OE4 / OT4.1 / OO5.1.1
+Ruta en aplicación
+http://localhost:8000/ → Iniciar sesión → Dashboard
+Precondiciones
+El servidor Uvicorn está activo en el puerto 8000.
+Existe al menos un usuario registrado con rol valido.
+El navegador tiene JavaScript habilitado.
+No hay sesión JWT activa en localStorage.
+Flujo principal
+1. El actor abre la pantalla de login.
+2. Ingresa correo electrónico y contraseña.
+3. El frontend envía POST /api/auth/login.
+4. El backend valida credenciales contra usuarios.parquet en MinIO.
+5. Se emite token JWT HS256 con rol y expiración.
+6. El frontend almacena el token y redirige al dashboard.
+7. La barra lateral muestra solo módulos permitidos para el rol.
+8. Se registra evento de acceso en auditoria (P11).
+Flujos alternos y excepciones
+Credenciales invalidas → HTTP 401, mensaje genérico sin revelar campo.
+Token expirado → redirección a login al invocar API protegida.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-O-P01-001
+Autenticar con email/contraseña y emitir JWT
+POST /api/auth/login
+RF-O-P01-006
+Restringir módulos por rol
+Dependencias.require_modulo
+Reglas de negocio
+RN-O-P01-001: Solo roles administradores, medico, analista.
+RN-O-P01-002: Token invalido bloquea módulos.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+Login exitoso devuelve token y rol correcto
+CA-02
+Login fallido devuelve 401
+CA-03
+Menú lateral respeta permisos del rol
+Captura del sistema:
+CU-O02: Gestionar expediente del paciente (HCE)
+Atributo
+Valor
+Paquete
+Pacientes / Registros P3
+Actor principal
+Medico, administrador
+OE / OT / OO
+OE4 / OT4.1 / OO5.2.1
+Ruta en aplicación
+Atención → Pacientes / HCE → seleccionar paciente → Expediente
+Precondiciones
+Sesión JWT valida con permiso registros.
+Existen registros clínicos en el DWH.
+MinIO accesible para lecturas Parquet.
+Flujo principal
+1. El medico accede al módulo Pacientes desde el menú Atención.
+2. El sistema lista pacientes con paginación y búsqueda.
+3. El medico selecciona un paciente y abre el expediente.
+4. Se cargan encuentros, métricas (HbA1c, glucosa, IMC) y flags de riesgo.
+5a. Opcional: sube o actualiza foto del paciente (almacenada en MinIO).
+5b. El medico puede filtrar por diabetes, género o ubicación.
+6. Los datos provienen de hechos_diabetes y dimensiones asociadas.
+Flujos alternos y excepciones
+Sin registros → mensaje informativo vacío.
+Sin permiso → HTTP 403.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-O-P03-001
+Listar registros clínicos paginados
+GET /api/registros
+RF-O-P03-002
+Filtrar por criterios clínicos
+GET /api/registros? Filtros
+Reglas de negocio
+RN-O-003: Datos analíticos solo desde Parquet/MinIO.
+RN-O-005: Alertas por umbrales HbA1c/glucosa.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+Lista paginada con metadatos
+CA-02
+Filtros aplicados correctamente
+CA-03
+Expediente muestra métricas del paciente
+Captura del sistema:
+CU-O03: Registrar admisión hospitalaria
+Atributo
+Valor
+Paquete
+Admisiones
+Actor principal
+Administrador
+OE / OT / OO
+OE4 / OT4.1 / OO5.2.1
+Ruta en aplicación
+Atención → Admisiones → + Nueva admisión
+Precondiciones
+Modulo admisiones habilitado.
+Catálogo de servicios y camas disponible.
+Paciente identificado o datos mínimos capturados.
+Flujo principal
+1. El administrador abre el formulario de nueva admisión.
+2. Selecciona paciente, tipo de ingreso, servicio, médico tratante, motivo y prioridad.
+3. Valida campos obligatorios en frontend y backend.
+4. POST /api/admisiones crea el registro operativo.
+5. El sistema confirma y muestra la admisión en la lista.
+6. Evento queda trazable en auditoria.
+Flujos alternos y excepciones
+Datos incompletos → 422 con detalle de campos.
+Duplicado activo → advertencia de negocio.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-ADM-001
+Crear admisión
+POST /api/admisiones
+RF-ADM-002
+Listar admisiones
+GET /api/admisiones
+Reglas de negocio
+RN-ADM-001: Toda admisión requiere servicio y fecha.
+RN-ADM-002: Solo administrador puede registrar admisiones.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+Admisión creada con ID único
+CA-02
+Aparece en listado
+CA-03
+Auditoria registra la operación
+Captura del sistema:
+CU-O04: Agendar cita medica
+Atributo
+Valor
+Paquete
+Agenda
+Actor principal
+Administrador
+OE / OT / OO
+OE4 / OT4.1 / OO5.2.1
+Ruta en aplicación
+Agenda → + Nueva cita
+Precondiciones
+Agenda habilitada en menú.
+Profesionales y horarios configurados.
+Paciente existente o referencia valida.
+Flujo principal
+1. El administrador accede al módulo Agenda.
+2. Selecciona + Nueva cita.
+3. Selecciona paciente y médico asignado (listado de usuarios rol médico), fecha, hora y motivo.
+4. El sistema valida solapamiento de horarios.
+5. Persiste la cita y actualiza la vista calendario.
+Flujos alternos y excepciones
+Conflicto de horario → mensaje de error.
+Fecha pasada → rechazo de validación.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-AG-001
+Crear cita
+POST /api/citas
+RF-AG-002
+Consultar citas
+GET /api/citas
+Reglas de negocio
+RN-AG-001: Solo administrador agenda citas; médico asignado desde listado rol médico.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+Cita visible en calendario
+CA-02
+Validación de conflicto funciona
+Captura del sistema:
+CU-O04-B: Consultar y atender mis citas (médico)
+Atributo
+Valor
+Paquete
+Citas / Mis citas
+Actor principal
+Médico
+OE / OT / OO
+OE4 / OT4.1 / OO5.2.1
+Ruta en aplicación
+Atención → Mis citas
+Precondiciones
+Sesión JWT válida con rol médico.
+Existen citas asignadas por administración con el nombre del médico autenticado.
+Módulo Mis citas habilitado en menú lateral.
+Flujo principal
+1. El médico accede al módulo Mis citas desde el menú Atención.
+2. El sistema lista citas filtradas por su usuario (GET /api/citas/mis-citas).
+3. El médico confirma una cita → estado confirmada.
+4. Al pulsar Atender → estado atendida → redirección a Consultas (CU-O05).
+5. Evento queda trazable en auditoría (P11).
+Flujos alternos y excepciones
+Paciente no acude → marcar estado no_asistio.
+Cita no asignada al médico → HTTP 403.
+Sin citas pendientes → mensaje informativo vacío.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-MC-001
+Listar citas del médico autenticado
+GET /api/citas/mis-citas
+RF-MC-002
+Actualizar estado de cita
+PUT /api/citas/{id}/estado
+Reglas de negocio
+RN-MC-001: El médico no crea ni cancela citas; solo la administración agenda (CU-O04).
+RN-MC-002: Solo el médico asignado puede cambiar el estado de su cita.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+Listado muestra solo citas del médico autenticado
+CA-02
+Confirmar/atender actualiza estado correctamente
+CA-03
+Atender redirige a Consultas (CU-O05)
+CU-O05: Registrar consulta externa
+Atributo
+Valor
+Paquete
+P3 Registros clínicos
+Actor principal
+Medico
+OE / OT / OO
+OE4 / OT4.1 / OO5.2.1
+Ruta en aplicación
+Consulta externa → + Nueva consulta
+Precondiciones
+Sesión medico activa.
+Formulario de consulta disponible.
+Flujo principal
+1. Medico abre Consulta externa.
+2. Captura signos vitales, HbA1c, glucosa, IMC y comorbilidades.
+3. Envía POST /api/registros con payload validado.
+4. Backend persiste en origen operativo y refleja en analítica.
+5. Confirmación visual al usuario.
+Flujos alternos y excepciones
+Valores fuera de rango → alerta clínica RN-O-005.
+Error de red → reintento o mensaje.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-O-P03-003
+Crear registro clínico
+POST /api/registros
+RF-O-P03-004
+Actualizar registro
+PUT /api/registros/{id}
+Reglas de negocio
+RN-O-005: Umbrales HbA1c >= 6.5 o glucosa >= 126 generan alerta.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+Registro creado
+CA-02
+Métricas visibles en estadísticas
+Captura del sistema:
+CU-O06: Generar dataset sintético / consultar DWH
+Atributo
+Valor
+Paquete
+P4 Dataset
+Actor principal
+Analista, administrador
+OE / OT / OO
+OE4 / OT4.1 / OO5.4.1
+Ruta en aplicación
+Datos → Dataset / DWH
+Precondiciones
+MinIO configurado.
+Permiso modulo dataset.
+Bucket diabetes-data accesible.
+Flujo principal
+1. Analista abre modulo Dataset.
+2. Consulta estado del dataset y volumen (~901k encuentros).
+3. Opcionalmente solicita generación sintética 1K–500K registros.
+4. Pipeline escribe Parquet en MinIO según modelo Hecho-Dimensión.
+5. Interfaz muestra progreso y resultado.
+Flujos alternos y excepciones
+MinIO no disponible → error controlado.
+Volumen fuera de rango → 400.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-O-P04-001
+Consultar info dataset
+GET /api/dataset/info
+RF-O-P04-002
+Generar sintéticos
+POST /api/dataset/generar
+Reglas de negocio
+RN-O-003: Lecturas analíticas desde Parquet.
+RN-O-004: Volumen sintético entre 1000 y 500000.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+Info dataset correcta
+CA-02
+Generación completa sin error
+Captura del sistema:
+CU-O07: Visualizar dashboard ejecutivo / estadísticas
+Atributo
+Valor
+Paquete
+P5 Análisis / BI
+Actor principal
+Analista, medico, administrador
+OE / OT / OO
+OE4 / OT4.2 / OO5.5.1
+Ruta en aplicación
+Dirección / BI → Dashboard / Estadísticas
+Precondiciones
+Datos materializados en DWH.
+Chart.js cargado en frontend.
+Flujo principal
+1. Usuario accede al dashboard de análisis.
+2. Frontend solicita GET /api/registros/estadísticas.
+3. Backend agrega desde Parquet: prevalencia, promedios, distribuciones.
+4. Graficas Chart.js renderizan KPIs clínicos.
+5. Filtros por periodo, ubicación o diabetes refinan la vista.
+Flujos alternos y excepciones
+Dataset vacío → KPIs en cero.
+Timeout en dataset grande → indicador de carga.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-O-P05-001
+Estadísticas agregadas
+GET /api/registros/estadísticas
+RF-O-P05-002
+Graficas interactivas
+frontend/paginas/clinico/analisis
+Reglas de negocio
+RN-O-003: Agregaciones solo sobre hechos materializados.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+KPIs coherentes con dataset
+CA-02
+Graficas renderizan sin error
+Captura del sistema:
+CU-O08: Predecir riesgo de diabetes (ML)
+Atributo
+Valor
+Paquete
+P6 Predicción
+Actor principal
+Médico, analista
+OE / OT / OO
+OE4 / OT4.2 / OO5.6.1
+Ruta en aplicación
+Endocrinología → Predicción ML
+Precondiciones
+Modelo RandomForest entrenado en MinIO.
+Features clínicas disponibles.
+Flujo principal
+1. Usuario ingresa factores: edad, IMC, HbA1c, glucosa, comorbilidades.
+2. POST /api/predicción/evaluar invoca scikit-learn.
+3. Servicio devuelve probabilidad, clase estimada e interpretación.
+4. Resultado opcionalmente persiste en hechos_Predicción.
+5. UI muestra barra de riesgo y recomendación no clínica.
+Flujos alternos y excepciones
+Modelo no cargado → 503 con mensaje.
+Features invalidas → 422.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-O-P06-001
+Inferencia ML
+POST /api/predicción/evaluar
+RF-O-P06-002
+Historial Predicciones
+GET /api/predicción/historial
+Reglas de negocio
+RN-ML-001: Salida es apoyo a decisión, no diagnóstico definitivo.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+Probabilidad en [0,1]
+CA-02
+Latencia < 3s en demo
+Captura del sistema:
+CU-O09: Generar reporte PDF clínico
+Atributo
+Valor
+Paquete
+P7 Reportes
+Actor principal
+Medico, analista
+OE / OT / OO
+OE4 / OT4.2 / OO5.5.1
+Ruta en aplicación
+Endocrinología → Reportes → Generar PDF
+Precondiciones
+Modulo reportes habilitado.
+Datos agregados disponibles.
+Permiso rol medico/analista.
+Flujo principal
+1. Usuario define filtros del reporte (periodo, diabetes, ubicación).
+2. POST /api/reportes/generar compone PDF con reportlab.
+3. Incluye resumen estadístico, métricas ML y gráficos.
+4. No expone IDs de paciente (anonimizacion).
+5. Descarga application/pdf al navegador.
+Flujos alternos y excepciones
+Sin datos para filtros → PDF con leyenda vacía.
+Error MinIO → 500 controlado.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-O-P07-001
+Generar PDF
+POST /api/reportes/generar
+RF-O-P07-002
+Listar plantillas
+GET /api/reportes/plantillas
+Reglas de negocio
+RN-RPT-001: PDF solo agregados, sin PII.
+RN-RPT-002: Registrar generación en auditoria.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+PDF descargable
+CA-02
+Contiene KPIs y fecha de generación
+Captura del sistema:
+CU-O10: Ejecutar pipeline ELT
+Atributo
+Valor
+Paquete
+P8 Pipeline ELT
+Actor principal
+Analista, administrador
+OE / OT / OO
+OE4 / OT4.1 / OO5.3.1
+Ruta en aplicación
+Datos → Pipeline ELT → Ejecutar
+Precondiciones
+Airflow o trigger in-app configurado.
+PocketBase accesible (~100K registros origen); MinIO stage/ accesible.
+MinIO buckets creados.
+Flujo principal
+1. Analista abre Pipeline ELT.
+2. Consulta estado ultima ejecución (GET /api/pipeline/estado).
+3. Presiona Ejecutar → POST /api/pipeline/ejecutar.
+4. ETL extrae, transforma a Hecho-Dimensión y carga Parquet.
+5. UI muestra logs, duración y filas procesadas.
+6. objetivo definido en el avance anterior: 600K registros < 15 minutos.
+Flujos alternos y excepciones
+Pipeline en curso → rechazo de ejecución paralela.
+Fallo en etapa → log de error detallado.
+Requisitos funcionales aplicables
+ID
+Descripción
+Implementación
+RF-O-P08-001
+Estado pipeline
+GET /api/pipeline/estado
+RF-O-P08-002
+Disparar ELT
+POST /api/pipeline/ejecutar
+Reglas de negocio
+RN-O-003: Flujo ELT obligatorio para analítica.
+RN-ELT-001: Materializar 63 tablas según catálogo.
+Criterios de aceptación
+ID
+Criterio
+CA-01
+Estado refleja última corrida
+CA-02
+Ejecución completa sin error critico
+Captura del sistema:
+Historias de usuario
+Las historias de usuario siguen ISO/IEC 29148:2018: identificador único, descripción verificable de la necesidad, justificación, criterios de aceptación comprobables y trazabilidad a OE → OT → OO → CU-O → RF. Formato ágil (Como / Quiero / Para) integrado en cada ficha.
+Tabla - Códigos HTTP (CA-ERR)
+Código
+Significado
+Ejemplo
+2xx
+Éxito
+200 OK consulta; 201 Created reporte/registro
+401
+No autenticado
+Login inválido
+403
+Sin permiso
+Rol no autorizado (RN-O-001)
+404
+No encontrado
+Recurso inexistente
+422
+Datos inválidos
+Validación Pydantic
+500
+Error interno
+Fallo en servicio
+503
+No disponible
+MinIO o modelo ML caído
+Fichas de historias de usuario
+HU-O01: Iniciar sesión con JWT
+Atributo
+Valor
+Identificador
+HU-O01
+Título
+Iniciar sesión con JWT
+Stakeholder / Actor
+Usuario del sistema (administrador, médico o analista)
+Descripción de la necesidad
+El sistema debe permitir la autenticación segura mediante correo electrónico y contraseña, validando credenciales contra usuarios.parquet en MinIO y emitiendo un token JWT (HS256) que identifique el rol del usuario.
+Historia de usuario (Como / Quiero / Para)
+Como usuario del sistema, quiero iniciar sesión con correo y contraseña, para acceder únicamente a los módulos autorizados según mi rol.
+Justificación (Rationale)
+Base de seguridad del SaaS; sin sesión válida no hay acceso a datos clínicos ni analítica.
+Prioridad
+Alta
+Supuestos y restricciones
+JWT HS256; usuarios en MinIO (no PocketBase); contraseñas hasheadas; RG-005 auditoría.
+Trazabilidad OE / OT / OO
+OE4 / OT4.1 / OO5.1.1
+Caso de uso vinculado (CU-O)
+CU-O01
+Paquete funcional
+P1 Autenticación
+Departamento
+Seguridad e Identidad
+Requisitos funcionales (RF)
+RF-O-P01-001, RF-O-P01-002, RF-O-P01-006
+Reglas de negocio (RN / RG)
+RN-O-P01-001, RN-O-P01-002
+Criterio de aceptación
+CA-01: Dado un usuario registrado con credenciales válidas, cuando envía POST /api/auth/login, entonces recibe HTTP 200 con token JWT y rol.
+Criterio de aceptación
+CA-02: Dado credenciales inválidas, cuando intenta iniciar sesión, entonces recibe HTTP 401 con mensaje genérico.
+Criterio de aceptación
+CA-03: Dado un token válido, cuando carga la aplicación, entonces el menú lateral muestra solo módulos de PERMISOS_MODULOS.
+Criterio de aceptación
+CA-04: Dado login exitoso, cuando accede a módulo no permitido, entonces recibe HTTP 403.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos (§ Historias de usuario).
+Método de verificación
+Prueba funcional, inspección de respuesta API y demo en /paginas/seguridad/autenticacion/index.html
+Evidencia / Ruta demo
+POST /api/auth/login · GET /api/auth/verificar · /paginas/seguridad/autenticacion/index.html
+Estado de implementación
+Implementado
+HU-O02: Gestionar usuarios del sistema
+Atributo
+Valor
+Identificador
+HU-O02
+Título
+Gestionar usuarios del sistema
+Stakeholder / Actor
+Administrador
+Descripción de la necesidad
+El sistema debe permitir al administrador crear, listar, editar y desactivar cuentas de usuario, asignando roles válidos (administrador, médico, analista) y persistiendo los cambios en MinIO (usuarios.parquet).
+Historia de usuario (Como / Quiero / Para)
+Como administrador, quiero gestionar usuarios y roles del tenant, para controlar quién accede al sistema y con qué permisos.
+Justificación (Rationale)
+Gobierno de identidades operativas requerido en entornos clínicos multirol.
+Prioridad
+Alta
+Supuestos y restricciones
+Un administrador no puede desactivarse ni cambiar su propio rol.
+Trazabilidad OE / OT / OO
+OE4 / OT4.1 / OO5.1.1
+Caso de uso vinculado (CU-O)
+CU-O02
+Paquete funcional
+P2 Usuarios
+Departamento
+Seguridad e Identidad
+Requisitos funcionales (RF)
+RF-O-P02-001, RF-O-P02-002
+Reglas de negocio (RN / RG)
+RN-O-P02-001 (auto-protección admin)
+Criterio de aceptación
+CA-01: Dado sesión de administrador, cuando crea un usuario con rol válido, entonces persiste en MinIO y aparece en listado.
+Criterio de aceptación
+CA-02: Dado un usuario existente, cuando edita rol o estado, entonces los cambios se reflejan en consultas posteriores.
+Criterio de aceptación
+CA-03: Dado el administrador autenticado, cuando intenta desactivarse a sí mismo, entonces el sistema rechaza la operación.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba API CRUD + demo UI usuarios
+Evidencia / Ruta demo
+/api/usuarios · /paginas/usuarios/index.html
+Estado de implementación
+Implementado
+HU-O03: Registrar y editar registros clínicos
+Atributo
+Valor
+Identificador
+HU-O03
+Título
+Registrar y editar registros clínicos
+Stakeholder / Actor
+Médico o administrador
+Descripción de la necesidad
+El sistema debe permitir operaciones CRUD sobre registros clínicos del DWH (hechos y dimensiones en Parquet/MinIO), con validación de rangos clínicos.
+Historia de usuario (Como / Quiero / Para)
+Como médico o administrador, quiero registrar, consultar, actualizar y eliminar registros clínicos, para mantener la cohorte analítica actualizada.
+Justificación (Rationale)
+Operación clínica central del hospital digital; alimenta estadísticas, ML y reportes.
+Prioridad
+Alta
+Supuestos y restricciones
+Datos analíticos solo desde Parquet/MinIO (RN-O-003); requiere JWT con permiso registros.
+Trazabilidad OE / OT / OO
+OE4 / OT4.1 / OO5.2.1
+Caso de uso vinculado (CU-O)
+CU-O03
+Paquete funcional
+P3 Registros clínicos
+Departamento
+Operaciones Clínicas
+Requisitos funcionales (RF)
+RF-O-P03-001
+Reglas de negocio (RN / RG)
+RN-O-003, RN-O-005
+Criterio de aceptación
+CA-01: Dado payload clínico válido, cuando envía POST /api/registros, entonces persiste y devuelve HTTP 201.
+Criterio de aceptación
+CA-02: Dado un registro existente, cuando actualiza o elimina, entonces la operación se refleja en consultas.
+Criterio de aceptación
+CA-03: Dado valores fuera de rango, cuando intenta guardar, entonces recibe HTTP 422 con detalle.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba CRUD API + demo módulo registros
+Evidencia / Ruta demo
+/api/registros · /paginas/registros/index.html
+Estado de implementación
+Implementado
+HU-O04: Filtrar registros clínicos
+Atributo
+Valor
+Identificador
+HU-O04
+Título
+Filtrar registros clínicos
+Stakeholder / Actor
+Médico o administrador
+Descripción de la necesidad
+El sistema debe permitir filtrar la cohorte clínica por diabetes, género, ubicación y rango de edad sobre datos en MinIO/Parquet.
+Historia de usuario (Como / Quiero / Para)
+Como médico o administrador, quiero filtrar registros por criterios clínicos y demográficos, para analizar subpoblaciones específicas.
+Justificación (Rationale)
+Análisis segmentado requerido para decisiones clínicas y benchmarking interno.
+Prioridad
+Media
+Supuestos y restricciones
+Filtros aplicados server-side; paginación en listados extensos.
+Trazabilidad OE / OT / OO
+OE4 / OT4.1 / OO5.2.1
+Caso de uso vinculado (CU-O)
+CU-O04
+Paquete funcional
+P3 Registros clínicos
+Departamento
+Operaciones Clínicas
+Requisitos funcionales (RF)
+RF-O-P03-002
+Reglas de negocio (RN / RG)
+RN-O-003
+Criterio de aceptación
+CA-01: Dado filtros válidos, cuando invoca GET /api/registros/buscar, entonces recibe subconjunto coherente.
+Criterio de aceptación
+CA-02: Dado filtros sin resultados, cuando consulta, entonces devuelve lista vacía con HTTP 200.
+Criterio de aceptación
+CA-03: Dado usuario sin permiso, cuando filtra, entonces HTTP 403.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba de búsqueda + demo UI pacientes/registros
+Evidencia / Ruta demo
+GET /api/registros/buscar · /paginas/pacientes/index.html
+Estado de implementación
+Implementado
+HU-O05: Generar datos sintéticos al DWH
+Atributo
+Valor
+Identificador
+HU-O05
+Título
+Generar datos sintéticos al DWH
+Stakeholder / Actor
+Administrador o analista
+Descripción de la necesidad
+El sistema debe generar entre 1.000 y 500.000 registros sintéticos en español y materializarlos en MinIO según el modelo Hecho-Dimensión.
+Historia de usuario (Como / Quiero / Para)
+Como administrador o analista, quiero generar datos sintéticos configurables, para poblar MinIO y probar pipeline, estadísticas y ML sin datos reales.
+Justificación (Rationale)
+Demostración académica y pruebas de carga del DWH (avance anterior OO5.4.1).
+Prioridad
+Alta
+Supuestos y restricciones
+Generación asíncrona para volúmenes altos; MinIO como destino único.
+Trazabilidad OE / OT / OO
+OE4 / OT4.1 / OO5.4.1
+Caso de uso vinculado (CU-O)
+CU-O05
+Paquete funcional
+P4 Dataset
+Departamento
+Datos e Ingeniería
+Requisitos funcionales (RF)
+RF-O-P04-001, RF-O-P04-002
+Reglas de negocio (RN / RG)
+RN-O-003
+Criterio de aceptación
+CA-01: Dado rango 1K–500K, cuando POST /api/dataset/generar, entonces inicia job y escribe Parquet en MinIO.
+Criterio de aceptación
+CA-02: Dado generación completada, cuando consulta estado del dataset, entonces muestra conteos y rutas.
+Criterio de aceptación
+CA-03: Dado MinIO no disponible, entonces error controlado HTTP 503/500.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba generación + inspección objetos MinIO
+Evidencia / Ruta demo
+POST /api/dataset/generar · /paginas/dataset/index.html
+Estado de implementación
+Implementado
+HU-O06: Consultar pipeline ELT
+Atributo
+Valor
+Identificador
+HU-O06
+Título
+Consultar y ejecutar pipeline ELT
+Stakeholder / Actor
+Administrador o analista
+Descripción de la necesidad
+El sistema debe permitir consultar el estado del pipeline ELT y disparar su ejecución, extrayendo ~100K registros desde PocketBase (origen) hacia MinIO stage/ en modelo Hecho-Dimensión.
+Historia de usuario (Como / Quiero / Para)
+Como administrador o analista, quiero consultar estado y ejecutar el pipeline ELT, para sincronizar datos origen hacia el DWH analítico en MinIO.
+Justificación (Rationale)
+Integridad del flujo avance anterior: PocketBase → Airflow → MinIO → API.
+Prioridad
+Alta
+Supuestos y restricciones
+PocketBase solo origen (~100K); MinIO es BD; meta definida en el avance anterior: 600K registros < 15 min.
+Trazabilidad OE / OT / OO
+OE4 / OT4.1 / OO5.3.1
+Caso de uso vinculado (CU-O)
+CU-O06
+Paquete funcional
+P8 Pipeline ELT
+Departamento
+Datos e Ingeniería
+Requisitos funcionales (RF)
+RF-O-P08-001
+Reglas de negocio (RN / RG)
+RN-O-003, RN-ELT-001
+Criterio de aceptación
+CA-01: Dado pipeline idle, cuando GET /api/pipeline/estado, entonces muestra última ejecución y métricas.
+Criterio de aceptación
+CA-02: Dado condiciones válidas, cuando POST /api/pipeline/ejecutar, entonces procesa extracción PocketBase → MinIO.
+Criterio de aceptación
+CA-03: Dado pipeline en curso, cuando intenta segunda ejecución, entonces rechaza paralelismo.
+Criterio de aceptación
+CA-04: Orquestación Airflow completa — parcial (consulta + trigger in-app implementados).
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba API pipeline + demo UI + logs Airflow
+Evidencia / Ruta demo
+GET /api/pipeline/estado · POST /api/pipeline/ejecutar · /paginas/datos/pipeline_elt/index.html
+Estado de implementación
+Parcial
+HU-O07: Consultar estadísticas clínicas
+Atributo
+Valor
+Identificador
+HU-O07
+Título
+Consultar estadísticas clínicas
+Stakeholder / Actor
+Administrador, médico o analista
+Descripción de la necesidad
+El sistema debe calcular y exponer estadísticas clínicas agregadas (totales, prevalencia, promedios, distribuciones) desde MinIO/Parquet.
+Historia de usuario (Como / Quiero / Para)
+Como usuario autorizado, quiero ver estadísticas clínicas de la cohorte, para interpretar tendencias de diabetes, HbA1c, glucosa e IMC.
+Justificación (Rationale)
+Capacidad analítica operativa OO5.5.1 del avance estratégico anterior.
+Prioridad
+Alta
+Supuestos y restricciones
+Solo agregados; sin exposición de PII en vistas públicas.
+Trazabilidad OE / OT / OO
+OE4 / OT4.2 / OO5.5.1
+Caso de uso vinculado (CU-O)
+CU-O07
+Paquete funcional
+P5 Análisis / Estadísticas
+Departamento
+Operaciones Clínicas
+Requisitos funcionales (RF)
+RF-O-P05-001
+Reglas de negocio (RN / RG)
+RN-O-003
+Criterio de aceptación
+CA-01: Dado DWH poblado, cuando GET /api/registros/estadisticas, entonces devuelve KPIs numéricos.
+Criterio de aceptación
+CA-02: Dado filtros de cohorte, cuando consulta estadísticas, entonces recalcula sobre subconjunto.
+Criterio de aceptación
+CA-03: Gráficas Chart.js renderizan datos recibidos sin error en UI.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba API stats + demo /paginas/clinico/analisis
+Evidencia / Ruta demo
+GET /api/registros/estadisticas · GET /api/dataset/estadisticas · /paginas/clinico/analisis/index.html
+Estado de implementación
+Implementado
+HU-O08: Predecir riesgo de diabetes
+Atributo
+Valor
+Identificador
+HU-O08
+Título
+Predecir riesgo de diabetes
+Stakeholder / Actor
+Médico, administrador o analista
+Descripción de la necesidad
+El sistema debe inferir probabilidad de riesgo de diabetes a partir de features clínicas usando el modelo RandomForest persistido en MinIO.
+Historia de usuario (Como / Quiero / Para)
+Como médico o analista, quiero obtener predicción de riesgo con variables clínicas, para apoyar decisiones preventivas basadas en ML.
+Justificación (Rationale)
+Objetivo OO5.6.1 — inteligencia clínica predictiva del avance estratégico anterior.
+Prioridad
+Alta
+Supuestos y restricciones
+Modelo en MinIO; features validadas; resultado interpretable (no caja negra total).
+Trazabilidad OE / OT / OO
+OE4 / OT4.2 / OO5.6.1
+Caso de uso vinculado (CU-O)
+CU-O08
+Paquete funcional
+P6 Predicción ML
+Departamento
+Operaciones Clínicas
+Requisitos funcionales (RF)
+RF-O-P06-001
+Reglas de negocio (RN / RG)
+RN-ML-001 (features obligatorias)
+Criterio de aceptación
+CA-01: Dado vector clínico válido, cuando POST /api/prediccion, entonces devuelve probabilidad y etiqueta.
+Criterio de aceptación
+CA-02: Dado feature faltante o inválida, cuando predice, entonces HTTP 422.
+Criterio de aceptación
+CA-03: Dado modelo no cargado en MinIO, entonces HTTP 503 con mensaje claro.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba predicción + demo UI predicción
+Evidencia / Ruta demo
+POST /api/prediccion · /paginas/prediccion/index.html
+Estado de implementación
+Implementado
+HU-O09: Gestionar modelo ML entrenado
+Atributo
+Valor
+Identificador
+HU-O09
+Título
+Gestionar modelo ML entrenado
+Stakeholder / Actor
+Administrador o analista
+Descripción de la necesidad
+El sistema debe exponer información del modelo activo, métricas de evaluación y permitir reentrenamiento, persistiendo artefactos en MinIO.
+Historia de usuario (Como / Quiero / Para)
+Como administrador o analista, quiero consultar métricas y gestionar el ciclo del modelo ML, para mantener la calidad predictiva del sistema.
+Justificación (Rationale)
+Gobierno del activo ML alineado a MLOps académico (P14).
+Prioridad
+Media
+Supuestos y restricciones
+RandomForest scikit-learn; historial de versiones en MinIO.
+Trazabilidad OE / OT / OO
+OE4 / OT4.2 / OO5.6.1
+Caso de uso vinculado (CU-O)
+CU-O09
+Paquete funcional
+P14 Modelo ML
+Departamento
+Datos e Ingeniería
+Requisitos funcionales (RF)
+RF-O-P14-001, RF-O-P06-002
+Reglas de negocio (RN / RG)
+RN-ML-002
+Criterio de aceptación
+CA-01: Dado modelo entrenado, cuando GET /api/modelo-ml/info, entonces muestra versión y fecha.
+Criterio de aceptación
+CA-02: Dado solicitud de reentrenamiento, cuando POST /api/modelo-ml/entrenar, entonces actualiza artefacto.
+Criterio de aceptación
+CA-03: Dado GET /api/prediccion/metricas, entonces expone exactitud y métricas de clasificación.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba endpoints modelo-ml + demo UI
+Evidencia / Ruta demo
+/api/modelo-ml/* · GET /api/prediccion/metricas · /paginas/modelo_ml/index.html
+Estado de implementación
+Implementado
+HU-O10: Visualizar dashboard ejecutivo
+Atributo
+Valor
+Identificador
+HU-O10
+Título
+Visualizar dashboard ejecutivo
+Stakeholder / Actor
+Administrador, médico o analista
+Descripción de la necesidad
+El sistema debe presentar un dashboard con KPIs clínicos, gráficas Chart.js y alertas por umbrales (HbA1c, glucosa) desde datos MinIO.
+Historia de usuario (Como / Quiero / Para)
+Como usuario autorizado, quiero un dashboard ejecutivo con KPIs y alertas, para monitorear el estado de la cohorte en una sola vista.
+Justificación (Rationale)
+Vista consolidada especificación del avance anterior (§13) alertas clínicas y BI operativo.
+Prioridad
+Alta
+Supuestos y restricciones
+Actualización vía API FastAPI/MinIO; roles determinan widgets visibles.
+Trazabilidad OE / OT / OO
+OE4 / OT4.2 / OO4.3.3
+Caso de uso vinculado (CU-O)
+CU-O10
+Paquete funcional
+P5 Dashboard
+Departamento
+Operaciones Clínicas
+Requisitos funcionales (RF)
+RF-O-P05-002
+Reglas de negocio (RN / RG)
+RN-O-005
+Criterio de aceptación
+CA-01: Dado sesión válida, cuando abre dashboard, entonces muestra KPIs sin error JS.
+Criterio de aceptación
+CA-02: Dado umbrales configurados, cuando hay valores críticos, entonces se visualizan alertas.
+Criterio de aceptación
+CA-03: Dado rol analista, cuando accede, entonces ve conjunto de módulos permitidos.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Inspección UI + prueba integración API
+Evidencia / Ruta demo
+/paginas/clinico/analisis/index.html · /paginas/dashboard/index.html
+Estado de implementación
+Implementado
+HU-O11: Generar reportes PDF clínicos
+Atributo
+Valor
+Identificador
+HU-O11
+Título
+Generar reportes PDF clínicos
+Stakeholder / Actor
+Médico o administrador
+Descripción de la necesidad
+El sistema debe generar reportes PDF con agregados analíticos y métricas ML, sin identificadores directos de paciente (PII), almacenados en MinIO reportes/.
+Historia de usuario (Como / Quiero / Para)
+Como médico o administrador, quiero generar reportes PDF clínicos descargables, para compartir resultados analíticos de forma controlada.
+Justificación (Rationale)
+Salida documental requerida en auditorías y comités clínicos.
+Prioridad
+Media
+Supuestos y restricciones
+Anonimización obligatoria; registro en auditoría P11.
+Trazabilidad OE / OT / OO
+OE4 / OT4.2 / salida analítica
+Caso de uso vinculado (CU-O)
+P7 (sin CU-O dedicado en demo)
+Paquete funcional
+P7 Reportes
+Departamento
+Operaciones Clínicas
+Requisitos funcionales (RF)
+RF-O-P07-001
+Reglas de negocio (RN / RG)
+RN-RPT-001, RN-RPT-002
+Criterio de aceptación
+CA-01: Dado filtros válidos, cuando POST /api/reportes/generar, entonces devuelve PDF descargable.
+Criterio de aceptación
+CA-02: Dado contenido del PDF, cuando se inspecciona, entonces no contiene PII directa.
+Criterio de aceptación
+CA-03: Dado generación exitosa, entonces evento queda en auditoría.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba generación PDF + inspección contenido
+Evidencia / Ruta demo
+POST /api/reportes/generar · /paginas/reportes/index.html
+Estado de implementación
+Implementado
+HU-O12: Consultar auditoría de operaciones
+Atributo
+Valor
+Identificador
+HU-O12
+Título
+Consultar auditoría de operaciones
+Stakeholder / Actor
+Administrador
+Descripción de la necesidad
+El sistema debe registrar y permitir consultar eventos de acceso y operaciones sensibles con trazabilidad temporal y actor.
+Historia de usuario (Como / Quiero / Para)
+Como administrador, quiero listar eventos de auditoría filtrables, para cumplir RG-005 y revisar accesos al sistema.
+Justificación (Rationale)
+Gobierno y cumplimiento — principio V constitución v1.1.0.
+Prioridad
+Media
+Supuestos y restricciones
+Eventos append-only; retención según política del tenant.
+Trazabilidad OE / OT / OO
+OE4 / OT4.1 / trazabilidad RG-005
+Caso de uso vinculado (CU-O)
+P11 (auditoría transversal)
+Paquete funcional
+P11 Auditoría
+Departamento
+Gobierno y Cumplimiento
+Requisitos funcionales (RF)
+RF-O-P11-001
+Reglas de negocio (RN / RG)
+RG-005
+Criterio de aceptación
+CA-01: Dado login exitoso, cuando consulta auditoría, entonces aparece evento de acceso.
+Criterio de aceptación
+CA-02: Dado filtros por fecha/usuario, cuando lista, entonces subconjunto coherente.
+Criterio de aceptación
+CA-03: Dado rol no admin, cuando accede a auditoría, entonces HTTP 403.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba API auditoría + demo UI
+Evidencia / Ruta demo
+GET /api/auditoria/ · /paginas/auditoria/index.html
+Estado de implementación
+Implementado
+HU-O13: Configurar parámetros del sistema
+Atributo
+Valor
+Identificador
+HU-O13
+Título
+Configurar parámetros del sistema
+Stakeholder / Actor
+Administrador
+Descripción de la necesidad
+El sistema debe permitir consultar y actualizar parámetros operativos (MinIO, umbrales clínicos, correo, flags de sistema).
+Historia de usuario (Como / Quiero / Para)
+Como administrador, quiero configurar parámetros del tenant, para adaptar umbrales y conexiones sin redeploy.
+Justificación (Rationale)
+Operación autónoma del SaaS hospitalario.
+Prioridad
+Media
+Supuestos y restricciones
+Cambios sensibles auditados; validación de URLs y credenciales.
+Trazabilidad OE / OT / OO
+OE4 / OT4.1 / parámetros DWH
+Caso de uso vinculado (CU-O)
+P12 (configuración transversal)
+Paquete funcional
+P12 Configuración
+Departamento
+Gobierno y Cumplimiento
+Requisitos funcionales (RF)
+RF-O-P12-001
+Reglas de negocio (RN / RG)
+RN-CFG-001
+Criterio de aceptación
+CA-01: Dado admin autenticado, cuando GET /api/configuracion, entonces muestra parámetros actuales.
+Criterio de aceptación
+CA-02: Dado valores válidos, cuando PUT actualiza umbrales, entonces persisten y aplican en alertas.
+Criterio de aceptación
+CA-03: Dado valor inválido, entonces HTTP 422.
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Prueba API configuración + demo UI
+Evidencia / Ruta demo
+/api/configuracion/ · /paginas/configuracion/index.html
+Estado de implementación
+Implementado
+HU-O14: Consultar documentación OpenAPI
+Atributo
+Valor
+Identificador
+HU-O14
+Título
+Consultar documentación OpenAPI
+Stakeholder / Actor
+Administrador o integrador
+Descripción de la necesidad
+El sistema debe exponer documentación OpenAPI autogenerada de la API REST para integradores y partners (OO2.1.2 del avance estratégico anterior).
+Historia de usuario (Como / Quiero / Para)
+Como administrador o integrador, quiero consultar la documentación OpenAPI interactiva, para conocer contratos, esquemas y probar endpoints.
+Justificación (Rationale)
+Escalabilidad comercial vía APIs (OE2) — base para CU-O13 partners.
+Prioridad
+Baja
+Supuestos y restricciones
+Swagger UI en /docs; endpoints partners aún no implementados.
+Trazabilidad OE / OT / OO
+OE2 / OT2.1 / OO2.1.2
+Caso de uso vinculado (CU-O)
+CU-O14
+Paquete funcional
+P15 Integraciones
+Departamento
+Crecimiento e Integraciones
+Requisitos funcionales (RF)
+RF-O-P15-001
+Reglas de negocio (RN / RG)
+RG-002 (endpoints documentados)
+Criterio de aceptación
+CA-01: Dado servidor activo, cuando navega a /docs, entonces carga Swagger UI.
+Criterio de aceptación
+CA-02: Dado esquema OpenAPI, cuando inspecciona, entonces lista rutas implementadas en el avance operativo.
+Criterio de aceptación
+CA-03: Programa partners dedicado — Fuera de alcance del avance operativo actual (parcial).
+Criterio de aceptación
+CA-ERR: Errores HTTP según tabla de códigos.
+Método de verificación
+Inspección /docs y /openapi.json
+Evidencia / Ruta demo
+GET /docs · GET /openapi.json
+Estado de implementación
+Parcial (/docs)
+Especificaciones por paquete
+Resumen consolidado de los paquetes implementados. El detalle completo vive en specs/003-operativo/paquetes/.
+P1 Autenticación
+Caso de uso: CU-O01. JWT login, logout, recuperación, permisos por rol
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P1 Autenticación - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P1 Autenticación - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P1 Autenticación - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P1 Autenticación - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P1 Autenticación - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P1 Autenticación - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P1 Autenticación - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P1 Autenticación - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P1 Autenticación - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P1 Autenticación - sección Fuera de alcance.
+P2 Usuarios
+Caso de uso: CU-O02. CRUD usuarios, asignación de roles
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P2 Usuarios - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P2 Usuarios - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P2 Usuarios - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P2 Usuarios - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P2 Usuarios - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P2 Usuarios - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P2 Usuarios - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P2 Usuarios - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P2 Usuarios - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P2 Usuarios - sección Fuera de alcance.
+Pacientes / HCE
+Caso de uso: CU-O02. Expediente, búsqueda, métricas por paciente
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para Pacientes / HCE - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para Pacientes / HCE - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para Pacientes / HCE - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para Pacientes / HCE - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para Pacientes / HCE - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para Pacientes / HCE - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para Pacientes / HCE - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para Pacientes / HCE - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para Pacientes / HCE - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para Pacientes / HCE - sección Fuera de alcance.
+Admisiones
+Caso de uso: CU-O03. Alta y listado de admisiones hospitalarias
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para Admisiones - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para Admisiones - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para Admisiones - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para Admisiones - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para Admisiones - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para Admisiones - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para Admisiones - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para Admisiones - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para Admisiones - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para Admisiones - sección Fuera de alcance.
+Agenda
+Caso de uso: CU-O04. Calendario y citas medicas
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para Agenda - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para Agenda - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para Agenda - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para Agenda - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para Agenda - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para Agenda - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para Agenda - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para Agenda - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para Agenda - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para Agenda - sección Fuera de alcance.
+P3 Registros clínicos
+Caso de uso: CU-O05. CRUD encuentros, filtros clínicos
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P3 Registros clínicos - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P3 Registros clínicos - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P3 Registros clínicos - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P3 Registros clínicos - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P3 Registros clínicos - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P3 Registros clínicos - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P3 Registros clínicos - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P3 Registros clínicos - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P3 Registros clínicos - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P3 Registros clínicos - sección Fuera de alcance.
+P4 Dataset
+Caso de uso: CU-O06. Info DWH, generación sintética Parquet
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P4 Dataset - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P4 Dataset - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P4 Dataset - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P4 Dataset - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P4 Dataset - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P4 Dataset - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P4 Dataset - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P4 Dataset - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P4 Dataset - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P4 Dataset - sección Fuera de alcance.
+P5 Análisis / Dashboard
+Caso de uso: CU-O07. KPIs, Chart.js, alertas clínicas
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P5 Análisis / Dashboard - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P5 Análisis / Dashboard - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P5 Análisis / Dashboard - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P5 Análisis / Dashboard - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P5 Análisis / Dashboard - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P5 Análisis / Dashboard - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P5 Análisis / Dashboard - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P5 Análisis / Dashboard - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P5 Análisis / Dashboard - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P5 Análisis / Dashboard - sección Fuera de alcance.
+P6 Predicción ML
+Caso de uso: CU-O08. RandomForest, historial inferencias
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P6 Predicción ML - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P6 Predicción ML - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P6 Predicción ML - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P6 Predicción ML - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P6 Predicción ML - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P6 Predicción ML - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P6 Predicción ML - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P6 Predicción ML - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P6 Predicción ML - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P6 Predicción ML - sección Fuera de alcance.
+P7 Reportes
+Caso de uso: CU-O09. PDF agregado sin PII
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P7 Reportes - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P7 Reportes - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P7 Reportes - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P7 Reportes - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P7 Reportes - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P7 Reportes - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P7 Reportes - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P7 Reportes - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P7 Reportes - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P7 Reportes - sección Fuera de alcance.
+P8 Pipeline ELT
+Caso de uso: CU-O10. Estado y ejecución ELT
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P8 Pipeline ELT - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P8 Pipeline ELT - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P8 Pipeline ELT - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P8 Pipeline ELT - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P8 Pipeline ELT - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P8 Pipeline ELT - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P8 Pipeline ELT - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P8 Pipeline ELT - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P8 Pipeline ELT - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P8 Pipeline ELT - sección Fuera de alcance.
+P11 Auditoria
+Caso de uso: Log de accesos y operaciones sensibles
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P11 Auditoria - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P11 Auditoria - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P11 Auditoria - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P11 Auditoria - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P11 Auditoria - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P11 Auditoria - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P11 Auditoria - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P11 Auditoria - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P11 Auditoria - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P11 Auditoria - sección Fuera de alcance.
+P12 Configuración
+Caso de uso: Parámetros MinIO, umbrales, sistema
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P12 Configuración - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P12 Configuración - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P12 Configuración - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P12 Configuración - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P12 Configuración - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P12 Configuración - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P12 Configuración - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P12 Configuración - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P12 Configuración - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P12 Configuración - sección Fuera de alcance.
+P14 Modelo ML
+Caso de uso: CU-O09. Info modelo, reentrenamiento, métricas
+Objetivo
+Ver spec detallada en specs/003-operativo/paquetes/ para P14 Modelo ML - sección Objetivo.
+Actores
+Ver spec detallada en specs/003-operativo/paquetes/ para P14 Modelo ML - sección Actores.
+RF
+Ver spec detallada en specs/003-operativo/paquetes/ para P14 Modelo ML - sección RF.
+RNF
+Ver spec detallada en specs/003-operativo/paquetes/ para P14 Modelo ML - sección RNF.
+RN
+Ver spec detallada en specs/003-operativo/paquetes/ para P14 Modelo ML - sección RN.
+Entradas
+Ver spec detallada en specs/003-operativo/paquetes/ para P14 Modelo ML - sección Entradas.
+Salidas
+Ver spec detallada en specs/003-operativo/paquetes/ para P14 Modelo ML - sección Salidas.
+Escenarios Gherkin
+Escenario principal: Dado sesión valida, Cuando el actor ejecuta la operación, Entonces el sistema responde según RF del paquete y registra auditoria si aplica.
+Escenario alterno: Dado permiso insuficiente, Cuando intenta acceder, Entonces HTTP 403.
+CA
+CA-OK: Operación exitosa con código 2xx.
+CA-ERR: Errores con código 4xx/5xx documentados.
+CA-AUD: Auditoria cuando RG-005 aplica.
+Dependencias
+Ver spec detallada en specs/003-operativo/paquetes/ para P14 Modelo ML - sección Dependencias.
+Restricciones
+Ver spec detallada en specs/003-operativo/paquetes/ para P14 Modelo ML - sección Restricciones.
+Fuera de alcance
+Ver spec detallada en specs/003-operativo/paquetes/ para P14 Modelo ML - sección Fuera de alcance.
+Plan técnico y data warehouse
+Componentes
+Capa
+Tecnología
+Responsabilidad
+Presentación
+Vanilla JS + HTML
+UI hospital, Chart.js, formularios
+API
+FastAPI
+REST, JWT, OpenAPI
+Servicios
+Python
+Lógica de negocio por paquete
+DWH
+MinIO + Parquet
+63 tablas Hecho-Dimensión
+ELT
+Airflow + scripts
+Extracción PocketBase (~100K registros), carga MinIO
+ML
+scikit-learn
+RandomForest persistido en MinIO
+Catalogo DWH -63 tablas por grupo
+Grupo: agregados (9 tablas)
+ID
+Nombre
+Estado
+Paquete
+agg_prevalencia_ubicacion
+Agg. prevalencia por ubicación
+derivado
+P5
+agg_prevalencia_edad
+Agg. prevalencia por edad
+derivado
+P5
+agg_promedios_clínicos
+Agg. promedios clínicos
+derivado
+P5
+agg_cohorte_riesgo
+Agg. cohorte por riesgo
+derivado
+P6
+agg_ocupacion_camas
+Agg. ocupación camas
+esquema
+Hospitalización
+agg_productividad_medica
+Agg. productividad médica
+esquema
+RRHH
+agg_costo_servicio
+Agg. costo por servicio
+esquema
+Facturación
+agg_tiempos_espera
+Agg. tiempos de espera
+esquema
+Urgencias
+agg_medicamentos_top
+Agg. medicamentos más dispensados
+esquema
+Farmacia
+Grupo: dimensiones (26 tablas)
+ID
+Nombre
+Estado
+Paquete
+dim_paciente
+Dim. paciente
+implementado
+P4
+dim_ubicacion
+Dim. ubicación
+implementado
+P4
+dim_raza
+Dim. raza
+implementado
+P4
+dim_condicion
+Dim. condición
+implementado
+P4
+dim_tiempo
+Dim. tiempo
+implementado
+P4
+dim_hospital
+Dim. hospital / sede
+derivado
+P9
+dim_edad_grupo
+Dim. grupo etario
+derivado
+P5
+dim_genero
+Dim. género
+derivado
+P4
+dim_tabaquismo
+Dim. tabaquismo
+derivado
+P4
+dim_riesgo_metabolico
+Dim. riesgo metabólico
+derivado
+P6
+dim_diagnostico
+Dim. diagnóstico diabetes
+derivado
+P6
+dim_comorbilidad
+Dim. comorbilidad
+derivado
+P5
+dim_medico
+Dim. médico
+derivado
+P2
+dim_servicio
+Dim. servicio clínico
+esquema
+P3
+dim_cargo
+Dim. cargo RRHH
+esquema
+RRHH
+dim_especialidad
+Dim. especialidad médica
+esquema
+RRHH
+dim_turno
+Dim. turno
+esquema
+RRHH
+dim_departamento_hospital
+Dim. departamento
+esquema
+P9
+dim_cie10
+Dim. CIE-10
+esquema
+P3
+dim_medicamento
+Dim. medicamento
+esquema
+Farmacia
+dim_laboratorio_prueba
+Dim. prueba laboratorio
+esquema
+Laboratorio
+dim_seguro
+Dim. aseguradora
+esquema
+Facturación
+dim_proveedor
+Dim. proveedor
+esquema
+Inventario
+dim_habitacion
+Dim. habitación / cama
+esquema
+Hospitalización
+dim_equipo_medico
+Dim. equipo médico
+esquema
+Inventario
+dim_dieta
+Dim. dieta clínica
+esquema
+Hospitalización
+Grupo: hechos (13 tablas)
+ID
+Nombre
+Estado
+Paquete
+hechos_diabetes
+Hechos diabetes
+implementado
+P3
+hechos_consulta
+Hechos consulta
+derivado
+P3
+hechos_Predicción
+Hechos predicción ML
+derivado
+P6
+hechos_alertas
+Hechos alertas clínicas
+derivado
+P10
+hechos_admision
+Hechos admisión
+esquema
+Admisiones
+hechos_signos_vitales
+Hechos signos vitales
+esquema
+P3
+hechos_laboratorio
+Hechos laboratorio
+esquema
+Laboratorio
+hechos_procedimiento
+Hechos procedimiento
+esquema
+Quirófano
+hechos_hospitalizacion
+Hechos hospitalización
+esquema
+Hospitalización
+hechos_emergencia
+Hechos urgencias
+esquema
+Urgencias
+hechos_tratamiento_insulina
+Hechos tratamiento insulina
+esquema
+P6
+hechos_facturacion
+Hechos facturación
+esquema
+Facturación
+hechos_farmacia_dispensacion
+Hechos dispensación farmacia
+esquema
+Farmacia
+Grupo: operativo (10 tablas)
+ID
+Nombre
+Estado
+Paquete
+cat_fuentes
+Cat. fuentes de datos
+derivado
+P8
+cat_casos_uso
+Cat. trazabilidad CU-O
+derivado
+P1
+oper_fotos_entidad
+Fotos de personas
+implementado
+P3
+oper_citas
+Agenda clínica
+implementado
+P3
+oper_admisiones
+Admisiones hospitalarias
+implementado
+Admisiones
+oper_personal_rrhh
+Personal RRHH
+implementado
+RRHH
+oper_inventario
+Inventario insumos
+esquema
+Inventario
+oper_recetas
+Recetas médicas
+esquema
+Farmacia
+oper_ordenes_lab
+Órdenes laboratorio
+esquema
+Laboratorio
+oper_auditoria_eventos
+Eventos auditoría
+implementado
+P11
+Grupo: puente (5 tablas)
+ID
+Nombre
+Estado
+Paquete
+bridge_paciente_comorbilidad
+Bridge paciente-comorbilidad
+derivado
+P5
+bridge_medico_servicio
+Bridge médico-servicio
+esquema
+RRHH
+bridge_personal_turno
+Bridge personal-turno
+esquema
+RRHH
+bridge_paciente_seguro
+Bridge paciente-seguro
+esquema
+Facturación
+bridge_tratamiento_medicamento
+Bridge tratamiento-medicamento
+esquema
+Farmacia
+Doce tablas principales -columnas
+Hechos diabetes (hechos_diabetes)
+Encuentro clínico con métricas metabólicas y FKs al star schema.
+Columna
+Orden
+encounter_id
+1
+year
+2
+age
+3
+bmi
+4
+hbA1c_level
+5
+blood_glucose_level
+6
+diabetes
+7
+hypertension
+8
+heart_disease
+9
+id_paciente
+10
+id_ubicacion
+11
+id_raza
+12
+id_condicion
+13
+id_tiempo
+14
+Dim. paciente (dim_paciente)
+Paciente anonimizado (edad, género).
+Columna
+Orden
+id_paciente
+1
+gender
+2
+age
+3
+Dim. ubicación (dim_ubicacion)
+Ubicación geográfica / sede.
+Columna
+Orden
+id_ubicacion
+1
+location
+2
+Dim. tiempo (dim_tiempo)
+Periodo temporal (año).
+Columna
+Orden
+id_tiempo
+1
+year
+2
+Hechos consulta (hechos_consulta)
+Vista clínica del encuentro: flags de riesgo y clasificación metabólica.
+Columna
+Orden
+encounter_id
+1
+id_paciente
+2
+id_hospital
+3
+id_edad_grupo
+4
+clasificacion_hba1c
+5
+clasificacion_glucosa
+6
+nivel_riesgo
+7
+diabetes
+8
+Hechos predicción ML (hechos_Predicción)
+Registro de inferencias del modelo (auditoría clínica ML).
+Columna
+Orden
+id_Predicción
+1
+encounter_id
+2
+probabilidad
+3
+diagnostico_estimado
+4
+modelo_version
+5
+fecha_Predicción
+6
+id_medico
+7
+Hechos admisión (hechos_admision)
+Eventos de ingreso hospitalario.
+Columna
+Orden
+id_admision
+1
+id_paciente
+2
+id_servicio
+3
+id_hospital
+4
+tipo
+5
+fecha_ingreso
+6
+Dim. servicio clínico (dim_servicio)
+Servicio hospitalario (Endocrinología, Medicina interna…).
+Columna
+Orden
+id_servicio
+1
+nombre
+2
+tipo
+3
+Rutas API principales
+Metodo
+Ruta
+Paquete
+POST
+/api/auth/login
+P1
+GET
+/api/usuarios
+P2
+GET/POST
+/api/registros
+P3
+GET/POST
+/api/admisiones
+Admisiones
+GET/POST
+/api/agenda
+Agenda
+GET/POST
+/api/dataset/*
+P4
+GET
+/api/registros/estadisticas
+P5
+POST
+/api/Predicción/evaluar
+P6
+POST
+/api/reportes/generar
+P7
+GET/POST
+/api/pipeline/*
+P8
+GET
+/api/auditoria
+P11
+GET/PUT
+/api/Configuración
+P12
+Plan de tareas y checklist
+Fases de implementación
+Fase
+Alcance
+Estado
+F0
+Constitución + specs SDD
+Completo
+F1
+P1–P6 core clínico
+Completo
+F2
+P7 Reportes PDF
+Completo
+F3
+P8 Pipeline + 63 tablas DWH
+Completo catalogo
+F4
+Menú hospital + Admisiones + Agenda + Mis citas (médico)
+Completo
+F5
+P11, P12, P13, P14, Corporativo
+Completo demo
+F6
+Urgencias, Lab, Farmacia HIS
+Placeholder Fase 2
+5.2 Checklist funcional del avance operativo
+Login JWT con tres roles demostrable
+CRUD registros y filtros clínicos
+Admisiones y agenda operativas
+Dataset ~901k encuentros consultable
+Dashboard con Chart.js
+Predicción ML con interpretacion
+Reporte PDF descargable
+Pipeline ELT ejecutable desde UI
+Auditoria y Configuración accesibles
+10 diagramas UML de casos de uso
+Diagramas clases, componentes, paquetes
+Video con app + spec en pantalla
+5.3 Checklist no funcional ampliado
+Seguridad: contraseñas hasheadas, JWT HS256, 401/403 correctos.
+Rendimiento: indicador de carga en estadisticas con dataset grande.
+Mantenibilidad: código organizado en 15 paquetes en backend/paquetes/ y frontend/paginas/{departamento}/.
+Trazabilidad: cada RF referenciado a CU-O y paquete.
+Calidad: suite pytest en pruebas/ (API, integracion, ML, PBT).
+Usabilidad: menu hospital 7 categorias con iconos.
+Escalabilidad: Parquet columnar en MinIO para analitica.
+Cumplimiento: reportes sin PII; auditoria RG-005.
+Estrategia de pruebas
+El proyecto incluye pruebas automatizadas bajo pruebas/ conforme al Principio IV de la constitución.
+6.1 Tipos de prueba
+Tipo
+Ubicación
+Propósito
+API
+pruebas/api/test_*.py
+Endpoints REST con TestClient y mocks JWT
+Humo servidor
+pruebas/test_servidor_humo.py
+Arranque y rutas básicas
+Unitario
+pruebas/test_servidor_unitario.py
+Funciones aisladas
+Integración pipeline
+pruebas/integracion/test_pipeline.py
+Flujo ELT
+ML
+pruebas/ml/test_Predicción.py
+Inferencia y contrato respuesta
+Property-based
+pruebas/test_*_pbt.py
+Invariantes CRUD, stats, cache
+6.2 Modulos con pruebas API
+Modulo
+Archivo test
+Auditoria
+test_auditoria.py
+Benchmarking
+test_benchmarking.py
+Configuración
+test_Configuración.py
+Corporativo
+test_corporativo.py
+Integraciones
+test_integraciones.py
+Modelo ML
+test_modelo_ml.py
+Notificaciones
+test_notificaciones.py
+Reportes
+test_reportes.py
+6.3 Criterios de aceptación de pruebas
+pytest debe ejecutarse sin errores en entorno de desarrollo.
+Cobertura mínima: todos los paquetes de demostración operativa con al menos un test API.
+Mocks de MinIO/JWT para pruebas sin infraestructura externa.
+Diseño de la base de datos
+DiabCare no utiliza un RDBMS tradicional como almacén analítico principal. La base de datos del sistema es MinIO (object storage) con archivos Parquet columnar, organizados en buckets y prefijos según el modelo Hecho-Dimensión (star schema). PocketBase aloja únicamente ~100K registros de origen para el ELT; usuarios, JWT y credenciales residen en MinIO (usuarios.parquet).
+Documentación UML
+Esta sección corresponde a la Parte II del entregable. Inserte las imágenes PNG generadas en la carpeta diabcare-diagramas.
+Diagrama de clases -entidades DWH y servicios
+Diagrama de componentes -capas ELT
+Diagrama de paquetes P1–P
+Conclusión
+El sistema DiabCare Hospital cumple la cadena de trazabilidad avance estratégico anterior → avance operativo actual con constitución v1.1.0, especificación operativa por paquetes, DWH de 63 tablas, once casos de uso demostrables (CU-O01–O10 y CU-O04-B) y suite de pruebas. Complete las figuras UML, capturas de pantalla y portada para la entrega final.
+Anexo A
+El documento estratégico del avance anterior del proyecto establece la cadena BSC → OE → OT → OO y 59 casos de uso en tres niveles (CU-E, CU-T, CU-O). avance operativo actual consolida el nivel operativo implementado en el avance actual del sistema en ejecución, especificación SDD y UML.
+A.1 Flujo de valor del avance estratégico anterior
+Operativo: PocketBase aloja ~100K registros origen; MinIO es la BD (usuarios/JWT, Parquet clínico).
+Táctico: Airflow orquesta ELT hacia MinIO.
+Estratégico: Dashboard, reportes y benchmarking alimentan decisiones.
+A.2 Matriz permisos por rol (extracto)
+Modulo
+Admin
+Medico
+Analista
+Usuarios
+Si
+No
+No
+Admisiones
+Si
+No
+No
+Admisiones
+Si
+No
+No
+Agenda (citas)
+Si
+No
+No
+Mis citas
+No
+Si
+No
+Dataset/Pipeline
+Si
+No
+Si
+Predicción/Reportes
+Si
+Si
+Si
+Auditoria/Config
+Si
+No
+No
+Anexo B -Glosario
+Termino
+Definición
+CU-O
+Caso de uso operativo (ejecucion diaria)
+DWH
+Data Warehouse -almacen analitico
+ELT
+Extract-Load-Transform (carga antes de transformar)
+HCE
+Historia Clinica Electronica
+HIS
+Hospital Information System
+HbA1c
+Hemoglobina glicosilada -control metabolico
+JWT
+JSON Web Token -sesión stateless
+KPI
+Indicador clave de desempeno
+ML
+Machine Learning
+OO
+Objetivo operativo del avance anterior
+Parquet
+Formato columnar para analitica
+SDD
+Spec-Driven Development

@@ -12,9 +12,9 @@
 > (compatibilidad P8). La nomenclatura funcional y de documentación es
 > **Pipeline ELT** (Extract → Load → Transform).
 
-**Rutas reales**: `backend/api/pipeline_etl/PipelineEtlRutas.py`,
-`backend/servicios/pipeline_etl/PipelineEtlServicio.py`,
-`frontend/paginas/pipeline_etl/index.html`. Orquestación prevista con
+**Rutas reales**: `backend/paquetes/pipeline_elt/PipelineEtlRutas.py`,
+`backend/paquetes/pipeline_elt/PipelineEtlServicio.py`,
+`frontend/paginas/datos/pipeline_elt/index.html`. Orquestación prevista con
 Apache Airflow (`dags/`).
 
 ## 1. Objetivo

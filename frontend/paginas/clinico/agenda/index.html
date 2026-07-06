@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Agenda</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Agenda</span>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Agenda <span>clínica</span></div>
+        <div class="page-sub">Programación de citas — solo administración asigna médico y horario</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Agendar cita</button>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Citas hoy</div><div class="stat-value blue" id="st-hoy">—</div></div>
+    </div>
+    <div class="tabla-card">
+      <div class="tabla-top">
+        <input class="search" id="f-fecha" type="date" onchange="cargar()">
+        <select class="search" id="f-estado" onchange="cargar()">
+          <option value="">Todos los estados</option>
+          <option>programada</option><option>confirmada</option><option>atendida</option><option>cancelada</option>
+        </select>
+      </div>
+      <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+<div id="modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span id="modal-titulo">Agendar cita</span></div>
+    <div class="modal-body form-modal-grid">
+      <input type="hidden" id="f-id">
+      <label class="span-full">Paciente
+        <select id="m-paciente"></select>
+      </label>
+      <label class="span-full">Médico asignado
+        <select id="m-medico" required></select>
+      </label>
+      <label>Fecha<input id="m-fecha" type="date"></label>
+      <label>Hora<input id="m-hora" type="time" value="09:00"></label>
+      <label>Estado<select id="m-estado"><option>programada</option><option>confirmada</option><option>atendida</option><option>cancelada</option></select></label>
+      <label class="span-full">Motivo<input id="m-motivo" value="Control clínico"></label>
+      <label class="span-full">Notas<textarea id="m-notas" rows="2"></textarea></label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador']);
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+let _rows = [], _pacientes = [], _medicos = [];
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function cargarMedicos() {
+  const r = await fetch(`${API}/api/usuarios/medicos`, { headers: { Authorization: 'Bearer '+token } });
+  if (r.ok) _medicos = (await r.json()).medicos || [];
+}
+
+async function cargarPacientes() {
+  const r = await fetch(`${API}/api/pacientes/?limit=200`, { headers: { Authorization: 'Bearer '+token } });
+  if (r.ok) _pacientes = (await r.json()).pacientes || [];
+}
+
+async function cargarHoy() {
+  const r = await fetch(`${API}/api/citas/hoy`, { headers: { Authorization: 'Bearer '+token } });
+  if (r.ok) document.getElementById('st-hoy').textContent = (await r.json()).total ?? 0;
+}
+
+async function cargar() {
+  const fecha = document.getElementById('f-fecha').value;
+  const estado = document.getElementById('f-estado').value;
+  let url = `${API}/api/citas/?limit=100`;
+  if (fecha) url += `&fecha=${fecha}`;
+  if (estado) url += `&estado=${estado}`;
+  const r = await fetch(url, { headers: { Authorization: 'Bearer '+token } });
+  if (r.status === 401) { window.location.href = '/'; return; }
+  const data = await r.json();
+  _rows = data.citas || [];
+  if (!_rows.length) {
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin citas</div>';
+    return;
+  }
+  let h = '<table class="tabla"><thead><tr><th>Fecha</th><th>Hora</th><th>Paciente</th><th>Médico</th><th>Estado</th><th></th></tr></thead><tbody>';
+  _rows.forEach(c => {
+    h += `<tr>
+      <td>${c.fecha||'—'}</td><td>${c.hora||'—'}</td><td>${c.paciente_nombre||'—'}</td>
+      <td>${c.medico||'—'}</td><td>${c.estado||'—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="editar('${c.id_cita}')">Editar</button>
+        <button class="btn btn-ghost btn-sm" onclick="cancelar('${c.id_cita}')">Cancelar</button>
+      </td></tr>`;
+  });
+  h += '</tbody></table>';
+  document.getElementById('tablaBody').innerHTML = h;
+}
+
+function llenarMedicos(selected) {
+  const sel = document.getElementById('m-medico');
+  sel.innerHTML = _medicos.length
+    ? _medicos.map(m => `<option value="${(m.nombre || '').replace(/"/g, '&quot;')}">${m.nombre || m.email}${m.email ? ` (${m.email})` : ''}</option>`).join('')
+    : '<option value="">— Registre un usuario con rol Médico —</option>';
+  if (selected) {
+    const match = [...sel.options].find(o => o.value === selected);
+    sel.value = match ? selected : (sel.options[0]?.value || '');
+  } else if (_medicos.length) {
+    sel.value = _medicos[0].nombre || '';
+  }
+}
+
+function llenarPacientes(selId, selected) {
+  const sel = document.getElementById(selId);
+  sel.innerHTML = _pacientes.length
+    ? _pacientes.map(p => `<option value="${p.id_paciente}">${p.nombre_completo||p.nombre} (${p.documento||'sin doc'})</option>`).join('')
+    : '<option value="">— Cree un paciente primero —</option>';
+  if (selected) sel.value = selected;
+}
+
+function abrirModal(c) {
+  document.getElementById('modal').style.display = 'flex';
+  document.getElementById('modal-titulo').textContent = c ? 'Editar cita' : 'Agendar cita';
+  document.getElementById('f-id').value = c?.id_cita || '';
+  llenarPacientes('m-paciente', c?.id_paciente || _pacientes[0]?.id_paciente);
+  llenarMedicos(c?.medico || '');
+  document.getElementById('m-fecha').value = (c?.fecha || new Date().toISOString().slice(0, 10)).slice(0, 10);
+  document.getElementById('m-hora').value = c?.hora || '09:00';
+  document.getElementById('m-estado').value = c?.estado || 'programada';
+  document.getElementById('m-motivo').value = c?.motivo || 'Control clínico';
+  document.getElementById('m-notas').value = c?.notas || '';
+}
+function cerrarModal() { document.getElementById('modal').style.display = 'none'; }
+function editar(id) { abrirModal(_rows.find(x => x.id_cita === id)); }
+
+async function guardar() {
+  const id = document.getElementById('f-id').value;
+  const body = {
+    id_paciente: document.getElementById('m-paciente').value.trim(),
+    medico: document.getElementById('m-medico').value.trim(),
+    fecha: document.getElementById('m-fecha').value,
+    hora: document.getElementById('m-hora').value,
+    estado: document.getElementById('m-estado').value,
+    motivo: document.getElementById('m-motivo').value.trim(),
+    notas: document.getElementById('m-notas').value.trim(),
+  };
+  if (!body.id_paciente) { toast('Seleccione un paciente', 'error'); return; }
+  if (!body.medico) { toast('Seleccione un médico', 'error'); return; }
+  const url = id ? `${API}/api/citas/${id}` : `${API}/api/citas/`;
+  const r = await fetch(url, {
+    method: id ? 'PUT' : 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+token },
+    body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  if (!r.ok) { toast(d.detail || d.error || 'Error', 'error'); return; }
+  toast(id ? 'Cita actualizada' : 'Cita agendada');
+  cerrarModal();
+  cargarHoy();
+  cargar();
+}
+
+async function cancelar(id) {
+  if (!confirm('¿Cancelar esta cita?')) return;
+  const r = await fetch(`${API}/api/citas/${id}`, { method: 'DELETE', headers: { Authorization: 'Bearer '+token } });
+  if (!r.ok) { toast('Error al cancelar', 'error'); return; }
+  toast('Cita cancelada');
+  cargarHoy();
+  cargar();
+}
+
+document.getElementById('f-fecha').value = new Date().toISOString().slice(0, 10);
+Promise.all([cargarPacientes(), cargarMedicos()]).then(() => { cargarHoy(); cargar(); });
+</script>
+</body>
+</html>

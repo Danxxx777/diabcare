@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Generador de datos</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<style>
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:4px; }
+.form-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:4px; }
+@media (max-width:900px) { .form-grid-3 { grid-template-columns:1fr; } }
+.field-hint { font-size:10px; color:var(--muted); margin-top:4px; font-family:var(--mono); }
+.panel-desc { font-size:12px; color:var(--muted); line-height:1.6; margin:-6px 0 18px; }
+
+.progress-wrap { margin-top:18px; display:none; }
+.progress-wrap.visible { display:block; }
+.progress-label { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); font-family:var(--mono); margin-bottom:8px; }
+.progress-track { height:4px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg,rgba(34,211,238,0.8),rgba(74,222,128,0.8)); border-radius:2px; width:0%; transition:width .4s ease; }
+.progress-steps { display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; }
+.step-chip { padding:3px 10px; border-radius:12px; font-size:10px; font-family:var(--mono); border:1px solid var(--border); color:var(--muted); transition:all .3s; }
+.step-chip.active { border-color:rgba(34,211,238,0.5); color:rgba(34,211,238,0.9); background:rgba(34,211,238,0.08); }
+.step-chip.done   { border-color:rgba(74,222,128,0.4); color:rgba(74,222,128,0.8); background:rgba(74,222,128,0.06); }
+
+.result-box { display:none; margin-top:16px; padding:16px; border-radius:10px; animation:fadeUp .3s ease; }
+.result-box.show { display:block; }
+.result-box.ok  { background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.2); }
+.result-box.err { background:rgba(248,113,113,0.06); border:1px solid rgba(248,113,113,0.2); }
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.result-title { font-size:13px; font-weight:600; margin-bottom:4px; }
+.result-box.ok  .result-title { color:rgba(74,222,128,0.95); }
+.result-box.err .result-title { color:rgba(248,113,113,0.95); }
+.result-sub { font-size:11px; color:var(--muted); margin-bottom:14px; }
+.result-file { padding:10px 12px; background:rgba(255,255,255,0.03); border-radius:8px; font-size:11px; font-family:var(--mono); color:var(--muted); word-break:break-all; margin-top:12px; }
+.result-file span { color:var(--cyan); }
+
+.info-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.info-row:last-child { border-bottom:none; }
+.info-label { color:var(--text2,var(--text3)); }
+.info-val   { font-family:var(--mono); color:var(--text); text-align:right; max-width:60%; }
+.link-cyan { color:var(--cyan); text-decoration:none; }
+.link-cyan:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span>
+    <span class="tb-crumb">Dataset</span><span class="tb-sep">/</span>
+    <span class="tb-page">Generador de datos</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Generador de <span>datos</span></div>
+        <div class="page-sub">Crea registros sintéticos de diabetes y súbelos a MinIO en Parquet</div>
+      </div>
+      <a href="/paginas/datos/dataset/index.html" class="btn btn-ghost btn-sm">Ver tablas →</a>
+    </div>
+
+    <div class="dash-row dash-2">
+      <!-- Formulario -->
+      <div class="panel">
+        <div class="panel-title">Configuración de generación</div>
+        <p class="panel-desc">
+          Los registros respetan distribuciones clínicas reales y se almacenan en
+          <code style="font-family:var(--mono);font-size:11px;color:var(--cyan)">stage/</code> del bucket MinIO.
+        </p>
+
+        <div class="form-grid">
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl" for="g-cantidad">Cantidad de registros</label>
+            <input class="fi" type="number" id="g-cantidad" value="1000" min="1" max="10000000">
+            <div class="field-hint" id="hint-cantidad">1.000 registros · máx. 10.000.000</div>
+          </div>
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl" for="g-year">Año del dataset</label>
+            <input class="fi" type="number" id="g-year" value="2025" min="2010" max="2030">
+            <div class="field-hint">Año asignado a los registros</div>
+          </div>
+        </div>
+
+        <div class="form-grid-3" style="margin-top:14px">
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl" for="g-perfil">Perfil clínico</label>
+            <select class="fs" id="g-perfil">
+              <option value="aleatorio">Aleatorio clínico</option>
+              <option value="balanceado">Balanceado</option>
+              <option value="alto_riesgo">Alto riesgo metabólico</option>
+              <option value="bajo_riesgo">Bajo riesgo</option>
+            </select>
+          </div>
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl" for="g-genero">Género</label>
+            <select class="fs" id="g-genero">
+              <option value="">Aleatorio</option>
+              <option value="Femenino">Femenino</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl" for="g-ubicacion">Ubicación</label>
+            <select class="fs" id="g-ubicacion">
+              <option value="">Aleatoria</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid-3" style="margin-top:14px">
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl" for="g-edad-min">Edad mínima</label>
+            <input class="fi" type="number" id="g-edad-min" value="18" min="1" max="120">
+          </div>
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl" for="g-edad-max">Edad máxima</label>
+            <input class="fi" type="number" id="g-edad-max" value="75" min="1" max="120">
+          </div>
+          <div class="fg" style="margin-bottom:0">
+            <label class="fl" for="g-prevalencia">Prevalencia diabetes (%)</label>
+            <input class="fi" type="number" id="g-prevalencia" placeholder="Auto" min="0" max="100" step="1">
+            <div class="field-hint">Opcional — vacío = cálculo clínico</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin:16px 0;flex-wrap:wrap;align-items:center;" id="presetsRow">
+          <span class="fl" style="margin:0">Presets</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(1000)">1K</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(10000)">10K</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(50000)">50K</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(100000)">100K</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(500000)">500K</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(1000000)">1M</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(2000000)">2M</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(5000000)">5M</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(10000000)">10M</button>
+        </div>
+
+        <button class="btn btn-primary" id="btnGenerar" onclick="generar()" style="width:100%;justify-content:center;padding:12px">
+          <span data-icon="generador" data-icon-size="14"></span> Generar y subir a MinIO
+        </button>
+
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-label">
+            <span id="progressText">Iniciando…</span>
+            <span id="progressPct">0%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-steps">
+            <div class="step-chip" id="step1">Generando registros</div>
+            <div class="step-chip" id="step2">Construyendo Parquet</div>
+            <div class="step-chip" id="step3">Subiendo a MinIO</div>
+            <div class="step-chip" id="step4">Completado</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ayuda + resultado -->
+      <div class="panel">
+        <div class="panel-title">Guía y resultado</div>
+        <p class="panel-desc">
+          Tras generar, los datos aparecen en
+          <a href="/paginas/datos/dataset/index.html" class="link-cyan">Dataset → Ver tablas</a>
+          y alimentan el pipeline ELT y el entrenamiento ML.
+        </p>
+
+        <div class="info-row"><span class="info-label">Formato de salida</span><span class="info-val">Parquet</span></div>
+        <div class="info-row"><span class="info-label">Destino MinIO</span><span class="info-val">stage/</span></div>
+        <div class="info-row"><span class="info-label">Perfiles disponibles</span><span class="info-val">4 clínicos</span></div>
+        <div class="info-row"><span class="info-label">Máximo por lote</span><span class="info-val" id="infoMaxReg">10.000.000 reg.</span></div>
+
+        <div class="result-box" id="resultBox">
+          <div class="result-title" id="resultTitle">—</div>
+          <div class="result-sub" id="resultSub"></div>
+          <div class="stats-grid" id="resultStats" style="margin-bottom:0"></div>
+          <div class="result-file" id="resultFile"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Archivos -->
+    <div class="tabla-card" style="margin-top:14px">
+      <div class="tabla-top">
+        <span class="tabla-title">Archivos en MinIO (stage/)</span>
+        <button class="btn btn-ghost btn-sm" onclick="cargarArchivos()">↺ Actualizar</button>
+        <button class="btn btn-danger btn-sm" onclick="eliminarTodos()">Eliminar todos</button>
+        <span class="tabla-info" id="archivosInfo">—</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border)">
+        <div class="fg" style="margin:0;min-width:130px;flex:1">
+          <label class="fl" for="del-cantidad">Eliminar registros</label>
+          <input class="fi" type="number" id="del-cantidad" min="1" placeholder="ej. 1000">
+        </div>
+        <div class="fg" style="margin:0;min-width:170px;flex:1">
+          <label class="fl" for="del-desde">Desde</label>
+          <select class="fs" id="del-desde">
+            <option value="recientes">Los más recientes</option>
+            <option value="antiguos">Los más antiguos</option>
+          </select>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="eliminarRegistros()" id="btnDelReg" style="margin-bottom:1px">Eliminar cantidad</button>
+      </div>
+      <div class="tabla-wrap">
+        <div id="archivosList"><div class="loading" style="padding:24px"><div class="spinner"></div> Cargando archivos…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+DiabCareNav.init();
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+let totalRegistrosStage = 0;
+let maxRegistros = 10_000_000;
+
+function invalidarCacheStatsUi() {
+  try { sessionStorage.removeItem('diabcare_dashboard_stats'); } catch {}
+}
+
+function toast(msg, type = 'success') {
+  DiabCareAPI.toast(msg, type);
+}
+
+function actualizarHintCantidad(v) {
+  const n = parseInt(v, 10) || 0;
+  const hint = document.getElementById('hint-cantidad');
+  if (n > maxRegistros) {
+    hint.textContent = `Excede el máximo (${maxRegistros.toLocaleString('es-ES')})`;
+    hint.style.color = 'var(--red)';
+  } else {
+    hint.textContent = `${n.toLocaleString('es-ES')} registros · máx. ${maxRegistros.toLocaleString('es-ES')}`;
+    hint.style.color = '';
+  }
+}
+
+function setPreset(val) {
+  document.getElementById('g-cantidad').value = val;
+  actualizarHintCantidad(val);
+}
+
+document.getElementById('g-cantidad').addEventListener('input', function() {
+  actualizarHintCantidad(this.value);
+});
+
+function setProgress(pct, text, step) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent  = pct + '%';
+  document.getElementById('progressText').textContent = text;
+  ['step1','step2','step3','step4'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.className = 'step-chip' + (i + 1 === step ? ' active' : i + 1 < step ? ' done' : '');
+  });
+}
+
+function showResult(ok, title, sub, statsHtml, fileHtml) {
+  const box = document.getElementById('resultBox');
+  box.className = 'result-box show ' + (ok ? 'ok' : 'err');
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultSub').textContent   = sub || '';
+  document.getElementById('resultStats').innerHTML   = statsHtml || '';
+  document.getElementById('resultFile').innerHTML    = fileHtml || '';
+}
+
+function formatPresetLabel(n) {
+  if (n >= 1_000_000) return (n / 1_000_000) + 'M';
+  if (n >= 1_000) return (n / 1_000) + 'K';
+  return String(n);
+}
+
+async function cargarOpciones() {
+  try {
+    const r = await fetch(`${API}/api/dataset/opciones-generacion`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    const sel = document.getElementById('g-ubicacion');
+    (d.ubicaciones || []).forEach(u => {
+      const o = document.createElement('option');
+      o.value = u; o.textContent = u;
+      sel.appendChild(o);
+    });
+    if (d.max_registros) {
+      maxRegistros = d.max_registros;
+      document.getElementById('g-cantidad').max = maxRegistros;
+      document.getElementById('infoMaxReg').textContent = maxRegistros.toLocaleString('es-ES') + ' reg.';
+      actualizarHintCantidad(document.getElementById('g-cantidad').value);
+    }
+    const presets = d.presets;
+    if (presets && presets.length) {
+      const row = document.getElementById('presetsRow');
+      row.innerHTML = '<span class="fl" style="margin:0">Presets</span>' +
+        presets.map(p => `<button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(${p})">${formatPresetLabel(p)}</button>`).join('');
+    }
+  } catch {}
+}
+
+async function cargarArchivos() {
+  const box = document.getElementById('archivosList');
+  const info = document.getElementById('archivosInfo');
+  box.innerHTML = '<div class="loading" style="padding:24px"><div class="spinner"></div> Cargando…</div>';
+  try {
+    const r = await fetch(`${API}/api/dataset/archivos`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const d = await r.json();
+    const archivos = d.archivos || [];
+    totalRegistrosStage = d.total_registros ?? archivos.reduce((s, a) => s + (a.registros || 0), 0);
+    info.textContent = `${archivos.length} archivo(s) · ${totalRegistrosStage.toLocaleString('es-ES')} reg.`;
+    if (!archivos.length) {
+      box.innerHTML = '<div style="padding:20px 16px;font-size:12px;color:var(--muted)">No hay archivos Parquet en stage/</div>';
+      return;
+    }
+    box.innerHTML = `<table>
+      <thead><tr><th>Archivo</th><th>Registros</th><th>Tamaño</th><th>Fecha</th><th></th></tr></thead>
+      <tbody>${archivos.map(a => `<tr>
+        <td class="name mono">${a.nombre.replace('stage/', '')}</td>
+        <td class="mono">${(a.registros ?? 0).toLocaleString('es-ES')}</td>
+        <td class="mono">${a.tamano_mb} MB</td>
+        <td class="mono">${a.fecha ? new Date(a.fecha).toLocaleString('es-ES') : '—'}</td>
+        <td><button class="btn btn-del btn-sm" onclick="eliminarArchivo('${a.nombre.replace(/'/g, "\\'")}')">Eliminar</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  } catch {
+    info.textContent = 'Error';
+    box.innerHTML = '<div style="padding:20px 16px;font-size:12px;color:var(--red)">Error al listar archivos</div>';
+  }
+}
+
+async function eliminarArchivo(ruta) {
+  const nombre = ruta.replace('stage/', '');
+  const ok = await DiabCareAPI.confirm({
+    title: 'Eliminar archivo',
+    message: `¿Eliminar este archivo del dataset?<span class="modal-filename">${nombre}</span>`,
+    confirmLabel: 'Eliminar',
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch(`${API}/api/dataset/archivos?ruta=${encodeURIComponent(ruta)}`, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const d = await r.json();
+    if (r.ok && !d.error) {
+      toast('Archivo eliminado', 'success');
+      invalidarCacheStatsUi();
+      cargarArchivos();
+    } else {
+      toast(d.error || d.detail || 'No se pudo eliminar', 'error');
+    }
+  } catch {
+    toast('Error de conexión', 'error');
+  }
+}
+
+async function eliminarRegistros() {
+  const cantidad = parseInt(document.getElementById('del-cantidad').value, 10);
+  const desde = document.getElementById('del-desde').value;
+  if (!cantidad || cantidad < 1) { toast('Indica cuántos registros eliminar', 'error'); return; }
+  if (totalRegistrosStage > 0 && cantidad > totalRegistrosStage) {
+    toast(`Solo hay ${totalRegistrosStage.toLocaleString('es-ES')} registros`, 'error');
+    return;
+  }
+  const etiqueta = desde === 'recientes' ? 'los más recientes' : 'los más antiguos';
+  const ok = await DiabCareAPI.confirm({
+    title: 'Eliminar registros',
+    message: `¿Eliminar exactamente <strong>${cantidad.toLocaleString('es-ES')}</strong> registros (${etiqueta})?`,
+    confirmLabel: 'Eliminar',
+    danger: true,
+  });
+  if (!ok) return;
+
+  const btn = document.getElementById('btnDelReg');
+  btn.disabled = true;
+  btn.textContent = 'Eliminando…';
+  try {
+    const r = await fetch(`${API}/api/dataset/registros/eliminar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ cantidad, desde }),
+    });
+    const d = await r.json();
+    if (r.ok && !d.error) {
+      toast(d.mensaje || 'Registros eliminados', 'success');
+      invalidarCacheStatsUi();
+      document.getElementById('del-cantidad').value = '';
+      totalRegistrosStage = Math.max(0, (d.restantes ?? totalRegistrosStage - cantidad));
+      document.getElementById('archivosInfo').textContent =
+        `Actualizando… · ${totalRegistrosStage.toLocaleString('es-ES')} reg.`;
+      cargarArchivos();
+    } else {
+      toast(d.error || d.detail || 'No se pudo eliminar', 'error');
+    }
+  } catch {
+    toast('Error de conexión', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Eliminar cantidad';
+  }
+}
+
+async function eliminarTodos() {
+  const ok = await DiabCareAPI.confirm({
+    title: 'Eliminar todos los archivos',
+    message: 'Se borrarán <strong>todos</strong> los Parquet de <code>stage/</code>. Esta acción no se puede deshacer.',
+    confirmLabel: 'Eliminar todos',
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    const r = await fetch(`${API}/api/dataset/archivos/todos`, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const d = await r.json();
+    if (r.ok && !d.error) {
+      toast(d.mensaje || 'Archivos eliminados', 'success');
+      invalidarCacheStatsUi();
+      cargarArchivos();
+    } else {
+      toast(d.error || d.detail || 'No se pudo eliminar', 'error');
+    }
+  } catch {
+    toast('Error de conexión', 'error');
+  }
+}
+
+async function generar() {
+  const cantidad = parseInt(document.getElementById('g-cantidad').value);
+  const year     = parseInt(document.getElementById('g-year').value);
+  const perfil   = document.getElementById('g-perfil').value;
+  const genero   = document.getElementById('g-genero').value;
+  const ubicacion = document.getElementById('g-ubicacion').value;
+  const edadMin  = parseFloat(document.getElementById('g-edad-min').value);
+  const edadMax  = parseFloat(document.getElementById('g-edad-max').value);
+  const prevRaw  = document.getElementById('g-prevalencia').value;
+  if (!cantidad || cantidad < 1) { toast('Ingresa una cantidad válida', 'error'); return; }
+  if (cantidad > maxRegistros) {
+    toast(`Máximo ${maxRegistros.toLocaleString('es-ES')} registros por lote`, 'error');
+    return;
+  }
+  if (edadMin > edadMax) { toast('Edad mínima no puede ser mayor que la máxima', 'error'); return; }
+
+  const body = { cantidad, year, perfil, edad_min: edadMin, edad_max: edadMax };
+  if (genero) body.genero = genero;
+  if (ubicacion) body.ubicacion = ubicacion;
+  if (prevRaw !== '') body.prevalencia_diabetes = parseFloat(prevRaw) / 100;
+
+  const btn = document.getElementById('btnGenerar');
+  btn.disabled = true;
+  btn.innerHTML = '<span data-icon="generador" data-icon-size="14"></span> Procesando…';
+  if (window.DiabCareIcons) DiabCareIcons.aplicarEnPagina();
+
+  document.getElementById('progressWrap').classList.add('visible');
+  document.getElementById('resultBox').classList.remove('show');
+  setProgress(40, 'Generando y subiendo…', 2);
+
+  try {
+    const r = await fetch(`${API}/api/dataset/generar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+
+    if (r.ok && !d.error) {
+      setProgress(100, 'Completado', 4);
+      const total = (d.total || cantidad).toLocaleString('es-ES');
+      showResult(true, 'Datos generados correctamente', new Date().toLocaleString('es-ES'), `
+        <div class="stat-card"><div class="stat-label">Registros</div><div class="stat-value green">${total}</div></div>
+        <div class="stat-card"><div class="stat-label">Año</div><div class="stat-value blue">${year}</div></div>
+        <div class="stat-card"><div class="stat-label">Formato</div><div class="stat-value">Parquet</div></div>
+      `, `<span>Archivo:</span> ${d.archivo || '—'}`);
+        toast(`${total} registros en MinIO. Siguiente: Ver tablas DWH →`, 'success');
+        invalidarCacheStatsUi();
+        cargarArchivos();
+    } else {
+      setProgress(0, 'Error', 1);
+      showResult(false, d.error || d.detail || 'Error al generar', '', '', '');
+      toast('Error al generar datos', 'error');
+    }
+  } catch {
+    setProgress(0, 'Error de conexión', 1);
+    showResult(false, 'Error de conexión con el servidor', '', '', '');
+    toast('Error de conexión', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span data-icon="generador" data-icon-size="14"></span> Generar y subir a MinIO';
+    if (window.DiabCareIcons) DiabCareIcons.aplicarEnPagina();
+  }
+}
+
+cargarOpciones();
+cargarArchivos();
+if (window.DiabCareIcons) DiabCareIcons.aplicarEnPagina();
+</script>
+</body>
+</html>

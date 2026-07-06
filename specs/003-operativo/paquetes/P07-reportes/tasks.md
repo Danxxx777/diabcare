@@ -27,7 +27,7 @@ independientes.
 ## Fase 1: Setup (infraestructura compartida)
 
 - [X] T001 Verificar que `fpdf2` está en `backend/requirements.txt` e instalarlo en el entorno (`pip install -r backend/requirements.txt`).
-- [X] T002 [P] Confirmar acceso al bucket MinIO `diabcare-app` y crear el prefijo `reportes/` si no existe, reutilizando `servicios/configuracion/ConfiguracionClienteMinio.get_cliente()`.
+- [X] T002 [P] Confirmar acceso al bucket MinIO `diabcare-app` y crear el prefijo `reportes/` si no existe, reutilizando `paquetes/configuracion/ConfiguracionClienteMinio.get_cliente()`.
 
 ---
 
@@ -35,9 +35,9 @@ independientes.
 
 **Debe completarse antes de las historias de usuario.**
 
-- [X] T003 Crear el esqueleto del servicio en `backend/servicios/reportes/ReportesServicio.py` con la estructura: helpers de acceso a MinIO (subir/listar/descargar PDF) y firma de `generar_pdf(filtros, usuario)`.
-- [X] T004 Definir en `backend/api/reportes/ReportesRutas.py` los 3 endpoints del contrato (`POST /api/reportes/generar`, `GET /api/reportes/`, `GET /api/reportes/{nombre}`) protegidos con `Depends(require_modulo('reportes'))`, devolviendo aún respuestas vacías/placeholder.
-- [X] T005 [P] Añadir helper de auditoría en el servicio para registrar generación/descarga. Nota: el módulo `backend/servicios/auditoria/` está vacío (P11 no implementado), por lo que la auditoría se registra vía `logging` estándar (`AUDIT reporte_generado` / `AUDIT reporte_descargado`) sin inventar dependencias.
+- [X] T003 Crear el esqueleto del servicio en `backend/paquetes/reportes/ReportesServicio.py` con la estructura: helpers de acceso a MinIO (subir/listar/descargar PDF) y firma de `generar_pdf(filtros, usuario)`.
+- [X] T004 Definir en `backend/paquetes/reportes/ReportesRutas.py` los 3 endpoints del contrato (`POST /api/reportes/generar`, `GET /api/reportes/`, `GET /api/reportes/{nombre}`) protegidos con `Depends(require_modulo('reportes'))`, devolviendo aún respuestas vacías/placeholder.
+- [X] T005 [P] Añadir helper de auditoría en el servicio para registrar generación/descarga. Nota: el módulo `backend/paquetes/auditoria/` está vacío (P11 no implementado), por lo que la auditoría se registra vía `logging` estándar (`AUDIT reporte_generado` / `AUDIT reporte_descargado`) sin inventar dependencias.
 
 **Checkpoint**: rutas registradas y accesibles con control de rol; base lista.
 
@@ -56,7 +56,7 @@ contiene la sección de estadísticas y es descargable.
 
 ### Implementación
 
-- [X] T007 [US1] Implementar en `ReportesServicio.py` la obtención de estadísticas reutilizando `servicios/registros_clinicos/estadisticas_endpoint.estadisticas()` y/o `GET /api/dataset/estadisticas`.
+- [X] T007 [US1] Implementar en `ReportesServicio.py` la obtención de estadísticas reutilizando `paquetes/registros_clinicos/RegistrosClinicosServicio.estadisticas()` y/o `GET /api/dataset/estadisticas`.
 - [X] T008 [US1] Implementar `generar_pdf()` con `fpdf2`: encabezado institucional, fecha/hora, usuario, y sección "Estadísticas del dataset" (total, % diabetes, promedios BMI/HbA1c/glucosa, distribución por género) en `ReportesServicio.py`.
 - [X] T009 [US1] Implementar la subida del PDF a MinIO `diabcare-app/reportes/reporte_{timestamp}.pdf` y conectar `POST /api/reportes/generar` para devolver `{nombre, ruta, fecha, tamano_mb}` en `ReportesRutas.py`.
 - [X] T010 [US1] Registrar evento de auditoría en la generación (RF-O-P07-007).
@@ -78,7 +78,7 @@ métricas; sin modelo, indica "no disponible".
 
 ### Implementación
 
-- [X] T012 [US2] Obtener métricas con `servicios/prediccion/PrediccionServicio.obtener_metricas()` y agregar la sección "Métricas del modelo" al PDF en `ReportesServicio.py`; si hay error, escribir "Métricas del modelo no disponibles" (RF-O-P07-003).
+- [X] T012 [US2] Obtener métricas con `paquetes/prediccion/PrediccionServicio.obtener_metricas()` y agregar la sección "Métricas del modelo" al PDF en `ReportesServicio.py`; si hay error, escribir "Métricas del modelo no disponibles" (RF-O-P07-003).
 
 **Checkpoint**: US1 + US2 funcionando juntas.
 
@@ -127,14 +127,14 @@ regenerarlo.
 
 ## Fase 7: Frontend e integración
 
-- [X] T020 [US1] Reemplazar el stub de `frontend/paginas/reportes/index.html` por la UI: botón "Generar reporte", formulario de filtros opcionales y tabla de reportes con botón de descarga por fila.
+- [X] T020 [US1] Reemplazar el stub de `frontend/paginas/clinico/reportes/index.html` por la UI: botón "Generar reporte", formulario de filtros opcionales y tabla de reportes con botón de descarga por fila.
 - [X] T021 [US4] Conectar la UI a los 3 endpoints (con token JWT en `Authorization`) y manejar estados (cargando, error, sin permiso).
 
 ---
 
 ## Fase 8: Pulido y validación
 
-- [X] T022 [P] Ejecutar la guía `quickstart.md` y confirmar criterios CA-O-P07-001..004. **Hecho** (stack en vivo: MinIO vía docker + `uvicorn Principal:app`): login → `POST /generar` (con y sin filtros) → `GET /` (listado) → `GET /{nombre}` (descarga `application/pdf`, cabecera `%PDF-`) → 401 sin token. Nota: el volumen MinIO estaba vacío, por lo que las secciones de dataset/modelo muestran "no disponible"; para un video representativo, cargar primero el dataset (pipeline/generador) y entrenar el modelo.
+- [X] T022 [P] Ejecutar la guía `quickstart.md` y confirmar criterios CA-O-P07-001..004. **Hecho** (stack en vivo: MinIO vía docker + `uvicorn Principal:app`): login → `POST /generar` (con y sin filtros) → `GET /` (listado) → `GET /{nombre}` (descarga `application/pdf`, cabecera `%PDF-`) → 401 sin token. Nota: el volumen MinIO estaba vacío, por lo que las secciones de dataset/modelo muestran "no disponible"; cargar primero el dataset (pipeline/generador) y entrenar el modelo si se requiere contenido completo en el PDF.
 - [X] T023 [P] Verificar que ningún PDF contiene identificadores de paciente (privacidad). Cubierto por la prueba automatizada `test_pdf_no_incluye_encounter_id` y por construcción del PDF (solo agregados).
 - [X] T024 Ejecutar `pytest pruebas/api/test_reportes.py` y dejar la suite en verde. **Hecho**: 13/13 pruebas en verde (`cd backend && py -m pytest ../pruebas/api/test_reportes.py -q`).
 

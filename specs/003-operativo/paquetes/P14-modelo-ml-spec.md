@@ -6,9 +6,9 @@
 
 **Estado**: Implementado (entrega GA07)
 
-**Rutas reales**: `backend/api/modelo_ml/ModeloMlRutas.py`,
-`backend/servicios/modelo_ml/ModeloMlServicio.py`,
-`frontend/paginas/modelo_ml/index.html`
+**Rutas reales**: `backend/paquetes/modelo_ml/ModeloMlRutas.py`,
+`backend/paquetes/modelo_ml/ModeloMlServicio.py`,
+`frontend/paginas/datos/modelo_ml/index.html`
 
 ## 1. Objetivo
 

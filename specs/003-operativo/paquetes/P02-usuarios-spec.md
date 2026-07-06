@@ -8,9 +8,9 @@
 
 **Creado**: 2026-06-19
 
-**Rutas reales**: `backend/api/usuarios/UsuariosRutas.py`,
-`backend/servicios/usuarios/UsuariosServicio.py`,
-`frontend/paginas/usuarios/index.html`
+**Rutas reales**: `backend/paquetes/usuarios/UsuariosRutas.py`,
+`backend/paquetes/usuarios/UsuariosServicio.py`,
+`frontend/paginas/seguridad/usuarios/index.html`
 
 ## 1. Objetivo
 

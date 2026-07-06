@@ -1,9 +1,12 @@
 fastapi
 uvicorn
 pandas
+numpy
 pyarrow
 minio
 scikit-learn
 joblib
 fpdf2
 python-multipart
+qrcode[pil]>=7.4
+Pillow>=10.0

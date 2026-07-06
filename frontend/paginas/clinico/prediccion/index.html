@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Consulta clínica</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<style>
+.pred-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+
+.pred-card {
+  background:var(--card,var(--bg2)); border:1px solid var(--border);
+  border-radius:10px; padding:24px;
+}
+.pred-title {
+  font-size:10px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--muted,var(--text3)); margin-bottom:18px;
+}
+
+/* Formulario */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+
+/* Resultado */
+.result-box {
+  display:none; border-radius:10px; padding:20px;
+  margin-top:16px; animation:fadeUp .3s ease;
+}
+.result-box.show { display:block; }
+.result-box.verde { background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.2); }
+.result-box.rojo  { background:rgba(248,113,113,0.06);  border:1px solid rgba(248,113,113,0.2); }
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+.result-diag {
+  font-size:22px; font-weight:700; font-family:var(--mono);
+  margin-bottom:6px;
+}
+.result-diag.verde { color:rgba(74,222,128,0.9); }
+.result-diag.rojo  { color:rgba(248,113,113,0.9); }
+
+.result-row { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.result-row:last-child { border-bottom:none; }
+.result-label { color:var(--text2,var(--text3)); }
+.result-val   { font-family:var(--mono); font-weight:600; color:var(--text); }
+
+/* Barra probabilidad */
+.prob-track { height:6px; background:rgba(255,255,255,0.06); border-radius:3px; margin:10px 0 4px; overflow:hidden; }
+.prob-fill  { height:100%; border-radius:3px; transition:width .6s ease; }
+.prob-fill.verde { background:rgba(74,222,128,0.7); }
+.prob-fill.rojo  { background:rgba(248,113,113,0.7); }
+
+/* Métricas */
+.metricas-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+.metrica-card {
+  background:rgba(255,255,255,0.02); border:1px solid var(--border);
+  border-radius:8px; padding:14px; text-align:center;
+}
+.metrica-val { font-size:24px; font-weight:700; font-family:var(--mono); color:rgba(34,211,238,0.9); }
+.metrica-lbl { font-size:10px; color:var(--muted,var(--text3)); text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
+
+.info-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.info-row:last-child { border-bottom:none; }
+.info-label { color:var(--text2,var(--text3)); }
+.info-val   { font-family:var(--mono); color:var(--text); }
+
+.badge-riesgo {
+  display:inline-block; padding:2px 10px; border-radius:12px;
+  font-size:11px; font-family:var(--mono); font-weight:600;
+}
+.badge-riesgo.Alto   { background:rgba(248,113,113,0.1);  color:rgba(248,113,113,0.9);  border:1px solid rgba(248,113,113,0.2); }
+.badge-riesgo.Medio  { background:rgba(251,191,36,0.1); color:rgba(251,191,36,0.9); border:1px solid rgba(251,191,36,0.2); }
+.badge-riesgo.Bajo   { background:rgba(74,222,128,0.1);  color:rgba(74,222,128,0.9);  border:1px solid rgba(74,222,128,0.2); }
+.factor-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:11px; }
+.factor-row:last-child { border-bottom:none; }
+.factor-nivel { font-size:10px; font-family:var(--mono); padding:2px 7px; border-radius:8px; }
+.factor-nivel.alto  { background:rgba(248,113,113,0.1); color:rgba(248,113,113,0.9); }
+.factor-nivel.medio { background:rgba(251,191,36,0.1); color:rgba(251,191,36,0.9); }
+
+.no-modelo {
+  display:none;
+}
+.no-modelo.show { display:flex; }
+
+.modelo-status {
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:12px 16px; margin-bottom:16px;
+  background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:10px;
+}
+.modelo-pill {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 10px; border-radius:20px; font-size:11px; font-family:var(--mono);
+}
+.modelo-pill.ok  { background:rgba(74,222,128,0.1); color:rgba(74,222,128,0.95); border:1px solid rgba(74,222,128,0.25); }
+.modelo-pill.warn{ background:rgba(251,191,36,0.1); color:rgba(251,191,36,0.95); border:1px solid rgba(251,191,36,0.25); }
+.modelo-status-hint { font-size:11px; color:var(--muted); flex:1; min-width:200px; }
+.link-gestion { font-size:11px; color:var(--cyan); text-decoration:none; white-space:nowrap; }
+.link-gestion:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Consulta clínica</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Consulta <span>clínica</span></div>
+        <div class="page-sub">Predice el riesgo de diabetes con variables clínicas del paciente</div>
+      </div>
+    </div>
+
+    <div class="alert-banner no-modelo" id="noModelo">
+      <span data-icon="alert" data-icon-size="14"></span>
+      El modelo no está entrenado. Un analista debe entrenarlo en
+      <a href="/paginas/datos/modelo_ml/index.html" class="link-gestion" style="margin-left:4px">Gestión y entrenamiento →</a>
+    </div>
+
+    <div class="modelo-status" id="modeloStatus">
+      <span class="modelo-pill warn" id="pillEstado">Comprobando modelo…</span>
+      <span class="modelo-status-hint" id="hintEstado">Ingresa los datos del paciente y pulsa «Predecir diagnóstico».</span>
+      <a href="/paginas/datos/modelo_ml/index.html" class="link-gestion" id="linkGestion" style="display:none">Ver métricas y entrenar →</a>
+    </div>
+
+    <div class="pred-grid">
+      <!-- Formulario predicción -->
+      <div class="pred-card">
+        <div class="pred-title">Datos del paciente — CU22: Predecir riesgo diabetes</div>
+        <div class="form-grid">
+          <div class="fg">
+            <label class="fl">Edad</label>
+            <input class="fi" id="f-age" type="number" step="0.1" min="1" max="120" placeholder="ej. 45">
+          </div>
+          <div class="fg">
+            <label class="fl">BMI</label>
+            <input class="fi" id="f-bmi" type="number" step="0.01" min="10" max="60" placeholder="ej. 28.5">
+          </div>
+          <div class="fg">
+            <label class="fl">HbA1c (%)</label>
+            <input class="fi" id="f-hba" type="number" step="0.1" min="3" max="15" placeholder="ej. 6.5">
+          </div>
+          <div class="fg">
+            <label class="fl">Glucosa (mg/dL)</label>
+            <input class="fi" id="f-glc" type="number" min="50" max="400" placeholder="ej. 140">
+          </div>
+          <div class="fg">
+            <label class="fl">Hipertensión</label>
+            <select class="fs" id="f-hiper">
+              <option value="0">No</option>
+              <option value="1">Sí</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">Cardiopatía</label>
+            <select class="fs" id="f-cardio">
+              <option value="0">No</option>
+              <option value="1">Sí</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="predecir()" id="btnPredecir">Predecir diagnóstico</button>
+
+        <div class="result-box" id="resultBox">
+          <div class="result-diag" id="resultDiag">—</div>
+          <div class="prob-track"><div class="prob-fill" id="probFill" style="width:0%"></div></div>
+          <div style="font-size:10px;color:var(--muted,var(--text3));margin-bottom:12px;font-family:var(--mono)" id="probLabel">—</div>
+          <div class="result-row"><span class="result-label">Probabilidad de diabetes</span><span class="result-val" id="rProbabilidad">—</span></div>
+          <div class="result-row"><span class="result-label">Nivel de riesgo</span><span class="result-val" id="rRiesgo">—</span></div>
+          <div class="result-row"><span class="result-label">Diagnóstico</span><span class="result-val" id="rDiag">—</span></div>
+          <div id="factoresBox" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Factores clínicos detectados</div>
+            <div id="factoresList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guía clínica -->
+      <div class="pred-card">
+        <div class="pred-title">Guía clínica de interpretación</div>
+        <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:16px">
+          Esta pantalla es para el <strong style="color:var(--text)">médico</strong>: ingresa variables del paciente
+          y obtienes probabilidad de diabetes y nivel de riesgo. La gestión técnica del modelo
+          (métricas, reentrenamiento, historial) está en
+          <a href="/paginas/datos/modelo_ml/index.html" class="link-gestion">Modelo ML → Gestión y entrenamiento</a>.
+        </p>
+        <div class="pred-title" style="margin-bottom:12px">Umbrales de referencia</div>
+          <div class="info-row"><span class="info-label">HbA1c &gt; 6.5%</span><span class="info-val" style="color:rgba(248,113,113,0.8)">Indica diabetes</span></div>
+          <div class="info-row"><span class="info-label">Glucosa &gt; 200 mg/dL</span><span class="info-val" style="color:rgba(248,113,113,0.8)">Indica diabetes</span></div>
+          <div class="info-row"><span class="info-label">BMI &gt; 30</span><span class="info-val" style="color:rgba(251,191,36,0.8)">Factor de riesgo</span></div>
+          <div class="info-row"><span class="info-label">HbA1c 5.7–6.4%</span><span class="info-val" style="color:rgba(251,191,36,0.8)">Pre-diabetes</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+DiabCareNav.init();
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function pct(val) { return Math.round(val * 100) + '%'; }
+
+async function cargarEstado() {
+  const pill = document.getElementById('pillEstado');
+  const hint = document.getElementById('hintEstado');
+  const link = document.getElementById('linkGestion');
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const puedeGestionar = ['administrador', 'analista'].includes(u.rol || '');
+  if (puedeGestionar) link.style.display = '';
+
+  try {
+    const r = await fetch(`${API}/api/prediccion/estado`, { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (d.modelo_disponible) {
+      document.getElementById('noModelo').classList.remove('show');
+      pill.className = 'modelo-pill ok';
+      pill.textContent = '● Modelo listo para predecir';
+      hint.textContent = 'RandomForest activo — puedes consultar pacientes.';
+    } else {
+      document.getElementById('noModelo').classList.add('show');
+      pill.className = 'modelo-pill warn';
+      pill.textContent = '● Modelo no disponible';
+      hint.textContent = 'Entrena el modelo antes de hacer predicciones clínicas.';
+    }
+  } catch {
+    pill.className = 'modelo-pill warn';
+    pill.textContent = '● Sin conexión';
+    hint.textContent = 'No se pudo verificar el estado del modelo.';
+  }
+}
+
+async function predecir() {
+  const age  = parseFloat(document.getElementById('f-age').value);
+  const bmi  = parseFloat(document.getElementById('f-bmi').value);
+  const hba  = parseFloat(document.getElementById('f-hba').value);
+  const glc  = parseFloat(document.getElementById('f-glc').value);
+  const hip  = parseInt(document.getElementById('f-hiper').value);
+  const car  = parseInt(document.getElementById('f-cardio').value);
+
+  if (!age || !bmi || !hba || !glc) { toast('Completa todos los campos', 'error'); return; }
+
+  const btn = document.getElementById('btnPredecir');
+  btn.textContent = 'Analizando...';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch(`${API}/api/prediccion/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ age, bmi, hbA1c_level: hba, blood_glucose_level: glc, hypertension: hip, heart_disease: car })
+    });
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); return; }
+
+    const esDiab = d.diagnostico === 1;
+    const cls    = esDiab ? 'rojo' : 'verde';
+    const prob   = Math.round(d.probabilidad * 100);
+    const box = document.getElementById('resultBox');
+    box.className = `result-box show ${cls}`;
+
+    document.getElementById('resultDiag').className    = `result-diag ${cls}`;
+    document.getElementById('resultDiag').textContent  = d.resultado;
+    document.getElementById('probFill').className      = `prob-fill ${cls}`;
+    document.getElementById('probFill').style.width    = prob + '%';
+    document.getElementById('probLabel').textContent   = `Probabilidad: ${prob}%`;
+    document.getElementById('rProbabilidad').textContent = prob + '%';
+    document.getElementById('rRiesgo').innerHTML       = `<span class="badge-riesgo ${d.riesgo}">${d.riesgo}</span>`;
+    document.getElementById('rDiag').textContent       = d.diagnostico === 1 ? 'Positivo' : 'Negativo';
+
+    localStorage.setItem('diabcare_prediccion_ok', '1');
+
+    const factores = d.factores_riesgo || [];
+    const fb = document.getElementById('factoresBox');
+    const fl = document.getElementById('factoresList');
+    if (factores.length) {
+      fb.style.display = 'block';
+      fl.innerHTML = factores.map(f => `
+        <div class="factor-row">
+          <span>${f.factor}: <strong>${f.valor}</strong> <span style="color:var(--muted)">(${f.umbral})</span></span>
+          <span class="factor-nivel ${f.nivel}">${f.nivel}</span>
+        </div>`).join('');
+    } else {
+      fb.style.display = 'block';
+      fl.innerHTML = '<div style="font-size:11px;color:var(--muted)">Sin factores de riesgo clínicos destacados</div>';
+    }
+
+  } catch {
+    toast('Error de conexión', 'error');
+  } finally {
+    btn.textContent = 'Predecir diagnóstico';
+    btn.disabled = false;
+  }
+}
+
+async function cargarPacienteSeleccionado() {
+  const pid = localStorage.getItem('diabcare_paciente_pred');
+  if (!pid) return;
+  try {
+    const [pr, cr] = await Promise.all([
+      fetch(`${API}/api/pacientes/${pid}`, { headers: { Authorization: 'Bearer '+token } }),
+      fetch(`${API}/api/pacientes/${pid}/consultas?limit=1`, { headers: { Authorization: 'Bearer '+token } }),
+    ]);
+    const p = await pr.json();
+    const c = await cr.json();
+    if (p.edad) document.getElementById('f-age').value = p.edad;
+    const last = (c.consultas || [])[0];
+    if (last) {
+      if (last.bmi) document.getElementById('f-bmi').value = last.bmi;
+      if (last.hbA1c_level) document.getElementById('f-hba').value = last.hbA1c_level;
+      if (last.blood_glucose_level) document.getElementById('f-glc').value = last.blood_glucose_level;
+      if (last.hypertension != null) document.getElementById('f-hiper').value = last.hypertension;
+      if (last.heart_disease != null) document.getElementById('f-cardio').value = last.heart_disease;
+    }
+    localStorage.removeItem('diabcare_paciente_pred');
+  } catch {}
+}
+
+cargarEstado();
+cargarPacienteSeleccionado();
+if (window.DiabCareIcons) DiabCareIcons.aplicarEnPagina();
+</script>
+</body>
+</html>

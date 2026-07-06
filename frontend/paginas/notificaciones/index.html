@@ -4,18 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare — Notificaciones</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
 <script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
 <style>
-.notif-item { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-bottom:0.5px solid var(--border); transition:background 0.1s; }
-.notif-item:hover { background:rgba(255,255,255,0.02); }
-.notif-item.unread { background:rgba(37,99,235,0.04); border-left:2px solid var(--accent); }
-.notif-dot { width:8px; height:8px; border-radius:50%; background:var(--accent2); flex-shrink:0; margin-top:4px; }
-.notif-dot.read { background:var(--text4); }
-.notif-title { font-size:12px; font-weight:500; color:var(--text); margin-bottom:3px; }
-.notif-body  { font-size:11px; color:var(--text3); line-height:1.5; }
-.notif-time  { font-size:10px; color:var(--text4); font-family:var(--mono); margin-top:4px; }
-.notif-tipo  { margin-left:auto; flex-shrink:0; }
+.badge-tipo { font-size:10px; padding:2px 8px; border-radius:999px; font-family:var(--mono); text-transform:uppercase; }
+.badge-warning { background:rgba(251,191,36,.15); color:#fbbf24; }
+.badge-error, .badge-critico { background:rgba(248,113,113,.15); color:#f87171; }
+.badge-success, .badge-info { background:rgba(34,211,238,.12); color:var(--cyan); }
+.notif-row { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:flex-start; }
+.notif-row.unread { background:rgba(34,211,238,.04); }
+.notif-row:last-child { border-bottom:none; }
+.notif-body { flex:1; min-width:0; }
+.notif-title { font-size:13px; font-weight:600; margin-bottom:4px; }
+.notif-msg { font-size:12px; color:var(--text2); line-height:1.45; }
+.notif-meta { font-size:10px; color:var(--text3); font-family:var(--mono); margin-top:6px; }
 </style>
 </head>
 <body>
@@ -25,40 +32,37 @@
 <div class="main">
   <div class="topbar">
     <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Notificaciones</span>
-    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div>MinIO conectado</div></div>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">Alertas clínicas</span></div></div>
   </div>
   <div class="content">
     <div class="page-header">
       <div>
-        <div class="page-title">Centro de <span>alertas</span></div>
-        <div class="page-sub">Notificaciones y alertas del sistema</div>
+        <div class="page-title">Alertas y <span>notificaciones</span></div>
+        <div class="page-sub">Alertas clínicas, avisos del sistema y envío por correo (Brevo)</div>
       </div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-ghost btn-sm" onclick="marcarTodo()">Marcar todo leído</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="evaluar()">⚡ Evaluar umbrales</button>
+        <button class="btn btn-ghost btn-sm" onclick="marcarTodas()">✓ Marcar todas leídas</button>
         <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Recargar</button>
       </div>
     </div>
 
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="st-total">—</div></div>
-      <div class="stat-card"><div class="stat-label">Sin leer</div><div class="stat-value amber" id="st-unread">—</div></div>
-      <div class="stat-card"><div class="stat-label">Críticas</div><div class="stat-value red" id="st-criticas">—</div></div>
-      <div class="stat-card"><div class="stat-label">Info</div><div class="stat-value green" id="st-info">—</div></div>
+      <div class="stat-card"><div class="stat-label">No leídas</div><div class="stat-value" id="st-unread">—</div></div>
+      <div class="stat-card"><div class="stat-label">Hoy</div><div class="stat-value green" id="st-hoy">—</div></div>
+      <div class="stat-card"><div class="stat-label">Emails enviados</div><div class="stat-value" id="st-mail">—</div></div>
     </div>
 
     <div class="tabla-card">
       <div class="tabla-top">
-        <span class="tabla-title">Notificaciones</span>
-        <select class="search" id="f-tipo" style="width:160px" onchange="cargar()">
-          <option value="">Todas</option>
-          <option value="info">Informativas</option>
-          <option value="warning">Advertencias</option>
-          <option value="error">Críticas</option>
-          <option value="success">Éxito</option>
-        </select>
+        <span class="tabla-title">Bandeja de notificaciones</span>
+        <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="f-solo" onchange="cargar()"> Solo no leídas
+        </label>
         <span class="tabla-info" id="info">—</span>
       </div>
-      <div id="notifList"><div class="loading"><div class="spinner"></div>Cargando notificaciones...</div></div>
+      <div id="lista"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
     </div>
   </div>
 </div>
@@ -67,119 +71,96 @@
 
 <script>
 DiabCareNav.init();
-const API = 'http://localhost:8000';
+const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
-let notifs = [];
-
-function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
-
-function initUser() {
-  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  if (u.nombre) {
-    document.getElementById('userName').textContent   = u.nombre;
-    document.getElementById('userRol').textContent    = u.rol || '';
-    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
-  }
-  const rol = u.rol || '';
-  const ACCESO = {
-    'administrador': ['analisis','registros','dataset','usuarios','prediccion','pipeline','modelo','reportes','auditoria','notificaciones','configuracion','benchmarking','integraciones'],
-    'medico':        ['analisis','registros','prediccion'],
-    'analista':      ['analisis','dataset','prediccion'],
-  };
-  const permitidos = ACCESO[rol] || [];
-  document.querySelectorAll('.nav-group').forEach(g => {
-    const label = g.querySelector('.nav-group-label');
-    if (!label) return;
-    const texto = label.textContent.toLowerCase();
-    const visible = permitidos.some(p => texto.includes(p === 'analisis' ? 'nál' : p === 'registros' ? 'egistro' : p === 'dataset' ? 'ataset' : p === 'usuarios' ? 'suario' : p === 'prediccion' ? 'redicci' : p === 'pipeline' ? 'ipeline' : p === 'modelo' ? 'odelo m' : p === 'reportes' ? 'eporte' : p === 'auditoria' ? 'uditor' : p === 'notificaciones' ? 'otificac' : p === 'configuracion' ? 'onfigur' : p === 'benchmarking' ? 'enchmark' : p === 'integraciones' ? 'ntegrac' : p));
-    if (!visible) g.style.display = 'none';
-  });
-}
-
-function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
-
-function aplicarRoles() {
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  const rol = u.rol || '';
-  const OCULTAR = {
-    'medico':   ['Dataset','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-    'analista': ['Registros clínicos','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-  };
-  const ocultar = OCULTAR[rol] || [];
-  document.querySelectorAll('.nav-group').forEach(g => {
-    const label = g.querySelector('.nav-group-label');
-    if (!label) return;
-    const txt = label.textContent.trim();
-if (ocultar.some(o => txt.includes(o))) g.style.display = 'none';
-  });
-}
 
 function toast(msg, type = 'success') {
   const t = document.getElementById('toast');
-  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-msg').textContent = msg;
   document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
   t.className = `toast ${type} show`;
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-function tipoBadge(tipo) {
-  if (tipo === 'error')   return 'b-inactivo';
-  if (tipo === 'warning') return 'b-analista';
-  if (tipo === 'success') return 'b-activo';
-  return 'b-admin';
+function badgeTipo(tipo) {
+  const t = (tipo || 'info').toLowerCase();
+  const cls = ['warning','error','critico','success'].includes(t) ? t : 'info';
+  return `<span class="badge-tipo badge-${cls}">${t}</span>`;
+}
+
+async function cargarStats() {
+  try {
+    const r = await fetch(`${API}/api/notificaciones/estadisticas`, { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('st-total').textContent = d.total ?? 0;
+    document.getElementById('st-unread').textContent = d.no_leidas ?? 0;
+    document.getElementById('st-hoy').textContent = d.alertas_hoy ?? 0;
+    document.getElementById('st-mail').textContent = d.emails_enviados ?? 0;
+  } catch (e) { console.error(e); }
 }
 
 async function cargar() {
-  document.getElementById('notifList').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+  const solo = document.getElementById('f-solo').checked;
+  const lista = document.getElementById('lista');
+  lista.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
   try {
-    const tipo = document.getElementById('f-tipo').value;
-    let url = `${API}/api/notificaciones/`;
-    if (tipo) url += `?tipo=${tipo}`;
-    const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-    if (r.status === 401) { window.location.href = '/'; return; }
-    notifs = await r.json();
-    if (!Array.isArray(notifs)) notifs = notifs.notificaciones || notifs.items || [];
-
-    document.getElementById('st-total').textContent   = notifs.length;
-    document.getElementById('st-unread').textContent  = notifs.filter(n => !n.leida && !n.read).length;
-    document.getElementById('st-criticas').textContent= notifs.filter(n => n.tipo === 'error').length;
-    document.getElementById('st-info').textContent    = notifs.filter(n => n.tipo === 'info' || n.tipo === 'success').length;
-    document.getElementById('info').textContent       = notifs.length + ' notificaciones';
-
-    if (!notifs.length) {
-      document.getElementById('notifList').innerHTML = '<div class="loading">Sin notificaciones</div>';
+    const r = await fetch(`${API}/api/notificaciones/?limit=100&solo_no_leidas=${solo}`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Error');
+    document.getElementById('info').textContent = `${d.total} notificación(es)`;
+    if (!d.notificaciones?.length) {
+      lista.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">Sin notificaciones</div>';
       return;
     }
-
-    let h = '';
-    notifs.forEach(n => {
-      const leida  = n.leida || n.read || false;
-      const tiempo = (n.creado_en || n.timestamp || n.fecha || '').replace('T', ' ').split('.')[0];
-      h += `<div class="notif-item ${!leida ? 'unread' : ''}">
-        <div class="notif-dot ${leida ? 'read' : ''}"></div>
-        <div style="flex:1">
-          <div class="notif-title">${n.titulo || n.title || n.asunto || 'Notificación'}</div>
-          <div class="notif-body">${n.mensaje || n.body || n.descripcion || '—'}</div>
-          <div class="notif-time">${tiempo || '—'}</div>
+    lista.innerHTML = d.notificaciones.map(n => `
+      <div class="notif-row ${n.leida ? '' : 'unread'}" data-id="${n.id}">
+        <div>${badgeTipo(n.tipo)}</div>
+        <div class="notif-body">
+          <div class="notif-title">${n.titulo || '—'}</div>
+          <div class="notif-msg">${n.mensaje || ''}</div>
+          <div class="notif-meta">${(n.creado_en || '').replace('T',' ').slice(0,19)}${n.email_enviado ? ' · ✉ enviado' : ''}</div>
         </div>
-        <div class="notif-tipo"><span class="badge ${tipoBadge(n.tipo)}">${n.tipo || 'info'}</span></div>
-      </div>`;
-    });
-    document.getElementById('notifList').innerHTML = h;
-  } catch {
-    document.getElementById('notifList').innerHTML = '<div class="loading">Error de conexión</div>';
+        ${n.leida ? '' : `<button class="btn btn-ghost btn-sm" onclick="marcar('${n.id}')">Leída</button>`}
+      </div>`).join('');
+    await cargarStats();
+  } catch (e) {
+    lista.innerHTML = `<div style="padding:16px;color:var(--red);">${e.message}</div>`;
   }
 }
 
-async function marcarTodo() {
-  try {
-    await fetch(`${API}/api/notificaciones/marcar-leidas`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
-    toast('Todas marcadas como leídas');
-    cargar();
-  } catch { toast('Error', 'error'); }
+async function marcar(id) {
+  await fetch(`${API}/api/notificaciones/${id}/leida`, {
+    method: 'PATCH', headers: { Authorization: 'Bearer ' + token }
+  });
+  cargar();
 }
 
+async function marcarTodas() {
+  await fetch(`${API}/api/notificaciones/leer-todas`, {
+    method: 'POST', headers: { Authorization: 'Bearer ' + token }
+  });
+  toast('Todas marcadas como leídas');
+  cargar();
+}
+
+async function evaluar() {
+  try {
+    const r = await fetch(`${API}/api/notificaciones/evaluar`, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }
+    });
+    const d = await r.json();
+    toast(`Evaluados ${d.evaluadas || 0} registros · ${d.alertas_nuevas || 0} alertas nuevas`);
+    cargar();
+  } catch {
+    toast('Error al evaluar', 'error');
+  }
+}
+
+if (!token) window.location.href = '/';
+cargarStats();
 cargar();
 </script>
 </body>

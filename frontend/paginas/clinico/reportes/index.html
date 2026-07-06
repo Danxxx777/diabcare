@@ -1,0 +1,305 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Reportes PDF</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<style>
+.rep-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+@media(max-width:900px){ .rep-grid{ grid-template-columns:1fr; } }
+.rep-card {
+  background:var(--card,var(--bg2)); border:1px solid var(--border);
+  border-radius:10px; padding:24px;
+}
+.rep-title {
+  font-size:10px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--muted,var(--text3)); margin-bottom:18px;
+}
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+.rep-preview {
+  display:flex; gap:16px; align-items:flex-start; margin-bottom:18px;
+  padding:14px; border-radius:10px; border:1px solid var(--border);
+  background:rgba(34,211,238,0.04);
+}
+.rep-preview img { width:52px; height:52px; border-radius:10px; flex-shrink:0; }
+.rep-preview h3 { font-size:14px; font-weight:700; margin:0 0 4px; }
+.rep-preview p { font-size:11px; color:var(--muted); margin:0; line-height:1.5; }
+.rep-secciones { display:grid; gap:8px; }
+.rep-seccion {
+  display:flex; gap:10px; align-items:flex-start; padding:10px 12px;
+  border-radius:8px; border:1px solid var(--border); font-size:12px;
+}
+.rep-seccion-num {
+  font-family:var(--mono); font-size:10px; font-weight:700; color:var(--cyan);
+  background:rgba(34,211,238,0.12); border-radius:6px; padding:4px 7px; flex-shrink:0;
+}
+.rep-seccion-body strong { display:block; margin-bottom:2px; }
+.rep-seccion-body span { color:var(--muted); font-size:11px; }
+.rep-qr-note {
+  margin-top:14px; padding:12px 14px; border-radius:8px; font-size:11px; line-height:1.55;
+  border:1px dashed rgba(34,211,238,0.35); color:var(--muted);
+  background:rgba(34,211,238,0.05);
+}
+.rep-qr-note strong { color:var(--text); }
+.tabla { width:100%; border-collapse:collapse; font-size:12px; }
+.tabla th {
+  text-align:left; padding:10px 8px; border-bottom:1px solid var(--border);
+  font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted,var(--text3));
+}
+.tabla td { padding:10px 8px; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:11px; }
+.tabla tr:last-child td { border-bottom:none; }
+.vacio { padding:24px; text-align:center; color:var(--muted,var(--text3)); font-size:12px; }
+.btn-dl {
+  background:rgba(34,211,238,0.1); color:rgba(34,211,238,0.95);
+  border:1px solid rgba(34,211,238,0.25); border-radius:6px;
+  padding:5px 12px; font-size:11px; cursor:pointer; font-family:var(--mono);
+}
+.btn-dl:hover { background:rgba(34,211,238,0.18); }
+.codigo-verif { font-size:10px; color:var(--cyan); }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Reportes PDF</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Reportes <span>clínicos</span></div>
+        <div class="page-sub">Informes PDF con estadísticas, modelo ML y análisis filtrado — listos para archivo clínico</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="generar()" id="btnGenerar">⬇ Generar reporte</button>
+    </div>
+
+    <div class="rep-grid">
+      <!-- Formulario de filtros -->
+      <div class="rep-card">
+        <div class="rep-title">Filtros opcionales del resumen</div>
+        <div class="form-grid">
+          <div class="fg">
+            <label class="fl">Diagnóstico</label>
+            <select class="fs" id="f-diabetes">
+              <option value="">Todos</option>
+              <option value="1">Con diabetes</option>
+              <option value="0">Sin diabetes</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">Género</label>
+            <select class="fs" id="f-gender">
+              <option value="">Todos</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Femenino">Femenino</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl">Ubicación contiene</label>
+            <input class="fi" id="f-location" type="text" placeholder="ej. Alabama">
+          </div>
+          <div class="fg">
+            <label class="fl">Año</label>
+            <input class="fi" id="f-year" type="number" placeholder="ej. 2024">
+          </div>
+          <div class="fg">
+            <label class="fl">Edad mínima</label>
+            <input class="fi" id="f-agemin" type="number" step="0.1" placeholder="ej. 30">
+          </div>
+          <div class="fg">
+            <label class="fl">Edad máxima</label>
+            <input class="fi" id="f-agemax" type="number" step="0.1" placeholder="ej. 70">
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted,var(--text3))">
+          Deja los filtros vacíos para generar un reporte sobre todo el dataset.
+        </div>
+      </div>
+
+      <!-- Vista previa del documento -->
+      <div class="rep-card">
+        <div class="rep-title">Formato del reporte PDF</div>
+        <div class="rep-preview">
+          <img src="/estaticos/img/logo-icon.png" alt="DiabCare">
+          <div>
+            <h3>DiabCare Analytics — Reporte clínico agregado</h3>
+            <p>Documento profesional con logo institucional, resumen ejecutivo en lenguaje claro, métricas explicadas y código QR de verificación en cada página.</p>
+          </div>
+        </div>
+        <div class="rep-secciones">
+          <div class="rep-seccion">
+            <span class="rep-seccion-num">RES</span>
+            <div class="rep-seccion-body"><strong>Resumen ejecutivo</strong><span>Lectura rápida para directivos y equipos clínicos</span></div>
+          </div>
+          <div class="rep-seccion">
+            <span class="rep-seccion-num">01</span>
+            <div class="rep-seccion-body"><strong>Panorama del dataset</strong><span>Total de registros, diabetes, género y promedios clínicos</span></div>
+          </div>
+          <div class="rep-seccion">
+            <span class="rep-seccion-num">02</span>
+            <div class="rep-seccion-body"><strong>Modelo predictivo</strong><span>Exactitud, precisión, sensibilidad y F1 del algoritmo ML</span></div>
+          </div>
+          <div class="rep-seccion">
+            <span class="rep-seccion-num">03</span>
+            <div class="rep-seccion-body"><strong>Subconjunto filtrado</strong><span>Resultados según los criterios que elija abajo</span></div>
+          </div>
+          <div class="rep-seccion">
+            <span class="rep-seccion-num">04</span>
+            <div class="rep-seccion-body"><strong>Glosario y QR</strong><span>Términos clínicos y código para verificación futura</span></div>
+          </div>
+        </div>
+        <div class="rep-qr-note">
+          <strong>Código QR de verificación</strong> — Cada reporte incluye un código único (ej. <code>DC-20250620-A1B2C3</code>) y un QR en el pie de página.
+          Próximamente podrá escanearse para validar autenticidad, abrir el portal de auditoría o vincular el PDF a un expediente institucional.
+        </div>
+        <div style="margin-top:14px;font-size:11px;color:var(--muted)">
+          Por privacidad, el PDF solo contiene datos agregados — nunca nombres, documentos ni identificadores de pacientes.
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de reportes previos -->
+    <div class="rep-card">
+      <div class="rep-title">Reportes generados</div>
+      <table class="tabla">
+        <thead>
+          <tr><th>Nombre</th><th>Código</th><th>Fecha</th><th>Tamaño</th><th style="text-align:right">Acción</th></tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="4" class="vacio">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+DiabCareNav.init();
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+
+function initUser() {
+  if (!token) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  if (u.nombre) {
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+  }
+}
+
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function leerFiltros() {
+  const f = {};
+  const diabetes = document.getElementById('f-diabetes').value;
+  const gender   = document.getElementById('f-gender').value;
+  const location = document.getElementById('f-location').value.trim();
+  const year     = document.getElementById('f-year').value;
+  const agemin   = document.getElementById('f-agemin').value;
+  const agemax   = document.getElementById('f-agemax').value;
+  if (diabetes !== '') f.diabetes = parseInt(diabetes);
+  if (gender)          f.gender = gender;
+  if (location)        f.location = location;
+  if (year)            f.year = parseInt(year);
+  if (agemin)          f.age_min = parseFloat(agemin);
+  if (agemax)          f.age_max = parseFloat(agemax);
+  return f;
+}
+
+async function generar() {
+  const btn = document.getElementById('btnGenerar');
+  btn.textContent = 'Generando…';
+  btn.disabled = true;
+  try {
+    const r = await fetch(`${API}/api/reportes/generar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(leerFiltros())
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.detail || 'No se pudo generar', 'error'); return; }
+    const cod = d.codigo_verificacion ? ` (${d.codigo_verificacion})` : '';
+    toast(`Reporte generado${cod}`, 'success');
+    cargarReportes();
+  } catch {
+    toast('Error de conexión', 'error');
+  } finally {
+    btn.textContent = '⬇ Generar reporte';
+    btn.disabled = false;
+  }
+}
+
+async function cargarReportes() {
+  const tbody = document.getElementById('tbody');
+  try {
+    const r = await fetch(`${API}/api/reportes/`, { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    const reportes = d.reportes || [];
+    if (!reportes.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="vacio">Aún no hay reportes generados.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = reportes.map(rp => {
+      const fecha = rp.fecha ? new Date(rp.fecha).toLocaleString('es-ES') : '—';
+      const cod = rp.codigo_verificacion || '—';
+      return `<tr>
+        <td>${rp.nombre}</td>
+        <td class="codigo-verif">${cod}</td>
+        <td>${fecha}</td>
+        <td>${rp.tamano_mb} MB</td>
+        <td style="text-align:right"><button class="btn-dl" onclick="descargar('${rp.nombre}')">Descargar</button></td>
+      </tr>`;
+    }).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="5" class="vacio">Error de conexión.</td></tr>';
+  }
+}
+
+async function descargar(nombre) {
+  try {
+    const r = await fetch(`${API}/api/reportes/${encodeURIComponent(nombre)}`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!r.ok) { toast('No se pudo descargar', 'error'); return; }
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch {
+    toast('Error de conexión', 'error');
+  }
+}
+
+cargarReportes();
+</script>
+</body>
+</html>

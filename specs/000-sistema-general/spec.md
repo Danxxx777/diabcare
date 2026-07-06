@@ -34,7 +34,7 @@ inteligencia de negocio (BI).
 | Analista | Dataset, pipeline ELT, modelo ML, integraciones | `analista` |
 | Sistema (Airflow) | Ejecuta el pipeline ELT automatizado | — (proceso) |
 
-Roles válidos definidos en código (`backend/utilidades/Dependencias.py`):
+Roles válidos definidos en código (`backend/nucleo/utilidades/Dependencias.py`):
 `administrador`, `medico`, `analista`.
 
 ## 4. Niveles empresariales
@@ -63,14 +63,82 @@ código (`backend/Principal.py`, rutas, servicios y páginas frontend) al
 | P5 | Análisis y visualización | `analisis` | Implementado (vía endpoints de registros/dataset) |
 | P6 | Predicción ML | `prediccion` | Implementado |
 | P7 | Reportes | `reportes` | Implementado (entrega GA07 — salida de datos) |
-| P8 | Pipeline ELT | `pipeline_etl` | Implementado (entrega GA07 — procesamiento) |
+| P8 | Pipeline ELT | `pipeline_elt` | Implementado (entrega GA07 — procesamiento) |
 | P9 | Información corporativa | `corporativo` | Planificado (fuera de demo GA07) |
-| P10 | Notificaciones y alertas | `notificaciones` | Planificado (fuera de demo GA07) |
+| P10 | Notificaciones y alertas | `notificaciones` | Parcial GA07 (clínicas + Brevo; churn pendiente) |
 | P11 | Auditoría y trazabilidad | `auditoria` | Implementado (entrega GA07) |
 | P12 | Configuración del sistema | `configuracion` | Implementado (entrega GA07) |
 | P13 | Comparación y benchmarking | `benchmarking` | Planificado (fuera de demo GA07) |
 | P14 | Gestión del modelo ML | `modelo_ml` | Implementado (entrega GA07 — ciclo ML) |
 | P15 | API pública e integraciones | `integraciones` | Planificado (fuera de demo GA07) |
+
+### 5.1 Estructura de código y mapeo de paquetes (2026-07)
+
+Cada paquete agrupa **Rutas + Servicio** en un solo folder de backend. El frontend
+se organiza por **departamento**. Los identificadores P1–P15 viven en specs y
+trazabilidad; **no** van en nombres de carpeta.
+
+**Árbol del repositorio:**
+
+```
+diabcare/
+├── backend/
+│   ├── Principal.py                 # entrada única FastAPI
+│   ├── nucleo/                      # compartido: modelos DWH, utilidades (JWT, Parquet)
+│   └── paquetes/                    # 1 carpeta = 1 paquete funcional
+│       ├── autenticacion/           # P1
+│       ├── usuarios/                # P2
+│       ├── registros_clinicos/      # P3
+│       ├── dataset/                 # P4
+│       ├── prediccion/              # P6
+│       ├── reportes/                # P7
+│       ├── pipeline_elt/            # P8
+│       ├── auditoria/               # P11
+│       ├── configuracion/           # P12
+│       ├── modelo_ml/               # P14
+│       └── clinico/                 # CU-O02–O04
+│           ├── pacientes/
+│           ├── admisiones/
+│           └── citas/
+└── frontend/
+    ├── estaticos/                   # navegacion.js, api.js, CSS
+    └── paginas/
+        ├── seguridad/               # P1, P2
+        ├── clinico/                 # P3, P5–P7 + pacientes/admisiones/agenda
+        ├── datos/                   # P4, P8, P14
+        └── gobierno/                # P11, P12
+```
+
+**Mapeo completo P1–P15 → rutas en código:**
+
+| Paq. | Nombre | Departamento | Backend (`backend/paquetes/…`) | Frontend (`frontend/paginas/…`) | Estado |
+|:----:|--------|--------------|--------------------------------|----------------------------------|--------|
+| P1 | Autenticación | Seguridad | `autenticacion/` | `seguridad/autenticacion/` | ✅ |
+| P2 | Usuarios | Seguridad | `usuarios/` | `seguridad/usuarios/` | ✅ |
+| P3 | Registros clínicos | Clínico | `registros_clinicos/` | `clinico/registros_clinicos/` | ✅ |
+| P4 | Dataset / DWH | Datos | `dataset/` | `datos/dataset/` | ✅ |
+| P5 | Análisis / BI | Clínico | *(endpoints en P3 y P4)* | `clinico/analisis/` (+ `analisis/estadisticas/`) | ✅ |
+| P6 | Predicción ML | Clínico | `prediccion/` | `clinico/prediccion/` | ✅ |
+| P7 | Reportes PDF | Clínico | `reportes/` | `clinico/reportes/` | ✅ |
+| P8 | Pipeline ELT | Datos | `pipeline_elt/` | `datos/pipeline_elt/` | ✅ |
+| P9 | Corporativo | BI | *(planificado)* | — | 🔜 |
+| P10 | Notificaciones | Crecimiento | `notificaciones/` | `gobierno/notificaciones/` | ✅ parcial |
+| P11 | Auditoría | Gobierno | `auditoria/` | `gobierno/auditoria/` | ✅ |
+| P12 | Configuración | Gobierno | `configuracion/` | `gobierno/configuracion/` | ✅ |
+| P13 | Benchmarking | BI | *(planificado)* | — | 🔜 |
+| P14 | Modelo ML | Datos | `modelo_ml/` | `datos/modelo_ml/` | ✅ |
+| P15 | API / integraciones | Crecimiento | *(planificado)* | — | 🔜 |
+
+**Módulos clínicos adicionales (CU-O02–O04):**
+
+| Módulo | Backend | Frontend |
+|--------|---------|----------|
+| Pacientes / HCE | `clinico/pacientes/` | `clinico/pacientes/` |
+| Admisiones | `clinico/admisiones/` | `clinico/admisiones/` |
+| Agenda / citas | `clinico/citas/` | `clinico/agenda/` |
+
+Backend compartido: `backend/nucleo/modelos/` (DWH) y `backend/nucleo/utilidades/`
+(JWT, `Dependencias.py`, Parquet).
 
 ## 6. Departamentos funcionales
 
@@ -79,7 +147,7 @@ Agrupación de paquetes por área (Principio VI de la constitución):
 | Departamento | Paquetes | Responsabilidad |
 |--------------|----------|-----------------|
 | Seguridad e Identidad | P1, P2 | Autenticación, usuarios, roles |
-| Operaciones Clínicas | P3, P5, P6, P7 | Registros, análisis, predicción, reportes |
+| Operaciones Clínicas | P3, P5, P6, P7, **Pacientes, Admisiones, Citas** | Registros, expediente, agenda, admisiones, análisis, predicción, reportes |
 | Datos e Ingeniería | P4, P8, P14 | Dataset, pipeline ELT, modelo ML |
 | Inteligencia de Negocio | P9, P13 | Corporativo, benchmarking |
 | Gobierno y Cumplimiento | P11, P12 | Auditoría, configuración |
@@ -103,7 +171,7 @@ añadido en GA07).
 
 ### 7.1 Demo GA07 — flujo de datos presentable
 
-Narrativa del video y menú activo (`frontend/estaticos/navegacion.js`):
+Flujo de datos y menú activo (`frontend/estaticos/navegacion.js`):
 
 ```
 Generador (P4) → Pipeline ELT (P8) → Dataset hecho/dims (P4)
@@ -140,9 +208,9 @@ Generador (P4) → Pipeline ELT (P8) → Dataset hecho/dims (P4)
 ## 9. Reglas generales
 
 - **RG-001**: Solo usuarios autenticados con JWT (HS256) pueden acceder a los
-  módulos. (`backend/servicios/autenticacion/`)
+  módulos. (`backend/paquetes/autenticacion/`)
 - **RG-002**: El acceso a cada módulo se restringe por rol según la matriz
-  `PERMISOS_MODULOS` (`backend/utilidades/Dependencias.py`).
+  `PERMISOS_MODULOS` (`backend/nucleo/utilidades/Dependencias.py`).
 - **RG-003**: Los datos analíticos se leen del Data Warehouse (MinIO/Parquet) y
   no se omite el flujo ELT.
 - **RG-004**: El contenido clínico de cara al usuario y los datos sintéticos
@@ -152,23 +220,27 @@ Generador (P4) → Pipeline ELT (P8) → Dataset hecho/dims (P4)
 
 ## 10. Matriz de permisos por módulo
 
-Autoritativa, tomada de `backend/utilidades/Dependencias.py` (`PERMISOS_MODULOS`):
+Autoritativa, tomada de `backend/nucleo/utilidades/Dependencias.py` (`PERMISOS_MODULOS`):
 
 | Módulo | administrador | medico | analista |
 |--------|:---:|:---:|:---:|
 | usuarios | ✅ | | |
 | configuracion | ✅ | | |
 | auditoria | ✅ | | |
-| benchmarking | ✅ | | |
+| pacientes | ✅ | ✅ | |
+| admisiones | ✅ | | |
+| citas (agenda) | ✅ | | |
 | registros | ✅ | ✅ | |
-| analisis | ✅ | ✅ | |
-| prediccion | ✅ | ✅ | |
+| analisis | ✅ | ✅ | ✅ |
+| prediccion | ✅ | ✅ | ✅ |
 | reportes | ✅ | ✅ | |
 | dataset | ✅ | | ✅ |
 | pipeline_etl | ✅ | | ✅ |
 | modelo_ml | ✅ | | ✅ |
 | integraciones | ✅ | | ✅ |
 | notificaciones | ✅ | ✅ | ✅ |
+
+> **Mis citas (médico)**: vista en `/paginas/clinico/mis_citas/`; API `GET /api/citas/mis-citas` con `require_medico` (no aparece en `PERMISOS_MODULOS`). Ver `specs/003-operativo/flujo-clinico.md`.
 
 ## 11. Restricciones generales
 

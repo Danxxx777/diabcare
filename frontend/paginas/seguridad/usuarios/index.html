@@ -1,0 +1,381 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Usuarios</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<style>
+.u-tabla-wrap { background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.u-tabla-top  { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.u-search     { background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:7px; font-size:12px; font-family:var(--mono); outline:none; width:240px; transition:border-color .2s; }
+.u-search:focus { border-color:rgba(34,211,238,0.5); }
+.u-info       { font-size:11px; color:var(--muted); font-family:var(--mono); margin-left:auto; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+thead th { background:rgba(255,255,255,0.02); color:var(--muted); font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; padding:10px 16px; text-align:left; border-bottom:1px solid var(--border); }
+tbody tr { border-bottom:1px solid rgba(255,255,255,0.03); transition:background .1s; }
+tbody tr:hover { background:rgba(255,255,255,0.02); }
+tbody td { padding:12px 16px; color:var(--text2); }
+.td-nombre { font-weight:600; color:var(--text); font-size:13px; }
+.td-email  { font-family:var(--mono); font-size:11px; }
+.td-fecha  { font-family:var(--mono); font-size:11px; color:var(--muted); }
+.badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:10px; font-family:var(--mono); font-weight:500; }
+.badge-admin    { background:rgba(139,92,246,0.12); color:rgba(167,139,250,0.9); border:1px solid rgba(139,92,246,0.25); }
+.badge-medico   { background:rgba(74,222,128,0.1);  color:rgba(74,222,128,0.85);  border:1px solid rgba(74,222,128,0.25); }
+.badge-analista { background:rgba(34,211,238,0.1);  color:rgba(103,232,249,0.9);  border:1px solid rgba(34,211,238,0.25); }
+.badge-activo   { background:rgba(74,222,128,0.08); color:rgba(74,222,128,0.8);   border:1px solid rgba(74,222,128,0.2); }
+.badge-inactivo { background:rgba(248,113,113,0.08); color:rgba(248,113,113,0.8);   border:1px solid rgba(248,113,113,0.2); }
+.acciones { display:flex; gap:6px; }
+.btn-rol    { padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; font-family:var(--mono); background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.25); color:rgba(167,139,250,0.9); transition:all .15s; }
+.btn-rol:hover { background:rgba(139,92,246,0.18); }
+.btn-desact { padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; font-family:var(--mono); background:rgba(248,113,113,0.07); border:1px solid rgba(248,113,113,0.2); color:rgba(248,113,113,0.8); transition:all .15s; }
+.btn-desact:hover { background:rgba(248,113,113,0.15); }
+.btn-aprob { padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; font-family:var(--mono); background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.25); color:rgba(74,222,128,0.9); transition:all .15s; }
+.btn-aprob:hover { background:rgba(74,222,128,0.18); }
+.badge-pendiente { background:rgba(251,191,36,0.1); color:rgba(251,191,36,0.9); border:1px solid rgba(251,191,36,0.25); }
+.solicitudes-wrap { margin-bottom:18px; }
+.u-avatar { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; }
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:100; display:none; align-items:center; justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:28px; width:440px; max-width:95vw; }
+.modal-title { font-size:16px; font-weight:700; margin-bottom:20px; }
+.modal-title span { color:rgba(34,211,238,0.9); }
+.fg { margin-bottom:14px; }
+.fl { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:6px; }
+.fi, .fs { width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--text); padding:9px 12px; border-radius:7px; font-size:13px; font-family:inherit; outline:none; transition:border-color .2s; box-sizing:border-box; }
+.fi:focus, .fs:focus { border-color:rgba(34,211,238,0.5); background-color:rgba(34,211,238,0.06); }
+.fs { cursor:pointer; }
+.modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+.btn-cancel { background:transparent; border:1px solid var(--border); color:var(--text2); padding:9px 16px; border-radius:7px; font-size:12px; cursor:pointer; transition:border-color .15s; }
+.btn-cancel:hover { border-color:var(--muted); }
+.modal-overlay { backdrop-filter:blur(4px); }
+.modal { background:#13131f !important; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Usuarios</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Gestión de <span>usuarios</span></div>
+        <div class="page-sub">Administra usuarios, roles y accesos del sistema</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nuevo usuario</button>
+    </div>
+
+    <div class="stats-grid" style="margin-bottom:18px;">
+      <div class="stat-card"><div class="stat-label">Total usuarios</div><div class="stat-value blue" id="k-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value green" id="k-activos">—</div></div>
+      <div class="stat-card"><div class="stat-label">Inactivos</div><div class="stat-value red" id="k-inactivos">—</div></div>
+      <div class="stat-card"><div class="stat-label">Administradores</div><div class="stat-value amber" id="k-admins">—</div></div>
+    </div>
+
+    <div class="u-tabla-wrap solicitudes-wrap">
+      <div class="u-tabla-top">
+        <strong style="font-size:13px;color:var(--text)">Solicitudes de acceso pendientes</strong>
+        <button class="btn btn-ghost btn-sm" onclick="cargarSolicitudes()">↺ Recargar</button>
+        <span class="u-info" id="sol-info">—</span>
+      </div>
+      <div id="solicitudesBody">
+        <div class="loading"><div class="spinner"></div>Cargando solicitudes...</div>
+      </div>
+    </div>
+
+    <div class="u-tabla-wrap">
+      <div class="u-tabla-top">
+        <input class="u-search" id="busqueda" type="search" autocomplete="off" placeholder="Buscar por nombre o email..." oninput="filtrar()">
+        <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Recargar</button>
+        <span class="u-info" id="u-info">—</span>
+      </div>
+      <div id="tablaBody">
+        <div class="loading"><div class="spinner"></div>Cargando usuarios...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitulo">Nuevo <span>usuario</span></div>
+    <div id="camposCrear">
+      <div class="fg"><label class="fl">Nombre completo</label><input class="fi" id="f-nombre" autocomplete="off" placeholder="ej. Byron Loor"></div>
+      <div class="fg"><label class="fl">Email</label><input class="fi" id="f-email" type="email" autocomplete="off" placeholder="usuario@diabcare.com"></div>
+      <div class="fg"><label class="fl">Contraseña</label><input class="fi" id="f-pass" type="password" autocomplete="new-password" placeholder="••••••••"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">Rol</label>
+      <select class="fs" id="f-rol">
+        <option value="medico">Médico</option>
+        <option value="analista">Analista</option>
+        <option value="administrador">Administrador</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="btnGuardar" onclick="guardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador']);
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+let usuarios = [];
+let solicitudes = [];
+let modoEdicion = null;
+
+const COLORES = ['rgba(34,211,238,0.7)','rgba(139,92,246,0.7)','rgba(20,184,166,0.7)','rgba(251,191,36,0.7)','rgba(248,113,113,0.7)'];
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+
+function initUser() {
+  if (!token) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  if (u.nombre) {
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+  }
+}
+
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+function aplicarRoles() {
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const rol = u.rol || '';
+  const OCULTAR = {
+    'medico':   ['Dataset','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
+    'analista': ['Registros clínicos','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
+  };
+  const ocultar = OCULTAR[rol] || [];
+  document.querySelectorAll('.nav-group').forEach(g => {
+    const label = g.querySelector('.nav-group-label');
+    if (!label) return;
+    const txt = label.textContent.trim();
+if (ocultar.some(o => txt.includes(o))) g.style.display = 'none';
+  });
+}
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function badgeRol(rol) {
+  const cls = rol === 'administrador' ? 'badge-admin' : rol === 'medico' ? 'badge-medico' : 'badge-analista';
+  return `<span class="badge ${cls}">${rol}</span>`;
+}
+
+function renderTabla(data) {
+  document.getElementById('u-info').textContent = data.length + ' usuarios';
+  if (!data.length) {
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin usuarios</div>';
+    return;
+  }
+  let h = `<table><thead><tr>
+    <th>Usuario</th><th>Email</th><th>Rol</th><th>Estado</th><th>Creado</th><th>Acciones</th>
+  </tr></thead><tbody>`;
+  data.forEach((u, i) => {
+    const color  = COLORES[i % COLORES.length];
+    const inicial = (u.nombre || '?')[0].toUpperCase();
+    const fecha  = u.creado_en ? u.creado_en.split('T')[0] : '—';
+    h += `<tr>
+      <td><div style="display:flex;align-items:center;gap:10px;">
+        <div class="u-avatar" style="background:${color}">${inicial}</div>
+        <span class="td-nombre">${u.nombre}</span>
+      </div></td>
+      <td class="td-email">${u.email}</td>
+      <td>${badgeRol(u.rol || 'analista')}</td>
+      <td><span class="badge ${u.activo ? 'badge-activo' : 'badge-inactivo'}">${u.activo ? 'activo' : 'inactivo'}</span></td>
+      <td class="td-fecha">${fecha}</td>
+      <td><div class="acciones">
+        <button class="btn-rol" onclick="abrirEditar('${u.id}','${u.rol||'analista'}')">Cambiar rol</button>
+        ${u.activo ? `<button class="btn-desact" onclick="desactivar('${u.id}','${u.nombre}')">Desactivar</button>` : ''}
+      </div></td>
+    </tr>`;
+  });
+  h += '</tbody></table>';
+  document.getElementById('tablaBody').innerHTML = h;
+}
+
+function actualizarKPI(data) {
+  const activos   = data.filter(u => u.activo).length;
+  const inactivos = data.length - activos;
+  const admins    = data.filter(u => u.rol === 'administrador').length;
+  document.getElementById('k-total').textContent     = data.length;
+  document.getElementById('k-activos').textContent   = activos;
+  document.getElementById('k-inactivos').textContent = inactivos;
+  document.getElementById('k-admins').textContent    = admins;
+}
+
+async function cargarSolicitudes() {
+  document.getElementById('solicitudesBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/usuarios/solicitudes?estado=pendiente`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    solicitudes = await r.json();
+    renderSolicitudes(solicitudes);
+  } catch {
+    document.getElementById('solicitudesBody').innerHTML = '<div class="loading">Error de conexión</div>';
+  }
+}
+
+function renderSolicitudes(data) {
+  document.getElementById('sol-info').textContent = data.length + ' pendientes';
+  if (!data.length) {
+    document.getElementById('solicitudesBody').innerHTML = '<div class="loading">Sin solicitudes pendientes</div>';
+    return;
+  }
+  let h = `<table><thead><tr>
+    <th>Solicitante</th><th>Email</th><th>Rol solicitado</th><th>Motivo</th><th>Fecha</th><th>Acciones</th>
+  </tr></thead><tbody>`;
+  data.forEach(s => {
+    const fecha = s.creado_en ? s.creado_en.split('T')[0] : '—';
+    h += `<tr>
+      <td class="td-nombre">${s.nombre}</td>
+      <td class="td-email">${s.email}</td>
+      <td>${badgeRol(s.rol_solicitado || 'analista')}</td>
+      <td style="max-width:220px;font-size:11px;color:var(--text2)">${s.motivo || '—'}</td>
+      <td class="td-fecha">${fecha}</td>
+      <td><div class="acciones">
+        <button class="btn-aprob" onclick="aprobarSolicitud('${s.id}','${s.rol_solicitado || 'analista'}','${s.nombre}')">Aprobar</button>
+        <button class="btn-desact" onclick="rechazarSolicitud('${s.id}','${s.nombre}')">Rechazar</button>
+      </div></td>
+    </tr>`;
+  });
+  h += '</tbody></table>';
+  document.getElementById('solicitudesBody').innerHTML = h;
+}
+
+async function aprobarSolicitud(id, rol, nombre) {
+  const rolFinal = prompt(`Aprobar acceso de ${nombre}. Rol a asignar:`, rol || 'analista');
+  if (!rolFinal) return;
+  const r = await fetch(`${API}/api/usuarios/solicitudes/${id}/aprobar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ rol: rolFinal.trim() })
+  });
+  const d = await r.json();
+  cargarSolicitudes(); cargar();
+  toast(r.ok ? `Acceso aprobado para ${nombre}` : (d.detail || 'Error'), r.ok ? 'success' : 'error');
+}
+
+async function rechazarSolicitud(id, nombre) {
+  if (!confirm(`¿Rechazar la solicitud de ${nombre}?`)) return;
+  const r = await fetch(`${API}/api/usuarios/solicitudes/${id}/rechazar`, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  const d = await r.json();
+  cargarSolicitudes();
+  toast(r.ok ? `Solicitud de ${nombre} rechazada` : (d.detail || 'Error'), r.ok ? 'success' : 'error');
+}
+
+async function cargar() {
+  document.getElementById('busqueda').value = '';
+  document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/usuarios/`, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    usuarios = await r.json();
+    renderTabla(usuarios);
+    actualizarKPI(usuarios);
+  } catch {
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
+  }
+}
+
+function filtrar() {
+  const q = document.getElementById('busqueda').value.toLowerCase();
+  renderTabla(usuarios.filter(u =>
+    (u.nombre || '').toLowerCase().includes(q) ||
+    (u.email  || '').toLowerCase().includes(q)
+  ));
+}
+
+function abrirModal() {
+  modoEdicion = null;
+  document.getElementById('modalTitulo').innerHTML  = 'Nuevo <span>usuario</span>';
+  document.getElementById('camposCrear').style.display = 'block';
+  document.getElementById('f-nombre').value = '';
+  document.getElementById('f-email').value  = '';
+  document.getElementById('f-pass').value   = '';
+  document.getElementById('f-rol').value    = 'medico';
+  document.getElementById('btnGuardar').textContent = 'Guardar';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function abrirEditar(id, rolActual) {
+  modoEdicion = id;
+  document.getElementById('modalTitulo').innerHTML  = 'Cambiar <span>rol</span>';
+  document.getElementById('camposCrear').style.display = 'none';
+  document.getElementById('f-rol').value = rolActual;
+  document.getElementById('btnGuardar').textContent = 'Actualizar rol';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function cerrarModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+async function guardar() {
+  if (modoEdicion) {
+    const r = await fetch(`${API}/api/usuarios/${modoEdicion}/rol`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ rol: document.getElementById('f-rol').value })
+    });
+    const d = await r.json();
+    cerrarModal(); cargar();
+    toast(r.ok ? 'Rol actualizado' : (d.detail || 'Error'), r.ok ? 'success' : 'error');
+  } else {
+    const body = {
+      nombre:   document.getElementById('f-nombre').value.trim(),
+      email:    document.getElementById('f-email').value.trim(),
+      password: document.getElementById('f-pass').value,
+      rol:      document.getElementById('f-rol').value
+    };
+    if (!body.nombre || !body.email || !body.password) { toast('Completa todos los campos', 'error'); return; }
+    const r = await fetch(`${API}/api/usuarios/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    cerrarModal(); cargar();
+    toast(r.ok ? `Usuario ${body.nombre} creado` : (d.detail || 'Error'), r.ok ? 'success' : 'error');
+  }
+}
+
+async function desactivar(id, nombre) {
+  if (!confirm(`¿Desactivar a ${nombre}?`)) return;
+  const r = await fetch(`${API}/api/usuarios/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+  const d = await r.json();
+  cargar();
+  toast(r.ok ? `${nombre} desactivado` : (d.detail || 'Error'), r.ok ? 'success' : 'error');
+}
+
+setTimeout(() => { cargar(); cargarSolicitudes(); }, 150);
+</script>
+</body>
+</html>

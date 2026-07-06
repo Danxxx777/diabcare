@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Diabetes</title>
+<link rel="icon" href="/estaticos/img/favicon.ico">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<style>
+.hub-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+.hub-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; text-decoration:none; color:inherit; transition:border-color .2s,transform .15s; display:block; }
+.hub-card:hover { border-color:rgba(34,211,238,0.4); transform:translateY(-2px); }
+.hub-card h3 { font-size:14px; margin:10px 0 6px; }
+.hub-card p { font-size:11px; color:var(--muted); line-height:1.5; }
+.hub-icon { color:var(--cyan); }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar"><span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Endocrinología</span></div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Programa <span>diabetes</span></div>
+        <div class="page-sub">Dataset epidemiológico + atención clínica metabólica integrada al HIS</div>
+      </div>
+    </div>
+    <div class="hub-grid">
+      <a class="hub-card" href="/paginas/pacientes/index.html">
+        <h3>Expedientes metabólicos</h3>
+        <p>Pacientes con evolución HbA1c, glucosa y consultas vinculadas al dataset.</p>
+      </a>
+      <a class="hub-card" href="/paginas/prediccion/index.html">
+        <h3>Predicción ML</h3>
+        <p>Modelo de riesgo de diabetes a partir de variables clínicas.</p>
+      </a>
+      <a class="hub-card" href="/paginas/estadisticas/index.html">
+        <h3>Estadísticas epidemiológicas</h3>
+        <p>Prevalencia, cohortes y KPIs del dataset (901k+ registros).</p>
+      </a>
+      <a class="hub-card" href="/paginas/dataset/index.html">
+        <h3>Data warehouse</h3>
+        <p>Hechos, dimensiones y agregados del star schema clínico.</p>
+      </a>
+      <a class="hub-card" href="/paginas/reportes/index.html">
+        <h3>Reportes PDF</h3>
+        <p>Informes clínicos descargables con QR de verificación.</p>
+      </a>
+      <a class="hub-card" href="/paginas/modelo_ml/index.html">
+        <h3>Gestión del modelo</h3>
+        <p>Métricas, reentrenamiento e historial de versiones ML.</p>
+      </a>
+    </div>
+  </div>
+</div>
+<script>
+DiabCareNav.init();
+document.querySelectorAll('.hub-card').forEach((el, i) => {
+  const icons = ['pacientes','prediccion','stats','dataset','reportes','modelo'];
+  const span = document.createElement('span');
+  span.className = 'hub-icon';
+  span.innerHTML = DiabCareIcons.nav(icons[i] || 'diabetes');
+  el.prepend(span);
+});
+</script>
+</body>
+</html>

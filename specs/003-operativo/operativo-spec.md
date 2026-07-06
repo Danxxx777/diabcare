@@ -9,11 +9,12 @@
 **Fuentes**: `TA 06.docx` (Estrategia Documental Empresarial — OE, OT, OO, CU-O),
 `specs/000-sistema-general/constitution.md`, código verificado en `backend/` y `frontend/`.
 
-**Casos de uso cubiertos**: CU-O01–CU-O16
+**Casos de uso cubiertos**: CU-O01–CU-O16 + extensiones **CU-O17–CU-O20** (ver `casos-de-uso-correcciones.md`)
 
 > Esta especificación describe el nivel operativo completo. El detalle por
-> paquete vive en `specs/003-operativo/paquetes/`. La trazabilidad
-> empresarial completa vive en `specs/003-operativo/trazabilidad.md`.
+> paquete vive en `specs/003-operativo/paquetes/`. **Flujo clínico**:
+> `specs/003-operativo/flujo-clinico.md`. La trazabilidad empresarial completa
+> vive en `specs/003-operativo/trazabilidad.md`.
 
 ## 1. Objetivo
 
@@ -35,8 +36,8 @@ especificados para guiar su construcción futura bajo SDD.
 
 | Actor | Rol técnico | Casos operativos principales |
 |-------|-------------|------------------------------|
-| Médico | `medico` | CU-O03, CU-O04, CU-O07, CU-O08 |
-| Administrador | `administrador` | CU-O01, CU-O02 y acceso total |
+| Médico | `medico` | CU-O03, CU-O04, CU-O07, CU-O08, **CU-O20** |
+| Administrador | `administrador` | CU-O01, CU-O02, **CU-O17, CU-O18, CU-O19** y acceso total |
 | Analista | `analista` | CU-O05, CU-O06, CU-O09 |
 | Partner externo | (consumidor API) | CU-O13, CU-O14 |
 | Sistema (Airflow) | proceso | CU-O06, CU-O15 |
@@ -71,7 +72,7 @@ criterios) por paquete está en `specs/003-operativo/paquetes/`.
   *Implementado* (`GET /api/registros/estadisticas`,
   `GET /api/dataset/estadisticas`).
 - **RF-O-P05-002** (CU-O10): El sistema DEBE mostrar un dashboard ejecutivo con
-  KPIs y alertas clínicas. *Implementado* (`frontend/paginas/analisis/index.html`).
+  KPIs y alertas clínicas. *Implementado* (`frontend/paginas/clinico/analisis/index.html`).
 - **RF-O-P06-001** (CU-O08): El sistema DEBE predecir el riesgo de diabetes a
   partir de variables clínicas, devolviendo probabilidad. *Implementado*
   (`POST /api/prediccion`).
@@ -81,6 +82,17 @@ criterios) por paquete está en `specs/003-operativo/paquetes/`.
 - **RF-O-P07-001** (Reportes): El sistema DEBE generar reportes clínicos en PDF
   descargables con estadísticas, métricas ML y resumen filtrado. *Implementado*
   (`POST /api/reportes/generar`, `specs/003-operativo/paquetes/P07-reportes/spec.md`).
+
+### Departamento: Operaciones Clínicas — Pacientes, Admisiones, Agenda
+
+- **RF-O-PAC-001**: CRUD expedientes paciente (HCE) con foto. *Implementado*
+  (`/api/pacientes/`, `P-pacientes-spec.md`).
+- **RF-O-ADM-001**: Admisiones hospitalarias solo administrador, médico en select.
+  *Implementado* (`/api/admisiones/`, `P-admisiones-spec.md`).
+- **RF-O-CIT-001**: Agenda de citas solo administrador. *Implementado*
+  (`/api/citas/`, `P-citas-spec.md`).
+- **RF-O-CIT-002**: Mis citas para médico (confirmar / atender). *Implementado*
+  (`GET /api/citas/mis-citas`, `flujo-clinico.md`).
 
 ### Departamento: Datos e Ingeniería (P4, P8, P14)
 

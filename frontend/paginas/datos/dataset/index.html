@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Dataset</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<style>
+.dwh-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; min-height: 480px; }
+@media (max-width: 900px) { .dwh-layout { grid-template-columns: 1fr; } }
+.dwh-sidebar { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; max-height: 70vh; overflow-y: auto; }
+.dwh-grupo { border-bottom: 1px solid var(--border); }
+.dwh-grupo-head { padding: 10px 14px; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text3); background: var(--bg3); cursor: pointer; display: flex; justify-content: space-between; }
+.dwh-grupo-head.open { color: var(--accent); }
+.dwh-grupo-items { display: none; }
+.dwh-grupo-items.open { display: block; }
+.dwh-tabla-btn { display: block; width: 100%; text-align: left; padding: 8px 14px; border: none; background: transparent; color: var(--text2); font-size: 12px; cursor: pointer; border-left: 3px solid transparent; }
+.dwh-tabla-btn:hover { background: var(--bg3); }
+.dwh-tabla-btn.active { background: var(--bg3); border-left-color: var(--accent); color: var(--text); }
+.dwh-tabla-btn .filas { float: right; font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.dwh-meta-bar { font-size: 11px; color: var(--text3); margin-bottom: 14px; padding: 12px 16px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; line-height: 1.6; }
+.dwh-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.dwh-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-family: var(--mono); background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+.dwh-badge.cu { color: var(--accent); border-color: rgba(59,130,246,.3); }
+.dwh-badge.impl { color: #22c55e; border-color: rgba(34,197,94,.3); }
+.dwh-badge.deriv { color: #eab308; border-color: rgba(234,179,8,.3); }
+.dwh-badge.esq { color: var(--text3); }
+.stats-grid-compact { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.stats-grid-compact .stat-card { padding: 10px 12px; }
+.stats-grid-compact .stat-value { font-size: 18px; }
+</style>
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+</head>
+<body>
+
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-crumb">Dataset</span><span class="tb-sep">/</span><span class="tb-page">DWH hospitalario</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dataset <span>clínico-hospitalario</span></div>
+        <div class="page-sub">Esquema DWH — hechos, dimensiones, agregados y catálogos operativos</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="/paginas/datos/dataset/generador.html" class="btn btn-ghost btn-sm">Generador →</a>
+        <button class="btn btn-ghost btn-sm" onclick="compactarStage()">⊟ Compactar stage</button>
+        <button class="btn btn-primary btn-sm" onclick="reconstruirDwh()">↻ Reconstruir DWH</button>
+      </div>
+    </div>
+
+    <div class="stats-grid-compact" id="statsTop">
+      <div class="stat-card"><div class="stat-label">Tablas</div><div class="stat-value blue" id="st-tablas">—</div></div>
+      <div class="stat-card"><div class="stat-label">Filas DWH</div><div class="stat-value" id="st-filas">—</div></div>
+      <div class="stat-card"><div class="stat-label">Hechos diabetes</div><div class="stat-value" id="st-fact">—</div></div>
+      <div class="stat-card"><div class="stat-label">Stage</div><div class="stat-value" id="st-stage">—</div></div>
+    </div>
+
+    <div class="dwh-meta-bar">
+      <strong style="color:var(--text2)">Modelo Hecho-Dimensión hospitalario</strong> — 57+ tablas en MinIO <code>diabcare-app</code>
+      <span style="float:right;font-family:var(--mono);font-size:10px" id="dwh-meta">—</span>
+    </div>
+
+    <div class="dwh-layout">
+      <nav class="dwh-sidebar" id="dwhNav"><div class="loading"><div class="spinner"></div>Cargando esquema…</div></nav>
+
+      <div class="tabla-card">
+        <div class="tabla-top">
+          <span class="tabla-title" id="tablaActual">—</span>
+          <button class="btn btn-ghost btn-sm" onclick="cargarTabla()">↺ Recargar</button>
+          <span class="tabla-info" id="info">—</span>
+        </div>
+        <div id="tablaDesc" style="padding:10px 16px 0;font-size:11px;color:var(--text3);"></div>
+        <div class="dwh-badges" id="tablaBadges" style="padding:0 16px;"></div>
+        <div class="tabla-wrap">
+          <div id="tablaBody"><div class="loading"><div class="spinner"></div>Seleccione una tabla</div></div>
+        </div>
+        <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="prevPag()">&#8592; Anterior</button>
+          <span style="font-size:11px;color:var(--text3);font-family:var(--mono)" id="pagInfo">Pág 1</span>
+          <button class="btn btn-ghost btn-sm" onclick="nextPag()">Siguiente &#8594;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+DiabCareNav.init();
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+let pag = 1, tablaActual = 'hechos_diabetes', esquema = null;
+const LIMIT = 50;
+
+const GRUPO_LABEL = {
+  hechos: 'Hechos', dimensiones: 'Dimensiones', agregados: 'Agregados',
+  puente: 'Puentes', operativo: 'Operativo / catálogo',
+};
+
+function badgeEstado(e) {
+  const cls = e === 'implementado' ? 'impl' : e === 'derivado' ? 'deriv' : 'esq';
+  return `<span class="dwh-badge ${cls}">${e}</span>`;
+}
+
+async function cargarEsquema() {
+  try {
+    const r = await fetch(`${API}/api/dataset/dwh/esquema`, { headers: { Authorization: 'Bearer ' + token } });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    if (!r.ok) return;
+    esquema = await r.json();
+    renderNav(esquema.grupos || {});
+    const res = esquema.resumen || {};
+    document.getElementById('st-tablas').textContent = (esquema.total_tablas || 24).toLocaleString('es-ES');
+    document.getElementById('st-filas').textContent = (res.total_filas_dwh || 0).toLocaleString('es-ES');
+    document.getElementById('st-fact').textContent = (res.total_hechos || 0).toLocaleString('es-ES');
+    document.getElementById('st-stage').textContent = (res.total_stage || 0).toLocaleString('es-ES');
+    const meta = res.ultima_materializacion
+      ? `Últ. mat. ${res.ultima_materializacion.slice(0, 19).replace('T', ' ')}`
+      : 'Sin materializar — use Generador o Reconstruir DWH';
+    document.getElementById('dwh-meta').textContent = meta;
+    if (!tablaActual && esquema.grupos?.hechos?.[0]) {
+      tablaActual = esquema.grupos.hechos[0].id;
+    }
+    seleccionarTabla(tablaActual, false);
+  } catch {}
+}
+
+function renderNav(grupos) {
+  const nav = document.getElementById('dwhNav');
+  const orden = ['hechos', 'dimensiones', 'agregados', 'puente', 'operativo'];
+  let html = '';
+  orden.forEach((g, gi) => {
+    const items = grupos[g] || [];
+    if (!items.length) return;
+    const open = gi === 0 ? ' open' : '';
+    html += `<div class="dwh-grupo">
+      <div class="dwh-grupo-head${open}" onclick="toggleGrupo(this)">${GRUPO_LABEL[g] || g}<span>${items.length}</span></div>
+      <div class="dwh-grupo-items${open}">`;
+    items.forEach(t => {
+      html += `<button type="button" class="dwh-tabla-btn${t.id === tablaActual ? ' active' : ''}"
+        data-id="${t.id}" onclick="seleccionarTabla('${t.id}')">
+        ${t.nombre}<span class="filas">${(t.filas || 0).toLocaleString('es-ES')}</span>
+      </button>`;
+    });
+    html += '</div></div>';
+  });
+  nav.innerHTML = html || '<div class="loading">Sin tablas en catálogo</div>';
+}
+
+function toggleGrupo(head) {
+  head.classList.toggle('open');
+  const items = head.nextElementSibling;
+  if (items) items.classList.toggle('open');
+}
+
+function findTabla(id) {
+  if (!esquema?.grupos) return null;
+  for (const g of Object.values(esquema.grupos)) {
+    const t = g.find(x => x.id === id);
+    if (t) return t;
+  }
+  return null;
+}
+
+function seleccionarTabla(id, reload = true) {
+  tablaActual = id;
+  pag = 1;
+  document.querySelectorAll('.dwh-tabla-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.id === id);
+  });
+  const t = findTabla(id);
+  document.getElementById('tablaActual').textContent = t?.nombre || id;
+  document.getElementById('tablaDesc').textContent = t?.descripcion || '';
+  const badges = document.getElementById('tablaBadges');
+  if (t) {
+    badges.innerHTML = badgeEstado(t.estado_esquema || 'esquema');
+  } else badges.innerHTML = '';
+  if (reload) cargarTabla();
+}
+
+async function compactarStage() {
+  if (!confirm('¿Fusionar archivos duplicados en stage/? Los registros repetidos se eliminarán.')) return;
+  try {
+    const r = await fetch(`${API}/api/dataset/stage/compactar`, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token },
+    });
+    const d = await r.json();
+    if (d.error) { alert(d.error); return; }
+    alert(`Stage compactado: ${d.filas_unicas?.toLocaleString('es-ES')} registros únicos (${d.duplicados_eliminados?.toLocaleString('es-ES')} duplicados eliminados)`);
+    await cargarEsquema();
+  } catch { alert('Error de conexión'); }
+}
+
+async function reconstruirDwh() {
+  try {
+    const r = await fetch(`${API}/api/dataset/dwh/reconstruir`, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token },
+    });
+    const d = await r.json();
+    if (d.ok) { await cargarEsquema(); cargarTabla(); }
+    else alert(d.error || 'Error al reconstruir DWH');
+  } catch { alert('Error de conexión'); }
+}
+
+async function cargarTabla() {
+  if (!tablaActual) return;
+  document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const url = `${API}/api/dataset/dwh/tabla/${tablaActual}?skip=${(pag-1)*LIMIT}&limit=${LIMIT}`;
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    const data = await r.json();
+    const rows = data.datos || [];
+
+    document.getElementById('info').textContent =
+      `${rows.length} filas · total ${(data.total||0).toLocaleString('es-ES')}`;
+    document.getElementById('pagInfo').textContent = `Pág ${pag}`;
+
+    if (!rows.length) {
+      const msg = data.error || (data.total === 0 ? 'Tabla vacía (esquema listo para datos operativos)' : 'Sin datos');
+      document.getElementById('tablaBody').innerHTML = `<div class="loading">${msg}</div>`;
+      return;
+    }
+
+    const cols = data.columnas?.length ? data.columnas : Object.keys(rows[0]);
+    let h = `<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+    rows.forEach(row => {
+      h += `<tr>${cols.map(c => `<td class="mono">${row[c] ?? '—'}</td>`).join('')}</tr>`;
+    });
+    h += '</tbody></table>';
+    document.getElementById('tablaBody').innerHTML = h;
+  } catch {
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
+  }
+}
+
+function prevPag() { if (pag > 1) { pag--; cargarTabla(); } }
+function nextPag() { pag++; cargarTabla(); }
+
+if (!localStorage.getItem('token')) window.location.href = '/';
+cargarEsquema();
+</script>
+</body>
+</html>

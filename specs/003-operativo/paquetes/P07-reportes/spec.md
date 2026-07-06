@@ -8,9 +8,9 @@
 
 **Creado**: 2026-06-19
 
-**Rutas previstas**: `backend/api/reportes/ReportesRutas.py`,
-`backend/servicios/reportes/ReportesServicio.py`,
-`frontend/paginas/reportes/index.html`
+**Rutas previstas**: `backend/paquetes/reportes/ReportesRutas.py`,
+`backend/paquetes/reportes/ReportesServicio.py`,
+`frontend/paginas/clinico/reportes/index.html`
 
 ## 1. Objetivo
 
@@ -33,7 +33,7 @@ sistema operativo de GA07.
 | Administrador | `administrador` | Generar y descargar reportes |
 
 Acceso según `PERMISOS_MODULOS["reportes"] = ["administrador", "medico"]`
-(verificado en `backend/utilidades/Dependencias.py`).
+(verificado en `backend/nucleo/utilidades/Dependencias.py`).
 
 ## 4. Requisitos funcionales
 

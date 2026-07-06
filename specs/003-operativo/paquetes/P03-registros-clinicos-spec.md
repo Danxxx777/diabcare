@@ -8,9 +8,9 @@
 
 **Creado**: 2026-06-19
 
-**Rutas reales**: `backend/api/registros_clinicos/RegistrosClinicosRutas.py`,
-`backend/servicios/registros_clinicos/RegistrosClinicosServicio.py`,
-`frontend/paginas/registros_clinicos/index.html`
+**Rutas reales**: `backend/paquetes/registros_clinicos/RegistrosClinicosRutas.py`,
+`backend/paquetes/registros_clinicos/RegistrosClinicosServicio.py`,
+`frontend/paginas/clinico/registros_clinicos/index.html`
 
 ## 1. Objetivo
 

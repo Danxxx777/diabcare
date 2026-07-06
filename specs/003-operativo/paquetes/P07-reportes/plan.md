@@ -48,7 +48,7 @@ Referencia: `specs/000-sistema-general/constitution.md` (DiabCare Analytics v1.1
 | Principio | Pregunta de la puerta | Resultado |
 |-----------|------------------------|-----------|
 | I. SDD | ¿Expone/cambia API pública? | Sí. Contrato OpenAPI en `contracts/reportes-api.yaml` antes de implementar. **PASA** |
-| II. Paquete-First | ¿Qué paquete? | P7. Rutas `backend/api/reportes/`, `backend/servicios/reportes/`, `frontend/paginas/reportes/`. **PASA** |
+| II. Paquete-First | ¿Qué paquete? | P7. Rutas `backend/paquetes/reportes/`, `backend/paquetes/reportes/`, `frontend/paginas/clinico/reportes/`. **PASA** |
 | III. Integridad DWH | ¿Lee/escribe datos clínicos? | Lee agregados del DWH vía servicios existentes; no omite ELT. **PASA** |
 | IV. Test-First | ¿Qué pruebas? | pytest en `pruebas/api/test_reportes.py` (contrato + flujo). **PASA** |
 | V. Seguridad | ¿Auth/clínico? | JWT + rol (`require_modulo('reportes')`); auditoría de generación/descarga; sin datos sensibles en PDF/logs. **PASA** |
@@ -77,19 +77,18 @@ specs/003-operativo/paquetes/P07-reportes/
 
 ```text
 backend/
-├── api/reportes/ReportesRutas.py            # Endpoints (actualmente stub)
-└── servicios/reportes/ReportesServicio.py   # Lógica (actualmente vacío)
+├── paquetes/reportes/ReportesRutas.py
+└── paquetes/reportes/ReportesServicio.py
 
 frontend/
-└── paginas/reportes/index.html              # UI (actualmente stub)
+└── paginas/clinico/reportes/index.html
 
 pruebas/
-└── api/test_reportes.py                     # Pruebas (a crear)
+└── api/test_reportes.py
 ```
 
-**Decisión de estructura**: se respeta la Arquitectura por Paquetes (Principio
-II); P7 ya tiene sus carpetas creadas en `backend/api/reportes/`,
-`backend/servicios/reportes/` y `frontend/paginas/reportes/`.
+**Decisión de estructura**: Arquitectura por Paquetes (Principio II) en
+`backend/paquetes/{nombre}/` y `frontend/paginas/{departamento}/{nombre}/`.
 
 ## Fase 0 — Investigación
 

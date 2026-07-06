@@ -6,7 +6,12 @@
 
 - **TA06** — *Estrategia Documental Empresarial DiabCare Analytics* (`TA 06.docx`,
   Byron Loor Mendoza): OE, OT, OO, CU-O01–CU-O16, modelo Fact-Dim, pipeline ELT.
-- Código verificado: `backend/`, `frontend/`, `specs/`.
+- Código verificado: `backend/paquetes/`, `backend/nucleo/`, `frontend/paginas/`, `specs/`.
+
+**Estructura de código (2026-07)**: paquetes en `backend/paquetes/{nombre}/`;
+frontend por departamento (`seguridad/`, `clinico/`, `datos/`, `gobierno/`).
+Los identificadores P1–P15 siguen en esta trazabilidad; no van en nombres de carpeta.
+Mapeo completo: `specs/000-sistema-general/spec.md` §5.1.
 
 Cumple el **Principio VI** de la constitución: cada CU-O es trazable en la cadena
 **OE → OT → OO → Departamento → Paquete → CU-O → Historia de usuario**.
@@ -35,7 +40,13 @@ Cumple el **Principio VI** de la constitución: cada CU-O es trazable en la cade
 | CU-O13 API partner | OE2 | OT2.1 | OO2.1.1 | Crecimiento | P15 | Fuera demo GA07 |
 | CU-O14 Doc OpenAPI | OE2 | OT2.1 | OO2.1.2 | Crecimiento | P15 | Parcial (`/docs`) |
 | CU-O15 CI/CD | OE3 | OT3.2 | OO3.2.1 | Infraestructura | — | Fuera demo GA07 |
-| CU-O16 Alerta churn | OE4 | OT4.2 | OO4.2.1 | Crecimiento | P10 | Fuera demo GA07 |
+| CU-O16 Alerta churn | OE4 | OT4.2 | OO4.2.1 | Crecimiento | P10 | Parcial (alertas clínicas + correo; churn pendiente) |
+| CU-O17 Expediente paciente (HCE) | OE4 | OT4.1 | OO5.2.1 | Operaciones Clínicas | Pacientes | Implementado |
+| CU-O18 Agendar cita (admin) | OE4 | OT4.1 | OO5.2.1 | Operaciones Clínicas | Citas | Implementado |
+| CU-O19 Registrar admisión | OE4 | OT4.1 | OO5.2.1 | Operaciones Clínicas | Admisiones | Implementado |
+| CU-O20 Mis citas (médico) | OE4 | OT4.1 | OO5.2.1 | Operaciones Clínicas | Citas | Implementado |
+| — Notificaciones / alertas clínicas | OE4 | OT4.2 | OO4.3.3 | Crecimiento / Clínico | P10 | Implementado (parcial GA07) |
+| — Reportes PDF clínicos | OE4 | OT4.2 | salida analítica | Operaciones Clínicas | P7 | Implementado |
 
 ---
 
@@ -84,7 +95,20 @@ roles. → Implementado.
 
 **HU-O09 (P14)** — Gestionar modelo ML (info, reentrenar, historial). → Implementado.
 
-**HU-O-P07 (P7)** — Generar reportes PDF con agregados (sin IDs paciente). → Implementado.
+**HU-O-P10 (P10, CU-O10 / CU-O01)** — Alertas clínicas in-app, correo Brevo (umbrales HbA1c/glucosa),
+recuperación de contraseña por email. → Implementado (parcial; CU-O16 churn pendiente).
+
+**HU-O-P10b** — Configurar SMTP/API Brevo en P12. → Implementado.
+
+**HU-O-Pacientes (CU-O17)** — Expediente HCE + foto MinIO. → Implementado.
+
+**HU-O-Agenda (CU-O18)** — Admin agenda citas y asigna médico. → Implementado.
+
+**HU-O-Admisiones (CU-O19)** — Admin registra ingresos y médico tratante. → Implementado.
+
+**HU-O-Mis-citas (CU-O20)** — Médico ve citas asignadas, confirma y atiende. → Implementado.
+
+> Texto listo para Word: `specs/003-operativo/casos-de-uso-correcciones.md`
 
 ### Gobierno
 
@@ -98,10 +122,10 @@ roles. → Implementado.
 
 | Ámbito | CUs / paquetes |
 |--------|----------------|
-| **Demo video** | CU-O01–O10 + P7, P11, P12, P14 |
-| **Implementado** | 12 capacidades operativas clínicas/datos |
+| **Demo GA07** | CU-O01–O10 + P7, P11, P12, P14 |
+| **Implementado** | CU-O01–O10 + **CU-O17–CU-O20** + P7, P11, P12, P14 |
 | **Parcial** | CU-O06 (orquestación Airflow completa), CU-O14 (Swagger) |
-| **Fuera GA07** | CU-O11, O12, O13, O15, O16; P9, P10, P13, P15 |
+| **Fuera GA07** | CU-O11, O12, O13, O15; churn CU-O16 (ML negocio); P9, P13, P15 |
 
 **Flujo de datos TA06 demostrable**:
 

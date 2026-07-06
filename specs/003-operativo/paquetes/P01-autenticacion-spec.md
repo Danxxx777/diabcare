@@ -8,9 +8,9 @@
 
 **Creado**: 2026-06-19
 
-**Rutas reales**: `backend/api/autenticacion/AutenticacionRutas.py`,
-`backend/servicios/autenticacion/AutenticacionServicio.py`,
-`frontend/paginas/autenticacion/index.html`
+**Rutas reales**: `backend/paquetes/autenticacion/AutenticacionRutas.py`,
+`backend/paquetes/autenticacion/AutenticacionServicio.py`,
+`frontend/paginas/seguridad/autenticacion/index.html`
 
 ## 1. Objetivo
 

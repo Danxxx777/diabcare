@@ -17,7 +17,7 @@ DEBE definirse en un contrato OpenAPI 3.0 antes de implementarse.
 ### II. Arquitectura por Paquetes
 
 Las funcionalidades DEBEN organizarse dentro de los 15 paquetes funcionales
-(P1–P15): `backend/api/`, `backend/servicios/`, `frontend/paginas/`.
+(P1–P15): `backend/paquetes/`, `backend/nucleo/`, `frontend/paginas/{departamento}/`.
 
 ### III. Integridad del Data Warehouse
 

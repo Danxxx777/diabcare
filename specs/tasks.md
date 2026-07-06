@@ -19,7 +19,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [x] 1.7 Implementar `PUT /api/auth/cambiar-password` con validación de password actual.
 - [x] 1.8 Frontend login con validación de campos, spinner y redirección al Dashboard.
 
-**Archivos:** `api/autenticacion/AutenticacionRutas.py`, `servicios/autenticacion/AutenticacionServicio.py`, `utilidades/Dependencias.py`
+**Archivos:** `paquetes/autenticacion/AutenticacionRutas.py`, `paquetes/autenticacion/AutenticacionServicio.py`, `nucleo/utilidades/Dependencias.py`
 
 ---
 
@@ -36,7 +36,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [x] 2.9 Frontend con avatares de inicial y colores por índice.
 - [x] 2.10 Corrección de `rol: null` en usuario admin via script Python directo en MinIO.
 
-**Archivos:** `api/usuarios/UsuariosRutas.py`, `servicios/usuarios/UsuariosServicio.py`, `frontend/paginas/usuarios/index.html`
+**Archivos:** `paquetes/usuarios/UsuariosRutas.py`, `paquetes/usuarios/UsuariosServicio.py`, `frontend/paginas/seguridad/usuarios/index.html`
 
 ---
 
@@ -50,7 +50,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [x] 3.6 Estadísticas calculan: genero, tabaquismo, razas, edad (rangos pd.cut), promedios, comorbilidades, ubicaciones (top 10), tendencia por año.
 - [x] 3.7 Frontend con tabla paginada y filtros por diabetes, género, ubicación y edad.
 
-**Archivos:** `api/registros_clinicos/RegistrosClinicosRutas.py`, `servicios/registros_clinicos/RegistrosClinicosServicio.py`, `frontend/paginas/registros_clinicos/index.html`
+**Archivos:** `paquetes/registros_clinicos/RegistrosClinicosRutas.py`, `paquetes/registros_clinicos/RegistrosClinicosServicio.py`, `frontend/paginas/clinico/registros_clinicos/index.html`
 
 ---
 
@@ -68,7 +68,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [x] 4.10 `GET /api/dataset/estadisticas` usa pyarrow para conteo rápido sin cargar todo en memoria.
 - [x] 4.11 Frontend ver tablas muestra el total real concatenado de todos los parquets.
 
-**Archivos:** `api/dataset/DatasetRutas.py`, `servicios/dataset/DatasetServicio.py`, `frontend/paginas/dataset/index.html`, `frontend/paginas/dataset/generador.html`
+**Archivos:** `paquetes/dataset/DatasetRutas.py`, `paquetes/dataset/DatasetServicio.py`, `frontend/paginas/datos/dataset/index.html`, `frontend/paginas/datos/dataset/generador.html`
 
 ---
 
@@ -87,7 +87,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [x] 5.11 KPI clínicos secundarios con BMI, HbA1c y glucosa promedio con/sin diabetes.
 - [x] 5.12 Barras comparativas inline con animación CSS.
 
-**Archivos:** `frontend/paginas/analisis/index.html`, `frontend/paginas/estadisticas/index.html`
+**Archivos:** `frontend/paginas/clinico/analisis/index.html`, `frontend/paginas/clinico/analisis/estadisticas/index.html`
 
 ---
 
@@ -102,7 +102,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [x] 6.7 `estilos.css` como design system compartido con variables CSS y componentes reutilizables.
 - [x] 6.8 Sidebar consistente en todas las páginas con `.user-row-wrap` + `.btn-logout` (icono ⏻).
 
-**Archivos:** `Principal.py`, `servicios/configuracion/ConfiguracionClienteMinio.py`, `frontend/estaticos/estilos.css`
+**Archivos:** `Principal.py`, `paquetes/configuracion/ConfiguracionClienteMinio.py`, `frontend/estaticos/estilos.css`
 
 ---
 
@@ -121,7 +121,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [x] 7.11 Llamar `aplicarRoles()` dentro de la función `predecir()` para evitar flash del sidebar.
 - [x] 7.12 Métricas reales del modelo: Accuracy 96%, Precision 99%, Recall 93%, F1 96% (248.800 train / 62.200 test).
 
-**Archivos:** `api/prediccion/PrediccionRutas.py`, `servicios/prediccion/PrediccionServicio.py`, `frontend/paginas/prediccion/index.html`
+**Archivos:** `paquetes/prediccion/PrediccionRutas.py`, `paquetes/prediccion/PrediccionServicio.py`, `frontend/paginas/clinico/prediccion/index.html`
 
 ---
 
@@ -140,7 +140,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [x] 8.7 Estados por paso: pending (—) → running (⏳ + animación pulse) → done (✓ verde) → error (✗ rojo).
 - [x] 8.8 Función `resetSteps()` limpia todos los pasos antes de cada ejecución.
 
-**Archivos:** `api/pipeline_etl/PipelineEtlRutas.py`, `frontend/paginas/pipeline_etl/index.html`
+**Archivos:** `paquetes/pipeline_elt/PipelineEtlRutas.py`, `frontend/paginas/datos/pipeline_elt/index.html`
 
 ---
 
@@ -163,7 +163,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [x] 10.3 `GET /api/dataset/estadisticas` usa la misma técnica para el total; carga solo el parquet más reciente para columnas y conteo de diabetes.
 - [x] 10.4 Frontend `dataset/index.html` muestra el total real en la KPI card "Fact diabetes" desde la respuesta del endpoint, no hardcodeado.
 
-**Archivos:** `api/dataset/DatasetRutas.py`
+**Archivos:** `paquetes/dataset/DatasetRutas.py`
 
 ---
 
@@ -176,7 +176,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [ ] 11.5 Implementar `GET /api/reportes/{nombre}` que descargue el PDF como `FileResponse` con `media_type="application/pdf"`.
 - [ ] 11.6 Frontend `reportes/index.html` con botón "Generar reporte", tabla de reportes disponibles y botón de descarga por fila.
 
-**Archivos:** `api/reportes/ReportesRutas.py`, `servicios/reportes/ReportesServicio.py`, `frontend/paginas/reportes/index.html`
+**Archivos:** `paquetes/reportes/ReportesRutas.py`, `paquetes/reportes/ReportesServicio.py`, `frontend/paginas/clinico/reportes/index.html`
 
 ---
 
@@ -187,7 +187,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [ ] 12.3 Implementar `GET /api/auditoria/` con filtros opcionales `usuario_id`, `fecha_desde`, `fecha_hasta` y `accion`, retornando lista paginada.
 - [ ] 12.4 Frontend `auditoria/index.html` con tabla paginada que muestre usuario, módulo, acción, timestamp y datos afectados.
 
-**Archivos:** `api/auditoria/AuditoriaRutas.py`, `servicios/auditoria/AuditoriaServicio.py`, `frontend/paginas/auditoria/index.html`
+**Archivos:** `paquetes/auditoria/AuditoriaRutas.py`, `paquetes/auditoria/AuditoriaServicio.py`, `frontend/paginas/gobierno/auditoria/index.html`
 
 ---
 
@@ -198,7 +198,7 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 - [ ] 13.3 Implementar `PUT /api/modelo_ml/activar/{nombre}` que copie el archivo `{nombre}.pkl` como `modelo_diabetes.pkl` e invalide el `_modelo_cache`.
 - [ ] 13.4 Frontend con historial de versiones, columnas nombre/fecha/tamaño, y botón "Activar" que llame al endpoint de activación con confirmación modal.
 
-**Archivos:** `api/modelo_ml/ModeloMlRutas.py`, `servicios/prediccion/PrediccionServicio.py`, `frontend/paginas/modelo_ml/index.html`
+**Archivos:** `paquetes/modelo_ml/ModeloMlRutas.py`, `paquetes/prediccion/PrediccionServicio.py`, `frontend/paginas/datos/modelo_ml/index.html`
 
 ---
 

@@ -8,10 +8,10 @@
 
 **Creado**: 2026-06-19
 
-**Rutas reales**: `backend/api/dataset/DatasetRutas.py`,
-`backend/servicios/dataset/DatasetServicio.py`,
-`backend/servicios/dataset/DatasetGenerador.py`,
-`frontend/paginas/dataset/index.html`
+**Rutas reales**: `backend/paquetes/dataset/DatasetRutas.py`,
+`backend/paquetes/dataset/DatasetServicio.py`,
+`backend/paquetes/dataset/DatasetGenerador.py`,
+`frontend/paginas/datos/dataset/index.html`
 
 ## 1. Objetivo
 

@@ -1,4 +1,4 @@
-﻿# DiabCare Analytics
+# DiabCare Analytics
 
 Plataforma SaaS de análisis clínico de datos de diabetes hospitalaria.  
 **59 casos de uso · 15 paquetes funcionales · Arquitectura Data Warehouse**
@@ -14,101 +14,86 @@ Plataforma SaaS de análisis clínico de datos de diabetes hospitalaria.
 | Fuente de datos | PocketBase |
 | Machine Learning | scikit-learn |
 
-## Modelo de Datos
-
-Arquitectura **Data Warehouse** con 21 tablas: 1 tabla de hechos, 5 dimensiones y 15 tablas operativas.
-
-| Tabla | Tipo | Descripción |
-|-------|------|-------------|
-| `HechosDiabetes` | Hechos | Tabla de hechos principal (encounter_id, glucosa, BMI, HbA1c, diagnóstico) |
-| `DimensionPaciente` | Dimensión | Datos del paciente (género, edad) |
-| `DimensionUbicacion` | Dimensión | Ubicación geográfica |
-| `DimensionRaza` | Dimensión | Raza/etnia del paciente |
-| `DimensionCondicion` | Dimensión | Condición médica (hipertensión, cardiopatía) |
-| `DimensionTiempo` | Dimensión | Año del registro clínico |
-
 ## Flujo de Datos
 
-```
+`
 PocketBase → Airflow (DAGs) → Parquet (stage/) → MinIO → FastAPI → Frontend
-```
+`
 
-## Paquetes de Casos de Uso
+## Paquetes funcionales (P1-P15)
 
-El sistema cuenta con **59 casos de uso** organizados en **15 paquetes funcionales**:
+Detalle en specs/003-operativo/paquetes/. Identificadores P1-P15 en SDD; carpetas solo por nombre de modulo.
 
-| Paquete | Nombre | Carpeta | CUs |
-|---------|--------|---------|-----|
-| P1 | Autenticación y seguridad | `autenticacion` | CU01–CU04 |
-| P2 | Gestión de usuarios | `usuarios` | CU05–CU08 |
-| P3 | Gestión de registros clínicos | `registros_clinicos` | CU09–CU13 |
-| P4 | Dataset y datos sintéticos | `dataset` | CU14–CU17 |
-| P5 | Análisis y visualización | `analisis` | CU18–CU21 |
-| P6 | Predicción ML | `prediccion` | CU22–CU25 |
-| P7 | Reportes | `reportes` | CU26–CU29 |
-| P8 | Pipeline ETL | `pipeline_etl` | CU30–CU33 |
-| P9 | Información corporativa | `corporativo` | CU34–CU36 |
-| P10 | Notificaciones y alertas | `notificaciones` | CU37–CU40 |
-| P11 | Auditoría y trazabilidad | `auditoria` | CU41–CU44 |
-| P12 | Configuración del sistema | `configuracion` | CU45–CU48 |
-| P13 | Comparación y benchmarking | `benchmarking` | CU49–CU52 |
-| P14 | Gestión del modelo ML | `modelo_ml` | CU53–CU56 |
-| P15 | API pública e integraciones | `integraciones` | CU57–CU59 |
-
-## Estructura del Proyecto
+### Arbol del repositorio
 
 ```
 diabcare/
-├── backend/
-│   ├── api/               Rutas FastAPI por paquete (P1–P15)
-│   ├── servicios/         Lógica de negocio por paquete
-│   ├── modelos/           Hechos y dimensiones (Data Warehouse)
-│   └── utilidades/        JWT, Parquet, logger
-├── frontend/
-│   ├── paginas/           Páginas HTML por paquete (P1–P15)
-│   └── estaticos/         CSS, JS compartidos (navegación, estilos)
-├── specs/                 Especificaciones SDD (entrega académica)
-│   ├── requirements.md    Requisitos consolidados (R)
-│   ├── design.md          Diseño y arquitectura (D)
-│   ├── tasks.md           Plan de implementación (T)
-│   ├── 000-sistema-general/
-│   └── 003-operativo/     Spec operativa y paquetes P01–P15
-├── .cursor/               Spec Kit — skills /speckit-* para Cursor
-├── .specify/              Spec Kit — plantillas, scripts, constitución
-├── pruebas/               pytest (API por módulo)
-├── ml/                    Entrenamiento y evaluación ML
-├── docker-compose.yaml    MinIO, PocketBase, Airflow
-└── pipeline_diabetes.py   DAG ETL de referencia
++-- backend/
+|   +-- Principal.py
+|   +-- nucleo/              modelos DWH, utilidades
+|   +-- paquetes/
+|       +-- autenticacion/   P1
+|       +-- usuarios/        P2
+|       +-- registros_clinicos/  P3
+|       +-- dataset/         P4
+|       +-- prediccion/      P6
+|       +-- reportes/        P7
+|       +-- pipeline_elt/    P8
+|       +-- auditoria/       P11
+|       +-- configuracion/   P12
+|       +-- modelo_ml/       P14
+|       +-- clinico/         CU-O02-O04
+|           +-- pacientes/
+|           +-- admisiones/
+|           +-- citas/
++-- frontend/paginas/
+    +-- seguridad/   P1, P2
+    +-- clinico/     P3, P5-P7 + pacientes/admisiones/agenda
+    +-- datos/       P4, P8, P14
+    +-- gobierno/    P11, P12
 ```
 
-## Actores del Sistema
+Ver tabla completa en specs/000-sistema-general/spec.md seccion 5.1.
 
-| Actor | Rol |
-|-------|-----|
-| Médico | Registros clínicos, predicciones, reportes |
-| Administrador | Usuarios, configuración, auditoría, dataset |
-| Analista | Dashboards, benchmarking, modelo ML |
-| Sistema (Airflow) | Pipeline ETL automatizado |
+## Estructura del proyecto
+
+`
+diabcare/
+├── backend/
+│   ├── Principal.py
+│   ├── nucleo/          # modelos DWH, utilidades (JWT, Parquet)
+│   └── paquetes/        # un folder por paquete (Rutas + Servicio)
+├── frontend/
+│   ├── paginas/
+│   │   ├── seguridad/   # P1, P2
+│   │   ├── clinico/      # P3, P5–P7 + pacientes/admisiones/agenda
+│   │   ├── datos/       # P4, P8, P14
+│   │   └── gobierno/    # P11, P12
+│   └── estaticos/
+├── specs/               # especificaciones SDD
+├── .cursor/ .specify/   # Spec Kit
+└── pruebas/             # pytest
+`
 
 ## Arranque rápido
 
-```bash
+`ash
 docker compose up -d
 cd backend
 pip install -r requirements.txt
-uvicorn Principal:app --reload --port 8000
-```
+py -3 Principal.py
+`
 
 - **App:** http://localhost:8000  
-- **Admin:** `admin@diabcare.com` / `Admin2026*`
+- **Admin:** dmin@diabcare.com / Admin2026*
 
 ## Pruebas
 
-```bash
+`ash
 cd backend
 py -m pytest ../pruebas/api -q
-```
+`
 
 ## Spec-Driven Development
 
-Metodología **Spec Kit** (GitHub): usar en Cursor los skills `/speckit-constitution`, `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`. Los artefactos de presentación viven en `specs/`; la herramienta en `.cursor/` y `.specify/`.
+Metodología **Spec Kit** en Cursor: /speckit-constitution, /speckit-specify, /speckit-plan, /speckit-tasks. Artefactos en specs/.

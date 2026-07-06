@@ -35,8 +35,8 @@ DiabCare Analytics es una plataforma SaaS académica (6to semestre — Construcc
 3. IF las credenciales son incorrectas o el usuario no existe, THE Sistema SHALL retornar HTTP 401 con `detail: "Credenciales incorrectas"` sin distinguir cuál campo es incorrecto.
 4. IF el usuario existe pero tiene `activo=False`, THE Sistema SHALL retornar HTTP 401 con `detail: "Credenciales incorrectas"` (sin revelar que la cuenta está desactivada).
 5. THE Sistema SHALL garantizar que existe al menos un usuario administrador por defecto con email `admin@diabcare.com` al arrancar si no hay usuarios en el sistema.
-6. WHEN el login es exitoso, THE Frontend SHALL almacenar el token JWT en `localStorage` bajo la clave `token` y el objeto usuario bajo la clave `usuario`, luego redirigir a `/paginas/analisis/index.html`.
-7. WHEN el token expira o su firma es inválida, THE Sistema SHALL retornar HTTP 401 en cualquier endpoint protegido, y THE Frontend SHALL eliminar `token` y `usuario` de `localStorage` y redirigir a `/paginas/autenticacion/index.html`.
+6. WHEN el login es exitoso, THE Frontend SHALL almacenar el token JWT en `localStorage` bajo la clave `token` y el objeto usuario bajo la clave `usuario`, luego redirigir a `/paginas/clinico/analisis/index.html`.
+7. WHEN el token expira o su firma es inválida, THE Sistema SHALL retornar HTTP 401 en cualquier endpoint protegido, y THE Frontend SHALL eliminar `token` y `usuario` de `localStorage` y redirigir a `/paginas/seguridad/autenticacion/index.html`.
 8. THE Sistema SHALL exponer `POST /api/auth/logout` que retorne HTTP 200 con `{"mensaje": "Sesión cerrada"}`.
 9. THE Sistema SHALL exponer `PUT /api/auth/cambiar-password` que valide el password actual antes de actualizar el hash SHA-256 en MinIO; IF el password actual no coincide, SHALL retornar HTTP 400.
 10. THE Sistema SHALL exponer `POST /api/auth/recuperar` que acepte `{"email": string}` y retorne HTTP 200 independientemente de si el email existe, para no revelar la existencia de cuentas.
@@ -62,7 +62,7 @@ DiabCare Analytics es una plataforma SaaS académica (6to semestre — Construcc
 10. THE Frontend SHALL mostrar 4 KPI cards con los conteos de: total de usuarios, usuarios activos, usuarios inactivos y usuarios con rol administrador.
 11. WHEN el usuario escribe en el campo de búsqueda, THE Frontend SHALL filtrar la lista de usuarios en tiempo real (máximo 300ms de latencia) mostrando solo los que coincidan con nombre o email (búsqueda case-insensitive).
 12. THE Frontend SHALL mostrar un avatar circular para cada usuario con la inicial en mayúscula de su nombre y un color de fondo determinado por `índice % colores.length`.
-13. WHEN un usuario sin rol `administrador` intenta acceder a `/paginas/usuarios/index.html`, THE Frontend SHALL redirigir a `/paginas/analisis/index.html` al ejecutarse `aplicarRoles()`.
+13. WHEN un usuario sin rol `administrador` intenta acceder a `/paginas/seguridad/usuarios/index.html`, THE Frontend SHALL redirigir a `/paginas/clinico/analisis/index.html` al ejecutarse `aplicarRoles()`.
 
 ---
 

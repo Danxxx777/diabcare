@@ -1,0 +1,34 @@
+{
+  "files.exclude": {
+    "_futuro": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.ruff_cache": true,
+    ".gitignore": true,
+    ".cursorignore": true,
+    "logs": true,
+    "almacenamiento": true,
+    "stage": true,
+    "etapa": true,
+    "registros": true,
+    "README.md": true,
+    "docker-compose.yaml": true,
+    "pytest.ini": true,
+    "pruebas": true,
+    "dags": true,
+    "plugins": true
+  },
+  "search.exclude": {
+    "_futuro": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "logs": true,
+    "almacenamiento": true,
+    "stage": true,
+    "etapa": true,
+    "pruebas": true,
+    "dags": true,
+    "plugins": true
+  }
+}

@@ -6,9 +6,9 @@
 
 **Estado**: Implementado (entrega GA07)
 
-**Rutas reales**: `backend/api/configuracion/ConfiguracionRutas.py`,
-`backend/servicios/configuracion/ConfiguracionServicio.py`,
-`frontend/paginas/configuracion/index.html`
+**Rutas reales**: `backend/paquetes/configuracion/ConfiguracionRutas.py`,
+`backend/paquetes/configuracion/ConfiguracionServicio.py`,
+`frontend/paginas/gobierno/configuracion/index.html`
 
 ## 1. Objetivo
 

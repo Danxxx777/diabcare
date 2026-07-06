@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Pacientes</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<style>
+.pac-layout { display:grid; grid-template-columns:340px 1fr; gap:14px; min-height:520px; }
+@media(max-width:900px){ .pac-layout{ grid-template-columns:1fr; } }
+.pac-list { background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; max-height:70vh; }
+.pac-list-head { padding:12px 14px; border-bottom:1px solid var(--border); }
+.pac-items { overflow-y:auto; flex:1; }
+.pac-item { padding:12px 14px; border-bottom:1px solid var(--border); cursor:pointer; }
+.pac-item:hover, .pac-item.active { background:rgba(34,211,238,0.06); }
+.pac-item.active { border-left:3px solid var(--cyan); }
+.pac-code { font-family:var(--mono); font-size:10px; color:var(--cyan); }
+.pac-name { font-size:13px; font-weight:600; margin-top:2px; }
+.pac-meta { font-size:10px; color:var(--muted); margin-top:4px; }
+.pac-detail { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 20px; }
+.pac-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.pac-photo-wrap { display:flex; align-items:flex-start; gap:16px; margin-bottom:14px; }
+.pac-photo { width:88px; height:88px; border-radius:12px; object-fit:cover; border:1px solid var(--border); background:var(--bg2); }
+.pac-photo-placeholder { width:88px; height:88px; border-radius:12px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:28px; color:var(--muted); background:var(--bg2); flex-shrink:0; }
+.timeline { margin:12px 0 18px; border-left:2px solid var(--border); padding-left:14px; }
+.tl-item { margin-bottom:12px; position:relative; }
+.tl-item::before { content:''; position:absolute; left:-20px; top:6px; width:8px; height:8px; border-radius:50%; background:var(--cyan); }
+.tl-tipo { font-size:10px; color:var(--cyan); font-family:var(--mono); text-transform:uppercase; }
+.tl-titulo { font-size:12px; font-weight:600; margin-top:2px; }
+.tl-det { font-size:11px; color:var(--muted); margin-top:2px; }
+.tl-fecha { font-size:10px; color:var(--muted); font-family:var(--mono); }
+.charts-evol { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0 18px; }
+@media(max-width:700px){ .charts-evol{ grid-template-columns:1fr; } }
+.chart-box { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:12px; height:220px; }
+</style>
+<input type="file" id="input-foto" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Pacientes</span>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Pacientes <span>hospitalarios</span></div>
+        <div class="page-sub">Alta, expediente y consultas clínicas</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nuevo paciente</button>
+      <button class="btn btn-ghost btn-sm" onclick="importarDataset(true)">↻ Sincronizar datos</button>
+    </div>
+    <div class="stats-grid" style="margin-bottom:14px;">
+      <div class="stat-card"><div class="stat-label">Total pacientes</div><div class="stat-value blue" id="st-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value green" id="st-activos">—</div></div>
+      <div class="stat-card"><div class="stat-label">Consultas del seleccionado</div><div class="stat-value" id="st-consultas">—</div></div>
+    </div>
+    <div class="pac-layout">
+      <div class="pac-list">
+        <div class="pac-list-head">
+          <input class="search" id="buscar" placeholder="Buscar por nombre, apellido o documento…" style="width:100%" onkeydown="if(event.key==='Enter')cargarLista()" oninput="if(this.value.length===0||this.value.length>=2)cargarLista()">
+        </div>
+        <div class="pac-items" id="lista-pacientes"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+      <div class="pac-detail" id="detalle">
+        <div class="loading" style="padding:40px;color:var(--muted)">Seleccione un paciente o cree uno nuevo</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<div id="modal-pac" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal-card modal-lg" onclick="event.stopPropagation()">
+    <div class="modal-header"><span id="modal-titulo">Nuevo paciente</span></div>
+    <div class="modal-body form-modal-grid">
+      <input type="hidden" id="m-id">
+      <label>Nombre<input id="m-nombre" autocomplete="given-name"></label>
+      <label>Apellido<input id="m-apellido" autocomplete="family-name"></label>
+      <label>Documento de identidad<input id="m-documento" placeholder="Ej. CC 52.847.193"></label>
+      <label>Fecha nacimiento<input id="m-nac" type="date"></label>
+      <label>Género<select id="m-genero"><option>Femenino</option><option>Masculino</option><option>Otro</option></select></label>
+      <label>Teléfono<input id="m-tel" type="tel"></label>
+      <label>Email<input id="m-email" type="email" autocomplete="email"></label>
+      <label>Sede / ubicación<input id="m-sede" value="California"></label>
+      <label class="span-full">Notas<textarea id="m-notas" rows="3"></textarea></label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarPaciente()">Guardar paciente</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-cons" class="modal-overlay" style="display:none" onclick="if(event.target===this)cerrarCons()">
+  <div class="modal-card modal-md" onclick="event.stopPropagation()">
+    <div class="modal-header">Nueva consulta clínica</div>
+    <div class="modal-body form-modal-grid">
+      <label>BMI<input id="c-bmi" type="number" step="0.1" value="28"></label>
+      <label>HbA1c<input id="c-hba" type="number" step="0.1" value="6.5"></label>
+      <label>Glucosa<input id="c-glc" type="number" value="140"></label>
+      <label>Diabetes<select id="c-diab"><option value="0">No</option><option value="1">Sí</option></select></label>
+      <label>Hipertensión<select id="c-ht"><option value="0">No</option><option value="1">Sí</option></select></label>
+      <label>Cardiopatía<select id="c-card"><option value="0">No</option><option value="1">Sí</option></select></label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarCons()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarConsulta()">Registrar consulta</button>
+    </div>
+  </div>
+</div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico']);
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+let seleccionado = null, pacienteActual = null, seleccionSeq = 0;
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+let importando = false;
+
+async function importarDataset(forzar) {
+  if (importando) return;
+  importando = true;
+  document.getElementById('lista-pacientes').innerHTML = '<div class="loading"><div class="spinner"></div>Importando pacientes…</div>';
+  try {
+    const r = await fetch(`${API}/api/pacientes/importar-dataset?forzar=${forzar ? 'true' : 'false'}`, {
+      method: 'POST', headers: { Authorization: 'Bearer '+token },
+    });
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); await cargarLista(); return; }
+    if (d.requiere_forzar) { toast(d.error || 'Use Sincronizar datos', 'error'); await cargarLista(); return; }
+    toast(forzar
+      ? `${d.pacientes_total || 0} pacientes actualizados con nombres y documentos clínicos`
+      : `${d.pacientes_total || 0} pacientes · ${d.consultas_vinculadas || 0} consultas vinculadas`);
+    await cargarResumen(false);
+    await cargarLista();
+  } catch {
+    toast('Error al importar', 'error');
+  } finally {
+    importando = false;
+  }
+}
+
+let migrando = false;
+
+async function migrarExpedientesLegacy() {
+  if (migrando || importando) return false;
+  migrando = true;
+  let total = 0;
+  try {
+    let pendientes = 1;
+    while (pendientes > 0) {
+      document.getElementById('lista-pacientes').innerHTML =
+        `<div class="loading"><div class="spinner"></div>Actualizando expedientes… ${total ? total.toLocaleString('es-ES')+' listos' : ''}</div>`;
+      const r = await fetch(`${API}/api/pacientes/migrar-expedientes`, {
+        method: 'POST', headers: { Authorization: 'Bearer '+token },
+      });
+      const d = await r.json();
+      total += d.migrados || 0;
+      pendientes = d.legacy_restantes || 0;
+      if (!d.migrados && pendientes > 0) break;
+    }
+    if (total > 0) toast(`${total.toLocaleString('es-ES')} expedientes actualizados (documento CC y nombres)`);
+    return total > 0;
+  } catch {
+    toast('Error al actualizar expedientes', 'error');
+    return false;
+  } finally {
+    migrando = false;
+  }
+}
+
+async function cargarResumen(autoImport) {
+  const r = await fetch(`${API}/api/pacientes/resumen`, { headers: { Authorization: 'Bearer '+token } });
+  if (!r.ok) return;
+  const d = await r.json();
+  document.getElementById('st-total').textContent = (d.total||0).toLocaleString('es-ES');
+  document.getElementById('st-activos').textContent = (d.activos||0).toLocaleString('es-ES');
+  if (autoImport !== false && (d.total || 0) === 0 && !importando) {
+    await importarDataset(false);
+  }
+}
+
+async function cargarLista() {
+  const q = document.getElementById('buscar').value.trim();
+  try {
+    const r = await fetch(`${API}/api/pacientes/?q=${encodeURIComponent(q)}`, { headers: { Authorization: 'Bearer '+token } });
+    if (!r.ok) {
+      document.getElementById('lista-pacientes').innerHTML = '<div style="padding:20px;color:var(--muted);font-size:12px">Error al cargar pacientes</div>';
+      return;
+    }
+    const d = await r.json();
+    if (d.error) { toast(d.error, 'error'); }
+    const items = d.pacientes || [];
+    if (!items.length) {
+      document.getElementById('lista-pacientes').innerHTML = '<div style="padding:20px;color:var(--muted);font-size:12px">Sin pacientes. Use + Nuevo paciente</div>';
+      return;
+    }
+    document.getElementById('lista-pacientes').innerHTML = items.map(p => `
+      <div class="pac-item${seleccionado===p.id_paciente?' active':''}" data-id="${p.id_paciente}" onclick="seleccionar('${p.id_paciente}')">
+        <div class="pac-name">${p.nombre_completo||p.nombre}</div>
+        <div class="pac-meta">${p.documento||'—'} · ${p.edad||'?'} años · ${p.sede||'—'}</div>
+      </div>`).join('');
+  } catch {
+    document.getElementById('lista-pacientes').innerHTML = '<div style="padding:20px;color:var(--muted);font-size:12px">Error de conexión</div>';
+  }
+}
+
+function marcarActivoLista() {
+  document.querySelectorAll('.pac-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === seleccionado);
+  });
+}
+
+let fotoBlobUrl = null;
+
+async function cargarFotoPaciente(id) {
+  if (fotoBlobUrl) { URL.revokeObjectURL(fotoBlobUrl); fotoBlobUrl = null; }
+  const r = await fetch(`${API}/api/fotos/entidad/paciente/${id}/principal`, { headers: { Authorization: 'Bearer '+token } });
+  if (!r.ok) return null;
+  const d = await r.json();
+  if (!d.foto?.id_foto) return null;
+  const ir = await fetch(`${API}/api/fotos/${d.foto.id_foto}/imagen`, { headers: { Authorization: 'Bearer '+token } });
+  if (!ir.ok) return null;
+  fotoBlobUrl = URL.createObjectURL(await ir.blob());
+  return fotoBlobUrl;
+}
+
+function pedirFoto() {
+  if (!seleccionado) return;
+  document.getElementById('input-foto').click();
+}
+
+async function subirFoto(input) {
+  if (!seleccionado || !input.files?.length) return;
+  const fd = new FormData();
+  fd.append('tipo_entidad', 'paciente');
+  fd.append('id_entidad', seleccionado);
+  fd.append('es_principal', 'true');
+  fd.append('archivo', input.files[0]);
+  const r = await fetch(`${API}/api/fotos/`, { method: 'POST', headers: { Authorization: 'Bearer '+token }, body: fd });
+  const d = await r.json();
+  input.value = '';
+  if (d.error) { toast(d.error, 'error'); return; }
+  toast('Foto actualizada');
+  seleccionar(seleccionado);
+}
+
+document.getElementById('input-foto').addEventListener('change', function() { subirFoto(this); });
+
+let chartHba = null, chartGlc = null;
+
+function destruirCharts() {
+  if (chartHba) { chartHba.destroy(); chartHba = null; }
+  if (chartGlc) { chartGlc.destroy(); chartGlc = null; }
+}
+
+function renderEvolucion(puntos) {
+  destruirCharts();
+  if (!puntos?.length || typeof Chart === 'undefined') return;
+  const labels = puntos.map(p => p.fecha);
+  const opts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#94a3b8', maxRotation: 45, font: { size: 9 } }, grid: { color: 'rgba(148,163,184,0.1)' } },
+      y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.1)' } },
+    },
+  };
+  const ctxH = document.getElementById('chart-hba');
+  const ctxG = document.getElementById('chart-glc');
+  if (!ctxH || !ctxG) return;
+  chartHba = new Chart(ctxH, {
+    type: 'line',
+    data: { labels, datasets: [{ data: puntos.map(p => p.hba1c), borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.12)', fill: true, tension: 0.3, pointRadius: 3 }] },
+    options: { ...opts, scales: { ...opts.scales, y: { ...opts.scales.y, title: { display: true, text: '%', color: '#94a3b8' } } } },
+  });
+  chartGlc = new Chart(ctxG, {
+    type: 'line',
+    data: { labels, datasets: [{ data: puntos.map(p => p.glucosa), borderColor: '#f472b6', backgroundColor: 'rgba(244,114,182,0.12)', fill: true, tension: 0.3, pointRadius: 3 }] },
+    options: { ...opts, scales: { ...opts.scales, y: { ...opts.scales.y, title: { display: true, text: 'mg/dL', color: '#94a3b8' } } } },
+  });
+}
+
+async function descargarExpediente() {
+  if (!seleccionado) return;
+  const r = await fetch(`${API}/api/pacientes/${seleccionado}/expediente-pdf`, { headers: { Authorization: 'Bearer '+token } });
+  if (!r.ok) { toast('Error al generar PDF', 'error'); return; }
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const nombre = (pacienteActual?.nombre_completo || 'paciente').replace(/\s+/g, '-').slice(0, 40);
+  a.download = `expediente-${nombre}.pdf`;
+  a.click();
+  toast('Expediente descargado');
+}
+
+function agendarCita() {
+  if (!seleccionado) return;
+  window.location.href = `/paginas/agenda/index.html?p=${seleccionado}&nueva=1`;
+}
+
+async function seleccionar(id) {
+  const seq = ++seleccionSeq;
+  seleccionado = id;
+  marcarActivoLista();
+  document.getElementById('detalle').innerHTML =
+    '<div class="loading" style="padding:40px"><div class="spinner"></div>Cargando expediente…</div>';
+
+  try {
+    const r = await fetch(
+      `${API}/api/pacientes/${id}/detalle?consultas=20&timeline=25&evolucion=60`,
+      { headers: { Authorization: 'Bearer '+token } },
+    );
+    if (seq !== seleccionSeq) return;
+    const d = await r.json();
+    if (d.error) {
+      document.getElementById('detalle').innerHTML = `<div style="padding:40px;color:var(--muted)">${d.error}</div>`;
+      return;
+    }
+    const p = d.paciente;
+    pacienteActual = p;
+    const consultas = d.consultas || [];
+    const eventos = d.eventos || [];
+    const puntos = d.puntos || [];
+    document.getElementById('st-consultas').textContent = (d.total_consultas||0).toLocaleString('es-ES');
+
+    let html = `<div class="pac-actions">
+    <button class="btn btn-primary btn-sm" onclick="abrirConsulta()">+ Nueva consulta</button>
+    <button class="btn btn-ghost btn-sm" onclick="agendarCita()">Agendar cita</button>
+    <button class="btn btn-ghost btn-sm" onclick="descargarExpediente()">PDF expediente</button>
+    <button class="btn btn-ghost btn-sm" onclick="editarPaciente()">Editar</button>
+    <button class="btn btn-ghost btn-sm" onclick="pedirFoto()">Subir foto</button>
+    <button class="btn btn-ghost btn-sm" onclick="irPrediccion()">Predicción ML</button>
+    <button class="btn btn-ghost btn-sm" onclick="bajaPaciente()">Dar de baja</button>
+  </div>
+  <div class="pac-photo-wrap" id="pac-photo-wrap">
+    <div class="pac-photo-placeholder">👤</div>
+    <div>
+    <div style="font-size:18px;font-weight:700">${p.nombre_completo}</div>
+    <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">${p.documento||'—'} · ${p.edad} años · ${p.genero}${p.codigo_historia ? ' · HC '+p.codigo_historia : ''}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">${p.telefono||'—'} · ${p.email||'—'} · Sede: ${p.sede}</div>
+    ${p.notas ? `<div style="font-size:11px;margin-top:8px;padding:8px;background:var(--bg2);border-radius:6px">${p.notas}</div>`:''}
+    </div>
+  </div>
+  <div class="panel-title">Evolución clínica</div>`;
+    if (!puntos.length) {
+      html += '<div style="font-size:12px;color:var(--muted);margin-bottom:12px">Sin datos suficientes para gráficos</div>';
+    } else {
+      html += `<div class="charts-evol">
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:6px">HbA1c (%)</div><div class="chart-box"><canvas id="chart-hba"></canvas></div></div>
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:6px">Glucosa (mg/dL)</div><div class="chart-box"><canvas id="chart-glc"></canvas></div></div>
+    </div>`;
+    }
+    html += '<div class="panel-title">Historia clínica</div>';
+    if (!eventos.length) html += '<div style="font-size:12px;color:var(--muted);margin-bottom:12px">Sin eventos clínicos aún</div>';
+    else {
+      html += '<div class="timeline">' + eventos.map(ev => `
+      <div class="tl-item">
+        <div class="tl-tipo">${ev.tipo}</div>
+        <div class="tl-titulo">${ev.titulo}</div>
+        <div class="tl-det">${ev.detalle||''}</div>
+        <div class="tl-fecha">${(ev.fecha||'').slice(0,16).replace('T',' ')}</div>
+      </div>`).join('') + '</div>';
+    }
+    html += '<div class="panel-title">Consultas (detalle)</div>';
+    if (!consultas.length) html += '<div style="font-size:12px;color:var(--muted)">Sin consultas — registre la primera</div>';
+    else {
+      html += '<table class="tabla"><thead><tr><th>Fecha</th><th>BMI</th><th>HbA1c</th><th>Glucosa</th><th>Diabetes</th></tr></thead><tbody>';
+      consultas.forEach(r => {
+        html += `<tr><td>${(r.created_at||'').slice(0,10)}</td><td>${r.bmi??'—'}</td><td>${r.hbA1c_level??'—'}</td><td>${r.blood_glucose_level??'—'}</td><td>${r.diabetes==1?'Sí':'No'}</td></tr>`;
+      });
+      html += '</tbody></table>';
+    }
+    document.getElementById('detalle').innerHTML = html;
+    if (puntos.length) renderEvolucion(puntos);
+
+    cargarFotoPaciente(id).then(fotoUrl => {
+      if (seq !== seleccionSeq || !fotoUrl) return;
+      const wrap = document.getElementById('pac-photo-wrap');
+      if (!wrap) return;
+      const ph = wrap.querySelector('.pac-photo-placeholder');
+      if (ph) ph.outerHTML = `<img class="pac-photo" src="${fotoUrl}" alt="Foto">`;
+    });
+  } catch {
+    if (seq === seleccionSeq) {
+      document.getElementById('detalle').innerHTML = '<div style="padding:40px;color:var(--muted)">Error al cargar el expediente</div>';
+    }
+  }
+}
+
+function abrirModal(p) {
+  document.getElementById('modal-pac').style.display = 'flex';
+  document.getElementById('modal-titulo').textContent = p ? 'Editar paciente' : 'Nuevo paciente';
+  document.getElementById('m-id').value = p?.id_paciente || '';
+  document.getElementById('m-nombre').value = p?.nombre || '';
+  document.getElementById('m-apellido').value = p?.apellido || '';
+  document.getElementById('m-documento').value = p?.documento || '';
+  document.getElementById('m-nac').value = (p?.fecha_nacimiento||'').slice(0,10);
+  document.getElementById('m-genero').value = p?.genero || 'Femenino';
+  document.getElementById('m-tel').value = p?.telefono || '';
+  document.getElementById('m-email').value = p?.email || '';
+  document.getElementById('m-sede').value = p?.sede || 'California';
+  document.getElementById('m-notas').value = p?.notas || '';
+}
+function cerrarModal() { document.getElementById('modal-pac').style.display = 'none'; }
+
+async function guardarPaciente() {
+  const id = document.getElementById('m-id').value;
+  const body = {
+    nombre: document.getElementById('m-nombre').value,
+    apellido: document.getElementById('m-apellido').value,
+    documento: document.getElementById('m-documento').value,
+    fecha_nacimiento: document.getElementById('m-nac').value,
+    genero: document.getElementById('m-genero').value,
+    telefono: document.getElementById('m-tel').value,
+    email: document.getElementById('m-email').value,
+    sede: document.getElementById('m-sede').value,
+    notas: document.getElementById('m-notas').value,
+  };
+  const url = id ? `${API}/api/pacientes/${id}` : `${API}/api/pacientes/`;
+  const r = await fetch(url, { method: id?'PUT':'POST', headers: { Authorization: 'Bearer '+token, 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (d.error) { toast(d.error,'error'); return; }
+  toast(id ? 'Paciente actualizado' : 'Paciente registrado');
+  cerrarModal();
+  await cargarResumen(false); await cargarLista();
+  const pid = id || d.paciente?.id_paciente;
+  if (pid) seleccionar(pid);
+}
+
+async function editarPaciente() {
+  if (!seleccionado) return;
+  const r = await fetch(`${API}/api/pacientes/${seleccionado}`, { headers: { Authorization: 'Bearer '+token } });
+  abrirModal(await r.json());
+}
+
+function abrirConsulta() { document.getElementById('modal-cons').style.display = 'flex'; }
+function cerrarCons() { document.getElementById('modal-cons').style.display = 'none'; }
+
+async function guardarConsulta() {
+  if (!seleccionado) return;
+  const pr = await fetch(`${API}/api/pacientes/${seleccionado}`, { headers: { Authorization: 'Bearer '+token } });
+  const p = await pr.json();
+  const body = {
+    id_paciente: seleccionado,
+    year: new Date().getFullYear(),
+    age: p.edad || 45,
+    gender: p.genero,
+    location: p.sede || 'California',
+    bmi: parseFloat(document.getElementById('c-bmi').value),
+    hbA1c_level: parseFloat(document.getElementById('c-hba').value),
+    blood_glucose_level: parseInt(document.getElementById('c-glc').value,10),
+    diabetes: parseInt(document.getElementById('c-diab').value,10),
+    hypertension: parseInt(document.getElementById('c-ht').value,10),
+    heart_disease: parseInt(document.getElementById('c-card').value,10),
+    smoking_history: 'nunca',
+  };
+  const r = await fetch(`${API}/api/registros/`, { method:'POST', headers: { Authorization: 'Bearer '+token, 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (d.error) { toast(d.error,'error'); return; }
+  toast('Consulta registrada');
+  cerrarCons();
+  seleccionar(seleccionado);
+}
+
+function irPrediccion() {
+  if (!seleccionado) return;
+  localStorage.setItem('diabcare_paciente_pred', seleccionado);
+  window.location.href = '/paginas/prediccion/index.html';
+}
+
+async function bajaPaciente() {
+  if (!seleccionado) return;
+  const ok = await DiabCareAPI.confirm({
+    title: 'Dar de baja',
+    message: '¿Dar de baja al paciente? El expediente quedará inactivo.',
+    confirmLabel: 'Dar de baja',
+    cancelLabel: 'Cancelar',
+    danger: true,
+  });
+  if (!ok) return;
+  await fetch(`${API}/api/pacientes/${seleccionado}`, { method:'DELETE', headers: { Authorization: 'Bearer '+token } });
+  toast('Paciente dado de baja');
+  seleccionado = null;
+  document.getElementById('detalle').innerHTML = '<div class="loading" style="padding:40px;color:var(--muted)">Seleccione un paciente</div>';
+  cargarResumen(false); cargarLista();
+}
+
+(async function initPagina() {
+  await cargarResumen(true);
+  await cargarLista();
+  const _qp = new URLSearchParams(location.search).get('p');
+  if (_qp) seleccionar(_qp);
+})();
+</script>
+</body>
+</html>

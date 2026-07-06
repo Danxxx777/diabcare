@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 280" role="img" aria-label="DiabCare Analytics">
+  <defs>
+    <linearGradient id="lf-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#67e8f9"/>
+      <stop offset="100%" stop-color="#0891b2"/>
+    </linearGradient>
+    <linearGradient id="lf-silver" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f4f4f5"/>
+      <stop offset="100%" stop-color="#a1a1aa"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(160 0)">
+    <path fill="url(#lf-cyan)" d="M50 6c-15 19-18 33-12 43 4 6 12 9 12 9s8-3 12-9c6-10 3-24-12-43z" transform="translate(-8 0) scale(0.92 1)"/>
+    <path fill="url(#lf-silver)" d="M50 6c15 19 18 33 12 43-4 6-12 9-12 9s-8-3-12-9c-6-10-3-24 12-43z" transform="translate(8 0) scale(0.92 1)"/>
+    <path fill="none" stroke="#22d3ee" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"
+      d="M10 66h15l5-14 7 24 5-10h12"/>
+    <path fill="#22d3ee" d="M72 56h10v10h10v10H82v10H72V76H62V66h10z"/>
+  </g>
+  <text x="210" y="128" text-anchor="middle" font-family="Syne, Inter, sans-serif" font-size="42" font-weight="800" letter-spacing="2">
+    <tspan fill="#f4f4f5">DIAB</tspan><tspan fill="#22d3ee">CARE</tspan>
+  </text>
+  <text x="210" y="162" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" font-weight="300" fill="#f4f4f5" letter-spacing="12">ANALYTICS</text>
+  <text x="210" y="188" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#a1a1aa" letter-spacing="3">CLINICAL DATA PLATFORM</text>
+</svg>

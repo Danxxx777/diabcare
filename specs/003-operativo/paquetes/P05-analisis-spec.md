@@ -9,12 +9,12 @@
 **Creado**: 2026-06-19
 
 **Rutas reales**: estadísticas servidas por
-`backend/api/registros_clinicos/RegistrosClinicosRutas.py`
+`backend/paquetes/registros_clinicos/RegistrosClinicosRutas.py`
 (`GET /api/registros/estadisticas`, lógica en
-`backend/servicios/registros_clinicos/estadisticas_endpoint.py`) y
-`backend/api/dataset/DatasetRutas.py` (`GET /api/dataset/estadisticas`).
-Frontend: `frontend/paginas/analisis/index.html`,
-`frontend/paginas/estadisticas/index.html`,
+`backend/paquetes/registros_clinicos/estadisticas_endpoint.py`) y
+`backend/paquetes/dataset/DatasetRutas.py` (`GET /api/dataset/estadisticas`).
+Frontend: `frontend/paginas/clinico/analisis/index.html`,
+`frontend/paginas/clinico/analisis/estadisticas/index.html`,
 `frontend/estaticos/scripts/Estadisticas.js`, `Graficas.js`.
 
 ## 1. Objetivo
@@ -46,7 +46,7 @@ Acceso: `PERMISOS_MODULOS["analisis"] = ["administrador", "medico"]`.
 - **RF-O-P05-002**: El sistema DEBE exponer estadísticas agregadas del dataset.
   *Real*: `GET /api/dataset/estadisticas`.
 - **RF-O-P05-003**: El frontend DEBE visualizar las estadísticas con gráficas.
-  *Real*: `frontend/paginas/analisis`, `estadisticas` + Chart.js.
+  *Real*: `frontend/paginas/clinico/analisis`, `clinico/analisis/estadisticas` + Chart.js.
 
 ## 5. Requisitos no funcionales
 

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Configuración</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<style>
+.config-section { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:16px; }
+.config-title   { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
+.config-sub     { font-size:11px; color:var(--text3); margin-bottom:16px; }
+.config-grid    { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.config-row     { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:0.5px solid var(--border); }
+.config-row:last-child { border-bottom:none; }
+.config-row-label { font-size:12px; color:var(--text2); }
+.config-row-sub   { font-size:10px; color:var(--text3); margin-top:2px; }
+.toggle { width:36px; height:20px; background:rgba(255,255,255,0.1); border-radius:10px; cursor:pointer; position:relative; transition:background 0.2s; flex-shrink:0; }
+.toggle.on { background:var(--accent); }
+.toggle::after { content:''; position:absolute; width:14px; height:14px; background:white; border-radius:50%; top:3px; left:3px; transition:left 0.2s; }
+.toggle.on::after { left:19px; }
+.email-hint { font-size:10px; color:var(--text3); margin-top:12px; line-height:1.5; padding:10px 12px; background:rgba(34,211,238,0.06); border:1px solid rgba(34,211,238,0.12); border-radius:8px; }
+.email-actions { display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Configuración</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Configuración del <span>sistema</span></div>
+        <div class="page-sub">Ajustes de infraestructura y conexiones</div>
+      </div>
+      <button class="btn btn-primary" onclick="guardar()">Guardar cambios</button>
+    </div>
+
+    <!-- MinIO -->
+    <div class="config-section">
+      <div class="config-title">Conexión MinIO</div>
+      <div class="config-sub">Configuración del almacenamiento de objetos</div>
+      <div class="config-grid">
+        <div class="fg"><label class="fl">Endpoint</label><input class="fi" id="minio-endpoint" value="localhost:9000"></div>
+        <div class="fg"><label class="fl">Bucket principal</label><input class="fi" id="minio-bucket" value="diabetes-data"></div>
+        <div class="fg"><label class="fl">Access Key</label><input class="fi" id="minio-access" value="admin"></div>
+        <div class="fg"><label class="fl">Secret Key</label><input class="fi" id="minio-secret" type="password" value="password123"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="testMinio()">&#9654; Probar conexión</button>
+        <span id="minio-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);"></span>
+      </div>
+    </div>
+
+    <!-- Sistema -->
+    <div class="config-section">
+      <div class="config-title">Ajustes generales</div>
+      <div class="config-sub">Comportamiento del sistema</div>
+      <div class="config-row">
+        <div><div class="config-row-label">Modo debug</div><div class="config-row-sub">Mostrar logs detallados en consola</div></div>
+        <div class="toggle" id="t-debug" onclick="toggleSwitch(this)"></div>
+      </div>
+      <div class="config-row">
+        <div><div class="config-row-label">Auditoría automática</div><div class="config-row-sub">Registrar todas las acciones del sistema</div></div>
+        <div class="toggle on" id="t-auditoria" onclick="toggleSwitch(this)"></div>
+      </div>
+      <div class="config-row">
+        <div><div class="config-row-label">Cache de dataset</div><div class="config-row-sub">Mantener dataset en memoria para consultas rápidas</div></div>
+        <div class="toggle on" id="t-cache" onclick="toggleSwitch(this)"></div>
+      </div>
+    </div>
+
+    <!-- Correo electrónico -->
+    <div class="config-section">
+      <div class="config-title">Correo electrónico (Brevo / SMTP)</div>
+      <div class="config-sub">Alertas clínicas, recuperación de contraseña y notificaciones del sistema</div>
+      <div class="config-row" style="margin-bottom:14px;">
+        <div><div class="config-row-label">Habilitar envío de correos</div><div class="config-row-sub">Desactivado = solo notificaciones in-app (sin correo real)</div></div>
+        <div class="toggle" id="t-email" onclick="toggleSwitch(this)"></div>
+      </div>
+      <div class="config-grid" style="margin-bottom:12px;">
+        <div class="fg"><label class="fl">Proveedor</label>
+          <select class="fi" id="email-proveedor">
+            <option value="brevo">Brevo (API — 300/día gratis)</option>
+            <option value="smtp">SMTP genérico</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">API key Brevo</label><input class="fi" id="email-brevo-key" type="password" placeholder="xkeysib-..." autocomplete="new-password"></div>
+        <div class="fg"><label class="fl">Correo remitente</label><input class="fi" id="email-remitente" type="email" placeholder="noreply@tu-dominio.com" autocomplete="off"></div>
+        <div class="fg"><label class="fl">Nombre remitente</label><input class="fi" id="email-remitente-nombre" placeholder="DiabCare Analytics" autocomplete="off"></div>
+        <div class="fg"><label class="fl">Destino alertas críticas</label><input class="fi" id="email-destino-alertas" type="email" placeholder="admin@diabcare.com" autocomplete="off"></div>
+        <div class="fg"><label class="fl">Correo de prueba</label><input class="fi" id="email-prueba" type="email" placeholder="tu@email.com" autocomplete="off"></div>
+      </div>
+      <details id="smtp-advanced" style="margin-bottom:12px;">
+        <summary style="cursor:pointer;font-size:12px;color:var(--text2);margin-bottom:8px;">Opciones SMTP (alternativa a API Brevo)</summary>
+        <div class="config-grid">
+          <div class="fg"><label class="fl">Servidor SMTP</label><input class="fi" id="email-smtp-host" placeholder="smtp-relay.brevo.com" autocomplete="off"></div>
+          <div class="fg"><label class="fl">Puerto</label><input class="fi" id="email-smtp-port" type="number" min="1" max="65535" placeholder="587" autocomplete="off"></div>
+          <div class="fg"><label class="fl">Usuario SMTP</label><input class="fi" id="email-smtp-usuario" type="email" placeholder="alertas@tu-dominio.com" autocomplete="off"></div>
+          <div class="fg"><label class="fl">Contraseña SMTP</label><input class="fi" id="email-smtp-password" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+        </div>
+        <div class="config-row" style="margin-top:8px;">
+          <div><div class="config-row-label">Usar TLS (STARTTLS)</div><div class="config-row-sub">Puerto 587. Brevo SMTP: smtp-relay.brevo.com</div></div>
+          <div class="toggle on" id="t-email-tls" onclick="toggleSwitch(this)"></div>
+        </div>
+      </details>
+      <div class="email-hint">
+        <strong>Brevo:</strong> cree una API key en brevo.com → SMTP &amp; API → API keys.
+        El remitente debe estar verificado en Brevo. Plan gratis: 300 emails/día.
+        Guarde los cambios antes de probar.
+      </div>
+      <div class="email-actions">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="probarEmail()">&#9993; Enviar correo de prueba</button>
+        <span id="email-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);"></span>
+      </div>
+    </div>
+
+    <!-- Info del sistema -->
+    <div class="config-section">
+      <div class="config-title">Información del sistema</div>
+      <div class="config-sub">Estado actual de la plataforma</div>
+      <div class="config-row"><div><div class="config-row-label">Versión</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">DiabCare Analytics v2.0.0</span></div>
+      <div class="config-row"><div><div class="config-row-label">Backend</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">FastAPI + Python 3.11</span></div>
+      <div class="config-row"><div><div class="config-row-label">Almacenamiento</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">MinIO + Parquet</span></div>
+      <div class="config-row"><div><div class="config-row-label">Dataset origen</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">PocketBase</span></div>
+      <div class="config-row"><div><div class="config-row-label">Puerto API</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">8000</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador']);
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+function toggleSwitch(el) { el.classList.toggle('on'); }
+function setToggle(id, on) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('on', !!on);
+}
+
+function initUser() {
+  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  if (u.rol !== 'administrador') { window.location.href = '/paginas/clinico/analisis/index.html'; return; }
+  if (u.nombre) {
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+  }
+}
+
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+function aplicarRoles() {
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const rol = u.rol || '';
+  const OCULTAR = {
+    'medico':   ['Dataset','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
+    'analista': ['Registros clínicos','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
+  };
+  const ocultar = OCULTAR[rol] || [];
+  document.querySelectorAll('.nav-group').forEach(g => {
+    const label = g.querySelector('.nav-group-label');
+    if (!label) return;
+    const txt = label.textContent.trim();
+if (ocultar.some(o => txt.includes(o))) g.style.display = 'none';
+  });
+}
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function cargarConfig() {
+  try {
+    const r = await fetch(`${API}/api/configuracion/`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!r.ok) return;
+    const c = await r.json();
+    document.getElementById('minio-endpoint').value = c.minio_endpoint || '';
+    document.getElementById('minio-bucket').value   = c.minio_bucket || '';
+    document.getElementById('minio-access').value   = c.minio_access || '';
+    setToggle('t-debug', c.debug);
+    setToggle('t-auditoria', c.auditoria !== false);
+    setToggle('t-cache', c.cache !== false);
+    setToggle('t-email', c.email);
+    setToggle('t-email-tls', c.email_smtp_tls !== false);
+    document.getElementById('email-proveedor').value = c.email_proveedor || 'brevo';
+    document.getElementById('email-brevo-key').value = c.email_brevo_api_key || '';
+    document.getElementById('email-smtp-host').value           = c.email_smtp_host || 'smtp-relay.brevo.com';
+    document.getElementById('email-smtp-port').value            = c.email_smtp_port ?? 587;
+    document.getElementById('email-smtp-usuario').value          = c.email_smtp_usuario || '';
+    document.getElementById('email-smtp-password').value         = c.email_smtp_password || '';
+    document.getElementById('email-remitente').value             = c.email_remitente || '';
+    document.getElementById('email-remitente-nombre').value      = c.email_remitente_nombre || 'DiabCare Analytics';
+    document.getElementById('email-destino-alertas').value       = c.email_destino_alertas || '';
+    if (c.email_destino_alertas && !document.getElementById('email-prueba').value) {
+      document.getElementById('email-prueba').placeholder = c.email_destino_alertas;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function leerConfigFormulario() {
+  return {
+    minio_endpoint: document.getElementById('minio-endpoint').value.trim(),
+    minio_bucket:   document.getElementById('minio-bucket').value.trim(),
+    minio_access:   document.getElementById('minio-access').value.trim(),
+    debug:          document.getElementById('t-debug').classList.contains('on'),
+    auditoria:      document.getElementById('t-auditoria').classList.contains('on'),
+    cache:          document.getElementById('t-cache').classList.contains('on'),
+    email:          document.getElementById('t-email').classList.contains('on'),
+    email_proveedor: document.getElementById('email-proveedor').value || 'brevo',
+    email_brevo_api_key: document.getElementById('email-brevo-key').value,
+    email_smtp_host: document.getElementById('email-smtp-host').value.trim(),
+    email_smtp_port: parseInt(document.getElementById('email-smtp-port').value, 10) || 587,
+    email_smtp_usuario: document.getElementById('email-smtp-usuario').value.trim(),
+    email_smtp_password: document.getElementById('email-smtp-password').value,
+    email_smtp_tls: document.getElementById('t-email-tls').classList.contains('on'),
+    email_remitente: document.getElementById('email-remitente').value.trim(),
+    email_remitente_nombre: document.getElementById('email-remitente-nombre').value.trim(),
+    email_destino_alertas: document.getElementById('email-destino-alertas').value.trim(),
+  };
+}
+
+async function testMinio() {
+  const st = document.getElementById('minio-status');
+  st.textContent = 'Probando...';
+  st.style.color = 'var(--text3)';
+  try {
+    const r = await fetch(`${API}/api/health`, { headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (d.minio === 'conectado') {
+      st.textContent = '✓ MinIO conectado correctamente';
+      st.style.color = 'var(--green)';
+    } else {
+      st.textContent = '✗ MinIO sin conexión';
+      st.style.color = 'var(--red)';
+    }
+  } catch {
+    st.textContent = '✗ Error al conectar';
+    st.style.color = 'var(--red)';
+  }
+}
+
+async function probarEmail() {
+  const st = document.getElementById('email-status');
+  st.textContent = 'Enviando...';
+  st.style.color = 'var(--text3)';
+  const destino = document.getElementById('email-prueba').value.trim()
+    || document.getElementById('email-destino-alertas').value.trim();
+  if (!destino) {
+    st.textContent = '✗ Indique correo de prueba o destino de alertas';
+    st.style.color = 'var(--red)';
+    return;
+  }
+  try {
+    await guardar(true);
+    const r = await fetch(`${API}/api/configuracion/email/probar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ destino })
+    });
+    const d = await r.json();
+    if (d.error) {
+      st.textContent = '✗ ' + d.error;
+      st.style.color = 'var(--red)';
+      toast(d.error, 'error');
+    } else {
+      st.textContent = '✓ ' + (d.mensaje || 'Correo enviado');
+      st.style.color = 'var(--green)';
+      toast(d.mensaje || 'Correo de prueba enviado', 'success');
+    }
+  } catch {
+    st.textContent = '✗ Error de conexión';
+    st.style.color = 'var(--red)';
+    toast('Error de conexión', 'error');
+  }
+}
+
+async function guardar(silent = false) {
+  try {
+    const r = await fetch(`${API}/api/configuracion/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify(leerConfigFormulario())
+    });
+    const d = await r.json();
+    if (r.ok && d.configuracion) {
+      document.getElementById('email-smtp-password').value = d.configuracion.email_smtp_password || '';
+      document.getElementById('email-brevo-key').value = d.configuracion.email_brevo_api_key || '';
+    }
+    if (!silent) {
+      toast(r.ok ? 'Configuración guardada' : (d.error || 'Error al guardar'), r.ok ? 'success' : 'error');
+    }
+    return r.ok;
+  } catch {
+    if (!silent) toast('Error de conexión', 'error');
+    return false;
+  }
+}
+
+cargarConfig();
+
+</script>
+</body>
+</html>

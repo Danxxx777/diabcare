@@ -23,7 +23,7 @@ no se introducen tecnologías nuevas fuera del stack aprobado.
 - **Justificación**: el bucket `diabcare-app` ya existe y se usa para modelos
   (`modelos/modelo_diabetes.pkl`, ver `PrediccionServicio.py`). El cliente MinIO
   se obtiene con `get_cliente()` de
-  `servicios/configuracion/ConfiguracionClienteMinio.py`.
+  `paquetes/configuracion/ConfiguracionClienteMinio.py`.
 - **Alternativas consideradas**:
   - Disco local: descartado; rompe la portabilidad y el modelo de
     almacenamiento del proyecto (Principio III).
@@ -31,14 +31,12 @@ no se introducen tecnologías nuevas fuera del stack aprobado.
 ## Decisión 3: Fuentes de datos del reporte
 
 - **Decisión**: reutilizar servicios existentes, sin duplicar lógica:
-  - Estadísticas clínicas: `servicios/registros_clinicos/estadisticas_endpoint.py`
-    (`estadisticas()` — provee totales, promedios BMI/HbA1c/glucosa, género,
-    razas, comorbilidades, top ubicaciones, tendencia por año).
+  - Estadísticas clínicas: `paquetes/registros_clinicos/RegistrosClinicosServicio.estadisticas()`.
   - Estadísticas de dataset: `GET /api/dataset/estadisticas`
     (`DatasetRutas.estadisticas_dataset`).
-  - Métricas del modelo: `servicios/prediccion/PrediccionServicio.obtener_metricas()`
+  - Métricas del modelo: `paquetes/prediccion/PrediccionServicio.obtener_metricas()`
     (accuracy, precision, recall, f1, registros).
-  - Filtros: `servicios/registros_clinicos/RegistrosClinicosServicio.buscar()`.
+  - Filtros: `paquetes/registros_clinicos/RegistrosClinicosServicio.buscar()`.
 - **Justificación**: cumple Integridad del DWH (III) y evita lógica redundante;
   los datos provienen del mismo origen que la UI.
 - **Alternativas consideradas**:
@@ -49,7 +47,7 @@ no se introducen tecnologías nuevas fuera del stack aprobado.
 
 - **Decisión**: proteger los endpoints con `Depends(require_modulo('reportes'))`.
 - **Justificación**: `PERMISOS_MODULOS["reportes"] = ["administrador", "medico"]`
-  ya está definido en `utilidades/Dependencias.py`. Reutiliza el mecanismo
+  ya está definido en `nucleo/utilidades/Dependencias.py`. Reutiliza el mecanismo
   estándar del proyecto (Principio V).
 
 ## Decisión 5: Privacidad del contenido
@@ -62,7 +60,7 @@ no se introducen tecnologías nuevas fuera del stack aprobado.
 ## Decisión 6: Auditoría
 
 - **Decisión**: registrar evento de auditoría en generación y descarga usando
-  `servicios/auditoria/` (servicios ya presentes).
+  `paquetes/auditoria/AuditoriaServicio.registrar()`.
 - **Justificación**: RF-O-P07-007 y Principio V.
 - **Nota**: el módulo de auditoría está parcial (sin API REST); se usará su
   servicio/registrador internamente, sin depender de endpoints.

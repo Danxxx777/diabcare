@@ -6,9 +6,9 @@
 
 **Estado**: Implementado (entrega GA07)
 
-**Rutas reales**: `backend/api/auditoria/AuditoriaRutas.py`,
-`backend/servicios/auditoria/AuditoriaServicio.py`,
-`frontend/paginas/auditoria/index.html`
+**Rutas reales**: `backend/paquetes/auditoria/AuditoriaRutas.py`,
+`backend/paquetes/auditoria/AuditoriaServicio.py`,
+`frontend/paginas/gobierno/auditoria/index.html`
 
 ## 1. Objetivo
 

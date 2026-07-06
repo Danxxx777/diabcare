@@ -1,0 +1,276 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare — Integraciones</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<style>
+.int-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:16px; }
+.int-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 20px; }
+.int-name { font-size:13px; font-weight:600; color:var(--text); }
+.int-type { font-size:10px; color:var(--muted); margin-top:2px; }
+.int-url  { font-size:11px; font-family:var(--mono); color:var(--muted); margin-top:10px; word-break:break-all; }
+.int-badge { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-family:var(--mono); font-weight:600; margin-top:10px; }
+.int-ok { background:rgba(74,222,128,0.1); color:rgba(74,222,128,0.95); border:1px solid rgba(74,222,128,0.25); }
+.int-no { background:rgba(248,113,113,0.1); color:rgba(248,113,113,0.95); border:1px solid rgba(248,113,113,0.25); }
+.panel { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:18px 20px; }
+.panel-title { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:14px; }
+.api-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.api-row:last-child { border-bottom:none; }
+.api-row a { color:rgba(34,211,238,0.9); text-decoration:none; font-family:var(--mono); font-size:11px; }
+.api-key { font-family:var(--mono); font-size:12px; color:var(--text); background:rgba(255,255,255,0.04); padding:8px 10px; border-radius:6px; border:1px solid var(--border); word-break:break-all; }
+.cu-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
+.cu-panel { display:none; }
+.cu-panel.active { display:block; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.form-row input, .form-row select { width:100%; padding:8px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg2); color:var(--text); font-size:12px; }
+.mini-table { width:100%; font-size:11px; border-collapse:collapse; margin-top:10px; }
+.mini-table th, .mini-table td { padding:6px 8px; border-bottom:1px solid var(--border); text-align:left; }
+.cicd-etapas { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.cicd-etapa { padding:8px 12px; border-radius:6px; font-size:11px; font-family:var(--mono); border:1px solid var(--border); background:var(--bg2); }
+.cicd-etapa.ok { border-color:rgba(74,222,128,0.35); color:rgba(74,222,128,0.95); }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Integraciones</span>
+    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div></div>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">API e <span>integraciones</span></div>
+        <div class="page-sub">HubSpot, Stripe, API partner, OpenAPI y CI/CD</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Recargar</button>
+    </div>
+
+    <div class="int-grid" id="int-grid">
+      <div class="int-card"><div class="int-name">Cargando…</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">API pública</div>
+      <div class="api-row"><span>Estado</span><span class="int-badge int-ok" id="api-estado">—</span></div>
+      <div class="api-row"><span>Documentación (Swagger)</span><a id="api-docs" href="#" target="_blank">/docs</a></div>
+      <div class="api-row"><span>Esquema OpenAPI</span><a id="api-openapi" href="#" target="_blank">/openapi.json</a></div>
+      <div class="api-row"><span>Clave de API</span><span class="mono" id="api-key-prev" style="color:var(--muted)">—</span></div>
+      <div style="margin-top:14px;display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-primary btn-sm" onclick="regenerar()">Generar nueva clave</button>
+        <span style="font-size:10px;color:var(--muted)">La clave completa se muestra una sola vez al generarla.</span>
+      </div>
+      <div id="api-key-full" style="margin-top:12px;display:none;">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Clave generada (cópiala ahora):</div>
+        <div class="api-key" id="api-key-value"></div>
+      </div>
+    </div>
+
+    <div class="cu-tabs">
+      <button class="btn btn-primary btn-sm" data-cu="leads" onclick="selCu(this)">Leads</button>
+      <button class="btn btn-ghost btn-sm" data-cu="pagos" onclick="selCu(this)">Pagos</button>
+      <button class="btn btn-ghost btn-sm" data-cu="partner" onclick="selCu(this)">Partner API</button>
+      <button class="btn btn-ghost btn-sm" data-cu="cicd" onclick="selCu(this)">CI/CD</button>
+    </div>
+
+    <div class="panel cu-panel active" id="cu-leads">
+      <div class="panel-title">Registro de leads (HubSpot)</div>
+      <div class="form-row">
+        <input id="lead-nombre" placeholder="Nombre completo">
+        <input id="lead-email" placeholder="Email" type="email">
+        <input id="lead-empresa" placeholder="Empresa / clínica">
+        <select id="lead-fuente"><option value="web">Web</option><option value="demo">Demo</option><option value="referido">Referido</option></select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="registrarLead()">Registrar lead</button>
+      <table class="mini-table" id="tabla-leads"><thead><tr><th>Nombre</th><th>Email</th><th>Estado</th><th>Fecha</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="panel cu-panel" id="cu-pagos">
+      <div class="panel-title">Suscripción Stripe</div>
+      <div class="form-row">
+        <select id="pago-plan"><option value="basico">Básico ($29)</option><option value="profesional">Profesional ($99)</option><option value="enterprise">Enterprise ($299)</option></select>
+        <input id="pago-monto" type="number" value="99" min="1">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="crearPago()">Crear sesión de pago</button>
+      <table class="mini-table" id="tabla-pagos"><thead><tr><th>Plan</th><th>Monto</th><th>Estado</th><th>Acción</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="panel cu-panel" id="cu-partner">
+      <div class="panel-title">API Partner y OpenAPI</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Endpoints: <code>/api/partner/v1/resumen</code>, <code>/prevalencia</code>, <code>/modelo</code> con header <code>X-API-Key</code>.</p>
+      <a class="btn btn-ghost btn-sm" id="link-openapi-partner" href="#" target="_blank">Ver OpenAPI partner →</a>
+      <button class="btn btn-ghost btn-sm" onclick="probarPartner()" style="margin-left:8px">Probar API partner</button>
+      <pre id="partner-result" style="margin-top:12px;font-size:10px;background:var(--bg2);padding:10px;border-radius:6px;max-height:120px;overflow:auto;display:none;"></pre>
+    </div>
+
+    <div class="panel cu-panel" id="cu-cicd">
+      <div class="panel-title">Pipeline CI/CD</div>
+      <div id="cicd-info" style="font-size:11px;color:var(--muted);">—</div>
+      <div class="cicd-etapas" id="cicd-etapas"></div>
+      <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="ejecutarCicd()">Ejecutar pipeline</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'analista']);
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+
+function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+
+function initUser() {
+  if (!token) { window.location.href = '/'; return; }
+  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+  if (u.rol && !['administrador','analista'].includes(u.rol)) { window.location.href = '/paginas/analisis/index.html'; return; }
+  if (u.nombre) {
+    document.getElementById('userName').textContent   = u.nombre;
+    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+  }
+}
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function cargar() {
+  try {
+    const r = await fetch(`${API}/api/integraciones/`, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    if (r.status === 403) { window.location.href = '/paginas/analisis/index.html'; return; }
+    const d = await r.json();
+    window._integ = d;
+
+    document.getElementById('int-grid').innerHTML = (d.integraciones || []).map(i => {
+      const ok = i.estado === 'conectado' || i.estado === 'modo local' || i.estado === 'modo demo';
+      return `<div class="int-card">
+        <div class="int-name">${i.nombre}</div>
+        <div class="int-type">${i.tipo}${i.cu_o ? ' · ' + i.cu_o : ''}</div>
+        <div class="int-url">${i.url}</div>
+        <span class="int-badge ${ok ? 'int-ok' : 'int-no'}">${i.estado}</span>
+      </div>`;
+    }).join('');
+
+    const api = d.api_publica || {};
+    document.getElementById('api-estado').textContent = api.estado || '—';
+    document.getElementById('api-docs').href = API + (api.documentacion || '/docs');
+    document.getElementById('api-openapi').href = API + (api.openapi || '/openapi.json');
+    document.getElementById('link-openapi-partner').href = API + (api.openapi_partner || '/api/integraciones/openapi-partner');
+    document.getElementById('api-key-prev').textContent = api.api_key_configurada
+      ? api.api_key_preview + (api.api_key_actualizada ? '  ·  ' + api.api_key_actualizada.replace('T',' ').split('.')[0] : '')
+      : 'sin configurar — genere una clave';
+
+    renderLeads(d);
+    renderPagos(d);
+    renderCicd(d.cicd || {});
+  } catch {
+    document.getElementById('int-grid').innerHTML = '<div class="int-card"><div class="int-name">Error de conexión</div></div>';
+  }
+}
+
+function selCu(btn) {
+  document.querySelectorAll('.cu-tabs .btn').forEach(b => b.className = 'btn btn-ghost btn-sm');
+  btn.className = 'btn btn-primary btn-sm';
+  document.querySelectorAll('.cu-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('cu-' + btn.dataset.cu).classList.add('active');
+}
+
+async function registrarLead() {
+  const body = {
+    nombre: document.getElementById('lead-nombre').value,
+    email: document.getElementById('lead-email').value,
+    empresa: document.getElementById('lead-empresa').value,
+    fuente: document.getElementById('lead-fuente').value,
+  };
+  const r = await fetch(`${API}/api/integraciones/leads`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (d.error) toast(d.error, 'error'); else { toast('Lead registrado'); cargar(); }
+}
+
+async function renderLeads(d) {
+  const r = await fetch(`${API}/api/integraciones/leads`, { headers: { 'Authorization': 'Bearer ' + token } });
+  const data = await r.json();
+  const rows = (data.leads || []).map(l => `<tr><td>${l.nombre}</td><td>${l.email}</td><td>${l.estado}</td><td>${(l.creado_en||'').slice(0,16).replace('T',' ')}</td></tr>`).join('');
+  document.querySelector('#tabla-leads tbody').innerHTML = rows || '<tr><td colspan="4">Sin leads</td></tr>';
+}
+
+async function crearPago() {
+  const plan = document.getElementById('pago-plan').value;
+  const monto = parseFloat(document.getElementById('pago-monto').value) || 99;
+  const r = await fetch(`${API}/api/integraciones/pagos`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ plan, monto }) });
+  const d = await r.json();
+  if (d.error) toast(d.error, 'error'); else { toast('Pago creado'); cargar(); }
+}
+
+async function renderPagos() {
+  const r = await fetch(`${API}/api/integraciones/pagos`, { headers: { 'Authorization': 'Bearer ' + token } });
+  const data = await r.json();
+  const rows = (data.pagos || []).map(p => `<tr><td>${p.plan}</td><td>${p.monto} ${p.moneda}</td><td>${p.estado}</td><td>${p.estado === 'pendiente' ? `<button class="btn btn-ghost btn-sm" onclick="confirmarPago('${p.id}')">Confirmar</button>` : '—'}</td></tr>`).join('');
+  document.querySelector('#tabla-pagos tbody').innerHTML = rows || '<tr><td colspan="4">Sin pagos</td></tr>';
+}
+
+async function confirmarPago(id) {
+  await fetch(`${API}/api/integraciones/pagos/${id}/confirmar`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+  toast('Pago confirmado'); cargar();
+}
+
+async function probarPartner() {
+  const key = document.getElementById('api-key-value')?.textContent || prompt('Pegue la X-API-Key:');
+  if (!key) return;
+  const r = await fetch(`${API}/api/partner/v1/resumen`, { headers: { 'X-API-Key': key.trim() } });
+  const el = document.getElementById('partner-result');
+  el.style.display = 'block';
+  el.textContent = r.ok ? JSON.stringify(await r.json(), null, 2) : 'Error ' + r.status;
+}
+
+function renderCicd(c) {
+  document.getElementById('cicd-info').textContent = c.ultimo_despliegue
+    ? `Último despliegue: ${c.ultimo_despliegue.slice(0,19).replace('T',' ')} · rama ${c.git?.rama} · ${c.git?.commit}`
+    : 'Pipeline no ejecutado aún';
+  document.getElementById('cicd-etapas').innerHTML = (c.etapas || []).map(e =>
+    `<div class="cicd-etapa ${e.estado === 'ok' ? 'ok' : ''}">${e.nombre} · ${e.duracion_s}s</div>`
+  ).join('');
+}
+
+async function ejecutarCicd() {
+  const r = await fetch(`${API}/api/integraciones/despliegue/ejecutar`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+  const d = await r.json();
+  if (d.error) toast(d.error, 'error'); else { toast('Pipeline ejecutado'); cargar(); }
+}
+
+async function regenerar() {
+  if (!confirm('¿Generar una nueva clave de API? La clave anterior dejará de ser válida.')) return;
+  try {
+    const r = await fetch(`${API}/api/integraciones/api-key`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    const d = await r.json();
+    if (d.api_key) {
+      document.getElementById('api-key-full').style.display = 'block';
+      document.getElementById('api-key-value').textContent = d.api_key;
+      toast('Clave de API generada');
+      cargar();
+    } else { toast(d.error || 'No se pudo generar', 'error'); }
+  } catch { toast('Error de conexión', 'error'); }
+}
+
+cargar();
+</script>
+</body>
+</html>
