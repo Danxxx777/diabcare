@@ -1,6 +1,7 @@
 {
   "files.exclude": {
     "_futuro": true,
+    "**/__init__.py": true,
     "**/__pycache__": true,
     "**/.pytest_cache": true,
     "**/.mypy_cache": true,
@@ -21,6 +22,7 @@
   },
   "search.exclude": {
     "_futuro": true,
+    "**/__init__.py": true,
     "**/__pycache__": true,
     "**/.pytest_cache": true,
     "logs": true,
