@@ -1,9 +1,6 @@
 import io
 import pickle
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from paquetes.configuracion.ConfiguracionClienteMinio import get_cliente
 
 BUCKET_APP   = "diabcare-app"
@@ -14,8 +11,16 @@ FEATURES     = ["age", "bmi", "hbA1c_level", "blood_glucose_level", "hypertensio
 _modelo_cache = {"modelo": None, "metricas": None}
 
 
+def _sklearn():
+    """Import diferido: sklearn/scipy son lentos al arrancar (sobre todo en Python 3.14)."""
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+    return RandomForestClassifier, train_test_split, accuracy_score, precision_score, recall_score, f1_score
+
+
 def _registrar_hecho_prediccion(datos: dict, resultado: dict, id_medico: str | None = None) -> None:
-    """Persiste inferencia en hechos_prediccion (CU-O08)."""
+    """Persiste inferencia en hechos_prediccion."""
     try:
         import uuid
         from datetime import datetime, timezone
@@ -63,6 +68,7 @@ def _cargar_modelo():
 
 def entrenar() -> dict:
     try:
+        RandomForestClassifier, train_test_split, accuracy_score, precision_score, recall_score, f1_score = _sklearn()
         from paquetes.registros_clinicos.RegistrosClinicosServicio import _extraer
         df = _extraer()
         if df.empty:

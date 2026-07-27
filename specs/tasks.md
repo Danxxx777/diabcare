@@ -2,9 +2,9 @@
 
 ## Overview
 
-Este plan de implementación cubre el ciclo completo de desarrollo de DiabCare Analytics v2.0, una plataforma SaaS académica para la gestión y análisis de datos clínicos de diabetes hospitalaria. El sistema está implementado con FastAPI + Python 3.14 (backend), MinIO (object storage), pandas + pyarrow (ELT), scikit-learn (ML) y HTML/CSS/JS vanilla (frontend multi-página).
+Este plan cubre DiabCare Analytics v2.0 y la ampliación **DiabCare Hospital** (P16–P20, comorbilidades, flujo E2E, calidad diabetes, mis citas/cobro). Documentación táctica TA11 (PostgreSQL BDR + MinIO columnar) vive en el entregable Word/PDF académico; estos MD reflejan trazabilidad en código.
 
-Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están completadas. Las fases P12–P16 son las tareas pendientes: Reportes PDF, Auditoría, Gestión de versiones del modelo ML, Pruebas PBT con Hypothesis y Pruebas de integración.
+Las tareas T1–T10 (núcleo analytics) y T16–T20 (hospital) están completadas en lo esencial. T11–T15 del núcleo histórico se actualizan abajo según implementación real (reportes fpdf2, auditoría Parquet, etc.).
 
 ## Tasks
 
@@ -167,25 +167,24 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 
 ---
 
-### ⏳ Tarea 11: Reportes PDF
+### ✅ Tarea 11: Reportes PDF
 
-- [ ] 11.1 Instalar reportlab: `pip install reportlab --break-system-packages`.
-- [ ] 11.2 Implementar `ReportesServicio.py` con `generar_pdf(estadisticas)` que construya un PDF con KPIs, promedios clínicos y top ubicaciones usando reportlab.
-- [ ] 11.3 Implementar `POST /api/reportes/generar` que llame a `generar_pdf()` y suba el resultado a MinIO `diabcare-app/reportes/reporte_{timestamp}.pdf`.
-- [ ] 11.4 Implementar `GET /api/reportes/` que liste los reportes disponibles en MinIO con nombre, tamaño y fecha.
-- [ ] 11.5 Implementar `GET /api/reportes/{nombre}` que descargue el PDF como `FileResponse` con `media_type="application/pdf"`.
-- [ ] 11.6 Frontend `reportes/index.html` con botón "Generar reporte", tabla de reportes disponibles y botón de descarga por fila.
+- [x] 11.1 Generación PDF con **fpdf2** (`ReportesServicio.generar_pdf`).
+- [x] 11.2 `POST /api/reportes/generar` con filtros opcionales y persistencia MinIO `diabcare-app/reportes/`.
+- [x] 11.3 `GET /api/reportes/` listado e historial.
+- [x] 11.4 `GET /api/reportes/{nombre}` descarga con Authorization.
+- [x] 11.5 Frontend `clinico/reportes/index.html` generar, listar y descargar.
 
 **Archivos:** `paquetes/reportes/ReportesRutas.py`, `paquetes/reportes/ReportesServicio.py`, `frontend/paginas/clinico/reportes/index.html`
 
 ---
 
-### ⏳ Tarea 12: Auditoría
+### ✅ Tarea 12: Auditoría
 
-- [ ] 12.1 Crear `AuditoriaServicio.py` con `registrar(usuario_id, accion, modulo, datos_afectados)` que añada una fila a `diabcare-app/auditoria/auditoria.parquet` en MinIO.
-- [ ] 12.2 Llamar `registrar()` en los endpoints CRUD de usuarios y registros clínicos (crear, actualizar, eliminar).
-- [ ] 12.3 Implementar `GET /api/auditoria/` con filtros opcionales `usuario_id`, `fecha_desde`, `fecha_hasta` y `accion`, retornando lista paginada.
-- [ ] 12.4 Frontend `auditoria/index.html` con tabla paginada que muestre usuario, módulo, acción, timestamp y datos afectados.
+- [x] 12.1 `AuditoriaServicio.registrar()` → `diabcare-app/auditoria/eventos.parquet`.
+- [x] 12.2 Registro en operaciones sensibles (auth, usuarios, módulos clave).
+- [x] 12.3 `GET /api/auditoria/` con filtros y paginación.
+- [x] 12.4 Frontend `gobierno/auditoria/index.html`.
 
 **Archivos:** `paquetes/auditoria/AuditoriaRutas.py`, `paquetes/auditoria/AuditoriaServicio.py`, `frontend/paginas/gobierno/auditoria/index.html`
 
@@ -283,8 +282,8 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 | T8 — Pipeline ETL visual | ✅ Completado |
 | T9 — Control de roles en sidebar | ✅ Completado |
 | T10 — Conteo eficiente con pyarrow | ✅ Completado |
-| T11 — Reportes PDF | ⏳ Pendiente |
-| T12 — Auditoría | ⏳ Pendiente |
+| T11 — Reportes PDF | ✅ Completado (fpdf2) |
+| T12 — Auditoría | ✅ Completado |
 | T13 — Gestión de versiones del Modelo ML | ⏳ Pendiente |
 | T14 — Pruebas PBT | ⏳ Pendiente |
 | T15 — Pruebas de integración | ⏳ Pendiente |
@@ -306,4 +305,74 @@ Las tareas están organizadas en fases (P1–P17). Las fases P1–P11 están com
 | 2026-06 | pyarrow.ParquetFile.metadata.num_rows | Lee solo el footer del parquet sin deserializar datos — conteo instantáneo |
 | 2026-06 | `txt.includes(o)` para roles en sidebar | Evita problemas de encoding con tildes en nombres de módulos |
 | 2026-06 | `setTimeout(aplicarRoles, 50)` | Evita flash del sidebar incorrecto al cargar la página |
-| 2026-06 | Pipeline simulado con 4 pasos visuales | DAGs de Airflow no configurados — simulación demuestra el concepto del flujo ELT |
+| 2026-07 | PostgreSQL como BDR en docs TA11; MinIO columnar | Alineación enunciado Tarea 11 (informe simple vs compuesto) |
+| 2026-07 | Reportes con fpdf2 (no reportlab) | Dependencia ya en requirements.txt |
+
+---
+
+## DiabCare Hospital — tareas v3
+
+Las tareas T1–T10 del núcleo analytics siguen completadas. Reportes/auditoría/ML-versiones pueden existir en código aunque la tabla histórica las marcaba pendientes; el foco nuevo es **Hospital**.
+
+### ✅ Tarea 16: Núcleo hospitalario P16–P20 + comorbilidades
+
+- [x] 16.1 `ParquetStore` compartido (CRUD + soft-delete).
+- [x] 16.2 Facturación: seguros, tarifario, facturas, pagos + UI principal.
+- [x] 16.3 Farmacia B+C: catálogo, recetas, inventario, dispensar, compras, ventas, kardex, CxP, caja + UI principal.
+- [x] 16.4 Laboratorio: pruebas, órdenes, resultados + UI.
+- [x] 16.5 Urgencias: triage / atender + UI.
+- [x] 16.6 Comorbilidades diabéticas + UI.
+- [x] 16.7 RRHH/costeo: cargos, turnos, personal, productividad + UI.
+- [x] 16.8 Roles `enfermero` / `farmaceutico` + `PERMISOS_MODULOS` + menú.
+- [x] 16.9 Specs SDD en `specs/003-operativo/paquetes/P16`–`P20` y `P03-comorbilidades-ext`.
+- [x] 16.10 Routers registrados en `Principal.py`.
+
+### ✅ Tarea 17: Generador E2E
+
+- [x] 17.1 `DatasetHospitalServicio` — seed `negocio/`.
+- [x] 17.2 `DatasetFlujoServicio` — pacientes + citas + admisiones + registros enlazados.
+- [x] 17.3 Integración en `POST /api/dataset/generar` (`incluir_hospital`) y `POST /api/dataset/hospital/generar`.
+- [x] 17.4 UI generador: checkbox flujo + resumen pacientes/citas.
+- [x] 17.5 Catálogo DWH: paths `negocio/` para tablas hospitalarias implementadas.
+- [x] 17.6 Import lazy de sklearn en predicción (arranque sin bloquear).
+
+### ✅ Tarea 18: UI secundaria hospitalaria
+
+- [x] 18.1 Facturación: seguros, tarifario, pagos.
+- [x] 18.2 Farmacia: proveedores, compras, ventas, kardex, CxP, cierre, dispensar.
+- [x] 18.3 Laboratorio: captura de resultados en UI.
+- [x] 18.4 Formularios por nombre (sin IDs crudos).
+
+### ✅ Tarea 19: KPIs de negocio en dashboard
+
+- [x] 19.1 Agregados margen, facturado, espera, productividad (`negocio/agg_*`).
+- [x] 19.2 Widgets en dashboard / analítica.
+
+### ✅ Tarea 20: Pruebas API hospitalarias (smoke)
+
+- [x] 20.1 Smoke API hospitalaria en repo.
+- [ ] 20.2 Casos RN detallados (factura, stock, triage, comorbilidad).
+
+### ⏳ Tarea 21: Análisis táctico TA11 (documentación)
+
+- [x] 21.1 Tabla departamental: objetivos | informe simple (PostgreSQL/BDR) | informe compuesto (MinIO).
+- [x] 21.2 Catálogo de informes demostrables en app + guía de demo.
+- [x] 21.3 CU-O04-B UML Mis citas; especificación Word/PDF fuera del repo.
+- [ ] 21.4 Migración técnica BDR a PostgreSQL en runtime (opcional post-entrega).
+
+### Orden de ejecución sugerido (resto)
+
+```text
+T20.2 (casos RN detallados) — opcional
+```
+
+### Estado resumen Hospital
+
+| Tarea | Estado |
+|-------|--------|
+| T16 Núcleo P16–P20 | ✅ |
+| T17 Generador E2E | ✅ |
+| T18 UI secundaria | ✅ |
+| T19 KPIs negocio | ✅ |
+| T20 Tests hospital | ✅ parcial (smoke) |
+| T21 TA11 táctica (docs) | ✅ doc / ⏳ Postgres runtime |

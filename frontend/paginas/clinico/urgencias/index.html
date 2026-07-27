@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>DiabCare - Urgencias</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<style>
+#modalAtender .at-meta {
+  font-size: 12px; color: var(--text2); margin-bottom: 12px;
+  padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: rgba(0,0,0,0.25);
+}
+#modalAtender .at-meta b { color: var(--text); }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Urgencias</span>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Urgencias</div>
+        <div class="page-sub">Triage y atención</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="btnNuevo" onclick="abrirModal()">+ Nuevo triage</button>
+      </div>
+    </div>
+    <div class="tabla-card">
+      <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<div id="modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span id="modal-titulo">Nuevo triage</span></div>
+    <div class="modal-body form-modal-grid">
+      <input type="hidden" id="f-id">
+      <label class="span-full pac-typeahead-wrap">Paciente (cédula o nombre)
+        <input type="hidden" id="m-id_paciente" value="">
+        <input class="pac-typeahead-q" type="search" id="m-id_paciente-q" placeholder="Escribe cédula o nombre…" autocomplete="off">
+        <div id="m-id_paciente-res" class="pac-suggest" hidden></div>
+        <div id="m-id_paciente-chip" class="pac-chip" style="display:none"></div>
+      </label>
+      <label class="span-full">Prioridad (triage)
+        <select id="m-triage">
+          <option value="I">I · Crítico</option>
+          <option value="II">II · Emergencia</option>
+          <option value="III" selected>III · Urgente</option>
+          <option value="IV">IV · Menos urgente</option>
+          <option value="V">V · No urgente</option>
+        </select>
+      </label>
+      <label class="span-full">Motivo de consulta<input id="m-motivo" required placeholder="Ej. hipoglucemia, herida en pie, dolor torácico…"></label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarCrud()">Registrar llegada</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalAtender" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span>Atender urgencia</span></div>
+    <div class="modal-body form-modal-grid">
+      <input type="hidden" id="at-id">
+      <div class="span-full at-meta" id="at-meta">—</div>
+      <label class="span-full">Desenlace clínico
+        <select id="at-desenlace">
+          <option value="alta">Alta (se va a casa)</option>
+          <option value="hospitalizacion">Hospitalización</option>
+          <option value="referencia">Referencia a otro centro</option>
+        </select>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModalAtender()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="btnAtenderOk" onclick="guardarAtencion()">Confirmar atención</button>
+    </div>
+  </div>
+</div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador','medico','enfermero','farmaceutico']);
+
+const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+const rol = usuario.rol || '';
+const puedeTriage = ['administrador', 'enfermero', 'farmaceutico'].includes(rol);
+const puedeAtender = ['administrador', 'medico'].includes(rol);
+let _atCtx = null;
+
+if (!puedeTriage) {
+  const btn = document.getElementById('btnNuevo');
+  if (btn) btn.style.display = 'none';
+}
+
+function abrirModalAtender(row, ctx) {
+  _atCtx = ctx;
+  document.getElementById('at-id').value = row.id_urgencia || '';
+  document.getElementById('at-meta').innerHTML =
+    `<div><b>Paciente:</b> ${row.paciente_nombre || row.paciente_label || '—'}</div>` +
+    (row.documento ? `<div style="margin-top:4px"><b>Cédula:</b> ${row.documento}</div>` : '') +
+    `<div style="margin-top:4px"><b>Prioridad:</b> ${fmtTriage(row)}</div>` +
+    `<div style="margin-top:4px"><b>Motivo:</b> ${row.motivo || '—'}</div>`;
+  document.getElementById('at-desenlace').value = 'alta';
+  document.getElementById('modalAtender').style.display = 'flex';
+}
+function cerrarModalAtender() {
+  document.getElementById('modalAtender').style.display = 'none';
+  _atCtx = null;
+}
+async function guardarAtencion() {
+  const id = document.getElementById('at-id').value;
+  const desenlace = document.getElementById('at-desenlace').value;
+  const btn = document.getElementById('btnAtenderOk');
+  btn.disabled = true;
+  try {
+    const API = _atCtx ? _atCtx.API : DiabCareNav.getApi();
+    const hdr = _atCtx ? _atCtx.hdr() : { Authorization: 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' };
+    const r = await fetch(`${API}/api/urgencias/${id}/atender`, {
+      method: 'PUT', headers: hdr,
+      body: JSON.stringify({ desenlace })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) {
+      (_atCtx || { toast: m => alert(m) }).toast(d.detail || d.error || 'Error', 'error');
+      return;
+    }
+    (_atCtx || { toast: () => {} }).toast('Atención registrada');
+    cerrarModalAtender();
+    if (_atCtx && _atCtx.cargar) _atCtx.cargar();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+DiabCareCrud.mount({
+  listUrl: '/api/urgencias/?_v=2', listKey: 'urgencias', idField: 'id_urgencia',
+  itemUrl: id => '/api/urgencias/' + id, createUrl: '/api/urgencias/',
+  hideCreate: !puedeTriage,
+  hideEdit: !puedeTriage,
+  hideDelete: !puedeTriage,
+  listLimit: 100,
+  searchPlaceholder: 'Buscar por paciente, cédula o motivo…',
+  lookups: [{
+    field: 'id_paciente', url: '/api/pacientes/?limit=200', listKey: 'pacientes',
+    idKey: 'id_paciente', typeahead: true,
+    label: p => (p.nombre_completo || ((p.nombre||'') + ' ' + (p.apellido||'')).trim() || 'Paciente')
+  }],
+  columns: [
+    { key: 'paciente_nombre', label: 'Paciente', render: r => r.paciente_nombre || r.paciente_label || (r.id_paciente ? String(r.id_paciente).slice(0, 8) + '…' : '—') },
+    { key: 'documento', label: 'Cédula', render: r => r.documento || '—' },
+    { key: 'triage', label: 'Prioridad', render: r => fmtTriage(r) },
+    { key: 'motivo', label: 'Motivo' },
+    { key: 'estado', label: 'Estado', render: r => fmtEstado(r) },
+    { key: 'desenlace', label: 'Desenlace', render: r => fmtDesenlace(r) },
+  ],
+  fields: [
+    { key: 'id_paciente', required: true, labelUi: 'Paciente' },
+    { key: 'triage' },
+    { key: 'motivo', required: true, labelUi: 'Motivo' },
+  ],
+  rowActions: puedeAtender ? [{
+    id: 'atender',
+    label: 'Atender',
+    show: row => ['triage', 'en_espera', 'registrado'].includes(String(row.estado || '').toLowerCase()),
+    onClick(row, ctx) { abrirModalAtender(row, ctx); }
+  }] : []
+});
+
+const TRIAGE_UI = {
+  I: 'I · Crítico', II: 'II · Emergencia', III: 'III · Urgente',
+  IV: 'IV · Menos urgente', V: 'V · No urgente'
+};
+const ESTADO_UI = {
+  triage: 'En triage', en_espera: 'En espera', registrado: 'Registrado',
+  atendida: 'Atendida', anulado: 'Anulado', anulada: 'Anulada'
+};
+const DESENLACE_UI = {
+  en_espera: 'En espera', alta: 'Alta',
+  hospitalizacion: 'Hospitalización', referencia: 'Referencia'
+};
+function fmtTriage(r) {
+  const t = String(r.triage_label || r.triage || '').trim();
+  const key = String(r.triage || '').toUpperCase();
+  return TRIAGE_UI[key] || t || '—';
+}
+function fmtEstado(r) {
+  if (r.estado_label) return r.estado_label;
+  const k = String(r.estado || '').toLowerCase();
+  return ESTADO_UI[k] || (k ? k.charAt(0).toUpperCase() + k.slice(1) : '—');
+}
+function fmtDesenlace(r) {
+  if (r.desenlace_label) return r.desenlace_label;
+  const k = String(r.desenlace || '').toLowerCase();
+  return DESENLACE_UI[k] || (k ? k.replace(/_/g, ' ') : '—');
+}
+</script>
+</body>
+</html>

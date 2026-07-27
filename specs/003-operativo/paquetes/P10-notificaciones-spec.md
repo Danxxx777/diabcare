@@ -20,7 +20,9 @@
 
 ## Requisitos implementados
 
-- **RF-O-P10-001** (parcial): notificaciones in-app persistidas en MinIO (`notificaciones/alertas.parquet`).
+- **RF-O-P10-002**: Notificaciones dirigidas por `destinatario_tipo` (`usuario|rol|paciente_email|todos`)
+  y `canal` (`in_app|email|ambos`). Pacientes reciben solo correo (sin portal).
+- Emisores: alertas clínicas → rol médico; reportes → rol analista/admin; facturas → email paciente + admin.
 - Alertas clínicas: HbA1c > 7,5 % o glucosa > 180 mg/dL → notificación + correo a `email_destino_alertas`.
 - Correo vía **Brevo SMTP** (`smtp-relay.brevo.com`) o API Brevo (`xkeysib-...`).
 - Recuperación de contraseña envía código por correo si `email: true` en configuración.

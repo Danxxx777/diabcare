@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Mi perfil</title>
+<title>DiabCare - Mi perfil</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -12,35 +12,69 @@
 <script src="/estaticos/navegacion.js"></script>
 <script src="/estaticos/api.js"></script>
 <style>
-.perfil-header {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 20px;
+.perfil-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 860px) { .perfil-layout { grid-template-columns: 1fr; } }
+
+.perfil-card {
   background: var(--bg2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+.perfil-avatar-wrap {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  margin: 0 auto 14px;
 }
 .perfil-avatar {
-  width: 56px;
-  height: 56px;
+  width: 112px;
+  height: 112px;
   border-radius: 50%;
   background: rgba(34,211,238,0.12);
-  border: 1px solid rgba(34,211,238,0.3);
+  border: 2px solid rgba(34,211,238,0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 36px;
   font-weight: 700;
   color: var(--cyan);
-  flex-shrink: 0;
+  overflow: hidden;
+  object-fit: cover;
 }
-.perfil-meta h2 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
-.perfil-meta p { font-size: 12px; color: var(--text3); font-family: var(--mono); margin: 0; }
+.perfil-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.perfil-foto-btn {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(34,211,238,0.4);
+  background: var(--bg3);
+  color: var(--cyan);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.perfil-foto-btn:hover { background: rgba(34,211,238,0.15); }
+.perfil-card h2 { font-size: 16px; margin: 0 0 4px; color: var(--text); }
+.perfil-card .email { font-size: 11px; color: var(--text3); font-family: var(--mono); margin: 0 0 8px; word-break: break-all; }
 .perfil-rol {
   display: inline-block;
-  margin-top: 8px;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -50,11 +84,27 @@
   color: var(--cyan);
   border: 1px solid rgba(34,211,238,0.2);
 }
-.config-section { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+.perfil-bio-preview {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text2);
+  line-height: 1.45;
+  text-align: left;
+}
+.perfil-hint { font-size: 10px; color: var(--text3); margin-top: 10px; }
+
+.config-section { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 14px; }
 .config-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-.config-sub { font-size: 11px; color: var(--text3); margin-bottom: 16px; }
+.config-sub { font-size: 11px; color: var(--text3); margin-bottom: 14px; }
 .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 720px) { .config-grid { grid-template-columns: 1fr; } }
+.span-2 { grid-column: 1 / -1; }
+textarea.fi { min-height: 88px; resize: vertical; font-family: inherit; }
+.toggle { width: 36px; height: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; cursor: pointer; position: relative; flex-shrink: 0; }
+.toggle.on { background: var(--accent); }
+.toggle::after { content: ''; position: absolute; width: 14px; height: 14px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: left .2s; }
+.toggle.on::after { left: 19px; }
+.config-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
 </style>
 </head>
 <body>
@@ -70,50 +120,105 @@
     <div class="page-header">
       <div>
         <div class="page-title">Mi <span>perfil</span></div>
-        <div class="page-sub">Datos personales y seguridad de tu cuenta</div>
+        <div class="page-sub">Foto, datos profesionales y seguridad</div>
       </div>
       <button class="btn btn-primary" onclick="guardarPerfil()">Guardar cambios</button>
     </div>
 
-    <div class="perfil-header">
-      <div class="perfil-avatar" id="p-avatar">?</div>
-      <div class="perfil-meta">
-        <h2 id="p-nombre-display">—</h2>
-        <p id="p-email-display">—</p>
-        <span class="perfil-rol" id="p-rol-display">—</span>
+    <div class="perfil-layout">
+      <div class="perfil-card">
+        <div class="perfil-avatar-wrap">
+          <div class="perfil-avatar" id="p-avatar">?</div>
+          <button type="button" class="perfil-foto-btn" onclick="document.getElementById('p-foto-file').click()" title="Cambiar foto">✎</button>
+          <input type="file" id="p-foto-file" accept="image/jpeg,image/png,image/webp" hidden onchange="subirFoto(this)">
+        </div>
+        <h2 id="p-nombre-display">-</h2>
+        <p class="email" id="p-email-display">-</p>
+        <span class="perfil-rol" id="p-rol-display">-</span>
+        <div class="perfil-bio-preview" id="p-bio-preview"></div>
+        <div class="perfil-hint">JPEG / PNG / WebP · máx. 5 MB</div>
       </div>
-    </div>
 
-    <div class="config-section">
-      <div class="config-title">Información personal</div>
-      <div class="config-sub">El correo y el rol los gestiona un administrador</div>
-      <div class="config-grid">
-        <div class="fg">
-          <label class="fl">Nombre completo</label>
-          <input class="fi" id="p-nombre" autocomplete="name" placeholder="Tu nombre">
+      <div>
+        <div class="config-section" id="bannerForzar" style="display:none;border-color:rgba(251,191,36,0.45);background:rgba(251,191,36,0.08)">
+          <div class="config-title" style="color:#fbbf24">Contraseña temporal</div>
+          <div class="config-sub" style="margin:0">Actualiza tu contraseña para seguir usando DiabCare.</div>
         </div>
-        <div class="fg">
-          <label class="fl">Correo electrónico</label>
-          <input class="fi" id="p-email" type="email" disabled>
-        </div>
-      </div>
-    </div>
 
-    <div class="config-section">
-      <div class="config-title">Seguridad</div>
-      <div class="config-sub">Cambia tu contraseña de acceso al sistema</div>
-      <div class="config-grid">
-        <div class="fg">
-          <label class="fl">Contraseña actual</label>
-          <input class="fi" id="p-pass-actual" type="password" autocomplete="current-password">
+        <div class="config-section">
+          <div class="config-title">Información personal</div>
+          <div class="config-sub">Cómo te ven el equipo y los módulos clínicos</div>
+          <div class="config-grid">
+            <div class="fg">
+              <label class="fl">Nombre completo</label>
+              <input class="fi" id="p-nombre" autocomplete="name" placeholder="Tu nombre">
+            </div>
+            <div class="fg">
+              <label class="fl">Correo</label>
+              <input class="fi" id="p-email" type="email" disabled>
+            </div>
+            <div class="fg">
+              <label class="fl">Teléfono / celular</label>
+              <input class="fi" id="p-telefono" type="tel" autocomplete="tel" placeholder="+593 …">
+            </div>
+            <div class="fg">
+              <label class="fl">Cargo / especialidad</label>
+              <input class="fi" id="p-cargo" placeholder="Ej. Endocrinólogo, Analista BI">
+            </div>
+            <div class="fg span-2">
+              <label class="fl">Presentación breve</label>
+              <textarea class="fi" id="p-bio" maxlength="500" placeholder="Una línea sobre tu rol en el hospital…"></textarea>
+            </div>
+          </div>
         </div>
-        <div class="fg">
-          <label class="fl">Nueva contraseña</label>
-          <input class="fi" id="p-pass-nueva" type="password" autocomplete="new-password">
+
+        <div class="config-section">
+          <div class="config-title">Preferencias</div>
+          <div class="config-sub">Ajustes de cuenta (idioma UI y correos)</div>
+          <div class="config-grid">
+            <div class="fg">
+              <label class="fl">Idioma</label>
+              <select class="fi" id="p-idioma">
+                <option value="es">Español</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="fl">Notificaciones por correo</label>
+              <div class="config-row" style="padding-top:8px;">
+                <div class="config-row-sub" style="font-size:11px;color:var(--text3)">Alertas y avisos del sistema</div>
+                <div class="toggle on" id="t-notif-email" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div style="margin-top:12px;">
-        <button type="button" class="btn btn-ghost btn-sm" onclick="cambiarPassword()">Actualizar contraseña</button>
+
+        <div class="config-section">
+          <div class="config-title">Seguridad</div>
+          <div class="config-sub">Cambia tu contraseña de acceso</div>
+          <div class="config-grid">
+            <div class="fg">
+              <label class="fl">Contraseña actual</label>
+              <input class="fi" id="p-pass-actual" type="password" autocomplete="current-password">
+            </div>
+            <div class="fg">
+              <label class="fl">Nueva contraseña</label>
+              <input class="fi" id="p-pass-nueva" type="password" autocomplete="new-password">
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <button type="button" class="btn btn-primary btn-sm" onclick="cambiarPassword()">Actualizar contraseña</button>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <div class="config-title">Sesiones activas</div>
+          <div class="config-sub">Puedes revocar otros dispositivos. Tu sesión actual solo la puede cerrar otro administrador (o tú al salir con Cerrar sesión).</div>
+          <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="cerrarOtrasSesiones()">Cerrar otras sesiones</button>
+          </div>
+          <div id="sesionesBody"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
+        </div>
       </div>
     </div>
   </div>
@@ -124,7 +229,10 @@
 <script>
 DiabCareNav.init();
 const API = DiabCareNav.getApi();
-const token = localStorage.getItem('token');
+let token = localStorage.getItem('token');
+let fotoBust = Date.now();
+const forzar = new URLSearchParams(location.search).get('forzar') === '1'
+  || (JSON.parse(localStorage.getItem('usuario') || '{}').debe_cambiar_password === true);
 
 function toast(msg, type = 'success') {
   if (typeof DiabCareAPI !== 'undefined') {
@@ -138,18 +246,52 @@ function toast(msg, type = 'success') {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-function authHdr() {
-  return { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
+function authHdr(json = true) {
+  const h = { Authorization: 'Bearer ' + token };
+  if (json) h['Content-Type'] = 'application/json';
+  return h;
+}
+
+function urlFoto() {
+  return `${API}/api/auth/perfil/foto?t=${fotoBust}`;
+}
+
+function pintarAvatar(u) {
+  const box = document.getElementById('p-avatar');
+  const nombre = u.nombre || 'Usuario';
+  if (u.tiene_foto) {
+    box.innerHTML = '';
+    const img = document.createElement('img');
+    img.alt = nombre;
+    fetch(urlFoto(), { headers: { Authorization: 'Bearer ' + token } })
+      .then(r => r.ok ? r.blob() : Promise.reject())
+      .then(b => {
+        img.src = URL.createObjectURL(b);
+        box.appendChild(img);
+      })
+      .catch(() => { box.textContent = nombre[0].toUpperCase(); });
+  } else {
+    box.textContent = nombre[0].toUpperCase();
+  }
 }
 
 function pintarPerfil(u) {
   const nombre = u.nombre || 'Usuario';
-  document.getElementById('p-avatar').textContent = nombre[0].toUpperCase();
   document.getElementById('p-nombre-display').textContent = nombre;
-  document.getElementById('p-email-display').textContent = u.email || '—';
-  document.getElementById('p-rol-display').textContent = u.rol || '—';
+  document.getElementById('p-email-display').textContent = u.email || '-';
+  document.getElementById('p-rol-display').textContent = u.rol || '-';
   document.getElementById('p-nombre').value = nombre;
   document.getElementById('p-email').value = u.email || '';
+  document.getElementById('p-telefono').value = u.telefono || '';
+  document.getElementById('p-cargo').value = u.cargo || '';
+  document.getElementById('p-bio').value = u.bio || '';
+  document.getElementById('p-bio-preview').textContent = u.bio || '';
+  document.getElementById('p-idioma').value = u.idioma || 'es';
+  document.getElementById('t-notif-email').classList.toggle('on', u.notif_email !== false);
+  pintarAvatar(u);
+  if (u.debe_cambiar_password || forzar) {
+    document.getElementById('bannerForzar').style.display = 'block';
+  }
 }
 
 function actualizarLocal(u) {
@@ -167,28 +309,158 @@ async function cargarPerfil() {
     const u = await r.json();
     if (u.detail) { toast(u.detail, 'error'); return; }
     pintarPerfil(u);
+    actualizarLocal(u);
   } catch {
     const u = JSON.parse(localStorage.getItem('usuario') || '{}');
     if (u.nombre) pintarPerfil(u);
   }
+  cargarSesiones();
+}
+
+async function subirFoto(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    toast('La imagen no puede superar 5 MB', 'error');
+    input.value = '';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('archivo', file);
+  try {
+    const r = await fetch(`${API}/api/auth/perfil/foto`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      body: fd,
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const msg = typeof d.detail === 'string' ? d.detail
+        : (Array.isArray(d.detail) ? d.detail.map(x => x.msg || x).join('; ') : null)
+        || d.error || 'No se pudo subir la foto';
+      toast(msg, 'error');
+      return;
+    }
+    fotoBust = Date.now();
+    const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+    u.tiene_foto = true;
+    u.foto_bust = fotoBust;
+    if (d.id_usuario) u.id = d.id_usuario;
+    actualizarLocal(u);
+    pintarAvatar(u);
+    if (typeof DiabCareNav !== 'undefined' && DiabCareNav.pintarAvatarSidebar) {
+      DiabCareNav.pintarAvatarSidebar(u);
+    }
+    toast('Foto guardada');
+  } catch {
+    toast('Error de conexión', 'error');
+  }
+  input.value = '';
+}
+
+async function cargarSesiones() {
+  const box = document.getElementById('sesionesBody');
+  try {
+    const r = await fetch(`${API}/api/auth/mis-sesiones`, { headers: authHdr() });
+    if (r.status === 401) {
+      DiabCareNav.irLogin();
+      return;
+    }
+    const d = await r.json();
+    const jtiActual = d.jti_actual || '';
+    const sesiones = (d.sesiones || []).filter(s => !s.revocada);
+    if (!sesiones.length) {
+      box.innerHTML = '<div style="font-size:12px;color:var(--text3)">Sin sesiones activas</div>';
+      return;
+    }
+    let h = '<table style="width:100%;font-size:12px"><thead><tr><th>Creada</th><th>IP</th><th>Estado</th><th></th></tr></thead><tbody>';
+    sesiones.forEach(s => {
+      const fecha = (s.creado_en || '').replace('T', ' ').slice(0, 19);
+      const actual = jtiActual && String(s.id_sesion) === String(jtiActual);
+      const accion = actual
+        ? '<span style="font-size:11px;color:var(--text3)">Solo otro admin</span>'
+        : `<button class="btn btn-ghost btn-sm" onclick="revocarSesion('${s.id_sesion}')">Revocar</button>`;
+      h += `<tr>
+        <td class="mono">${fecha || '-'}</td>
+        <td>${s.ip || '-'}</td>
+        <td>${actual ? '<span style="color:var(--cyan)">Esta sesión</span>' : 'Activa'}</td>
+        <td>${accion}</td>
+      </tr>`;
+    });
+    h += '</tbody></table>';
+    box.innerHTML = h;
+  } catch {
+    box.innerHTML = '<div style="font-size:12px;color:var(--text3)">No se pudieron cargar las sesiones</div>';
+  }
+}
+
+async function revocarSesion(id) {
+  const r = await fetch(`${API}/api/auth/mis-sesiones/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: authHdr(),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    toast(d.detail || d.error || 'No se pudo revocar', 'error');
+    return;
+  }
+  toast('Sesión revocada');
+  cargarSesiones();
+}
+
+async function cerrarOtrasSesiones() {
+  const ok = typeof DiabCareAPI !== 'undefined'
+    ? await DiabCareAPI.confirm({
+        title: 'Cerrar otras sesiones',
+        message: 'Se revocarán los demás dispositivos. <strong>Tu sesión actual seguirá activa.</strong>',
+        confirmLabel: 'Cerrar otras',
+        cancelLabel: 'Cancelar',
+      })
+    : confirm('¿Cerrar las demás sesiones y mantener esta?');
+  if (!ok) return;
+  const r = await fetch(`${API}/api/auth/mis-sesiones/cerrar-todas`, {
+    method: 'POST',
+    headers: authHdr(),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    toast(d.detail || d.error || 'Error al cerrar sesiones', 'error');
+    return;
+  }
+  toast(d.mensaje || 'Otras sesiones cerradas');
+  cargarSesiones();
 }
 
 async function guardarPerfil() {
   const nombre = document.getElementById('p-nombre').value.trim();
   if (nombre.length < 2) { toast('El nombre debe tener al menos 2 caracteres', 'error'); return; }
+  const body = {
+    nombre,
+    telefono: document.getElementById('p-telefono').value.trim(),
+    cargo: document.getElementById('p-cargo').value.trim(),
+    bio: document.getElementById('p-bio').value.trim(),
+    idioma: document.getElementById('p-idioma').value,
+    notif_email: document.getElementById('t-notif-email').classList.contains('on'),
+  };
   try {
     const r = await fetch(`${API}/api/auth/perfil`, {
       method: 'PUT',
       headers: authHdr(),
-      body: JSON.stringify({ nombre })
+      body: JSON.stringify(body),
     });
-    const d = await r.json();
-    if (!r.ok) { toast(d.detail || 'Error al guardar', 'error'); return; }
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const msg = typeof d.detail === 'string' ? d.detail
+        : (Array.isArray(d.detail) ? d.detail.map(x => x.msg || x).join('; ') : null)
+        || d.error || 'Error al guardar';
+      toast(msg, 'error');
+      return;
+    }
     if (d.usuario) {
-      pintarPerfil(d.usuario);
+      pintarPerfil({ ...d.usuario, tiene_foto: d.usuario.tiene_foto ?? JSON.parse(localStorage.getItem('usuario') || '{}').tiene_foto });
       actualizarLocal(d.usuario);
     }
-    toast('Perfil actualizado');
+    toast('Perfil guardado en el servidor');
   } catch {
     toast('Error de conexión', 'error');
   }
@@ -201,21 +473,41 @@ async function cambiarPassword() {
     toast('Completa contraseña actual y nueva', 'error');
     return;
   }
-  if (password_nueva.length < 6) {
-    toast('La nueva contraseña debe tener al menos 6 caracteres', 'error');
+  if (password_nueva.length < 8) {
+    toast('La nueva contraseña debe tener al menos 8 caracteres', 'error');
     return;
   }
   try {
     const r = await fetch(`${API}/api/auth/cambiar-password`, {
       method: 'PUT',
       headers: authHdr(),
-      body: JSON.stringify({ password_actual, password_nueva })
+      body: JSON.stringify({ password_actual, password_nueva }),
     });
     const d = await r.json();
     if (!r.ok) { toast(d.detail || 'Error al cambiar contraseña', 'error'); return; }
+    if (d.token) {
+      token = d.token;
+      localStorage.setItem('token', d.token);
+    }
+    if (d.usuario) actualizarLocal(d.usuario);
+    else {
+      const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+      u.debe_cambiar_password = false;
+      localStorage.setItem('usuario', JSON.stringify(u));
+    }
     document.getElementById('p-pass-actual').value = '';
     document.getElementById('p-pass-nueva').value = '';
+    document.getElementById('bannerForzar').style.display = 'none';
     toast('Contraseña actualizada');
+    if (forzar) {
+      setTimeout(() => {
+        window.location.href = DiabCareNav.homeParaRol(
+          (JSON.parse(localStorage.getItem('usuario') || '{}').rol) || 'analista'
+        );
+      }, 900);
+    } else {
+      cargarSesiones();
+    }
   } catch {
     toast('Error de conexión', 'error');
   }

@@ -1,73 +1,76 @@
 /**
- * DiabCare — checklist de módulos operativos.
+ * DiabCare - checklist de módulos operativos.
  */
 window.DiabCareRuta = {
   PASOS: [
-    { id: 'login', label: 'Sesión JWT activa',
+    { id: 'login', label: 'Sesión activa',
       roles: ['administrador', 'medico', 'analista'],
-      href: '/paginas/clinico/analisis/index.html', check: (s) => !!s.token },
-    { id: 'usuarios', label: 'Gestión de usuarios',
+      href: '/paginas/clinico/analisis/diabetes/index.html', check: (s) => !!s.token },
+    { id: 'usuarios', label: 'Usuarios',
       roles: ['administrador'],
       href: '/paginas/seguridad/usuarios/index.html', check: (s) => s.usuarios?.total > 0 },
-    { id: 'registros', label: 'Pacientes y consultas',
+    { id: 'registros', label: 'Pacientes',
       roles: ['administrador', 'medico'],
       href: '/paginas/clinico/pacientes/index.html',
       check: (s) => (s.pacientes?.activos || 0) > 0 || (s.stats?.total || 0) > 0 },
-    { id: 'admisiones', label: 'Admisiones hospitalarias',
+    { id: 'admisiones', label: 'Admisiones',
       roles: ['administrador'],
       href: '/paginas/clinico/admisiones/index.html',
       check: (s) => (s.admisiones?.total || 0) > 0 },
-    { id: 'agenda', label: 'Agenda clínica',
+    { id: 'agenda', label: 'Agenda',
       roles: ['administrador'],
       href: '/paginas/clinico/agenda/index.html',
       check: (s) => (s.citas?.total || 0) > 0 },
-    { id: 'filtros', label: 'Filtros clínicos',
+    { id: 'filtros', label: 'Registros clínicos',
       roles: ['administrador', 'medico'],
       href: '/paginas/clinico/registros_clinicos/index.html', check: (s) => (s.stats?.total || 0) > 0 },
-    { id: 'dataset', label: 'Datos en almacén stage/',
+    { id: 'dataset', label: 'Dataset stage',
       roles: ['administrador', 'analista'],
       href: '/paginas/datos/dataset/generador.html', check: (s) => (s.dwh?.total_stage || 0) > 0 },
-    { id: 'pipeline', label: 'Pipeline ELT + DWH',
+    { id: 'pipeline', label: 'Pipeline ELT',
       roles: ['administrador', 'analista'],
       href: '/paginas/datos/pipeline_elt/index.html', check: (s) => s.dwh?.materializado === true },
-    { id: 'stats', label: 'Estadísticas clínicas',
+    { id: 'calidad', label: 'Calidad diabetes',
+      roles: ['administrador', 'analista'],
+      href: '/paginas/clinico/analisis/diabetes/index.html', check: (s) => (s.stats?.con_diabetes || 0) > 0 },
+    { id: 'stats', label: 'Estadísticas',
       roles: ['administrador', 'medico', 'analista'],
       href: '/paginas/clinico/analisis/estadisticas/index.html', check: (s) => (s.stats?.total || 0) > 0 },
-    { id: 'prediccion', label: 'Predicción diabetes',
+    { id: 'prediccion', label: 'Predicción',
       roles: ['administrador', 'medico', 'analista'],
       href: '/paginas/clinico/prediccion/index.html', check: (s) => localStorage.getItem('diabcare_prediccion_ok') === '1' },
-    { id: 'modelo', label: 'Modelo ML entrenado',
+    { id: 'modelo', label: 'Modelo ML',
       roles: ['administrador', 'analista'],
       href: '/paginas/datos/modelo_ml/index.html', check: (s) => s.modelo === true },
-    { id: 'dashboard', label: 'Dashboard ejecutivo',
+    { id: 'dashboard', label: 'Dashboard',
       roles: ['administrador', 'medico', 'analista'],
       href: '/paginas/clinico/analisis/index.html', check: (s) => (s.stats?.total || 0) > 0 },
-    { id: 'hubspot', label: 'Lead HubSpot registrado', pronto: true,
+    { id: 'hubspot', label: 'HubSpot', pronto: true,
       roles: ['administrador'],
       href: '/paginas/integraciones/index.html', check: (s) => (s.integraciones?.hubspot?.leads_registrados || 0) > 0 },
-    { id: 'stripe', label: 'Pago Stripe procesado', pronto: true,
+    { id: 'stripe', label: 'Stripe', pronto: true,
       roles: ['administrador'],
       href: '/paginas/integraciones/index.html', check: (s) => (s.integraciones?.stripe?.pagos_completados || 0) > 0 },
-    { id: 'api', label: 'API partner (X-API-Key)', pronto: true,
+    { id: 'api', label: 'API partner', pronto: true,
       roles: ['administrador'],
       href: '/paginas/integraciones/index.html', check: (s) => s.integraciones?.api_publica?.api_key_configurada === true },
-    { id: 'openapi', label: 'OpenAPI publicado',
+    { id: 'openapi', label: 'API docs',
       roles: ['administrador'],
       href: '/docs', check: () => true },
-    { id: 'cicd', label: 'Pipeline CI/CD ejecutado', pronto: true,
+    { id: 'cicd', label: 'CI/CD', pronto: true,
       roles: ['administrador'],
       href: '/paginas/integraciones/index.html', check: (s) => !!s.integraciones?.cicd?.ultimo_despliegue },
-    { id: 'alertas', label: 'Alertas clínicas y correo',
+    { id: 'alertas', label: 'Notificaciones',
       roles: ['administrador', 'medico', 'analista'],
       href: '/paginas/notificaciones/index.html', check: (s) => (s.notif?.total || 0) > 0 },
-    { id: 'reporte', label: 'Reporte PDF clínico',
-      roles: ['administrador', 'medico'],
+    { id: 'reporte', label: 'Reportes PDF',
+      roles: ['administrador', 'medico', 'analista'],
       href: '/paginas/clinico/reportes/index.html', check: (s) => (s.reportes?.total || 0) > 0 },
-    { id: 'auditoria', label: 'Auditoría de operaciones',
+    { id: 'auditoria', label: 'Auditoría',
       roles: ['administrador'],
       href: '/paginas/gobierno/auditoria/index.html', check: (s) => (s.auditoria?.total || 0) > 0 },
-    { id: 'benchmark', label: 'Benchmarking KPIs', pronto: true,
-      roles: ['administrador'],
+    { id: 'benchmark', label: 'Benchmarking', pronto: true,
+      roles: ['administrador', 'analista'],
       href: '/paginas/benchmarking/index.html', check: (s) => s.benchmark === true },
   ],
 
@@ -144,7 +147,7 @@ window.DiabCareRuta = {
     try {
       const estado = await this.recolectarEstado(api, token);
       const pasos = this.PASOS.filter(p => p.roles.includes(rol));
-      const pasosGa07 = pasos.filter(p => !p.pronto);
+      const pasosActivos = pasos.filter(p => !p.pronto);
       let done = 0;
       let html = '<div class="ruta-list">';
       pasos.forEach(p => {
@@ -164,7 +167,7 @@ window.DiabCareRuta = {
         </a>`;
       });
       html += '</div>';
-      html += `<div class="ruta-footer">${done}/${pasosGa07.length} módulos GA07 listos</div>`;
+      html += `<div class="ruta-footer">${done}/${pasosActivos.length} módulos listos</div>`;
       el.innerHTML = html;
     } catch (e) {
       console.error('Checklist operativo:', e);

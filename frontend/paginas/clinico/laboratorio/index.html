@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare - Laboratorio</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<style>
+.crud-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+#modalResultado .res-meta {
+  font-size: 12px; color: var(--text2); margin-bottom: 12px;
+  padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: rgba(0,0,0,0.25);
+}
+#modalResultado .res-meta b { color: var(--text); }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Laboratorio</span>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Laboratorio</div>
+        <div class="page-sub" id="pageSub">Órdenes y resultados</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
+        <button class="btn btn-primary btn-sm" id="btnNuevo" onclick="abrirModal()">+ Nueva orden</button>
+      </div>
+    </div>
+    <div class="crud-tabs" id="crudTabs"></div>
+    <div class="tabla-card">
+      <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<div id="modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span id="modal-titulo">Nueva orden</span></div>
+    <div class="modal-body form-modal-grid" id="modalFields"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarCrud()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalResultado" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span>Cargar resultado</span></div>
+    <div class="modal-body form-modal-grid">
+      <input type="hidden" id="res-orden-id">
+      <div class="span-full res-meta" id="res-meta">—</div>
+      <label>Valor<input id="res-valor" type="text" placeholder="Ej. 6.8" required></label>
+      <label>Unidad<input id="res-unidad" type="text" placeholder="Ej. %"></label>
+      <label class="span-full">Fecha del resultado<input id="res-fecha" type="date"></label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModalResultado()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="btnGuardarResultado" onclick="guardarResultado()">Registrar resultado</button>
+    </div>
+  </div>
+</div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador','medico','enfermero']);
+
+const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+const rol = usuario.rol || '';
+const puedeOrdenar = ['administrador', 'medico'].includes(rol);
+const puedeResultado = ['administrador', 'enfermero'].includes(rol);
+let _resCtx = null;
+
+if (!puedeOrdenar) {
+  const seed = document.getElementById('btnSeed');
+  if (seed) seed.style.display = 'none';
+  const nuevo = document.getElementById('btnNuevo');
+  if (nuevo) nuevo.style.display = 'none';
+}
+
+const pacLookup = {
+  field: 'id_paciente', url: '/api/pacientes/?limit=200', listKey: 'pacientes',
+  idKey: 'id_paciente', typeahead: true,
+  label: p => (p.nombre_completo || ((p.nombre||'') + ' ' + (p.apellido||'')).trim() || 'Paciente')
+};
+const pruLookup = {
+  field: 'id_prueba', url: '/api/laboratorio/pruebas?limit=200', listKey: 'pruebas',
+  idKey: 'id_prueba',
+  label: p => (p.nombre || p.codigo || 'Prueba') + (p.unidad ? ' (' + p.unidad + ')' : '')
+};
+
+function abrirModalResultado(row, ctx) {
+  _resCtx = ctx;
+  document.getElementById('res-orden-id').value = row.id_orden || '';
+  document.getElementById('res-meta').innerHTML =
+    `<div><b>Paciente:</b> ${row.paciente_nombre || row.paciente_label || '—'}</div>` +
+    (row.documento ? `<div style="margin-top:4px"><b>Cédula:</b> ${row.documento}</div>` : '') +
+    `<div style="margin-top:4px"><b>Prueba:</b> ${row.prueba_label || row.prueba_nombre || '—'}</div>` +
+    `<div style="margin-top:4px"><b>Orden:</b> ${String(row.fecha || '—').slice(0, 10)} · ${row.estado_label || row.estado || ''}</div>`;
+  document.getElementById('res-valor').value = '';
+  document.getElementById('res-unidad').value = row.prueba_unidad || row.unidad || '';
+  document.getElementById('res-fecha').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('modalResultado').style.display = 'flex';
+  setTimeout(() => document.getElementById('res-valor').focus(), 50);
+}
+function cerrarModalResultado() {
+  document.getElementById('modalResultado').style.display = 'none';
+  _resCtx = null;
+}
+async function guardarResultado() {
+  const id = document.getElementById('res-orden-id').value;
+  const valor = document.getElementById('res-valor').value.trim();
+  const unidad = document.getElementById('res-unidad').value.trim();
+  const fecha = document.getElementById('res-fecha').value;
+  if (!valor) {
+    if (_resCtx) _resCtx.toast('Indique el valor del resultado', 'error');
+    return;
+  }
+  const btn = document.getElementById('btnGuardarResultado');
+  btn.disabled = true;
+  try {
+    const API = _resCtx ? _resCtx.API : DiabCareNav.getApi();
+    const hdr = _resCtx ? _resCtx.hdr() : { Authorization: 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' };
+    const r = await fetch(`${API}/api/laboratorio/ordenes/${id}/resultado`, {
+      method: 'PUT', headers: hdr,
+      body: JSON.stringify({ valor, unidad, fecha })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) {
+      (_resCtx || { toast: (m) => alert(m) }).toast(d.detail || d.error || 'Error', 'error');
+      return;
+    }
+    (_resCtx || { toast: () => {} }).toast('Resultado registrado');
+    cerrarModalResultado();
+    if (_resCtx && _resCtx.cargar) _resCtx.cargar();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+const tabs = [
+  {
+    id: 'ordenes', label: 'Órdenes', sub: 'Solicitudes pendientes o completadas',
+    listUrl: '/api/laboratorio/ordenes', listKey: 'ordenes', idField: 'id_orden',
+    itemUrl: id => '/api/laboratorio/ordenes/' + id,
+    createUrl: '/api/laboratorio/ordenes',
+    seedUrl: puedeOrdenar ? '/api/laboratorio/seed' : undefined,
+    hideCreate: !puedeOrdenar, hideEdit: !puedeOrdenar, hideDelete: !puedeOrdenar,
+    listLimit: 200,
+    searchPlaceholder: 'Buscar por paciente, cédula o prueba…',
+    lookups: [pacLookup, pruLookup],
+    columns: [
+      { key: 'paciente_nombre', label: 'Paciente', render: r => r.paciente_nombre || r.paciente_label || '—' },
+      { key: 'documento', label: 'Cédula', render: r => r.documento || '—' },
+      { key: 'prueba_label', label: 'Prueba', render: r => r.prueba_label || '—' },
+      { key: 'estado', label: 'Estado', render: r => r.estado_label || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(r.estado) : r.estado) || '—' },
+      { key: 'fecha', label: 'Fecha' }
+    ],
+    fields: [
+      { key: 'id_paciente', required: true, labelUi: 'Paciente', full: true },
+      { key: 'id_prueba', required: true, labelUi: 'Prueba', full: true },
+      { key: 'fecha', type: 'date', labelUi: 'Fecha de la orden' }
+    ],
+    rowActions: puedeResultado ? [{
+      id: 'resultado',
+      label: 'Cargar resultado',
+      show: row => String(row.estado || '').toLowerCase() === 'pendiente',
+      onClick(row, ctx) { abrirModalResultado(row, ctx); }
+    }] : []
+  },
+  {
+    id: 'resultados', label: 'Resultados', sub: 'Valores ya registrados',
+    listUrl: '/api/laboratorio/resultados', listKey: 'resultados', idField: 'id_resultado',
+    itemUrl: id => '/api/laboratorio/resultados/' + id,
+    hideCreate: true,
+    hideEdit: !puedeResultado, hideDelete: !puedeResultado,
+    listLimit: 200,
+    searchPlaceholder: 'Buscar por paciente o prueba…',
+    lookups: [pacLookup, pruLookup],
+    columns: [
+      { key: 'paciente_nombre', label: 'Paciente', render: r => r.paciente_nombre || r.paciente_label || '—' },
+      { key: 'documento', label: 'Cédula', render: r => r.documento || '—' },
+      { key: 'prueba_label', label: 'Prueba', render: r => r.prueba_label || '—' },
+      { key: 'valor', label: 'Valor' },
+      { key: 'unidad', label: 'Unidad', render: r => r.unidad || r.prueba_unidad || '—' },
+      { key: 'fecha', label: 'Fecha' },
+      { key: 'estado', label: 'Estado', render: r => r.estado_label || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(r.estado) : r.estado) || '—' }
+    ],
+    fields: [
+      { key: 'valor', required: true, labelUi: 'Valor' },
+      { key: 'unidad', labelUi: 'Unidad' },
+      { key: 'fecha', type: 'date', labelUi: 'Fecha' }
+    ]
+  },
+  {
+    id: 'pruebas', label: 'Catálogo', sub: 'Pruebas disponibles',
+    listUrl: '/api/laboratorio/pruebas', listKey: 'pruebas', idField: 'id_prueba',
+    itemUrl: id => '/api/laboratorio/pruebas/' + id,
+    seedUrl: puedeOrdenar ? '/api/laboratorio/seed' : undefined,
+    hideCreate: !puedeOrdenar, hideEdit: !puedeOrdenar, hideDelete: !puedeOrdenar,
+    columns: [
+      { key: 'codigo', label: 'Código' },
+      { key: 'nombre', label: 'Nombre' },
+      { key: 'unidad', label: 'Unidad' },
+      { key: 'activo', label: 'Activo' }
+    ],
+    fields: [
+      { key: 'codigo', required: true, labelUi: 'Código' },
+      { key: 'nombre', required: true, labelUi: 'Nombre', full: true },
+      { key: 'unidad', labelUi: 'Unidad' }
+    ]
+  }
+];
+
+DiabCareCrud.mountTabs({ tabs });
+</script>
+</body>
+</html>

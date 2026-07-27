@@ -7,7 +7,7 @@ from paquetes.dataset.DatasetServicio import (
     MAX_REGISTROS_GENERACION, UBICACIONES, GENEROS,
 )
 from paquetes.dataset.DatasetDwhServicio import (
-    materializar_dwh, resumen_dwh, leer_hechos, leer_dimension, esquema_dwh, leer_tabla,
+    materializar_dwh, vaciar_dwh, resumen_dwh, leer_hechos, leer_dimension, esquema_dwh, leer_tabla,
     compactar_stage,
 )
 from paquetes.dataset.DatasetTraducciones import normalizar_genero, normalizar_tabaco
@@ -30,6 +30,16 @@ class GenerarEntrada(BaseModel):
     prevalencia_diabetes: Optional[float] = Field(default=None, ge=0, le=1)
     perfil: str = Field(default="aleatorio", pattern="^(aleatorio|balanceado|alto_riesgo|bajo_riesgo)$")
     semilla: Optional[int] = None
+    incluir_hospital: bool = True
+    reemplazar_hospital: bool = True
+    modo_rapido: bool = False
+
+
+class GenerarHospitalEntrada(BaseModel):
+    cantidad: int = Field(default=1000, ge=40, le=5_000)
+    year: int = Field(default=2025, ge=2010, le=2030)
+    semilla: Optional[int] = None
+    reemplazar_hospital: bool = True
 
 
 class EliminarRegistrosEntrada(BaseModel):
@@ -95,6 +105,13 @@ def generar(datos: GenerarEntrada, payload: dict = Depends(require_modulo("datas
     return generar_y_subir(datos.cantidad, datos.year, opts)
 
 
+@router.post("/hospital/generar")
+def generar_solo_hospital(datos: GenerarHospitalEntrada, payload: dict = Depends(require_modulo("dataset"))):
+    from paquetes.dataset.DatasetFlujoServicio import expandir_flujo_operativo
+    opts = datos.model_dump(exclude={"cantidad", "year"}, exclude_none=True)
+    return expandir_flujo_operativo(datos.cantidad, datos.year, opts)
+
+
 @router.get("/archivos")
 def archivos(payload: dict = Depends(require_modulo("dataset"))):
     return listar_archivos()
@@ -130,12 +147,34 @@ def opciones_generacion(payload: dict = Depends(require_modulo("dataset"))):
             {"id": "alto_riesgo", "label": "Alto riesgo metabólico"},
             {"id": "bajo_riesgo", "label": "Bajo riesgo"},
         ],
+        "hospital": {
+            "incluir_por_defecto": True,
+            "descripcion": "Expande una muestra a pacientes operativos con citas, admisiones, registros, lab, farmacia, urgencias y facturación (flujo E2E).",
+        },
     }
+
+
+@router.get("/negocio/kpis")
+def negocio_kpis(payload: dict = Depends(require_modulo("analisis"))):
+    from paquetes.dataset.DatasetKpisServicio import resumen_kpis
+    return resumen_kpis()
 
 # ── DWH ──
 @router.post("/dwh/reconstruir")
 def reconstruir_dwh(payload: dict = Depends(require_modulo("dataset"))):
     return materializar_dwh()
+
+
+@router.delete("/dwh")
+def borrar_dwh(payload: dict = Depends(require_modulo("dataset"))):
+    """Vacía tablas DWH/operativo en caliente (sin reiniciar el backend)."""
+    return vaciar_dwh()
+
+
+@router.post("/limpiar-generados")
+def limpiar_generados(payload: dict = Depends(require_modulo("dataset"))):
+    """Borrón total de datos sintéticos: stage + DWH + hospital."""
+    return eliminar_todos()
 
 
 @router.post("/stage/compactar")

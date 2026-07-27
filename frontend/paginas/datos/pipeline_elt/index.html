@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Pipeline ELT</title>
+<title>DiabCare - Pipeline ELT</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -90,14 +90,10 @@
     <div class="page-header">
       <div>
         <div class="page-title">Pipeline <span>ELT</span></div>
-        <div class="page-sub">Estado del almacén MinIO (stage/). El botón ELT trae novedades desde PocketBase; el Generador carga directo a MinIO.</div>
+        <div class="page-sub">Estado del almacén MinIO (stage/)</div>
       </div>
     </div>
 
-    <div style="font-size:11px;color:var(--text3);margin:-6px 0 14px;line-height:1.55;padding:10px 14px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.12);border-radius:8px;">
-      <strong style="color:var(--text2)">Generador</strong> → sube Parquet a MinIO <em>directamente</em> (no usa PocketBase ni este pipeline).<br>
-      <strong style="color:var(--text2)">Pipeline ELT</strong> → solo trae registros <em>nuevos</em> desde PocketBase (fuente clínica real).
-    </div>
     <div class="pipe-flow">
       <div class="pipe-node">
         <div class="pipe-icon purple" data-icon="storage" data-icon-size="22"></div>
@@ -137,10 +133,10 @@
 
     <!-- KPI estado -->
     <div class="status-grid">
-      <div class="status-card"><div class="status-label">MinIO</div><div class="status-val" id="s-min">—</div></div>
-      <div class="status-card"><div class="status-label">Registros en stage</div><div class="status-val green" id="s-registros">—</div></div>
-      <div class="status-card"><div class="status-label">Archivos Parquet</div><div class="status-val blue" id="s-archivos">—</div></div>
-      <div class="status-card"><div class="status-label">Última carga</div><div class="status-val" id="s-fecha" style="font-size:12px">—</div></div>
+      <div class="status-card"><div class="status-label">MinIO</div><div class="status-val" id="s-min">-</div></div>
+      <div class="status-card"><div class="status-label">Registros en stage</div><div class="status-val green" id="s-registros">-</div></div>
+      <div class="status-card"><div class="status-label">Archivos Parquet</div><div class="status-val blue" id="s-archivos">-</div></div>
+      <div class="status-card"><div class="status-label">Última carga</div><div class="status-val" id="s-fecha" style="font-size:12px">-</div></div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
@@ -148,8 +144,8 @@
       <!-- Archivos en MinIO -->
       <div class="archivos-tabla">
         <div class="archivos-header">
-          <span class="archivos-title">Archivos en MinIO — stage/</span>
-          <span style="font-size:10px;color:var(--muted,var(--text3));font-family:var(--mono);margin-left:auto" id="a-count">—</span>
+          <span class="archivos-title">Archivos en MinIO - stage/</span>
+          <span style="font-size:10px;color:var(--muted,var(--text3));font-family:var(--mono);margin-left:auto" id="a-count">-</span>
         </div>
         <div style="padding:0 16px" id="archivos-list">
           <div class="loading"><div class="spinner"></div>Cargando...</div>
@@ -165,37 +161,37 @@
           <div class="step-row" id="step-row-1">
             <div class="step-num" id="step-num-1">1</div>
             <div style="flex:1">
-              <div class="step-title">Extracción — PocketBase</div>
+              <div class="step-title">Extracción - PocketBase</div>
               <div class="step-desc">Solo registros con <code>updated</code> posterior a la última sincronización (incremental).</div>
               <div class="step-tech">GET /api/collections/diabetes_dataset/records</div>
-              <div class="step-status pending" id="step-status-1">— En espera</div>
+              <div class="step-status pending" id="step-status-1">- En espera</div>
             </div>
           </div>
           <div class="step-row" id="step-row-2">
             <div class="step-num" id="step-num-2">2</div>
             <div style="flex:1">
-              <div class="step-title">Transformación — pandas</div>
+              <div class="step-title">Transformación - pandas</div>
               <div class="step-desc">Normalización de columnas, tipos numéricos, género/tabaquismo y descarte de filas inválidas.</div>
               <div class="step-tech">pd.DataFrame → dropna → astype → reset_index</div>
-              <div class="step-status pending" id="step-status-2">— En espera</div>
+              <div class="step-status pending" id="step-status-2">- En espera</div>
             </div>
           </div>
           <div class="step-row" id="step-row-3">
             <div class="step-num" id="step-num-3">3</div>
             <div style="flex:1">
-              <div class="step-title">Carga — MinIO (Parquet)</div>
+              <div class="step-title">Carga - MinIO (Parquet)</div>
               <div class="step-desc">Serialización Parquet y subida a <code>diabetes-data/stage/pocketbase_elt_*.parquet</code>.</div>
               <div class="step-tech">df.to_parquet() → minio.put_object()</div>
-              <div class="step-status pending" id="step-status-3">— En espera</div>
+              <div class="step-status pending" id="step-status-3">- En espera</div>
             </div>
           </div>
           <div class="step-row" id="step-row-4">
             <div class="step-num" id="step-num-4">4</div>
             <div style="flex:1">
-              <div class="step-title">Consumo — FastAPI</div>
+              <div class="step-title">Consumo - FastAPI</div>
               <div class="step-desc">Invalidación de caché y verificación de lectura vía API de registros/estadísticas.</div>
               <div class="step-tech">GET /api/registros/estadisticas → DataFrame</div>
-              <div class="step-status pending" id="step-status-4">— En espera</div>
+              <div class="step-status pending" id="step-status-4">- En espera</div>
             </div>
           </div>
         </div>
@@ -209,6 +205,7 @@
 
 <script>
 DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'analista']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 
@@ -255,7 +252,7 @@ function setStep(n, estado, msg) {
   const status = document.getElementById(`step-status-${n}`);
   num.className = `step-num ${estado}`;
   status.className = `step-status ${estado}`;
-  const icons = { pending:'—', running:'⏳', done:'✓', error:'✗' };
+  const icons = { pending:'-', running:'⏳', done:'✓', error:'✗' };
   status.textContent = `${icons[estado]} ${msg}`;
 }
 
@@ -329,7 +326,7 @@ async function cargar() {
     const regs = d.total_registros ?? 0;
     document.getElementById('s-registros').textContent = regs.toLocaleString('es-ES');
     document.getElementById('s-archivos').textContent = d.total_archivos ?? d.total_stage ?? 0;
-    document.getElementById('s-fecha').textContent    = d.ultima_fecha || '—';
+    document.getElementById('s-fecha').textContent    = d.ultima_fecha || '-';
     const sync = d.sincronizacion || {};
     const gen = d.total_generador ?? 0;
     const elt = d.total_elt ?? 0;

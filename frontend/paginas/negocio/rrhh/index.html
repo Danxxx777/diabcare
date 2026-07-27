@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare - RRHH / Costeo</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<style>
+.crud-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">RRHH</span>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">RRHH <span>/ costeo clínico</span></div>
+        <div class="page-sub" id="pageSub">Cargos, turnos y productividad</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
+        <button class="btn btn-primary btn-sm" id="btnNuevoRrhh" onclick="abrirModal()">+ Nuevo</button>
+      </div>
+    </div>
+    <div class="crud-tabs" id="crudTabs"></div>
+    <div class="tabla-card">
+      <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+<div id="modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span id="modal-titulo">Nuevo</span></div>
+    <div class="modal-body form-modal-grid" id="modalFields"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarCrud()">Guardar</button>
+    </div>
+  </div>
+</div>
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador','analista']);
+
+const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+const readOnly = (u.rol || '') === 'analista';
+if (readOnly) {
+  document.getElementById('negocioHint').textContent =
+    'Vista de consulta para analista: cargos, turnos, costeo y productividad (sin editar).';
+  document.getElementById('btnNuevoRrhh').style.display = 'none';
+  document.getElementById('btnSeed').style.display = 'none';
+}
+
+const colabLookup = {
+  field: 'id_personal', url: '/api/rrhh/colaboradores', listKey: 'colaboradores',
+  idKey: 'id',
+  label: u => (u.nombre || 'Usuario') + (u.rol ? ' · ' + u.rol : '')
+};
+const cargoLookup = {
+  field: 'id_cargo', url: '/api/rrhh/cargos?limit=100', listKey: 'cargos',
+  idKey: 'id_cargo',
+  label: c => (c.nombre || 'Cargo').replaceAll('_', ' ')
+};
+
+DiabCareCrud.mountTabs({
+  tabs: [
+    {
+      id: 'cargos', label: 'Cargos', sub: 'Catálogo de cargos clínicos / administrativos',
+      listUrl: '/api/rrhh/cargos', listKey: 'cargos', idField: 'id_cargo',
+      itemUrl: id => '/api/rrhh/cargos/' + id, seedUrl: '/api/rrhh/seed',
+      readOnly,
+      columns: [
+        {key:'nombre', label:'Cargo'}, {key:'activo', label:'Activo'}
+      ],
+      fields: [
+        {key:'nombre', required:true, labelUi:'Nombre del cargo', full:true}
+      ]
+    },
+    {
+      id: 'turnos', label: 'Turnos', sub: 'Jornadas (mañana / tarde / noche)',
+      listUrl: '/api/rrhh/turnos', listKey: 'turnos', idField: 'id_turno',
+      itemUrl: id => '/api/rrhh/turnos/' + id,
+      readOnly,
+      columns: [
+        {key:'nombre', label:'Turno'}, {key:'hora_inicio', label:'Inicio'},
+        {key:'hora_fin', label:'Fin'}, {key:'activo', label:'Activo'}
+      ],
+      fields: [
+        {key:'nombre', required:true, labelUi:'Nombre', full:true},
+        {key:'hora_inicio', labelUi:'Hora inicio', default:'07:00'},
+        {key:'hora_fin', labelUi:'Hora fin', default:'15:00'}
+      ]
+    },
+    {
+      id: 'personal', label: 'Personal / costo', sub: 'USD por hora por colaborador y cargo',
+      listUrl: '/api/rrhh/personal', listKey: 'personal', idField: 'id_personal_costo',
+      itemUrl: id => '/api/rrhh/personal/' + id, createUrl: '/api/rrhh/personal',
+      readOnly,
+      lookups: [colabLookup, cargoLookup],
+      columns: [
+        {key:'id_personal', label:'Colaborador', lookup:'id_personal'},
+        {key:'id_cargo', label:'Cargo', lookup:'id_cargo'},
+        {key:'costo_hora', label:'USD/h'}, {key:'fecha_vigencia', label:'Vigencia'}, {key:'activo', label:'Activo'}
+      ],
+      fields: [
+        {key:'id_personal', required:true, labelUi:'Colaborador', full:true},
+        {key:'id_cargo', required:true, labelUi:'Cargo', full:true},
+        {key:'costo_hora', type:'number', labelUi:'Costo por hora (USD)', default:0},
+        {key:'fecha_vigencia', type:'date', labelUi:'Vigencia desde'}
+      ]
+    },
+    {
+      id: 'productividad', label: 'Productividad', sub: 'Agregado de consultas / ingresos (solo lectura)',
+      listUrl: '/api/rrhh/productividad', listKey: 'productividad', idField: 'id_agg',
+      itemUrl: id => '/api/rrhh/productividad',
+      hideCreate: true, hideEdit: true, hideDelete: true, readOnly: true,
+      lookups: [colabLookup],
+      columns: [
+        {key:'id_personal', label:'Colaborador', lookup:'id_personal'},
+        {key:'periodo', label:'Periodo'},
+        {key:'num_consultas', label:'Consultas'},
+        {key:'num_procedimientos', label:'Proc.'},
+        {key:'ingreso_generado', label:'Ingreso'}
+      ],
+      fields: []
+    }
+  ]
+});
+</script>
+</body>
+</html>

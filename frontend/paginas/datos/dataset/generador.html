@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Generador de datos</title>
+<title>DiabCare - Generador de datos</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -12,40 +12,218 @@
 <script src="/estaticos/navegacion.js"></script>
 <script src="/estaticos/api.js"></script>
 <style>
-.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:4px; }
-.form-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:4px; }
-@media (max-width:900px) { .form-grid-3 { grid-template-columns:1fr; } }
-.field-hint { font-size:10px; color:var(--muted); margin-top:4px; font-family:var(--mono); }
-.panel-desc { font-size:12px; color:var(--muted); line-height:1.6; margin:-6px 0 18px; }
+.gen-shell {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+.content.gen-shell {
+  padding-left: 18px;
+  padding-right: 18px;
+}
+.gen-hero {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  margin-bottom: 18px; flex-wrap: wrap;
+}
+.gen-kicker {
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--cyan); font-weight: 600; margin-bottom: 6px;
+}
+.gen-hero .page-title { margin: 0; }
+.gen-hero .page-sub { margin-top: 6px; max-width: none; }
 
-.progress-wrap { margin-top:18px; display:none; }
-.progress-wrap.visible { display:block; }
-.progress-label { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); font-family:var(--mono); margin-bottom:8px; }
-.progress-track { height:4px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
-.progress-fill { height:100%; background:linear-gradient(90deg,rgba(34,211,238,0.8),rgba(74,222,128,0.8)); border-radius:2px; width:0%; transition:width .4s ease; }
-.progress-steps { display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; }
-.step-chip { padding:3px 10px; border-radius:12px; font-size:10px; font-family:var(--mono); border:1px solid var(--border); color:var(--muted); transition:all .3s; }
-.step-chip.active { border-color:rgba(34,211,238,0.5); color:rgba(34,211,238,0.9); background:rgba(34,211,238,0.08); }
-.step-chip.done   { border-color:rgba(74,222,128,0.4); color:rgba(74,222,128,0.8); background:rgba(74,222,128,0.06); }
+.gen-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: stretch;
+  width: 100%;
+}
+@media (max-width: 1100px) {
+  .gen-layout { grid-template-columns: 1fr; }
+}
 
-.result-box { display:none; margin-top:16px; padding:16px; border-radius:10px; animation:fadeUp .3s ease; }
-.result-box.show { display:block; }
-.result-box.ok  { background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.2); }
-.result-box.err { background:rgba(248,113,113,0.06); border:1px solid rgba(248,113,113,0.2); }
+.gen-card {
+  border: 1px solid rgba(34,211,238,.14);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(34,211,238,.07), transparent 55%),
+    rgba(8, 14, 22, .72);
+  padding: 22px 24px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.gen-card h2 {
+  margin: 0 0 16px; font-size: 13px; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--text2);
+}
+
+.gen-qty {
+  display: flex; align-items: baseline; gap: 14px;
+  margin-bottom: 12px;
+}
+.gen-qty input {
+  font-size: 32px; font-weight: 700; letter-spacing: -.02em;
+  width: 100%; max-width: 280px; padding: 12px 16px;
+  border-radius: 10px; border: 1px solid rgba(34,211,238,.28);
+  background: rgba(0,0,0,.28); color: var(--text);
+  font-family: var(--mono);
+}
+.gen-qty input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(34,211,238,.12); }
+.gen-qty-meta { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+.preset-strip {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin: 0 0 20px;
+}
+.preset-chip {
+  appearance: none; border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03); color: var(--text2);
+  font-size: 12px; font-family: var(--mono); font-weight: 600;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.preset-chip:hover { border-color: rgba(34,211,238,.35); color: var(--cyan); }
+.preset-chip.on {
+  border-color: rgba(34,211,238,.55);
+  background: rgba(34,211,238,.12);
+  color: var(--cyan);
+}
+
+.gen-fields {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px 14px;
+  margin-bottom: 18px;
+}
+.gen-fields .span-2 { grid-column: span 2; }
+.gen-fields .span-3 { grid-column: span 3; }
+.gen-fields .span-6 { grid-column: span 6; }
+@media (max-width: 1200px) {
+  .gen-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .gen-fields .span-2, .gen-fields .span-3 { grid-column: span 1; }
+  .gen-fields .span-6 { grid-column: span 3; }
+}
+@media (max-width: 700px) {
+  .gen-fields { grid-template-columns: 1fr 1fr; }
+  .gen-fields .span-6 { grid-column: span 2; }
+}
+.gen-fields .fg { margin: 0; }
+.gen-fields .fl { font-size: 11px; margin-bottom: 5px; }
+.gen-fields .fi, .gen-fields .fs {
+  width: 100%; border-radius: 8px;
+}
+
+.opt-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin-bottom: 18px;
+}
+@media (max-width: 700px) { .opt-row { grid-template-columns: 1fr; } }
+.opt-tile {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 14px 16px; border-radius: 10px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.18);
+  transition: border-color .15s, background .15s;
+}
+.opt-tile:has(input:checked) {
+  border-color: rgba(34,211,238,.4);
+  background: rgba(34,211,238,.08);
+}
+.opt-tile input { margin-top: 2px; accent-color: var(--cyan); }
+.opt-tile strong { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.opt-tile span { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+
+.btn-gen {
+  width: 100%; justify-content: center; padding: 14px 16px;
+  font-size: 14px; font-weight: 600; border-radius: 10px;
+  gap: 8px; margin-top: auto;
+}
+
+.progress-wrap { margin-top: 16px; display: none; }
+.progress-wrap.visible { display: block; }
+.progress-label {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 8px;
+}
+.progress-track { height: 5px; background: rgba(255,255,255,.06); border-radius: 999px; overflow: hidden; }
+.progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, rgba(34,211,238,.9), rgba(74,222,128,.85));
+  border-radius: 999px; transition: width .4s ease;
+}
+.progress-steps { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.step-chip {
+  padding: 3px 9px; border-radius: 999px; font-size: 10px; font-family: var(--mono);
+  border: 1px solid var(--border); color: var(--muted);
+}
+.step-chip.active { border-color: rgba(34,211,238,.5); color: var(--cyan); background: rgba(34,211,238,.08); }
+.step-chip.done { border-color: rgba(74,222,128,.35); color: rgba(74,222,128,.9); background: rgba(74,222,128,.06); }
+
+.side-stack {
+  display: flex; flex-direction: column; gap: 12px;
+  min-height: 100%;
+}
+.status-card {
+  border-radius: 14px; padding: 20px 22px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(8,14,22,.65);
+  flex: 1;
+  display: flex; flex-direction: column;
+}
+.status-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 12px; }
+.status-metrics {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  flex: 1;
+}
+.metric {
+  padding: 16px; border-radius: 10px;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05);
+  display: flex; flex-direction: column; justify-content: center;
+}
+.metric b { display: block; font-size: 22px; font-family: var(--mono); color: var(--text); margin-top: 6px; }
+.metric span { font-size: 11px; color: var(--muted); }
+
+.result-box { display: none; margin-top: 0; padding: 14px; border-radius: 10px; animation: fadeUp .3s ease; }
+.result-box.show { display: block; }
+.result-box.ok  { background: rgba(74,222,128,.07); border: 1px solid rgba(74,222,128,.22); }
+.result-box.err { background: rgba(248,113,113,.07); border: 1px solid rgba(248,113,113,.22); }
 @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-.result-title { font-size:13px; font-weight:600; margin-bottom:4px; }
-.result-box.ok  .result-title { color:rgba(74,222,128,0.95); }
-.result-box.err .result-title { color:rgba(248,113,113,0.95); }
-.result-sub { font-size:11px; color:var(--muted); margin-bottom:14px; }
-.result-file { padding:10px 12px; background:rgba(255,255,255,0.03); border-radius:8px; font-size:11px; font-family:var(--mono); color:var(--muted); word-break:break-all; margin-top:12px; }
-.result-file span { color:var(--cyan); }
+.result-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.result-box.ok  .result-title { color: rgba(74,222,128,.95); }
+.result-box.err .result-title { color: rgba(248,113,113,.95); }
+.result-sub { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+.result-file { padding: 8px 10px; background: rgba(0,0,0,.25); border-radius: 8px; font-size: 11px; font-family: var(--mono); color: var(--muted); word-break: break-all; margin-top: 10px; }
+.result-file span { color: var(--cyan); }
 
-.info-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; }
-.info-row:last-child { border-bottom:none; }
-.info-label { color:var(--text2,var(--text3)); }
-.info-val   { font-family:var(--mono); color:var(--text); text-align:right; max-width:60%; }
-.link-cyan { color:var(--cyan); text-decoration:none; }
-.link-cyan:hover { text-decoration:underline; }
+.files-card {
+  margin-top: 16px;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(8,14,22,.55);
+  overflow: hidden;
+}
+.files-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.files-head h2 { margin: 0; font-size: 13px; font-weight: 600; flex: 1; }
+.files-head .tabla-info { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+.files-tools {
+  display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;
+  padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,.06);
+  background: rgba(0,0,0,.15);
+}
+.files-tools .fg { margin: 0; min-width: 120px; }
+.files-tools .fl { font-size: 11px; }
+.files-card .tabla-wrap {
+  min-height: 220px;
+  max-height: min(48vh, 520px);
+  overflow: auto;
+}
+#presetsRow { display: none; }
 </style>
 </head>
 <body>
@@ -56,51 +234,55 @@
   <div class="topbar">
     <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span>
     <span class="tb-crumb">Dataset</span><span class="tb-sep">/</span>
-    <span class="tb-page">Generador de datos</span>
+    <span class="tb-page">Generador</span>
     <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div></div>
   </div>
-  <div class="content">
-    <div class="page-header">
+  <div class="content gen-shell">
+    <div class="gen-hero">
       <div>
-        <div class="page-title">Generador de <span>datos</span></div>
-        <div class="page-sub">Crea registros sintéticos de diabetes y súbelos a MinIO en Parquet</div>
+        <div class="gen-kicker">Datos e ingeniería</div>
+        <div class="page-title">Generador</div>
+        <div class="page-sub">Dataset sintético hacia MinIO</div>
       </div>
-      <a href="/paginas/datos/dataset/index.html" class="btn btn-ghost btn-sm">Ver tablas →</a>
+      <a href="/paginas/datos/dataset/index.html" class="btn btn-ghost btn-sm">Ver tablas</a>
     </div>
 
-    <div class="dash-row dash-2">
-      <!-- Formulario -->
-      <div class="panel">
-        <div class="panel-title">Configuración de generación</div>
-        <p class="panel-desc">
-          Los registros respetan distribuciones clínicas reales y se almacenan en
-          <code style="font-family:var(--mono);font-size:11px;color:var(--cyan)">stage/</code> del bucket MinIO.
-        </p>
+    <div class="gen-layout">
+      <div class="gen-card">
+        <h2>Nueva generación</h2>
 
-        <div class="form-grid">
-          <div class="fg" style="margin-bottom:0">
-            <label class="fl" for="g-cantidad">Cantidad de registros</label>
-            <input class="fi" type="number" id="g-cantidad" value="1000" min="1" max="10000000">
-            <div class="field-hint" id="hint-cantidad">1.000 registros · máx. 10.000.000</div>
-          </div>
-          <div class="fg" style="margin-bottom:0">
-            <label class="fl" for="g-year">Año del dataset</label>
-            <input class="fi" type="number" id="g-year" value="2025" min="2010" max="2030">
-            <div class="field-hint">Año asignado a los registros</div>
-          </div>
+        <div class="gen-qty">
+          <input type="number" id="g-cantidad" value="1000" min="1" max="10000000" aria-label="Cantidad de registros">
+          <div class="gen-qty-meta" id="hint-cantidad">1.000 · máx. 10M</div>
         </div>
+        <div class="preset-strip" id="presetStrip" role="group" aria-label="Presets">
+          <button type="button" class="preset-chip on" data-n="1000">1K</button>
+          <button type="button" class="preset-chip" data-n="10000">10K</button>
+          <button type="button" class="preset-chip" data-n="50000">50K</button>
+          <button type="button" class="preset-chip" data-n="100000">100K</button>
+          <button type="button" class="preset-chip" data-n="500000">500K</button>
+          <button type="button" class="preset-chip" data-n="1000000">1M</button>
+          <button type="button" class="preset-chip" data-n="2000000">2M</button>
+          <button type="button" class="preset-chip" data-n="5000000">5M</button>
+          <button type="button" class="preset-chip" data-n="10000000">10M</button>
+        </div>
+        <div id="presetsRow" aria-hidden="true"></div>
 
-        <div class="form-grid-3" style="margin-top:14px">
-          <div class="fg" style="margin-bottom:0">
-            <label class="fl" for="g-perfil">Perfil clínico</label>
+        <div class="gen-fields">
+          <div class="fg">
+            <label class="fl" for="g-year">Año</label>
+            <input class="fi" type="number" id="g-year" value="2025" min="2010" max="2030">
+          </div>
+          <div class="fg">
+            <label class="fl" for="g-perfil">Perfil</label>
             <select class="fs" id="g-perfil">
-              <option value="aleatorio">Aleatorio clínico</option>
+              <option value="aleatorio">Aleatorio</option>
               <option value="balanceado">Balanceado</option>
-              <option value="alto_riesgo">Alto riesgo metabólico</option>
+              <option value="alto_riesgo">Alto riesgo</option>
               <option value="bajo_riesgo">Bajo riesgo</option>
             </select>
           </div>
-          <div class="fg" style="margin-bottom:0">
+          <div class="fg">
             <label class="fl" for="g-genero">Género</label>
             <select class="fs" id="g-genero">
               <option value="">Aleatorio</option>
@@ -109,45 +291,45 @@
               <option value="Otro">Otro</option>
             </select>
           </div>
-          <div class="fg" style="margin-bottom:0">
+          <div class="fg">
             <label class="fl" for="g-ubicacion">Ubicación</label>
             <select class="fs" id="g-ubicacion">
               <option value="">Aleatoria</option>
             </select>
           </div>
-        </div>
-
-        <div class="form-grid-3" style="margin-top:14px">
-          <div class="fg" style="margin-bottom:0">
-            <label class="fl" for="g-edad-min">Edad mínima</label>
+          <div class="fg">
+            <label class="fl" for="g-edad-min">Edad mín.</label>
             <input class="fi" type="number" id="g-edad-min" value="18" min="1" max="120">
           </div>
-          <div class="fg" style="margin-bottom:0">
-            <label class="fl" for="g-edad-max">Edad máxima</label>
+          <div class="fg">
+            <label class="fl" for="g-edad-max">Edad máx.</label>
             <input class="fi" type="number" id="g-edad-max" value="75" min="1" max="120">
           </div>
-          <div class="fg" style="margin-bottom:0">
-            <label class="fl" for="g-prevalencia">Prevalencia diabetes (%)</label>
+          <div class="fg span-6">
+            <label class="fl" for="g-prevalencia">Prevalencia diabetes % (opcional)</label>
             <input class="fi" type="number" id="g-prevalencia" placeholder="Auto" min="0" max="100" step="1">
-            <div class="field-hint">Opcional — vacío = cálculo clínico</div>
           </div>
         </div>
 
-        <div style="display:flex;gap:8px;margin:16px 0;flex-wrap:wrap;align-items:center;" id="presetsRow">
-          <span class="fl" style="margin:0">Presets</span>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(1000)">1K</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(10000)">10K</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(50000)">50K</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(100000)">100K</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(500000)">500K</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(1000000)">1M</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(2000000)">2M</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(5000000)">5M</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(10000000)">10M</button>
+        <div class="opt-row">
+          <label class="opt-tile">
+            <input type="checkbox" id="g-hospital" checked>
+            <span>
+              <strong>Flujo operativo</strong>
+              <span>Pacientes, citas, lab, farmacia y facturación</span>
+            </span>
+          </label>
+          <label class="opt-tile">
+            <input type="checkbox" id="g-rapido" checked>
+            <span>
+              <strong>Carga más rápida</strong>
+              <span>Carga más rápida</span>
+            </span>
+          </label>
         </div>
 
-        <button class="btn btn-primary" id="btnGenerar" onclick="generar()" style="width:100%;justify-content:center;padding:12px">
-          <span data-icon="generador" data-icon-size="14"></span> Generar y subir a MinIO
+        <button class="btn btn-primary btn-gen" id="btnGenerar" onclick="generar()">
+          <span data-icon="generador" data-icon-size="14"></span> Generar y subir
         </button>
 
         <div class="progress-wrap" id="progressWrap">
@@ -157,61 +339,60 @@
           </div>
           <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
           <div class="progress-steps">
-            <div class="step-chip" id="step1">Generando registros</div>
-            <div class="step-chip" id="step2">Construyendo Parquet</div>
-            <div class="step-chip" id="step3">Subiendo a MinIO</div>
-            <div class="step-chip" id="step4">Completado</div>
+            <div class="step-chip" id="step1">Registros</div>
+            <div class="step-chip" id="step2">Parquet</div>
+            <div class="step-chip" id="step3">Hospital</div>
+            <div class="step-chip" id="step4">Listo</div>
           </div>
         </div>
       </div>
 
-      <!-- Ayuda + resultado -->
-      <div class="panel">
-        <div class="panel-title">Guía y resultado</div>
-        <p class="panel-desc">
-          Tras generar, los datos aparecen en
-          <a href="/paginas/datos/dataset/index.html" class="link-cyan">Dataset → Ver tablas</a>
-          y alimentan el pipeline ELT y el entrenamiento ML.
-        </p>
-
-        <div class="info-row"><span class="info-label">Formato de salida</span><span class="info-val">Parquet</span></div>
-        <div class="info-row"><span class="info-label">Destino MinIO</span><span class="info-val">stage/</span></div>
-        <div class="info-row"><span class="info-label">Perfiles disponibles</span><span class="info-val">4 clínicos</span></div>
-        <div class="info-row"><span class="info-label">Máximo por lote</span><span class="info-val" id="infoMaxReg">10.000.000 reg.</span></div>
-
-        <div class="result-box" id="resultBox">
-          <div class="result-title" id="resultTitle">—</div>
-          <div class="result-sub" id="resultSub"></div>
-          <div class="stats-grid" id="resultStats" style="margin-bottom:0"></div>
-          <div class="result-file" id="resultFile"></div>
+      <div class="side-stack">
+        <div class="status-card">
+          <div class="label">Stage en MinIO</div>
+          <div class="status-metrics">
+            <div class="metric"><span>Archivos</span><b id="m-archivos">—</b></div>
+            <div class="metric"><span>Registros</span><b id="m-regs">—</b></div>
+            <div class="metric"><span>Formato</span><b style="font-size:14px">Parquet</b></div>
+            <div class="metric"><span>Máx. lote</span><b id="infoMaxReg" style="font-size:14px;display:block">10M</b></div>
+          </div>
+        </div>
+        <div class="status-card status-card--result">
+          <div class="label">Último resultado</div>
+          <div id="resultIdle" style="font-size:13px;color:var(--muted);line-height:1.5;flex:1;display:flex;align-items:center">Aún no hay una generación en esta sesión.</div>
+          <div class="result-box" id="resultBox">
+            <div class="result-title" id="resultTitle">-</div>
+            <div class="result-sub" id="resultSub"></div>
+            <div class="stats-grid" id="resultStats" style="margin-bottom:0"></div>
+            <div class="result-file" id="resultFile"></div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Archivos -->
-    <div class="tabla-card" style="margin-top:14px">
-      <div class="tabla-top">
-        <span class="tabla-title">Archivos en MinIO (stage/)</span>
-        <button class="btn btn-ghost btn-sm" onclick="cargarArchivos()">↺ Actualizar</button>
-        <button class="btn btn-danger btn-sm" onclick="eliminarTodos()">Eliminar todos</button>
+    <div class="files-card">
+      <div class="files-head">
+        <h2>Archivos stage/</h2>
         <span class="tabla-info" id="archivosInfo">—</span>
+        <button class="btn btn-ghost btn-sm" onclick="cargarArchivos()">Actualizar</button>
+        <button class="btn btn-danger btn-sm" onclick="eliminarTodos()">Vaciar todo</button>
       </div>
-      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border)">
-        <div class="fg" style="margin:0;min-width:130px;flex:1">
-          <label class="fl" for="del-cantidad">Eliminar registros</label>
+      <div class="files-tools">
+        <div class="fg">
+          <label class="fl" for="del-cantidad">Quitar registros</label>
           <input class="fi" type="number" id="del-cantidad" min="1" placeholder="ej. 1000">
         </div>
-        <div class="fg" style="margin:0;min-width:170px;flex:1">
+        <div class="fg">
           <label class="fl" for="del-desde">Desde</label>
           <select class="fs" id="del-desde">
-            <option value="recientes">Los más recientes</option>
-            <option value="antiguos">Los más antiguos</option>
+            <option value="recientes">Más recientes</option>
+            <option value="antiguos">Más antiguos</option>
           </select>
         </div>
-        <button class="btn btn-danger btn-sm" onclick="eliminarRegistros()" id="btnDelReg" style="margin-bottom:1px">Eliminar cantidad</button>
+        <button class="btn btn-danger btn-sm" onclick="eliminarRegistros()" id="btnDelReg">Eliminar</button>
       </div>
       <div class="tabla-wrap">
-        <div id="archivosList"><div class="loading" style="padding:24px"><div class="spinner"></div> Cargando archivos…</div></div>
+        <div id="archivosList"><div class="loading" style="padding:24px"><div class="spinner"></div> Cargando…</div></div>
       </div>
     </div>
   </div>
@@ -221,35 +402,52 @@
 
 <script>
 DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'analista']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 let totalRegistrosStage = 0;
 let maxRegistros = 10_000_000;
 
 function invalidarCacheStatsUi() {
-  try { sessionStorage.removeItem('diabcare_dashboard_stats'); } catch {}
+  try {
+    sessionStorage.removeItem('diabcare_dashboard_stats');
+    sessionStorage.removeItem('diabcare_stats_v2');
+  } catch {}
 }
 
 function toast(msg, type = 'success') {
   DiabCareAPI.toast(msg, type);
 }
 
+function syncPresetChips(n) {
+  document.querySelectorAll('#presetStrip .preset-chip').forEach(b => {
+    b.classList.toggle('on', Number(b.dataset.n) === Number(n));
+  });
+}
+
 function actualizarHintCantidad(v) {
   const n = parseInt(v, 10) || 0;
   const hint = document.getElementById('hint-cantidad');
   if (n > maxRegistros) {
-    hint.textContent = `Excede el máximo (${maxRegistros.toLocaleString('es-ES')})`;
+    hint.textContent = `Excede máx. ${maxRegistros.toLocaleString('es-ES')}`;
     hint.style.color = 'var(--red)';
   } else {
-    hint.textContent = `${n.toLocaleString('es-ES')} registros · máx. ${maxRegistros.toLocaleString('es-ES')}`;
+    hint.textContent = `${n.toLocaleString('es-ES')} · máx. ${maxRegistros >= 1e6 ? (maxRegistros / 1e6) + 'M' : maxRegistros.toLocaleString('es-ES')}`;
     hint.style.color = '';
   }
+  syncPresetChips(n);
 }
 
 function setPreset(val) {
   document.getElementById('g-cantidad').value = val;
   actualizarHintCantidad(val);
 }
+
+document.getElementById('presetStrip').addEventListener('click', (e) => {
+  const b = e.target.closest('.preset-chip');
+  if (!b) return;
+  setPreset(Number(b.dataset.n));
+});
 
 document.getElementById('g-cantidad').addEventListener('input', function() {
   actualizarHintCantidad(this.value);
@@ -266,6 +464,8 @@ function setProgress(pct, text, step) {
 }
 
 function showResult(ok, title, sub, statsHtml, fileHtml) {
+  const idle = document.getElementById('resultIdle');
+  if (idle) idle.style.display = 'none';
   const box = document.getElementById('resultBox');
   box.className = 'result-box show ' + (ok ? 'ok' : 'err');
   document.getElementById('resultTitle').textContent = title;
@@ -296,14 +496,17 @@ async function cargarOpciones() {
     if (d.max_registros) {
       maxRegistros = d.max_registros;
       document.getElementById('g-cantidad').max = maxRegistros;
-      document.getElementById('infoMaxReg').textContent = maxRegistros.toLocaleString('es-ES') + ' reg.';
+      const info = document.getElementById('infoMaxReg');
+      info.textContent = maxRegistros >= 1e6 ? (maxRegistros / 1e6) + 'M' : maxRegistros.toLocaleString('es-ES');
       actualizarHintCantidad(document.getElementById('g-cantidad').value);
     }
     const presets = d.presets;
     if (presets && presets.length) {
-      const row = document.getElementById('presetsRow');
-      row.innerHTML = '<span class="fl" style="margin:0">Presets</span>' +
-        presets.map(p => `<button type="button" class="btn btn-ghost btn-sm" onclick="setPreset(${p})">${formatPresetLabel(p)}</button>`).join('');
+      const strip = document.getElementById('presetStrip');
+      strip.innerHTML = presets.map(p =>
+        `<button type="button" class="preset-chip" data-n="${p}">${formatPresetLabel(p)}</button>`
+      ).join('');
+      actualizarHintCantidad(document.getElementById('g-cantidad').value);
     }
   } catch {}
 }
@@ -319,9 +522,11 @@ async function cargarArchivos() {
     const d = await r.json();
     const archivos = d.archivos || [];
     totalRegistrosStage = d.total_registros ?? archivos.reduce((s, a) => s + (a.registros || 0), 0);
-    info.textContent = `${archivos.length} archivo(s) · ${totalRegistrosStage.toLocaleString('es-ES')} reg.`;
+    info.textContent = `${archivos.length} · ${totalRegistrosStage.toLocaleString('es-ES')} reg.`;
+    document.getElementById('m-archivos').textContent = String(archivos.length);
+    document.getElementById('m-regs').textContent = totalRegistrosStage.toLocaleString('es-ES');
     if (!archivos.length) {
-      box.innerHTML = '<div style="padding:20px 16px;font-size:12px;color:var(--muted)">No hay archivos Parquet en stage/</div>';
+      box.innerHTML = '<div style="padding:20px 16px;font-size:12px;color:var(--muted)">Vacío — aún no hay Parquet en stage/</div>';
       return;
     }
     box.innerHTML = `<table>
@@ -330,7 +535,7 @@ async function cargarArchivos() {
         <td class="name mono">${a.nombre.replace('stage/', '')}</td>
         <td class="mono">${(a.registros ?? 0).toLocaleString('es-ES')}</td>
         <td class="mono">${a.tamano_mb} MB</td>
-        <td class="mono">${a.fecha ? new Date(a.fecha).toLocaleString('es-ES') : '—'}</td>
+        <td class="mono">${a.fecha ? new Date(a.fecha).toLocaleString('es-ES') : '-'}</td>
         <td><button class="btn btn-del btn-sm" onclick="eliminarArchivo('${a.nombre.replace(/'/g, "\\'")}')">Eliminar</button></td>
       </tr>`).join('')}</tbody>
     </table>`;
@@ -409,26 +614,34 @@ async function eliminarRegistros() {
     toast('Error de conexión', 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Eliminar cantidad';
+    btn.textContent = 'Eliminar';
   }
 }
 
 async function eliminarTodos() {
   const ok = await DiabCareAPI.confirm({
     title: 'Eliminar todos los archivos',
-    message: 'Se borrarán <strong>todos</strong> los Parquet de <code>stage/</code>. Esta acción no se puede deshacer.',
+    message: 'Se borrarán <strong>todos</strong> los datos generados: <code>stage/</code>, DWH, recetas, facturas, pacientes sintéticos y hospital. Esta acción no se puede deshacer.',
     confirmLabel: 'Eliminar todos',
     danger: true,
   });
   if (!ok) return;
   try {
-    const r = await fetch(`${API}/api/dataset/archivos/todos`, {
-      method: 'DELETE',
-      headers: { Authorization: 'Bearer ' + token }
+    let r = await fetch(`${API}/api/dataset/limpiar-generados`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token },
+      cache: 'no-store',
     });
+    if (r.status === 404) {
+      r = await fetch(`${API}/api/dataset/archivos/todos`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + token },
+        cache: 'no-store',
+      });
+    }
     const d = await r.json();
     if (r.ok && !d.error) {
-      toast(d.mensaje || 'Archivos eliminados', 'success');
+      toast(d.mensaje || 'Stage, DWH y hospital limpiados', 'success');
       invalidarCacheStatsUi();
       cargarArchivos();
     } else {
@@ -455,7 +668,11 @@ async function generar() {
   }
   if (edadMin > edadMax) { toast('Edad mínima no puede ser mayor que la máxima', 'error'); return; }
 
-  const body = { cantidad, year, perfil, edad_min: edadMin, edad_max: edadMax };
+  const body = { cantidad, year, perfil, edad_min: edadMin, edad_max: edadMax,
+    incluir_hospital: document.getElementById('g-hospital').checked,
+    reemplazar_hospital: true,
+    modo_rapido: document.getElementById('g-rapido').checked,
+  };
   if (genero) body.genero = genero;
   if (ubicacion) body.ubicacion = ubicacion;
   if (prevRaw !== '') body.prevalencia_diabetes = parseFloat(prevRaw) / 100;
@@ -480,12 +697,20 @@ async function generar() {
     if (r.ok && !d.error) {
       setProgress(100, 'Completado', 4);
       const total = (d.total || cantidad).toLocaleString('es-ES');
-      showResult(true, 'Datos generados correctamente', new Date().toLocaleString('es-ES'), `
-        <div class="stat-card"><div class="stat-label">Registros</div><div class="stat-value green">${total}</div></div>
-        <div class="stat-card"><div class="stat-label">Año</div><div class="stat-value blue">${year}</div></div>
-        <div class="stat-card"><div class="stat-label">Formato</div><div class="stat-value">Parquet</div></div>
-      `, `<span>Archivo:</span> ${d.archivo || '—'}`);
-        toast(`${total} registros en MinIO. Siguiente: Ver tablas DWH →`, 'success');
+      const hosp = d.hospital || {};
+      const flujo = d.flujo || {};
+      const nPac = flujo.pacientes ?? hosp.pacientes ?? '-';
+      const nCitas = flujo.citas ?? hosp.citas ?? '-';
+      const nAdm = flujo.admisiones ?? hosp.admisiones ?? '-';
+      const nReg = flujo.registros_clinicos ?? hosp.registros_clinicos ?? '-';
+      showResult(true, 'Listo', new Date().toLocaleString('es-ES'), `
+        <div class="stat-card"><div class="stat-label">Stage</div><div class="stat-value green">${total}</div></div>
+        <div class="stat-card"><div class="stat-label">Pacientes</div><div class="stat-value blue">${nPac}</div></div>
+        <div class="stat-card"><div class="stat-label">Citas / adm.</div><div class="stat-value">${nCitas} / ${nAdm}</div></div>
+      `, `<span>Archivo:</span> ${d.archivo || '-'}
+         ${hosp.ok === false ? `<div style="margin-top:8px;color:var(--red)">Flujo: ${hosp.error || 'error'}</div>` : ''}
+         ${hosp.ok ? `<div style="margin-top:8px">${nPac} pacientes · ${nReg} registros clínicos</div>` : ''}`);
+        toast(`${total} en stage` + (nPac && nPac !== '-' ? ` · ${nPac} pacientes` : ''), 'success');
         invalidarCacheStatsUi();
         cargarArchivos();
     } else {
@@ -499,13 +724,14 @@ async function generar() {
     toast('Error de conexión', 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<span data-icon="generador" data-icon-size="14"></span> Generar y subir a MinIO';
+    btn.innerHTML = '<span data-icon="generador" data-icon-size="14"></span> Generar y subir';
     if (window.DiabCareIcons) DiabCareIcons.aplicarEnPagina();
   }
 }
 
 cargarOpciones();
 cargarArchivos();
+actualizarHintCantidad(document.getElementById('g-cantidad').value);
 if (window.DiabCareIcons) DiabCareIcons.aplicarEnPagina();
 </script>
 </body>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Dashboard</title>
+<title>DiabCare - Dashboard</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -31,7 +31,7 @@
     <div class="page-header">
       <div>
         <div class="page-title">Dashboard <span>general</span></div>
-        <div class="page-sub">Resumen ejecutivo del sistema — actualizado <span id="ts" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span></div>
+        <div class="page-sub">Resumen ejecutivo del sistema - actualizado <span id="ts" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span></div>
       </div>
     </div>
 
@@ -60,12 +60,12 @@
       <div class="kpi-card red">
         <div class="kpi-label">Con diabetes</div>
         <div class="kpi-val red" id="k-con"><div class="spinner"></div></div>
-        <div class="kpi-sub" id="k-con-pct">—</div>
+        <div class="kpi-sub" id="k-con-pct">-</div>
       </div>
       <div class="kpi-card green">
         <div class="kpi-label">Sin diabetes</div>
         <div class="kpi-val green" id="k-sin"><div class="spinner"></div></div>
-        <div class="kpi-sub" id="k-sin-pct">—</div>
+        <div class="kpi-sub" id="k-sin-pct">-</div>
       </div>
       <div class="kpi-card amber">
         <div class="kpi-label">Prevalencia</div>
@@ -74,10 +74,34 @@
       </div>
     </div>
 
+    <!-- KPIs negocio hospitalario -->
+    <div class="dash-row dash-4" style="margin-top:4px" id="kpis-negocio">
+      <div class="kpi-card">
+        <div class="kpi-label">Facturado</div>
+        <div class="kpi-val" id="kn-fact">-</div>
+        <div class="kpi-sub" id="kn-fact-sub">facturas</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Margen farmacia</div>
+        <div class="kpi-val green" id="kn-margen">-</div>
+        <div class="kpi-sub" id="kn-margen-sub">ventas</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Espera urgencias</div>
+        <div class="kpi-val amber" id="kn-espera">-</div>
+        <div class="kpi-sub" id="kn-urg-sub">atenciones</div>
+      </div>
+      <div class="kpi-card cyan">
+        <div class="kpi-label">Consultas / Lab</div>
+        <div class="kpi-val cyan" id="kn-prod">-</div>
+        <div class="kpi-sub" id="kn-lab-sub">órdenes lab</div>
+      </div>
+    </div>
+
     <!-- Checklist operativo -->
     <div class="dash-row" style="margin-bottom:14px;">
       <div class="panel" style="width:100%;">
-        <div class="panel-title">Checklist operativo</div>
+        <div class="panel-title">Estado del sistema</div>
         <div id="ruta-operativa-panel"><div class="loading"><div class="spinner"></div>Cargando checklist…</div></div>
       </div>
     </div>
@@ -90,8 +114,8 @@
         <div class="panel-title">Distribución diabetes</div>
         <div class="donut-wrap"><canvas id="c-donut"></canvas></div>
         <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;">
-          <span style="font-size:10px;color:rgba(248,113,113,0.8);font-family:var(--mono)">● Con diabetes <span id="d-con-pct">—</span></span>
-          <span style="font-size:10px;color:rgba(74,222,128,0.8);font-family:var(--mono)">● Sin diabetes <span id="d-sin-pct">—</span></span>
+          <span style="font-size:10px;color:rgba(248,113,113,0.8);font-family:var(--mono)">● Con diabetes <span id="d-con-pct">-</span></span>
+          <span style="font-size:10px;color:rgba(74,222,128,0.8);font-family:var(--mono)">● Sin diabetes <span id="d-sin-pct">-</span></span>
         </div>
       </div>
 
@@ -134,12 +158,12 @@
       <!-- Promedios clínicos -->
       <div class="panel">
         <div class="panel-title">Promedios clínicos</div>
-        <div class="sys-row"><span class="sys-label">BMI con diabetes</span><span class="sys-badge ok" id="p-bmi-con">—</span></div>
-        <div class="sys-row"><span class="sys-label">BMI sin diabetes</span><span class="sys-badge ok" id="p-bmi-sin">—</span></div>
-        <div class="sys-row"><span class="sys-label">HbA1c con diabetes</span><span class="sys-badge ok" id="p-hba-con">—</span></div>
-        <div class="sys-row"><span class="sys-label">HbA1c sin diabetes</span><span class="sys-badge ok" id="p-hba-sin">—</span></div>
-        <div class="sys-row"><span class="sys-label">Glucosa con diabetes</span><span class="sys-badge ok" id="p-glc-con">—</span></div>
-        <div class="sys-row"><span class="sys-label">Glucosa sin diabetes</span><span class="sys-badge ok" id="p-glc-sin">—</span></div>
+        <div class="sys-row"><span class="sys-label">BMI con diabetes</span><span class="sys-badge ok" id="p-bmi-con">-</span></div>
+        <div class="sys-row"><span class="sys-label">BMI sin diabetes</span><span class="sys-badge ok" id="p-bmi-sin">-</span></div>
+        <div class="sys-row"><span class="sys-label">HbA1c con diabetes</span><span class="sys-badge ok" id="p-hba-con">-</span></div>
+        <div class="sys-row"><span class="sys-label">HbA1c sin diabetes</span><span class="sys-badge ok" id="p-hba-sin">-</span></div>
+        <div class="sys-row"><span class="sys-label">Glucosa con diabetes</span><span class="sys-badge ok" id="p-glc-con">-</span></div>
+        <div class="sys-row"><span class="sys-label">Glucosa sin diabetes</span><span class="sys-badge ok" id="p-glc-sin">-</span></div>
       </div>
 
       <!-- Top ubicaciones -->
@@ -155,8 +179,8 @@
         <div class="sys-row"><span class="sys-label">Dataset</span><span class="sys-badge ok" id="sys-dataset">cargado</span></div>
         <div class="sys-row"><span class="sys-label">API Backend</span><span class="sys-badge ok">activo</span></div>
         <div class="sys-row"><span class="sys-label">Autenticación</span><span class="sys-badge ok">JWT activo</span></div>
-        <div class="sys-row"><span class="sys-label">Modelo ML</span><span class="sys-badge warn" id="sys-ml">—</span></div>
-        <div class="sys-row"><span class="sys-label">Pipeline ELT</span><span class="sys-badge warn" id="sys-etl">—</span></div>
+        <div class="sys-row"><span class="sys-label">Modelo ML</span><span class="sys-badge warn" id="sys-ml">-</span></div>
+        <div class="sys-row"><span class="sys-label">Pipeline ELT</span><span class="sys-badge warn" id="sys-etl">-</span></div>
       </div>
 
       <!-- Trazabilidad reciente (admin) -->
@@ -177,9 +201,52 @@
 
 <script>
 DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico', 'analista', 'farmaceutico']);
 const API = DiabCareNav.getApi();
 let donutChart = null;
 const STATS_CACHE_KEY = 'diabcare_dashboard_stats';
+const _rolDash = String((JSON.parse(localStorage.getItem('usuario') || '{}').rol || '')).toLowerCase();
+
+(function adaptarPorRol() {
+  if (_rolDash !== 'analista') return;
+  const title = document.querySelector('.page-title');
+  const sub = document.querySelector('.page-sub');
+  if (title) title.innerHTML = 'Dashboard <span>analítico DM</span>';
+  if (sub) sub.innerHTML = 'Vista del analista · control y riesgo de diabetes — actualizado <span id="ts" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span>';
+  const ops = document.querySelector('.dash-row .panel');
+  if (ops && ops.textContent.includes('Operación clínica')) {
+    ops.innerHTML = `
+      <span style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-right:8px">Rol analista · diabetes</span>
+      <a href="/paginas/clinico/analisis/diabetes/index.html" class="btn btn-primary btn-sm">Calidad diabetes</a>
+      <a href="/paginas/clinico/prediccion/index.html" class="btn btn-ghost btn-sm">Predicción</a>
+      <a href="/paginas/datos/modelo_ml/index.html" class="btn btn-ghost btn-sm">Modelo ML</a>
+      <a href="/paginas/datos/pipeline_elt/index.html" class="btn btn-ghost btn-sm">Pipeline</a>
+      <a href="/paginas/clinico/reportes/index.html" class="btn btn-ghost btn-sm">Reportes PDF</a>
+      <a href="/paginas/datos/dataset/index.html" class="btn btn-ghost btn-sm">Dataset</a>
+    `;
+  }
+  const quick = document.querySelector('.quick-grid');
+  if (quick) {
+    quick.innerHTML = `
+      <a class="quick-btn" href="/paginas/clinico/analisis/diabetes/index.html">
+        <div class="quick-icon cyan" data-icon="stats" data-icon-size="16"></div>
+        <div><div class="quick-label">Calidad DM</div><div class="quick-sub">HbA1c y riesgo</div></div>
+      </a>
+      <a class="quick-btn" href="/paginas/clinico/analisis/estadisticas/index.html">
+        <div class="quick-icon green" data-icon="search" data-icon-size="16"></div>
+        <div><div class="quick-label">Estadísticas</div><div class="quick-sub">Análisis completo</div></div>
+      </a>
+      <a class="quick-btn" href="/paginas/datos/dataset/index.html">
+        <div class="quick-icon amber" data-icon="dataset" data-icon-size="16"></div>
+        <div><div class="quick-label">Dataset</div><div class="quick-sub">Hechos / DWH</div></div>
+      </a>
+      <a class="quick-btn" href="/paginas/datos/modelo_ml/index.html">
+        <div class="quick-icon purple" data-icon="generador" data-icon-size="16"></div>
+        <div><div class="quick-label">Modelo ML</div><div class="quick-sub">Entrenar / métricas</div></div>
+      </a>`;
+    if (window.DiabCareIcons) DiabCareIcons.hydrate(quick);
+  }
+})();
 
 function authHdr() {
   const t = localStorage.getItem('token');
@@ -249,7 +316,7 @@ function guardarCacheStats(data) {
 
 function limpiarKpis(msg) {
   ['k-total','k-con','k-sin','k-prev'].forEach(id => {
-    document.getElementById(id).textContent = msg || '—';
+    document.getElementById(id).textContent = msg || '-';
   });
 }
 
@@ -260,22 +327,22 @@ function renderAlertas(d) {
   if (pct > 50)
     alertas.push({ color:'red',   texto:'Prevalencia de diabetes supera el 50%', sub:`${pct}% del dataset tiene diabetes` });
   else if (pct > 40)
-    alertas.push({ color:'amber', texto:'Prevalencia de diabetes elevada', sub:`${pct}% — considera revisar el balance` });
+    alertas.push({ color:'amber', texto:'Prevalencia de diabetes elevada', sub:`${pct}% - considera revisar el balance` });
   else
     alertas.push({ color:'green', texto:'Prevalencia dentro de rango normal', sub:`${pct}% del dataset tiene diabetes` });
 
   if (d.promedios) {
     if (d.promedios.hba1c.con > 7.5)
-      alertas.push({ color:'red',   texto:'HbA1c promedio crítico en pacientes diabéticos', sub:`Promedio: ${d.promedios.hba1c.con} — umbral normal: 7.0` });
+      alertas.push({ color:'red',   texto:'HbA1c promedio crítico en pacientes diabéticos', sub:`Promedio: ${d.promedios.hba1c.con} - umbral normal: 7.0` });
     else
       alertas.push({ color:'amber', texto:'HbA1c promedio en rango controlado', sub:`Promedio con diabetes: ${d.promedios.hba1c.con}` });
 
     if (d.promedios.bmi.con > 32)
-      alertas.push({ color:'amber', texto:'BMI promedio elevado en pacientes diabéticos', sub:`Promedio: ${d.promedios.bmi.con} — sobrepeso clínico` });
+      alertas.push({ color:'amber', texto:'BMI promedio elevado en pacientes diabéticos', sub:`Promedio: ${d.promedios.bmi.con} - sobrepeso clínico` });
   }
 
   if (d.total < 1000)
-    alertas.push({ color:'blue', texto:'Dataset con pocos registros', sub:`Solo ${d.total.toLocaleString('es-ES')} registros — genera más datos` });
+    alertas.push({ color:'blue', texto:'Dataset con pocos registros', sub:`Solo ${d.total.toLocaleString('es-ES')} registros - genera más datos` });
   else
     alertas.push({ color:'green', texto:'Volumen de datos adecuado', sub:`${d.total.toLocaleString('es-ES')} registros disponibles` });
 
@@ -306,7 +373,7 @@ async function cargarTrazabilidad() {
   if (!esAdmin) {
     panel.innerHTML = `<div class="panel-title">Seguridad</div>
       <div class="sys-row"><span class="sys-label">Sesión activa</span><span class="sys-badge ok">JWT</span></div>
-      <div class="sys-row"><span class="sys-label">Rol</span><span class="sys-badge ok">${u.rol || '—'}</span></div>
+      <div class="sys-row"><span class="sys-label">Rol</span><span class="sys-badge ok">${u.rol || '-'}</span></div>
       <div style="font-size:10px;color:var(--muted);margin-top:10px">Las acciones quedan registradas en auditoría (solo admin).</div>`;
     return;
   }
@@ -323,7 +390,7 @@ async function cargarTrazabilidad() {
       return;
     }
     document.getElementById('audit-reciente').innerHTML = evs.map(e => {
-      const hora = e.fecha ? new Date(e.fecha).toLocaleString('es-ES', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'short' }) : '—';
+      const hora = e.fecha ? new Date(e.fecha).toLocaleString('es-ES', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'short' }) : '-';
       const color = e.tipo === 'error' ? 'red' : e.tipo === 'consulta' ? 'blue' : 'amber';
       return `<div class="alert-item">
         <div class="alert-dot ${color}"></div>
@@ -346,6 +413,24 @@ async function prepararClinica() {
   } catch {}
 }
 
+async function cargarKpisNegocio() {
+  try {
+    const r = await fetch(`${API}/api/dataset/negocio/kpis`, { headers: authHdr() });
+    if (!r.ok) return;
+    const k = await r.json();
+    document.getElementById('kn-fact').textContent = '$' + Number(k.facturado_total || 0).toLocaleString('es-ES');
+    document.getElementById('kn-fact-sub').textContent =
+      `${k.facturas_pagadas || 0}/${k.facturas || 0} pagadas`;
+    document.getElementById('kn-margen').textContent = '$' + Number(k.margen_farmacia || 0).toLocaleString('es-ES');
+    document.getElementById('kn-margen-sub').textContent = `${k.ventas_farmacia || 0} ventas`;
+    document.getElementById('kn-espera').textContent = (k.espera_promedio_min || 0) + ' min';
+    document.getElementById('kn-urg-sub').textContent = `${k.urgencias || 0} urgencias`;
+    document.getElementById('kn-prod').textContent = String(k.productividad_consultas || 0);
+    document.getElementById('kn-lab-sub').textContent =
+      `${k.ordenes_lab_pendientes || 0}/${k.ordenes_lab || 0} lab pend.`;
+  } catch {}
+}
+
 async function cargarChecklist() {
   if (typeof DiabCareRuta !== 'undefined') await DiabCareRuta.render('ruta-operativa-panel');
 }
@@ -365,7 +450,7 @@ async function cargar() {
   document.getElementById('top-ubicaciones').innerHTML =
     '<div style="font-size:11px;color:var(--muted)">Cargando…</div>';
 
-  const extras = Promise.all([cargarTrazabilidad(), cargarEstadoSistema()]);
+  const extras = Promise.all([cargarTrazabilidad(), cargarEstadoSistema(), cargarKpisNegocio()]);
   const cached = leerCacheStats();
   if (cached) pintarDashboard(cached);
 
@@ -373,7 +458,7 @@ async function cargar() {
     const r = await fetch(`${API}/api/registros/estadisticas`, { headers: authHdr() });
     if (r.status === 401) { DiabCareNav.irLogin(); return; }
     if (r.status === 403) {
-      limpiarKpis('—');
+      limpiarKpis('-');
       document.getElementById('alertas-list').innerHTML =
         '<div class="alert-item"><div class="alert-dot red"></div><div><div class="alert-text">Sin permiso para estadísticas</div><div class="alert-sub">Cierre sesión (menú lateral) y vuelva a entrar. Si persiste, pida al admin revisar su rol.</div></div></div>';
       document.getElementById('top-ubicaciones').innerHTML =
@@ -382,6 +467,10 @@ async function cargar() {
     }
     const d = await r.json();
     if (!d.total) {
+      try {
+        sessionStorage.removeItem(STATS_CACHE_KEY);
+        sessionStorage.removeItem('diabcare_stats_v2');
+      } catch {}
       limpiarKpis('0');
       document.getElementById('alertas-list').innerHTML =
         '<div class="alert-item"><div class="alert-dot blue"></div><div><div class="alert-text">Dataset vacío</div><div class="alert-sub">Genere datos desde Dataset → Generador</div></div></div>';
@@ -395,9 +484,9 @@ async function cargar() {
 
   } catch(e) {
     console.error(e);
-    limpiarKpis('—');
+    limpiarKpis('-');
     document.getElementById('top-ubicaciones').innerHTML =
-      '<div style="font-size:11px;color:var(--muted)">Error al conectar con ' + API + ' — ¿está el backend en marcha?</div>';
+      '<div style="font-size:11px;color:var(--muted)">Error al conectar con ' + API + ' - ¿está el backend en marcha?</div>';
     document.getElementById('alertas-list').innerHTML =
       '<div class="alert-item"><div class="alert-dot red"></div><div><div class="alert-text">No se pudo cargar el dashboard</div><div class="alert-sub">Abra la app en <b>http://localhost:8000</b> y verifique que Uvicorn esté activo.</div></div></div>';
   } finally {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Configuración</title>
+<title>DiabCare - Configuración</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -12,11 +12,12 @@
 <script src="/estaticos/navegacion.js"></script>
 <script src="/estaticos/api.js"></script>
 <style>
-.config-section { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:16px; }
+.config-section { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:14px; }
 .config-title   { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
-.config-sub     { font-size:11px; color:var(--text3); margin-bottom:16px; }
+.config-sub     { font-size:11px; color:var(--text3); margin-bottom:14px; }
 .config-grid    { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.config-row     { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:0.5px solid var(--border); }
+@media (max-width:720px) { .config-grid { grid-template-columns:1fr; } }
+.config-row     { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:0.5px solid var(--border); gap:12px; }
 .config-row:last-child { border-bottom:none; }
 .config-row-label { font-size:12px; color:var(--text2); }
 .config-row-sub   { font-size:10px; color:var(--text3); margin-top:2px; }
@@ -24,8 +25,176 @@
 .toggle.on { background:var(--accent); }
 .toggle::after { content:''; position:absolute; width:14px; height:14px; background:white; border-radius:50%; top:3px; left:3px; transition:left 0.2s; }
 .toggle.on::after { left:19px; }
-.email-hint { font-size:10px; color:var(--text3); margin-top:12px; line-height:1.5; padding:10px 12px; background:rgba(34,211,238,0.06); border:1px solid rgba(34,211,238,0.12); border-radius:8px; }
-.email-actions { display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap; }
+
+.lab-section {
+  border-style: dashed;
+  opacity: 0.92;
+}
+.lab-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text3);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+.lab-toggle:hover { color: var(--text2); }
+.lab-chevron { transition: transform .15s; font-size: 11px; }
+.lab-toggle[aria-expanded="true"] .lab-chevron { transform: rotate(180deg); }
+.lab-body { margin-top: 4px; }
+
+.cfg-tabs {
+  display:flex; gap:6px; flex-wrap:wrap;
+  margin-bottom:14px; padding:4px;
+  background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px;
+}
+.cfg-tab {
+  border:0; background:transparent; color:var(--text3);
+  padding:9px 14px; border-radius:8px; font-size:12px; cursor:pointer;
+  font-family:inherit; transition:background .15s, color .15s;
+}
+.cfg-tab:hover { color:var(--text2); background:rgba(255,255,255,0.04); }
+.cfg-tab.active { background:rgba(34,211,238,0.12); color:var(--cyan); font-weight:600; }
+.cfg-panel { display:none; }
+.cfg-panel.active { display:block; }
+
+.subtabs { display:flex; gap:4px; margin-bottom:12px; flex-wrap:wrap; }
+.subtab {
+  border:1px solid var(--border); background:transparent; color:var(--text3);
+  padding:6px 12px; border-radius:999px; font-size:11px; cursor:pointer; font-family:inherit;
+}
+.subtab.active { border-color:rgba(34,211,238,0.4); color:var(--cyan); background:rgba(34,211,238,0.08); }
+.subpanel { display:none; }
+.subpanel.active { display:block; }
+
+.mail-layout {
+  display:grid; grid-template-columns:minmax(280px,320px) 1fr; gap:16px; align-items:start;
+}
+@media (max-width:980px) { .mail-layout { grid-template-columns:1fr; } }
+
+.mail-flow {
+  display:grid; grid-template-columns:1fr auto 1fr auto 1fr; gap:8px; align-items:stretch;
+  margin-bottom:16px; padding:14px 16px;
+  background:linear-gradient(135deg, rgba(34,211,238,0.07), rgba(74,222,128,0.04));
+  border:1px solid rgba(34,211,238,0.18); border-radius:12px;
+}
+@media (max-width:720px) {
+  .mail-flow { grid-template-columns:1fr; }
+  .mail-flow-arrow { display:none; }
+}
+.mail-flow-step {
+  padding:12px 14px; border-radius:10px;
+  background:rgba(10,10,16,0.65); border:1px solid var(--border);
+}
+.mail-flow-n {
+  font-size:9px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--cyan); font-weight:700; margin-bottom:6px;
+}
+.mail-flow-t { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
+.mail-flow-d { font-size:11px; color:var(--text3); line-height:1.4; }
+.mail-flow-arrow {
+  display:flex; align-items:center; justify-content:center;
+  color:var(--cyan); font-size:18px; opacity:.7; padding:0 2px;
+}
+
+.mail-status {
+  display:inline-flex; align-items:center; gap:8px;
+  font-size:11px; color:var(--text3); margin-bottom:12px;
+}
+.mail-status .dot { width:7px; height:7px; border-radius:50%; background:var(--amber); }
+.mail-status.ok .dot { background:var(--green); box-shadow:0 0 6px rgba(74,222,128,.45); }
+.mail-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px; }
+
+.dist-summary {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;
+}
+@media (max-width:640px) { .dist-summary { grid-template-columns:1fr; } }
+.dist-card {
+  padding:12px 14px; border-radius:10px; border:1px solid var(--border);
+  background:rgba(255,255,255,0.02); cursor:pointer; transition:border-color .15s, background .15s;
+}
+.dist-card:hover { background:rgba(255,255,255,0.04); }
+.dist-card.on { border-color:rgba(34,211,238,.35); background:rgba(34,211,238,.06); }
+.dist-card.paciente { border-left:3px solid var(--green); }
+.dist-card.rol { border-left:3px solid var(--cyan); }
+.dist-card.sistema { border-left:3px solid var(--amber); }
+.dist-card-label { font-size:11px; font-weight:600; color:var(--text); margin-bottom:2px; }
+.dist-card-count { font-size:20px; font-weight:700; color:var(--text); font-family:var(--display),var(--mono),sans-serif; line-height:1.1; }
+.dist-card-sub { font-size:10px; color:var(--text3); margin-top:4px; line-height:1.35; }
+
+.cat-filters { display:none; }
+
+.cat-group {
+  margin-bottom:18px; padding:14px;
+  border-radius:12px; border:1px solid var(--border);
+  background:rgba(255,255,255,0.015);
+}
+.cat-group.paciente { border-color:rgba(74,222,128,0.22); background:rgba(74,222,128,0.03); }
+.cat-group.rol { border-color:rgba(34,211,238,0.22); background:rgba(34,211,238,0.03); }
+.cat-group.sistema { border-color:rgba(251,191,36,0.22); background:rgba(251,191,36,0.03); }
+.cat-group-h {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--border);
+}
+.cat-group-h h4 { margin:0; font-size:13px; color:var(--text); font-weight:600; }
+.cat-badge {
+  font-size:10px; padding:3px 8px; border-radius:999px; font-weight:600;
+}
+.cat-badge.paciente { color:var(--green); background:rgba(74,222,128,.12); }
+.cat-badge.rol { color:var(--cyan); background:rgba(34,211,238,.12); }
+.cat-badge.sistema { color:var(--amber); background:rgba(251,191,36,.12); }
+
+.tpl-row {
+  display:grid;
+  grid-template-columns:36px minmax(0,1fr);
+  gap:12px; align-items:start;
+  padding:14px; margin-bottom:8px;
+  border:1px solid var(--border); border-radius:10px;
+  background:rgba(8,10,18,0.45);
+}
+.tpl-row:last-child { margin-bottom:0; }
+.tpl-row.off { opacity:.45; }
+.tpl-main { min-width:0; }
+.tpl-top { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px; }
+.tpl-name { font-size:13px; font-weight:600; color:var(--text); }
+.tpl-id {
+  font-family:var(--mono); font-size:10px; color:var(--cyan);
+  background:rgba(34,211,238,.08); border:1px solid rgba(34,211,238,.2);
+  padding:2px 7px; border-radius:6px; white-space:nowrap;
+}
+.tpl-pipe {
+  display:grid; grid-template-columns:1fr 20px 1fr 20px 1fr; gap:4px; align-items:center;
+  font-size:11px;
+}
+@media (max-width:640px) {
+  .tpl-pipe { grid-template-columns:1fr; gap:6px; }
+  .tpl-pipe-arr { display:none; }
+}
+.tpl-node {
+  padding:8px 10px; border-radius:8px;
+  background:rgba(255,255,255,0.03); border:1px solid var(--border);
+  min-height:52px;
+}
+.tpl-node-k {
+  font-size:9px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--text4); margin-bottom:3px;
+}
+.tpl-node-v { color:var(--text2); line-height:1.35; word-break:break-word; }
+.tpl-node.to .tpl-node-v { color:var(--text); font-weight:500; }
+.tpl-pipe-arr { text-align:center; color:var(--text4); font-size:12px; }
+.tpl-mod { font-family:var(--mono); font-size:9px; color:var(--text4); margin-top:8px; }
+.toggle.sm { width:32px; height:18px; margin-top:2px; }
+.toggle.sm::after { width:12px; height:12px; top:3px; left:3px; }
+.toggle.sm.on::after { left:17px; }
 </style>
 </head>
 <body>
@@ -41,99 +210,193 @@
     <div class="page-header">
       <div>
         <div class="page-title">Configuración del <span>sistema</span></div>
-        <div class="page-sub">Ajustes de infraestructura y conexiones</div>
+        <div class="page-sub">Correo, MinIO y parámetros del sistema</div>
       </div>
       <button class="btn btn-primary" onclick="guardar()">Guardar cambios</button>
     </div>
 
-    <!-- MinIO -->
-    <div class="config-section">
-      <div class="config-title">Conexión MinIO</div>
-      <div class="config-sub">Configuración del almacenamiento de objetos</div>
-      <div class="config-grid">
-        <div class="fg"><label class="fl">Endpoint</label><input class="fi" id="minio-endpoint" value="localhost:9000"></div>
-        <div class="fg"><label class="fl">Bucket principal</label><input class="fi" id="minio-bucket" value="diabetes-data"></div>
-        <div class="fg"><label class="fl">Access Key</label><input class="fi" id="minio-access" value="admin"></div>
-        <div class="fg"><label class="fl">Secret Key</label><input class="fi" id="minio-secret" type="password" value="password123"></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
-        <button class="btn btn-ghost btn-sm" onclick="testMinio()">&#9654; Probar conexión</button>
-        <span id="minio-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);"></span>
-      </div>
-    </div>
+    <nav class="cfg-tabs" role="tablist">
+      <button type="button" class="cfg-tab active" data-tab="correo" onclick="mostrarTab('correo')">Correo</button>
+      <button type="button" class="cfg-tab" data-tab="minio" onclick="mostrarTab('minio')">MinIO</button>
+      <button type="button" class="cfg-tab" data-tab="sistema" onclick="mostrarTab('sistema')">Sistema</button>
+      <button type="button" class="cfg-tab" data-tab="info" onclick="mostrarTab('info')">Información</button>
+    </nav>
 
-    <!-- Sistema -->
-    <div class="config-section">
-      <div class="config-title">Ajustes generales</div>
-      <div class="config-sub">Comportamiento del sistema</div>
-      <div class="config-row">
-        <div><div class="config-row-label">Modo debug</div><div class="config-row-sub">Mostrar logs detallados en consola</div></div>
-        <div class="toggle" id="t-debug" onclick="toggleSwitch(this)"></div>
-      </div>
-      <div class="config-row">
-        <div><div class="config-row-label">Auditoría automática</div><div class="config-row-sub">Registrar todas las acciones del sistema</div></div>
-        <div class="toggle on" id="t-auditoria" onclick="toggleSwitch(this)"></div>
-      </div>
-      <div class="config-row">
-        <div><div class="config-row-label">Cache de dataset</div><div class="config-row-sub">Mantener dataset en memoria para consultas rápidas</div></div>
-        <div class="toggle on" id="t-cache" onclick="toggleSwitch(this)"></div>
-      </div>
-    </div>
+    <div class="cfg-panel active" id="tab-correo">
+      <div class="mail-layout">
+        <div class="config-section" style="margin-bottom:0;">
+          <div class="config-title">Canal del hospital</div>
+          <div class="config-sub">Cuenta SMTP de envío</div>
 
-    <!-- Correo electrónico -->
-    <div class="config-section">
-      <div class="config-title">Correo electrónico (Brevo / SMTP)</div>
-      <div class="config-sub">Alertas clínicas, recuperación de contraseña y notificaciones del sistema</div>
-      <div class="config-row" style="margin-bottom:14px;">
-        <div><div class="config-row-label">Habilitar envío de correos</div><div class="config-row-sub">Desactivado = solo notificaciones in-app (sin correo real)</div></div>
-        <div class="toggle" id="t-email" onclick="toggleSwitch(this)"></div>
-      </div>
-      <div class="config-grid" style="margin-bottom:12px;">
-        <div class="fg"><label class="fl">Proveedor</label>
-          <select class="fi" id="email-proveedor">
-            <option value="brevo">Brevo (API — 300/día gratis)</option>
-            <option value="smtp">SMTP genérico</option>
+          <div class="mail-status" id="email-diag"><span class="dot"></span><span>…</span></div>
+
+          <div class="config-row" style="padding-top:0;">
+            <div>
+              <div class="config-row-label">Envío activo</div>
+              <div class="config-row-sub">Interruptor general</div>
+            </div>
+            <div class="toggle" id="t-email" onclick="toggleSwitch(this); actualizarEstado();"></div>
+          </div>
+
+          <div class="subtabs" style="margin-top:10px;">
+            <button type="button" class="subtab active" data-mail="gmail" onclick="mostrarSubCorreo('gmail')">Gmail</button>
+            <button type="button" class="subtab" data-mail="brevo" onclick="mostrarSubCorreo('brevo')">Brevo</button>
+            <button type="button" class="subtab" data-mail="resend" onclick="mostrarSubCorreo('resend')">Resend</button>
+            <button type="button" class="subtab" data-mail="smtp" onclick="mostrarSubCorreo('smtp')">SMTP</button>
+            <button type="button" class="subtab" data-mail="mailpit" onclick="mostrarSubCorreo('mailpit')">Mailpit</button>
+          </div>
+          <select id="email-proveedor" hidden>
+            <option value="gmail">gmail</option>
+            <option value="brevo">brevo</option>
+            <option value="resend">resend</option>
+            <option value="smtp">smtp</option>
+            <option value="mailpit">mailpit</option>
           </select>
+
+          <div id="panel-gmail" class="subpanel active">
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl">Cuenta Google</label>
+              <input class="fi" id="email-gmail-user" type="email" placeholder="hospital@dominio.com" autocomplete="username" oninput="actualizarEstado()">
+            </div>
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl">App password</label>
+              <input class="fi" id="email-gmail-pass" type="password" placeholder="xxxx xxxx xxxx xxxx" autocomplete="new-password">
+            </div>
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl">Nombre remitente</label>
+              <input class="fi" id="email-remitente-nombre-gmail" placeholder="DiabCare Analytics" autocomplete="off">
+            </div>
+            <div class="fg" style="margin-bottom:10px;">
+              <label class="fl">Alertas al staff</label>
+              <input class="fi" id="email-destino-alertas" type="email" placeholder="admin@hospital.com" autocomplete="off">
+            </div>
+          </div>
+
+          <div id="panel-brevo" class="subpanel">
+            <div class="fg" style="margin-bottom:10px;"><label class="fl">API key</label><input class="fi" id="email-brevo-key" type="password" autocomplete="new-password"></div>
+            <div class="fg" style="margin-bottom:10px;"><label class="fl">Remitente</label><input class="fi" id="email-remitente" type="email" autocomplete="off"></div>
+            <div class="fg"><label class="fl">Nombre remitente</label><input class="fi" id="email-remitente-nombre" placeholder="DiabCare Analytics" autocomplete="off"></div>
+          </div>
+
+          <div id="panel-resend" class="subpanel">
+            <div class="fg" style="margin-bottom:10px;"><label class="fl">API key</label><input class="fi" id="email-resend-key" type="password" autocomplete="new-password"></div>
+            <div class="fg"><label class="fl">Remitente</label><input class="fi" id="email-remitente-resend" type="email" autocomplete="off"></div>
+          </div>
+
+          <div id="panel-smtp" class="subpanel">
+            <div class="config-grid" style="grid-template-columns:1fr 1fr;">
+              <div class="fg"><label class="fl">Host</label><input class="fi" id="email-smtp-host" placeholder="smtp.gmail.com"></div>
+              <div class="fg"><label class="fl">Puerto</label><input class="fi" id="email-smtp-port" type="number" placeholder="587"></div>
+              <div class="fg"><label class="fl">Usuario</label><input class="fi" id="email-smtp-usuario" type="email"></div>
+              <div class="fg"><label class="fl">Contraseña</label><input class="fi" id="email-smtp-password" type="password"></div>
+              <div class="fg"><label class="fl">Remitente</label><input class="fi" id="email-remitente-smtp" type="email"></div>
+              <div class="fg"><label class="fl">Nombre</label><input class="fi" id="email-remitente-nombre-smtp" placeholder="DiabCare Analytics"></div>
+            </div>
+            <div class="config-row" style="margin-top:8px;">
+              <div class="config-row-label">TLS</div>
+              <div class="toggle on" id="t-email-tls" onclick="toggleSwitch(this)"></div>
+            </div>
+          </div>
+
+          <div class="fg" style="margin-top:12px;">
+            <label class="fl">Probar canal</label>
+            <input class="fi" id="email-prueba" type="email" placeholder="dev@correo.com" autocomplete="off">
+          </div>
+          <div class="mail-actions">
+            <button class="btn btn-primary btn-sm" type="button" onclick="guardarYProbar()">Guardar y probar</button>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="probarEmail()">Solo prueba</button>
+            <span id="email-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);"></span>
+          </div>
         </div>
-        <div class="fg"><label class="fl">API key Brevo</label><input class="fi" id="email-brevo-key" type="password" placeholder="xkeysib-..." autocomplete="new-password"></div>
-        <div class="fg"><label class="fl">Correo remitente</label><input class="fi" id="email-remitente" type="email" placeholder="noreply@tu-dominio.com" autocomplete="off"></div>
-        <div class="fg"><label class="fl">Nombre remitente</label><input class="fi" id="email-remitente-nombre" placeholder="DiabCare Analytics" autocomplete="off"></div>
-        <div class="fg"><label class="fl">Destino alertas críticas</label><input class="fi" id="email-destino-alertas" type="email" placeholder="admin@diabcare.com" autocomplete="off"></div>
-        <div class="fg"><label class="fl">Correo de prueba</label><input class="fi" id="email-prueba" type="email" placeholder="tu@email.com" autocomplete="off"></div>
-      </div>
-      <details id="smtp-advanced" style="margin-bottom:12px;">
-        <summary style="cursor:pointer;font-size:12px;color:var(--text2);margin-bottom:8px;">Opciones SMTP (alternativa a API Brevo)</summary>
-        <div class="config-grid">
-          <div class="fg"><label class="fl">Servidor SMTP</label><input class="fi" id="email-smtp-host" placeholder="smtp-relay.brevo.com" autocomplete="off"></div>
-          <div class="fg"><label class="fl">Puerto</label><input class="fi" id="email-smtp-port" type="number" min="1" max="65535" placeholder="587" autocomplete="off"></div>
-          <div class="fg"><label class="fl">Usuario SMTP</label><input class="fi" id="email-smtp-usuario" type="email" placeholder="alertas@tu-dominio.com" autocomplete="off"></div>
-          <div class="fg"><label class="fl">Contraseña SMTP</label><input class="fi" id="email-smtp-password" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+
+        <div class="config-section" style="margin-bottom:0;">
+          <div class="config-title">Distribución de correos</div>
+          <div class="config-sub">Cada plantilla sale del canal del hospital y llega a un tipo de destinatario</div>
+
+          <div class="dist-summary" id="dist-summary"></div>
+          <div id="mapa-plantillas">
+            <div style="font-size:12px;color:var(--text3);">Cargando catálogo…</div>
+          </div>
         </div>
-        <div class="config-row" style="margin-top:8px;">
-          <div><div class="config-row-label">Usar TLS (STARTTLS)</div><div class="config-row-sub">Puerto 587. Brevo SMTP: smtp-relay.brevo.com</div></div>
-          <div class="toggle on" id="t-email-tls" onclick="toggleSwitch(this)"></div>
-        </div>
-      </details>
-      <div class="email-hint">
-        <strong>Brevo:</strong> cree una API key en brevo.com → SMTP &amp; API → API keys.
-        El remitente debe estar verificado en Brevo. Plan gratis: 300 emails/día.
-        Guarde los cambios antes de probar.
-      </div>
-      <div class="email-actions">
-        <button class="btn btn-ghost btn-sm" type="button" onclick="probarEmail()">&#9993; Enviar correo de prueba</button>
-        <span id="email-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);"></span>
       </div>
     </div>
 
-    <!-- Info del sistema -->
-    <div class="config-section">
-      <div class="config-title">Información del sistema</div>
-      <div class="config-sub">Estado actual de la plataforma</div>
-      <div class="config-row"><div><div class="config-row-label">Versión</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">DiabCare Analytics v2.0.0</span></div>
-      <div class="config-row"><div><div class="config-row-label">Backend</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">FastAPI + Python 3.11</span></div>
-      <div class="config-row"><div><div class="config-row-label">Almacenamiento</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">MinIO + Parquet</span></div>
-      <div class="config-row"><div><div class="config-row-label">Dataset origen</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">PocketBase</span></div>
-      <div class="config-row"><div><div class="config-row-label">Puerto API</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">8000</span></div>
+    <div class="cfg-panel" id="tab-minio">
+      <div class="config-section">
+        <div class="config-title">Conexión MinIO</div>
+        <div class="config-sub">Almacenamiento de objetos (Parquet, fotos, ajustes)</div>
+        <div class="config-grid">
+          <div class="fg"><label class="fl">Endpoint</label><input class="fi" id="minio-endpoint" value="localhost:9000"></div>
+          <div class="fg"><label class="fl">Bucket principal</label><input class="fi" id="minio-bucket" value="diabetes-data"></div>
+          <div class="fg"><label class="fl">Access Key</label><input class="fi" id="minio-access" value="admin"></div>
+          <div class="fg"><label class="fl">Secret Key</label><input class="fi" id="minio-secret" type="password" value="password123"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+          <button class="btn btn-ghost btn-sm" onclick="testMinio()">Probar conexión</button>
+          <span id="minio-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cfg-panel" id="tab-sistema">
+      <div class="config-section">
+        <div class="config-title">Ajustes generales</div>
+        <div class="config-sub">Comportamiento del sistema</div>
+        <div class="config-row">
+          <div><div class="config-row-label">Modo debug</div><div class="config-row-sub">Logs detallados</div></div>
+          <div class="toggle" id="t-debug" onclick="toggleSwitch(this)"></div>
+        </div>
+        <div class="config-row">
+          <div><div class="config-row-label">Auditoría automática</div><div class="config-row-sub">Registrar acciones</div></div>
+          <div class="toggle on" id="t-auditoria" onclick="toggleSwitch(this)"></div>
+        </div>
+        <div class="config-row">
+          <div><div class="config-row-label">Cache de dataset</div><div class="config-row-sub">Consultas más rápidas</div></div>
+          <div class="toggle on" id="t-cache" onclick="toggleSwitch(this)"></div>
+        </div>
+      </div>
+
+      <div class="config-section lab-section" id="lab-demo">
+        <button type="button" class="lab-toggle" id="lab-toggle" onclick="toggleLabDemo()" aria-expanded="false">
+          <span>Utilidades internas</span>
+          <span class="lab-chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="lab-body" id="lab-body" hidden>
+          <div class="config-sub" style="margin-top:10px;">Solo demo / demos académicos. No aparece en el módulo clínico.</div>
+          <div class="config-row" style="align-items:flex-start;">
+            <div style="flex:1;min-width:0;">
+              <div class="config-row-label">Retratos de pacientes</div>
+              <div class="config-row-sub">Asigna fotos demo según género (randomuser.me)</div>
+              <div class="config-grid" style="margin-top:10px;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="fg">
+                  <label class="fl" for="fotos-auto-limite">Cantidad</label>
+                  <input class="fi" type="number" id="fotos-auto-limite" min="1" max="2000" value="200">
+                </div>
+                <div class="fg" style="display:flex;align-items:flex-end;padding-bottom:2px;">
+                  <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer;">
+                    <input type="checkbox" id="fotos-auto-reemplazar">
+                    Reemplazar existentes
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-fotos-auto" onclick="ejecutarFotosAuto()">Ejecutar</button>
+            <span id="fotos-auto-status" style="font-size:11px;font-family:var(--mono);color:var(--text3);align-self:center;"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cfg-panel" id="tab-info">
+      <div class="config-section">
+        <div class="config-title">Información del sistema</div>
+        <div class="config-row"><div><div class="config-row-label">Versión</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">DiabCare Analytics v2.0.0</span></div>
+        <div class="config-row"><div><div class="config-row-label">Backend</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">FastAPI + Python 3.11</span></div>
+        <div class="config-row"><div><div class="config-row-label">Almacenamiento</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">MinIO + Parquet</span></div>
+        <div class="config-row"><div><div class="config-row-label">Plantillas</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">ConfiguracionEmailPlantillas.py</span></div>
+      </div>
     </div>
   </div>
 </div>
@@ -146,49 +409,249 @@ DiabCareNav.guardRol(['administrador']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 
-function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+const AUDIENCIA_ORDEN = ['paciente', 'rol', 'sistema'];
+const AUDIENCIA_TITULO = {
+  paciente: 'Pacientes',
+  rol: 'Roles de la app',
+  sistema: 'Sistema',
+};
+const AUDIENCIA_SUB = {
+  paciente: 'Llegan al email guardado en la ficha clínica',
+  rol: 'Llegan a usuarios (médico, analista, admin…)',
+  sistema: 'Pruebas y operaciones internas',
+};
+
+let catalogo = [];
+let plantillasActivas = {};
+let filtroAud = 'todas';
+let _passGuardada = false;
+
 function toggleSwitch(el) { el.classList.toggle('on'); }
 function setToggle(id, on) {
   const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.toggle('on', !!on);
-}
-
-function initUser() {
-  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  if (u.rol !== 'administrador') { window.location.href = '/paginas/clinico/analisis/index.html'; return; }
-  if (u.nombre) {
-    document.getElementById('userName').textContent   = u.nombre;
-    document.getElementById('userRol').textContent    = u.rol || '';
-    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
-  }
-}
-
-function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
-
-function aplicarRoles() {
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  const rol = u.rol || '';
-  const OCULTAR = {
-    'medico':   ['Dataset','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-    'analista': ['Registros clínicos','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-  };
-  const ocultar = OCULTAR[rol] || [];
-  document.querySelectorAll('.nav-group').forEach(g => {
-    const label = g.querySelector('.nav-group-label');
-    if (!label) return;
-    const txt = label.textContent.trim();
-if (ocultar.some(o => txt.includes(o))) g.style.display = 'none';
-  });
+  if (el) el.classList.toggle('on', !!on);
 }
 
 function toast(msg, type = 'success') {
   const t = document.getElementById('toast');
-  document.getElementById('t-msg').textContent  = msg;
+  document.getElementById('t-msg').textContent = msg;
   document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
   t.className = `toast ${type} show`;
-  setTimeout(() => t.classList.remove('show'), 3000);
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+function mostrarTab(id) {
+  document.querySelectorAll('.cfg-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+  document.querySelectorAll('.cfg-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + id));
+  try { history.replaceState(null, '', '#' + id); } catch (_) {}
+  if (id === 'correo') actualizarEstado();
+}
+
+function toggleLabDemo() {
+  const btn = document.getElementById('lab-toggle');
+  const body = document.getElementById('lab-body');
+  const open = body.hasAttribute('hidden');
+  if (open) body.removeAttribute('hidden');
+  else body.setAttribute('hidden', '');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+async function ejecutarFotosAuto() {
+  const limite = Math.max(1, Math.min(2000, parseInt(document.getElementById('fotos-auto-limite').value, 10) || 200));
+  const reemplazar = document.getElementById('fotos-auto-reemplazar').checked;
+  const btn = document.getElementById('btn-fotos-auto');
+  const st = document.getElementById('fotos-auto-status');
+  if (btn) { btn.disabled = true; btn.textContent = 'Ejecutando…'; }
+  if (st) st.textContent = '…';
+  try {
+    const r = await fetch(
+      `${API}/api/pacientes/fotos/automaticas?limite=${limite}&solo_sin_foto=${reemplazar ? 'false' : 'true'}`,
+      { method: 'POST', headers: { Authorization: 'Bearer ' + token } }
+    );
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      toast(d.detail || d.error || 'Error al asignar fotos', 'error');
+      if (st) st.textContent = 'error';
+      return;
+    }
+    const pg = d.por_genero || {};
+    const detalle = `♀${pg.women || 0} ♂${pg.men || 0}`;
+    if (st) st.textContent = `${d.asignadas || 0} ok · ${detalle}`;
+    toast(`${d.asignadas || 0} fotos asignadas (${detalle})`, 'success');
+  } catch {
+    toast('Error de conexión', 'error');
+    if (st) st.textContent = 'sin conexión';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Ejecutar'; }
+  }
+}
+
+function mostrarSubCorreo(prov) {
+  document.getElementById('email-proveedor').value = prov;
+  document.querySelectorAll('.subtab').forEach(b => b.classList.toggle('active', b.dataset.mail === prov));
+  document.querySelectorAll('.subpanel').forEach(p => {
+    let show = false;
+    if (p.id === 'panel-gmail') show = prov === 'gmail';
+    else if (p.id === 'panel-brevo') show = prov === 'brevo';
+    else if (p.id === 'panel-resend') show = prov === 'resend';
+    else if (p.id === 'panel-smtp') show = prov === 'smtp' || prov === 'mailpit';
+    p.classList.toggle('active', show);
+  });
+  if (prov === 'gmail') setToggle('t-email-tls', true);
+  if (prov === 'mailpit') setToggle('t-email-tls', false);
+  actualizarEstado();
+}
+
+function remitenteActual() {
+  const p = document.getElementById('email-proveedor').value;
+  if (p === 'gmail') return document.getElementById('email-gmail-user').value.trim();
+  if (p === 'brevo') return document.getElementById('email-remitente').value.trim();
+  if (p === 'resend') return document.getElementById('email-remitente-resend').value.trim();
+  return document.getElementById('email-remitente-smtp').value.trim();
+}
+
+function nombreRemitenteActual() {
+  const p = document.getElementById('email-proveedor').value;
+  if (p === 'gmail') return document.getElementById('email-remitente-nombre-gmail').value.trim();
+  if (p === 'smtp' || p === 'mailpit') return document.getElementById('email-remitente-nombre-smtp').value.trim();
+  return document.getElementById('email-remitente-nombre').value.trim();
+}
+
+function filtrarAudiencia(f) {
+  filtroAud = f;
+  pintarMapa();
+}
+
+function togglePlantilla(id) {
+  const actual = plantillasActivas[id] !== false;
+  plantillasActivas[id] = !actual;
+  pintarMapa();
+}
+
+function contarPorAudiencia() {
+  const c = { paciente: 0, rol: 0, sistema: 0, pacienteOn: 0, rolOn: 0, sistemaOn: 0 };
+  catalogo.forEach(item => {
+    const a = item.audiencia || 'sistema';
+    if (!(a in c)) return;
+    c[a] += 1;
+    if (plantillasActivas[item.id] !== false) c[a + 'On'] += 1;
+  });
+  return c;
+}
+
+function pintarResumen() {
+  const box = document.getElementById('dist-summary');
+  if (!box) return;
+  const c = contarPorAudiencia();
+  box.innerHTML = AUDIENCIA_ORDEN.map(aud => `
+    <button type="button" class="dist-card ${aud}${filtroAud === aud ? ' on' : ''}" onclick="filtrarAudiencia('${filtroAud === aud ? 'todas' : aud}')">
+      <div class="dist-card-label">${AUDIENCIA_TITULO[aud]}</div>
+      <div class="dist-card-count">${c[aud + 'On']}<span style="font-size:12px;color:var(--text3);font-weight:500"> / ${c[aud]}</span></div>
+      <div class="dist-card-sub">${AUDIENCIA_SUB[aud]}</div>
+    </button>
+  `).join('');
+}
+
+function pintarMapa() {
+  const box = document.getElementById('mapa-plantillas');
+  pintarResumen();
+  if (!catalogo.length) {
+    box.innerHTML = '<div style="font-size:12px;color:var(--text3);">Sin catálogo (¿backend reiniciado?)</div>';
+    return;
+  }
+  const fromLabel = remitenteActual() || 'canal del hospital';
+  const groups = {};
+  catalogo.forEach(item => {
+    const aud = item.audiencia || 'sistema';
+    if (filtroAud !== 'todas' && aud !== filtroAud) return;
+    (groups[aud] ||= []).push(item);
+  });
+
+  const partes = AUDIENCIA_ORDEN.filter(a => groups[a]?.length).map(aud => {
+    const rows = groups[aud].map(item => {
+      const on = plantillasActivas[item.id] !== false;
+      return `
+        <div class="tpl-row ${on ? '' : 'off'}">
+          <div class="toggle sm ${on ? 'on' : ''}" onclick="togglePlantilla('${item.id}')" title="Activar / desactivar"></div>
+          <div class="tpl-main">
+            <div class="tpl-top">
+              <span class="tpl-name">${item.nombre}</span>
+              <code class="tpl-id">${item.id}</code>
+            </div>
+            <div class="tpl-pipe">
+              <div class="tpl-node">
+                <div class="tpl-node-k">Cuándo</div>
+                <div class="tpl-node-v">${item.cuando || '—'}</div>
+              </div>
+              <div class="tpl-pipe-arr">→</div>
+              <div class="tpl-node">
+                <div class="tpl-node-k">Sale de</div>
+                <div class="tpl-node-v">${fromLabel}</div>
+              </div>
+              <div class="tpl-pipe-arr">→</div>
+              <div class="tpl-node to">
+                <div class="tpl-node-k">Llega a</div>
+                <div class="tpl-node-v">${item.destino || AUDIENCIA_TITULO[aud]}</div>
+              </div>
+            </div>
+            <div class="tpl-mod">módulo · ${item.modulo || '—'}</div>
+          </div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="cat-group ${aud}">
+        <div class="cat-group-h">
+          <h4>${AUDIENCIA_TITULO[aud] || aud}</h4>
+          <span class="cat-badge ${aud}">${AUDIENCIA_SUB[aud]}</span>
+        </div>
+        ${rows}
+      </div>`;
+  });
+
+  box.innerHTML = partes.join('') || '<div style="font-size:12px;color:var(--text3);">Sin resultados</div>';
+}
+
+function actualizarEstado() {
+  const box = document.getElementById('email-diag');
+  const flow = document.getElementById('flow-from');
+  const on = document.getElementById('t-email').classList.contains('on');
+  const rem = remitenteActual();
+  const p = document.getElementById('email-proveedor').value;
+  const passOk = _passGuardada
+    || document.getElementById('email-gmail-pass').value.replace(/\s+/g, '').length >= 10
+    || document.getElementById('email-smtp-password').value === '********'
+    || (p === 'brevo' && document.getElementById('email-brevo-key').value && document.getElementById('email-brevo-key').value !== '********')
+    || (p === 'resend' && document.getElementById('email-resend-key').value && document.getElementById('email-resend-key').value !== '********')
+    || p === 'mailpit';
+  const listo = on && rem.includes('@') && passOk;
+  box.className = 'mail-status' + (listo ? ' ok' : '');
+  box.innerHTML = listo
+    ? `<span class="dot"></span><span>Canal listo · ${p} · ${rem}</span>`
+    : `<span class="dot"></span><span>${!on ? 'Envío apagado' : (!rem.includes('@') ? 'Falta cuenta' : 'Falta credencial')}</span>`;
+  if (flow) {
+    flow.textContent = rem.includes('@')
+      ? `Envía como ${rem} (${p})`
+      : 'Configure la cuenta Gmail/SMTP que enviará todo';
+  }
+  if (catalogo.length) pintarMapa();
+}
+
+async function cargarCatalogo() {
+  try {
+    const r = await fetch(`${API}/api/configuracion/email/estado`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const d = await r.json();
+    catalogo = Array.isArray(d.catalogo) ? d.catalogo : [];
+    plantillasActivas = { ...(d.email_plantillas_activas || {}) };
+    catalogo.forEach(c => {
+      if (plantillasActivas[c.id] === undefined) plantillasActivas[c.id] = c.activo !== false;
+    });
+    pintarMapa();
+  } catch {
+    catalogo = [];
+    pintarMapa();
+  }
 }
 
 async function cargarConfig() {
@@ -199,80 +662,118 @@ async function cargarConfig() {
     if (!r.ok) return;
     const c = await r.json();
     document.getElementById('minio-endpoint').value = c.minio_endpoint || '';
-    document.getElementById('minio-bucket').value   = c.minio_bucket || '';
-    document.getElementById('minio-access').value   = c.minio_access || '';
+    document.getElementById('minio-bucket').value = c.minio_bucket || '';
+    document.getElementById('minio-access').value = c.minio_access || '';
     setToggle('t-debug', c.debug);
     setToggle('t-auditoria', c.auditoria !== false);
     setToggle('t-cache', c.cache !== false);
     setToggle('t-email', c.email);
     setToggle('t-email-tls', c.email_smtp_tls !== false);
-    document.getElementById('email-proveedor').value = c.email_proveedor || 'brevo';
-    document.getElementById('email-brevo-key').value = c.email_brevo_api_key || '';
-    document.getElementById('email-smtp-host').value           = c.email_smtp_host || 'smtp-relay.brevo.com';
-    document.getElementById('email-smtp-port').value            = c.email_smtp_port ?? 587;
-    document.getElementById('email-smtp-usuario').value          = c.email_smtp_usuario || '';
-    document.getElementById('email-smtp-password').value         = c.email_smtp_password || '';
-    document.getElementById('email-remitente').value             = c.email_remitente || '';
-    document.getElementById('email-remitente-nombre').value      = c.email_remitente_nombre || 'DiabCare Analytics';
-    document.getElementById('email-destino-alertas').value       = c.email_destino_alertas || '';
-    if (c.email_destino_alertas && !document.getElementById('email-prueba').value) {
-      document.getElementById('email-prueba').placeholder = c.email_destino_alertas;
+
+    const rem = c.email_remitente || c.email_smtp_usuario || '';
+    const remNom = c.email_remitente_nombre || 'DiabCare Analytics';
+    document.getElementById('email-gmail-user').value = rem;
+    document.getElementById('email-gmail-pass').value = '';
+    _passGuardada = c.email_smtp_password === '********';
+    if (_passGuardada) {
+      document.getElementById('email-gmail-pass').placeholder = '•••• guardada';
     }
+    document.getElementById('email-remitente-nombre-gmail').value = remNom;
+    document.getElementById('email-destino-alertas').value = c.email_destino_alertas || '';
+    document.getElementById('email-prueba').value = c.email_destino_prueba || rem;
+    document.getElementById('email-brevo-key').value = c.email_brevo_api_key || '';
+    document.getElementById('email-remitente').value = rem;
+    document.getElementById('email-remitente-nombre').value = remNom;
+    document.getElementById('email-resend-key').value = c.email_resend_api_key || '';
+    document.getElementById('email-remitente-resend').value = rem;
+    document.getElementById('email-smtp-host').value = c.email_smtp_host || 'smtp.gmail.com';
+    document.getElementById('email-smtp-port').value = c.email_smtp_port ?? 587;
+    document.getElementById('email-smtp-usuario').value = c.email_smtp_usuario || '';
+    document.getElementById('email-smtp-password').value = c.email_smtp_password || '';
+    document.getElementById('email-remitente-smtp').value = rem;
+    document.getElementById('email-remitente-nombre-smtp').value = remNom;
+
+    if (c.email_plantillas_activas && typeof c.email_plantillas_activas === 'object') {
+      plantillasActivas = { ...plantillasActivas, ...c.email_plantillas_activas };
+    }
+
+    mostrarSubCorreo(c.email_proveedor || 'gmail');
+    actualizarEstado();
+    await cargarCatalogo();
   } catch (e) {
     console.error(e);
   }
 }
 
 function leerConfigFormulario() {
+  const p = document.getElementById('email-proveedor').value || 'gmail';
+  const rem = remitenteActual();
+  let smtpUser = document.getElementById('email-smtp-usuario').value.trim() || rem;
+  let smtpPass = document.getElementById('email-smtp-password').value;
+  let smtpHost = document.getElementById('email-smtp-host').value.trim();
+  let smtpPort = parseInt(document.getElementById('email-smtp-port').value, 10) || 587;
+  let smtpTls = document.getElementById('t-email-tls').classList.contains('on');
+  const gmailPass = document.getElementById('email-gmail-pass').value;
+  const alertas = document.getElementById('email-destino-alertas').value.trim() || rem;
+  const prueba = document.getElementById('email-prueba').value.trim() || rem;
+
+  if (p === 'gmail') {
+    smtpUser = rem;
+    if (gmailPass) smtpPass = gmailPass.replace(/\s+/g, '');
+    smtpHost = 'smtp.gmail.com';
+    smtpPort = 587;
+    smtpTls = true;
+  }
+
   return {
     minio_endpoint: document.getElementById('minio-endpoint').value.trim(),
-    minio_bucket:   document.getElementById('minio-bucket').value.trim(),
-    minio_access:   document.getElementById('minio-access').value.trim(),
-    debug:          document.getElementById('t-debug').classList.contains('on'),
-    auditoria:      document.getElementById('t-auditoria').classList.contains('on'),
-    cache:          document.getElementById('t-cache').classList.contains('on'),
-    email:          document.getElementById('t-email').classList.contains('on'),
-    email_proveedor: document.getElementById('email-proveedor').value || 'brevo',
+    minio_bucket: document.getElementById('minio-bucket').value.trim(),
+    minio_access: document.getElementById('minio-access').value.trim(),
+    debug: document.getElementById('t-debug').classList.contains('on'),
+    auditoria: document.getElementById('t-auditoria').classList.contains('on'),
+    cache: document.getElementById('t-cache').classList.contains('on'),
+    email: document.getElementById('t-email').classList.contains('on'),
+    email_proveedor: p,
     email_brevo_api_key: document.getElementById('email-brevo-key').value,
-    email_smtp_host: document.getElementById('email-smtp-host').value.trim(),
-    email_smtp_port: parseInt(document.getElementById('email-smtp-port').value, 10) || 587,
-    email_smtp_usuario: document.getElementById('email-smtp-usuario').value.trim(),
-    email_smtp_password: document.getElementById('email-smtp-password').value,
-    email_smtp_tls: document.getElementById('t-email-tls').classList.contains('on'),
-    email_remitente: document.getElementById('email-remitente').value.trim(),
-    email_remitente_nombre: document.getElementById('email-remitente-nombre').value.trim(),
-    email_destino_alertas: document.getElementById('email-destino-alertas').value.trim(),
+    email_resend_api_key: document.getElementById('email-resend-key').value,
+    email_smtp_host: smtpHost,
+    email_smtp_port: smtpPort,
+    email_smtp_usuario: smtpUser,
+    email_smtp_password: smtpPass,
+    email_smtp_tls: smtpTls,
+    email_remitente: rem,
+    email_remitente_nombre: nombreRemitenteActual() || 'DiabCare Analytics',
+    email_destino_alertas: alertas,
+    email_destino_prueba: prueba,
+    email_plantillas_activas: { ...plantillasActivas },
   };
 }
 
-async function testMinio() {
-  const st = document.getElementById('minio-status');
-  st.textContent = 'Probando...';
-  st.style.color = 'var(--text3)';
-  try {
-    const r = await fetch(`${API}/api/health`, { headers: { 'Authorization': 'Bearer ' + token } });
-    const d = await r.json();
-    if (d.minio === 'conectado') {
-      st.textContent = '✓ MinIO conectado correctamente';
-      st.style.color = 'var(--green)';
-    } else {
-      st.textContent = '✗ MinIO sin conexión';
-      st.style.color = 'var(--red)';
-    }
-  } catch {
-    st.textContent = '✗ Error al conectar';
-    st.style.color = 'var(--red)';
+async function guardarYProbar() {
+  setToggle('t-email', true);
+  if (!remitenteActual().includes('@')) {
+    toast('Indique la cuenta del hospital', 'error');
+    return;
   }
+  if (document.getElementById('email-proveedor').value === 'gmail') {
+    const pass = document.getElementById('email-gmail-pass').value.replace(/\s+/g, '');
+    if (!pass && !_passGuardada) {
+      toast('Falta app password', 'error');
+      return;
+    }
+  }
+  if (!(await guardar(true))) return;
+  toast('Guardado', 'success');
+  await probarEmail();
 }
 
 async function probarEmail() {
   const st = document.getElementById('email-status');
-  st.textContent = 'Enviando...';
+  st.textContent = '…';
   st.style.color = 'var(--text3)';
-  const destino = document.getElementById('email-prueba').value.trim()
-    || document.getElementById('email-destino-alertas').value.trim();
+  const destino = document.getElementById('email-prueba').value.trim() || remitenteActual();
   if (!destino) {
-    st.textContent = '✗ Indique correo de prueba o destino de alertas';
+    st.textContent = '✗ sin destino';
     st.style.color = 'var(--red)';
     return;
   }
@@ -288,15 +789,32 @@ async function probarEmail() {
       st.textContent = '✗ ' + d.error;
       st.style.color = 'var(--red)';
       toast(d.error, 'error');
+    } else if (d.omitido) {
+      st.textContent = '○ ' + (d.mensaje || 'omitido');
+      st.style.color = 'var(--amber)';
     } else {
-      st.textContent = '✓ ' + (d.mensaje || 'Correo enviado');
+      st.textContent = '✓ ' + destino;
       st.style.color = 'var(--green)';
-      toast(d.mensaje || 'Correo de prueba enviado', 'success');
+      toast(d.mensaje || 'Enviado', 'success');
     }
+    actualizarEstado();
   } catch {
-    st.textContent = '✗ Error de conexión';
+    st.textContent = '✗ red';
     st.style.color = 'var(--red)';
-    toast('Error de conexión', 'error');
+  }
+}
+
+async function testMinio() {
+  const st = document.getElementById('minio-status');
+  st.textContent = '…';
+  try {
+    const r = await fetch(`${API}/api/health`, { headers: { Authorization: 'Bearer ' + token } });
+    const d = await r.json();
+    st.textContent = d.minio === 'conectado' ? '✓ ok' : '✗ fail';
+    st.style.color = d.minio === 'conectado' ? 'var(--green)' : 'var(--red)';
+  } catch {
+    st.textContent = '✗ red';
+    st.style.color = 'var(--red)';
   }
 }
 
@@ -307,23 +825,38 @@ async function guardar(silent = false) {
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
       body: JSON.stringify(leerConfigFormulario())
     });
-    const d = await r.json();
-    if (r.ok && d.configuracion) {
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) {
+      let detalle = d.error;
+      if (!detalle && Array.isArray(d.detail)) detalle = d.detail.map(x => x.msg || JSON.stringify(x)).join('; ');
+      if (!detalle) detalle = `HTTP ${r.status}`;
+      toast(detalle, 'error');
+      return false;
+    }
+    if (d.configuracion) {
+      _passGuardada = d.configuracion.email_smtp_password === '********';
       document.getElementById('email-smtp-password').value = d.configuracion.email_smtp_password || '';
-      document.getElementById('email-brevo-key').value = d.configuracion.email_brevo_api_key || '';
+      if (_passGuardada) {
+        document.getElementById('email-gmail-pass').value = '';
+        document.getElementById('email-gmail-pass').placeholder = '•••• guardada';
+      }
+      if (d.configuracion.email_plantillas_activas) {
+        plantillasActivas = { ...plantillasActivas, ...d.configuracion.email_plantillas_activas };
+        pintarMapa();
+      }
+      actualizarEstado();
     }
-    if (!silent) {
-      toast(r.ok ? 'Configuración guardada' : (d.error || 'Error al guardar'), r.ok ? 'success' : 'error');
-    }
-    return r.ok;
+    if (!silent) toast('Guardado', 'success');
+    return true;
   } catch {
     if (!silent) toast('Error de conexión', 'error');
     return false;
   }
 }
 
+const hash = (location.hash || '#correo').replace('#', '');
+mostrarTab(['correo', 'minio', 'sistema', 'info'].includes(hash) ? hash : 'correo');
 cargarConfig();
-
 </script>
 </body>
 </html>

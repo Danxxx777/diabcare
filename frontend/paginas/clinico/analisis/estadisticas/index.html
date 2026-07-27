@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Estadísticas</title>
+<title>DiabCare - Estadísticas</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -70,22 +70,22 @@
       <div class="stat-card-sm">
         <div class="stat-label">BMI promedio</div>
         <div style="display:flex;gap:16px;margin-top:4px;">
-          <div><div class="stat-value red" id="k-bmi-con" style="font-size:18px">—</div><div class="stat-sub">Con diabetes</div></div>
-          <div><div class="stat-value green" id="k-bmi-sin" style="font-size:18px">—</div><div class="stat-sub">Sin diabetes</div></div>
+          <div><div class="stat-value red" id="k-bmi-con" style="font-size:18px">-</div><div class="stat-sub">Con diabetes</div></div>
+          <div><div class="stat-value green" id="k-bmi-sin" style="font-size:18px">-</div><div class="stat-sub">Sin diabetes</div></div>
         </div>
       </div>
       <div class="stat-card-sm">
         <div class="stat-label">HbA1c promedio</div>
         <div style="display:flex;gap:16px;margin-top:4px;">
-          <div><div class="stat-value red" id="k-hba-con" style="font-size:18px">—</div><div class="stat-sub">Con diabetes</div></div>
-          <div><div class="stat-value green" id="k-hba-sin" style="font-size:18px">—</div><div class="stat-sub">Sin diabetes</div></div>
+          <div><div class="stat-value red" id="k-hba-con" style="font-size:18px">-</div><div class="stat-sub">Con diabetes</div></div>
+          <div><div class="stat-value green" id="k-hba-sin" style="font-size:18px">-</div><div class="stat-sub">Sin diabetes</div></div>
         </div>
       </div>
       <div class="stat-card-sm">
         <div class="stat-label">Glucosa promedio (mg/dL)</div>
         <div style="display:flex;gap:16px;margin-top:4px;">
-          <div><div class="stat-value red" id="k-glc-con" style="font-size:18px">—</div><div class="stat-sub">Con diabetes</div></div>
-          <div><div class="stat-value green" id="k-glc-sin" style="font-size:18px">—</div><div class="stat-sub">Sin diabetes</div></div>
+          <div><div class="stat-value red" id="k-glc-con" style="font-size:18px">-</div><div class="stat-sub">Con diabetes</div></div>
+          <div><div class="stat-value green" id="k-glc-sin" style="font-size:18px">-</div><div class="stat-sub">Sin diabetes</div></div>
         </div>
       </div>
     </div>
@@ -140,7 +140,7 @@
     <div class="charts-grid-2">
       <div class="chart-card">
         <div class="chart-title">Prevalencia por edad</div>
-        <div class="chart-hint">Porcentaje con diabetes en cada grupo etario — la pendiente revela riesgo por edad.</div>
+        <div class="chart-hint">Porcentaje con diabetes en cada grupo etario - la pendiente revela riesgo por edad.</div>
         <div class="chart-wrap"><canvas id="c-edad"></canvas></div>
       </div>
       <div class="chart-card">
@@ -170,7 +170,7 @@
     <div class="charts-grid-2">
       <div class="chart-card">
         <div class="chart-title">Tabaquismo y prevalencia</div>
-        <div class="chart-hint">% de diabetes según historial de tabaco — no volumen absoluto.</div>
+        <div class="chart-hint">% de diabetes según historial de tabaco - no volumen absoluto.</div>
         <div class="chart-wrap"><canvas id="c-tabaco"></canvas></div>
       </div>
       <div class="chart-card">
@@ -197,6 +197,7 @@
 
 <script>
 DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico', 'analista', 'farmaceutico']);
 const API = DiabCareNav.getApi();
 let charts  = {};
 const STATS_CACHE_KEY = 'diabcare_stats_v2';
@@ -341,7 +342,7 @@ async function cargar() {
     if (r.status === 401) { window.location.href = '/'; return; }
     if (r.status === 403) {
       ['s-total','s-con','s-sin','s-prev'].forEach(id => {
-        document.getElementById(id).textContent = '—';
+        document.getElementById(id).textContent = '-';
       });
       alert('Sin permiso para estadísticas. Cierre sesión y vuelva a entrar con su rol actualizado.');
       return;
@@ -351,7 +352,7 @@ async function cargar() {
     renderEstadisticas(d);
   } catch(e) {
     console.error(e);
-    ['s-total','s-con','s-sin','s-prev'].forEach(id => document.getElementById(id).textContent = '—');
+    ['s-total','s-con','s-sin','s-prev'].forEach(id => document.getElementById(id).textContent = '-');
   }
 }
 
@@ -464,7 +465,7 @@ function renderEstadisticas(d) {
     );
   }
 
-  // Tabaquismo — prevalencia %
+  // Tabaquismo - prevalencia %
   if (d.tabaquismo) {
     const tLabels = Object.keys(d.tabaquismo).map(k => TABACO_ES[k] || k);
     const tPrev = Object.values(d.tabaquismo).map(v => v.prevalencia ?? (v.con_diabetes + v.sin_diabetes ? Math.round(v.con_diabetes / (v.con_diabetes + v.sin_diabetes) * 1000) / 10 : 0));

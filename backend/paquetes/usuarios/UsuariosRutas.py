@@ -5,7 +5,7 @@ from paquetes.usuarios.UsuariosServicio import (
     crear_usuario, obtener_usuarios, obtener_usuario,
     editar_usuario, desactivar_usuario, asignar_rol
 )
-from nucleo.utilidades.Dependencias import require_admin, ROLES_VALIDOS
+from nucleo.utilidades.Dependencias import require_admin, require_modulo, ROLES_VALIDOS
 
 router = APIRouter(prefix="/api/usuarios", tags=["Usuarios"])
 
@@ -62,7 +62,8 @@ def listar_roles(payload: dict = Depends(require_admin)):
     return {"roles": ROLES_VALIDOS}
 
 @router.get("/medicos")
-def catalogo_medicos(payload: dict = Depends(require_admin)):
+def catalogo_medicos(payload: dict = Depends(require_modulo("citas"))):
+    """Catálogo para recepción (admin / farmacia / enfermería) al separar turnos."""
     from paquetes.usuarios.UsuariosServicio import listar_activos_por_rol
     return {"medicos": listar_activos_por_rol("medico")}
 

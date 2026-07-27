@@ -38,6 +38,12 @@ from paquetes.clinico.admisiones.AdmisionesRutas import router as router_admisio
 from paquetes.clinico.citas.CitasRutas import router as router_citas
 from paquetes.clinico.citas.MisCitasRutas import router as router_mis_citas
 from paquetes.notificaciones.NotificacionesRutas import router as router_notificaciones
+from paquetes.facturacion.FacturacionRutas import router as router_facturacion
+from paquetes.farmacia.FarmaciaRutas import router as router_farmacia
+from paquetes.laboratorio.LaboratorioRutas import router as router_laboratorio
+from paquetes.urgencias.UrgenciasRutas import router as router_urgencias
+from paquetes.comorbilidades.ComorbilidadesRutas import router as router_comorbilidades
+from paquetes.rrhh.RrhhRutas import router as router_rrhh
 
 # Infraestructura compartida (P12)
 from paquetes.configuracion.ConfiguracionClienteMinio import inicializar_buckets, verificar_conexion
@@ -47,8 +53,8 @@ from paquetes.configuracion.ConfiguracionAjustes import PUERTO_API
 # ── APP ──
 app = FastAPI(
     title="DiabCare Analytics",
-    description="Plataforma SaaS de análisis clínico de diabetes (paquetes P1–P15)",
-    version="2.0.0",
+    description="DiabCare Hospital — analítica clínica + operación y negocio (P1–P20)",
+    version="3.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -78,6 +84,12 @@ app.include_router(router_admisiones)
 app.include_router(router_citas)
 app.include_router(router_mis_citas)
 app.include_router(router_notificaciones)
+app.include_router(router_facturacion)
+app.include_router(router_farmacia)
+app.include_router(router_laboratorio)
+app.include_router(router_urgencias)
+app.include_router(router_comorbilidades)
+app.include_router(router_rrhh)
 
 # ── FRONTEND (HTML vanilla) ──
 _BASE = Path(__file__).resolve().parent
@@ -133,6 +145,7 @@ _LEGACY = {
     "registros_clinicos/index.html": "clinico/registros_clinicos/index.html",
     "analisis/index.html": "clinico/analisis/index.html",
     "estadisticas/index.html": "clinico/analisis/estadisticas/index.html",
+    "analisis/diabetes/index.html": "clinico/analisis/diabetes/index.html",
     "prediccion/index.html": "clinico/prediccion/index.html",
     "reportes/index.html": "clinico/reportes/index.html",
     "dataset/index.html": "datos/dataset/index.html",

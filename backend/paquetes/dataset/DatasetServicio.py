@@ -38,6 +38,79 @@ def _invalidar_cache_registros():
         pass
 
 
+def fusionar_stage_dataframes(dfs: list[pd.DataFrame]) -> pd.DataFrame:
+    """Une Parquets de stage/ remapeando encounter_id si colisionan entre archivos.
+
+    Cada lote del generador suele reiniciar IDs en 1…N; un drop_duplicates
+    dejaba solo ~N filas aunque hubiera 1.1M en disco.
+    """
+    partes: list[pd.DataFrame] = []
+    max_id = 0
+    for df in dfs:
+        if df is None or df.empty:
+            continue
+        d = df.copy()
+        if "encounter_id" not in d.columns:
+            d.insert(0, "encounter_id", range(max_id + 1, max_id + 1 + len(d)))
+        else:
+            ids = pd.to_numeric(d["encounter_id"], errors="coerce")
+            d = d.loc[ids.notna()].copy()
+            if d.empty:
+                continue
+            d["encounter_id"] = ids.loc[ids.notna()].astype("int64")
+            mn = int(d["encounter_id"].min())
+            if max_id > 0 and mn <= max_id:
+                d["encounter_id"] = d["encounter_id"] + (max_id + 1 - mn)
+        d = d.drop_duplicates(subset=["encounter_id"], keep="last")
+        if d.empty:
+            continue
+        max_id = int(d["encounter_id"].max())
+        partes.append(d)
+    if not partes:
+        return pd.DataFrame()
+    out = pd.concat(partes, ignore_index=True)
+    return out.drop_duplicates(subset=["encounter_id"], keep="last").reset_index(drop=True)
+
+
+def max_encounter_id_en_stage() -> int:
+    """Máximo encounter_id efectivo (con el mismo remapeo que la fusión)."""
+    import pyarrow.parquet as pq
+
+    c = get_cliente()
+    objetos = [
+        o for o in c.list_objects(MINIO_BUCKET, prefix=MINIO_STAGE_PATH, recursive=True)
+        if o.object_name.endswith(".parquet")
+    ]
+    objetos = sorted(objetos, key=lambda o: o.object_name)
+    max_id = 0
+    for o in objetos:
+        try:
+            data = c.get_object(MINIO_BUCKET, o.object_name).read()
+            pf = pq.ParquetFile(io.BytesIO(data))
+            names = set(pf.schema_arrow.names)
+            if "encounter_id" not in names:
+                max_id += pf.metadata.num_rows
+                continue
+            mn = mx = None
+            for batch in pf.iter_batches(columns=["encounter_id"], batch_size=500_000):
+                s = batch.column(0).to_pandas()
+                s = pd.to_numeric(s, errors="coerce").dropna().astype("int64")
+                if s.empty:
+                    continue
+                bmin, bmax = int(s.min()), int(s.max())
+                mn = bmin if mn is None else min(mn, bmin)
+                mx = bmax if mx is None else max(mx, bmax)
+            if mn is None or mx is None:
+                continue
+            if max_id > 0 and mn <= max_id:
+                max_id = max_id + (mx - mn + 1)
+            else:
+                max_id = max(max_id, mx)
+        except Exception:
+            continue
+    return int(max_id)
+
+
 def _rng(opts: dict):
     semilla = opts.get("semilla")
     if semilla is not None:
@@ -45,7 +118,7 @@ def _rng(opts: dict):
     return np.random.default_rng()
 
 
-def _generar_chunk_table(n: int, year: int, opts: dict, rng: np.random.Generator):
+def _generar_chunk_table(n: int, year: int, opts: dict, rng: np.random.Generator, offset: int = 0):
     """Generación vectorizada — órdenes de magnitud más rápida que fila a fila."""
     import pyarrow as pa
 
@@ -108,6 +181,7 @@ def _generar_chunk_table(n: int, year: int, opts: dict, rng: np.random.Generator
     smoking = rng.choice(HISTORIAL_TABAQUISMO, n)
 
     columns = {
+        "encounter_id": pa.array(np.arange(offset + 1, offset + n + 1, dtype=np.int64)),
         "year": pa.array(np.full(n, year, dtype=np.int16)),
         "gender": pa.array(gender),
         "age": pa.array(age, type=pa.float32()),
@@ -150,11 +224,17 @@ def generar_y_subir(cantidad: int = 100000, year: int = 2025, opts: dict | None 
         fd, tmp_path = tempfile.mkstemp(suffix=".parquet")
         os.close(fd)
 
+        # Continuar IDs tras lo ya presente en stage/ (evita colisiones 1…N por lote)
+        try:
+            id_base = max_encounter_id_en_stage()
+        except Exception:
+            id_base = 0
+
         writer = None
         generados = 0
         while generados < cantidad:
             n = min(CHUNK_GENERACION, cantidad - generados)
-            table = _generar_chunk_table(n, year, opts, rng)
+            table = _generar_chunk_table(n, year, opts, rng, offset=id_base + generados)
             if writer is None:
                 writer = pq.ParquetWriter(
                     tmp_path,
@@ -180,20 +260,70 @@ def generar_y_subir(cantidad: int = 100000, year: int = 2025, opts: dict | None 
         dwh = {}
         try:
             from paquetes.dataset.DatasetDwhServicio import materializar_dwh
-            dwh = materializar_dwh()
+            import pyarrow.parquet as pq
+            # Evita re-descargar de MinIO el archivo que acabamos de subir si es el único en stage
+            otros = [
+                o for o in _listar_parquets_ordenados()
+                if o.object_name != archivo
+            ]
+            if not otros and tmp_path and os.path.exists(tmp_path):
+                plano = pq.read_table(tmp_path).to_pandas()
+                dwh = materializar_dwh(plano=plano)
+            else:
+                dwh = materializar_dwh()
         except Exception as e:
             dwh = {"ok": False, "error": str(e)}
-        try:
-            from paquetes.notificaciones.NotificacionesServicio import evaluar_alertas_clinicas
-            evaluar_alertas_clinicas()
-        except Exception:
-            pass
+        hospital = {}
+        if opts.get("incluir_hospital", True):
+            try:
+                from paquetes.dataset.DatasetFlujoServicio import expandir_flujo_operativo
+                import pyarrow as pa
+                import pyarrow.parquet as pq
+                sample_df = None
+                if tmp_path and os.path.exists(tmp_path):
+                    # Hasta 5K pacientes E2E; leer solo lo necesario (no el Parquet completo)
+                    n_sample = int(min(max(30, cantidad), 5_000))
+                    if opts.get("modo_rapido"):
+                        n_sample = min(n_sample, 800)
+                    pf = pq.ParquetFile(tmp_path)
+                    batches = []
+                    rows = 0
+                    for batch in pf.iter_batches(batch_size=min(50_000, n_sample)):
+                        batches.append(batch)
+                        rows += batch.num_rows
+                        if rows >= n_sample:
+                            break
+                    if batches:
+                        sample_df = pa.Table.from_batches(batches).slice(0, n_sample).to_pandas()
+                hospital = expandir_flujo_operativo(
+                    cantidad,
+                    year,
+                    {**opts, "stage_path": archivo},
+                    perfiles_df=sample_df,
+                )
+            except Exception as e:
+                hospital = {"ok": False, "error": str(e)}
+        # Alertas clínicas: costosas en lotes grandes; se omiten en modo rápido
+        if not opts.get("modo_rapido") and cantidad <= 50_000:
+            try:
+                from paquetes.notificaciones.NotificacionesServicio import evaluar_alertas_clinicas
+                evaluar_alertas_clinicas()
+            except Exception:
+                pass
         return {
             "mensaje": f"{cantidad:,} registros generados y subidos".replace(",", "."),
             "archivo": archivo,
             "total": cantidad,
             "perfil": perfil,
+            "modo_rapido": bool(opts.get("modo_rapido")),
             "dwh": dwh,
+            "hospital": hospital,
+            "flujo": {
+                "pacientes": (hospital or {}).get("pacientes"),
+                "citas": (hospital or {}).get("citas"),
+                "admisiones": (hospital or {}).get("admisiones"),
+                "registros_clinicos": (hospital or {}).get("registros_clinicos"),
+            } if isinstance(hospital, dict) and hospital.get("ok") else {},
         }
     except Exception as e:
         return {"error": str(e)}
@@ -278,6 +408,7 @@ def eliminar_archivo(ruta: str) -> dict:
 
 
 def eliminar_todos() -> dict:
+    """Borra stage + DWH + hospital generado (recetas, facturas, pacientes E2E, etc.)."""
     try:
         c = get_cliente()
         parquets = _listar_parquets_ordenados()
@@ -285,8 +416,29 @@ def eliminar_todos() -> dict:
         for o in parquets:
             c.remove_object(MINIO_BUCKET, o.object_name)
             eliminados += 1
+        # Snapshot de stats en stage
+        try:
+            c.remove_object(MINIO_BUCKET, f"{MINIO_STAGE_PATH}.diabcare_estadisticas_v2.json")
+        except Exception:
+            pass
         _invalidar_cache_registros()
-        return {"mensaje": f"{eliminados} archivo(s) eliminado(s)", "eliminados": eliminados}
+        from paquetes.dataset.DatasetDwhServicio import vaciar_dwh
+        dwh = vaciar_dwh()
+        if not dwh.get("ok"):
+            return {
+                "error": dwh.get("error") or "No se pudo vaciar DWH/operativo",
+                "eliminados_stage": eliminados,
+                "dwh": dwh,
+            }
+        return {
+            "ok": True,
+            "mensaje": (
+                f"Limpieza completa: {eliminados} archivo(s) de stage + "
+                f"{dwh.get('eliminados', 0)} objeto(s) DWH/hospital"
+            ),
+            "eliminados": eliminados,
+            "dwh": dwh,
+        }
     except Exception as e:
         return {"error": str(e)}
 
@@ -405,13 +557,22 @@ def eliminar_registros(cantidad: int, desde: str = "recientes") -> dict:
             c.remove_object(MINIO_BUCKET, path)
 
         _invalidar_cache_registros()
+        restantes = total - cantidad
+        dwh = {}
+        if restantes <= 0:
+            try:
+                from paquetes.dataset.DatasetDwhServicio import vaciar_dwh
+                dwh = vaciar_dwh()
+            except Exception as e:
+                dwh = {"ok": False, "error": str(e)}
         return {
             "mensaje": f"{cantidad:,} registro(s) eliminado(s)".replace(",", "."),
             "eliminados": cantidad,
-            "restantes": total - cantidad,
+            "restantes": restantes,
             "desde": desde,
             "archivos_eliminados": len(paths_to_delete),
             "archivos_actualizados": archivos_actualizados,
+            "dwh": dwh,
         }
     except Exception as e:
         return {"error": str(e)}

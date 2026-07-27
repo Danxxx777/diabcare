@@ -70,6 +70,28 @@ def resumen_pacientes(payload: dict = Depends(require_modulo("pacientes"))):
     return resumen()
 
 
+@router.post("/fotos/automaticas")
+def fotos_automaticas(
+    limite: int = Query(200, ge=1, le=2000),
+    solo_sin_foto: bool = Query(True),
+    payload: dict = Depends(require_modulo("pacientes")),
+):
+    """Asigna retratos demo (randomuser.me) a pacientes sin foto. No scrapea Pinterest."""
+    from paquetes.clinico.pacientes.FotosEntidadServicio import asignar_fotos_automaticas
+
+    res = asignar_fotos_automaticas(
+        limite=limite,
+        solo_sin_foto=solo_sin_foto,
+        usuario=_usuario(payload),
+    )
+    _auditar(
+        _usuario(payload),
+        "update",
+        f"Fotos automáticas: {res.get('asignadas', 0)} asignadas / {res.get('candidatos', 0)} candidatos",
+    )
+    return res
+
+
 @router.get("/")
 def listar_pacientes(
     offset: int = Query(0, ge=0),

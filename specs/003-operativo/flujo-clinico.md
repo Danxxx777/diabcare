@@ -1,115 +1,137 @@
-# Flujo clínico end-to-end — DiabCare Analytics
+# Flujos por rol — DiabCare Analytics
 
-**Actualizado**: 2026-07-05 · **Estado**: Vigente (GA07 demo)
+**Actualizado**: 2026-07-16 · **Excluye**: `administrador` (app / supervisión técnica)
 
-Este documento unifica el recorrido clínico diario, los roles y los módulos del sistema.
-
----
-
-## 1. Roles y responsabilidades
-
-| Rol | Responsabilidad en clínica | Módulos DiabCare |
-|-----|---------------------------|------------------|
-| **Administrador** | Recepción, coordinación, usuarios, agenda | Pacientes, Admisiones, **Agenda**, Usuarios, Configuración, Auditoría |
-| **Médico** | Atención y documentación clínica | Pacientes (consulta), **Mis citas**, Consultas, Predicción, Reportes, Notificaciones |
-| **Analista** | Datos, BI, calidad, ML | Dataset, Pipeline, Modelo ML, Análisis, Estadísticas |
+Fuente: `Dependencias.py` (`PERMISOS_MODULOS` + `PERMISOS_ESCRITURA`) y menú `navegacion.js` (`ACCESO`).
 
 ---
 
-## 2. Diagrama del flujo
+## 0. Quién es quién
 
-```mermaid
-flowchart TD
-  A[Admin: alta paciente HCE] --> B{Tipo de ingreso}
-  B -->|Consulta externa| C[Admin: agendar cita + asignar médico]
-  B -->|Hospitalización| D[Admin: registrar admisión + médico tratante]
-  C --> E[Médico: Mis citas]
-  D --> F[Médico: atiende en servicio]
-  E --> G[Médico: confirmar / atender cita]
-  G --> H[Médico: registro clínico CRUD]
-  F --> H
-  H --> I{Sistema: umbrales HbA1c / glucosa}
-  I -->|Alerta| J[Notificaciones + correo]
-  H --> K[Predicción ML / Reporte PDF]
-  K --> L[Analista: BI y pipeline]
+| Rol | Papel diario | Límite duro |
+|-----|--------------|-------------|
+| **Farmacéutico** | Admin. clínica: recepción, ingresos, **caja (cobro consulta)**, farmacia, facturación | No emite recetas ni atiende consulta |
+| **Enfermero** | Atención de enfermería: pacientes, ingresos/turnos, **triage**, **lab (resultados)** | Sin farmacia, sin caja, sin emitir recetas |
+| **Médico** | Atiende **solo si la consulta ya está cobrada**, documenta, ordena lab, emite recetas | Sin turnos, admisión, inventario ni cobro |
+| **Analista** | Calidad diabetes (HbA1c/riesgo), BI, dataset, pipeline, ML, reportes; consulta facturación/RRHH | Sin atender pacientes ni escribir en caja/RRHH |
+
+---
+
+## 1. Farmacéutico (recepción + caja)
+
+```text
+Pacientes → separar turno (Agenda)
+→ Cobrar consulta (caja / Facturación · tarifa CONS-DM)
+→ Paciente pasa al médico
+→ (después) Farmacia 1→10 si hay Rx · cierre
+→ Facturación de farmacia / otros servicios
+```
+
+**RN-CIT-010:** no se marca la cita como atendida sin factura de consulta **pagada** (`encounter_id` = `id_cita`).
+
+---
+
+## 2. Enfermero (rol clínico)
+
+```text
+Pacientes / HCE  (alta o preparación del paciente)
+    ↓
+Recepción / turnos  ──o──  Admisiones hospitalarias
+    ↓
+(paciente va a caja del farmacéutico a pagar la consulta)
+    ↓
+Urgencias → Triage (prioridad / motivo)
+    ↓
+Laboratorio → cargar resultados de órdenes del médico
+    ↓
+Notificaciones (alertas clínicas)
+```
+
+**Home:** Pacientes.  
+**No tiene:** Farmacia, Recetas, Facturación, Dataset/ML.  
+**Turnos:** puede separar; el cobro de consulta lo hace el farmacéutico en caja.
+
+---
+
+## 3. Médico
+
+```text
+Consulta médica → solo turnos con consulta cobrada (confirmada)
+→ atender → registro / comorbilidades
+→ Lab: ordenar · Urgencias: Atender
+→ Recetas emitidas → las ve el farmacéutico en Rx pendientes
 ```
 
 ---
 
-## 3. Pasos detallados
+## 4. Analista (calidad clínica de diabetes)
 
-### Paso 1 — Registro del paciente (Administrador)
-- **Módulo**: Pacientes / HCE (`/paginas/clinico/pacientes/`)
-- **API**: `POST /api/pacientes/`, foto opcional `POST /api/pacientes/{id}/foto`
-- **Salida**: expediente con código, documento, sede, foto
+**Home:** Calidad diabetes.
 
-### Paso 2a — Cita ambulatoria (Administrador)
-- **Módulo**: Agenda (`/paginas/clinico/agenda/`) — **solo administrador**
-- **API**: `POST /api/citas/`, catálogo médicos `GET /api/usuarios/medicos`
-- **Regla**: el admin elige paciente + **médico asignado** + fecha/hora/motivo
-- **Estados**: `programada → confirmada → atendida` (cancelada / no_asistio)
+```text
+Calidad diabetes (control HbA1c · riesgo · sedes)
+    ↓
+Dataset / generador  →  Pipeline ELT  →  Modelo ML (entrenar / métricas)
+    ↓
+Predicción (validar escenarios)  ·  Estadísticas  ·  Reportes PDF
+    ↓
+Facturación / RRHH solo lectura (contexto hospitalario)
+```
 
-### Paso 2b — Admisión hospitalaria (Administrador)
-- **Módulo**: Admisiones (`/paginas/clinico/admisiones/`) — **solo administrador**
-- **API**: `POST /api/admisiones/`
-- **Regla**: admin elige paciente + **médico tratante** (select de usuarios rol `medico`)
+**Aporta en diabetes:**
+- % control (HbA1c &lt; 7%), subóptimo (7–9%) y descontrol (≥ 9%)
+- Estrato de riesgo alto/medio/controlado en la cohorte DM
+- Comorbilidades (HTA, cardiopatía) y obesidad en diabéticos
+- Sedes y grupos de edad con más descontrol → input a reportes y al modelo
 
-### Paso 3 — Atención (Médico)
-- **Módulo**: Mis citas (`/paginas/clinico/mis_citas/`) — **solo médico**
-- **API**: `GET /api/citas/mis-citas`, `PUT /api/citas/{id}/estado`
-- **Acciones**: confirmar cita; **Atender** marca `atendida` y abre Consultas
-- El médico **no agenda** citas ni admisiones
-
-### Paso 4 — Registro clínico (Médico / Admin)
-- **Módulo**: Consultas (`/paginas/clinico/registros_clinicos/`)
-- **API**: CRUD `/api/registros/`, filtros `/api/registros/buscar`
-
-### Paso 5 — Alertas (Sistema)
-- **Módulo**: Notificaciones (P10)
-- Umbrales: HbA1c > 7.5, glucosa > 180
-- Correo vía Brevo/SMTP (configuración P12)
-
-### Paso 6 — Análisis y salidas (Médico / Analista)
-- Predicción ML (P6), Reportes PDF (P7), Dashboard (P5)
-- Analista: Dataset (P4), Pipeline (P8), Modelo ML (P14)
+**No hace:** altas de pacientes, agenda, atención, recetas, cobros.
 
 ---
 
-## 4. Matriz de permisos (clínico)
+## 5. Cadena conjunta
 
-| Módulo | administrador | medico | analista |
-|--------|:---:|:---:|:---:|
-| pacientes | ✅ | ✅ | |
-| admisiones | ✅ | | |
-| citas (agenda) | ✅ | | |
-| mis_citas (API `/api/citas/mis-citas`) | | ✅ | |
-| registros | ✅ | ✅ | |
-| analisis | ✅ | ✅ | ✅ |
-| prediccion | ✅ | ✅ | ✅ |
-| reportes | ✅ | ✅ | |
-| notificaciones | ✅ | ✅ | ✅ |
+```mermaid
+flowchart LR
+  REC[Farmacéutico o Enfermero: alta + turno]
+  CAJA[Farmacéutico: cobrar consulta]
+  ENF[Enfermero: triage · resultados lab]
+  MED[Médico: atender + registrar + receta]
+  FARM[Farmacéutico: Rx → dispensar → venta]
+  ANA[Analista: calidad DM + BI + ML]
 
-Fuente autoritativa: `backend/nucleo/utilidades/Dependencias.py` (`PERMISOS_MODULOS`).
-
----
-
-## 5. Demo rápida (15 min)
-
-1. Login **admin** → Pacientes → crear paciente con foto  
-2. Agenda → agendar cita → elegir médico del listado  
-3. Logout → login **médico** → Mis citas → Confirmar → Atender  
-4. Consultas → nuevo registro  
-5. Notificaciones → revisar alertas  
-6. (Opcional) Reporte PDF / Predicción  
+  REC --> CAJA
+  CAJA --> MED
+  REC --> ENF
+  MED --> ENF
+  MED --> FARM
+  MED -.-> ANA
+  FARM -.-> ANA
+```
 
 ---
 
-## 6. Especificaciones por paquete
+## 6. Matriz (entrada al módulo)
 
-| Paquete | Spec |
-|---------|------|
-| Pacientes / HCE | `paquetes/P-pacientes-spec.md` |
-| Admisiones | `paquetes/P-admisiones-spec.md` |
-| Agenda / Citas | `paquetes/P-citas-spec.md` |
-| Registros | `paquetes/P03-registros-clinicos-spec.md` |
-| Notificaciones | `paquetes/P10-notificaciones-spec.md` |
+| Módulo | farmaceutico | enfermero | medico | analista |
+|--------|:---:|:---:|:---:|:---:|
+| pacientes | ✅ | ✅ | ✅ | |
+| admisiones / citas | ✅ | ✅ | | |
+| mis_citas / registros | | | ✅ | |
+| laboratorio | | ✅ resultados | ✅ ordenar | |
+| urgencias | ✅ triage | ✅ triage | ✅ atender | |
+| recetas | | | ✅ | |
+| farmacia | ✅ | | | |
+| facturacion | ✅ escribir | | | ✅ leer |
+| rrhh | | | | ✅ leer |
+| dataset / pipeline / ML | | | | ✅ |
+| calidad diabetes / análisis / predicción / reportes | | ✅ | ✅ | ✅ |
+
+---
+
+## 7. Qué no confundir
+
+1. **Enfermero ≠ farmacéutico.** Enfermería es clínica; el mostrador/caja es del farmacéutico.
+2. **Cobro de consulta ≠ cobro de farmacia.** La consulta se cobra **antes** de atender; la farmacia es después de la receta.
+3. Catálogo ≠ lo recetado → Farmacia **Rx pendientes**.
+4. Recetas: solo médico; despacho: solo farmacéutico.
+5. Lab: médico ordena; enfermero carga resultado.

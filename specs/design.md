@@ -2,12 +2,14 @@
 
 ## Overview
 
-DiabCare Analytics es una plataforma SaaS de análisis clínico de diabetes hospitalaria. El sistema lee archivos `.parquet` almacenados en MinIO, calcula estadísticas con pandas, entrena modelos de predicción con scikit-learn, y expone una interfaz web multi-página con autenticación JWT, gestión de usuarios, visualizaciones clínicas interactivas, predicción ML y monitoreo de pipeline ETL.
+DiabCare Analytics / **DiabCare Hospital** es una plataforma SaaS de análisis clínico de diabetes hospitalaria con HIS de demostración. Calcula estadísticas con pandas sobre Parquet en MinIO, entrena ML con scikit-learn, y expone UI multi-página con JWT por roles.
 
-La arquitectura es de tres capas:
+La arquitectura es de tres capas más **dualidad de datos (TA11)**:
 - **Presentación**: Frontend multi-página HTML/CSS/JS vanilla servido por FastAPI como archivos estáticos con rutas dinámicas.
-- **Aplicación**: API REST con FastAPI + Uvicorn, autenticación JWT HS256, lógica de negocio en servicios Python separados por módulo.
-- **Datos**: MinIO (object storage Parquet), PocketBase (fuente origen), Apache Airflow 2.9.1 Docker (orquestación ELT).
+- **Aplicación**: API REST con FastAPI + Uvicorn, autenticación JWT HS256, lógica de negocio en servicios Python separados por módulo (`backend/paquetes/`).
+- **BDR operativa (PostgreSQL)**: transacciones e informes simples del HIS (listados del turno). Objetivo de diseño académico; la demo sirve las mismas pantallas vía APIs sobre Parquet operativo hasta migración SQL.
+- **BD columnar (MinIO/Parquet)**: stage/ y DWH — informes compuestos (Dashboard, Calidad diabetes, PDF, Dataset).
+- **Origen / ELT**: PocketBase, Apache Airflow 2.9.1 Docker (orquestación objetivo), Pipeline ELT en UI/API.
 
 ---
 
@@ -15,21 +17,23 @@ La arquitectura es de tres capas:
 
 ```mermaid
 graph TD
-    Browser["Navegador (HTML/JS vanilla)\nMulti-página — 8 páginas"]
-    FastAPI["FastAPI + Uvicorn\nbackend/Principal.py\nlocalhost:8000"]
-    JWT["JWT Auth\nHS256 · 8h\nDependencias.py"]
-    MinIO["MinIO localhost:9000\ndiabetes-data/stage/*.parquet\ndiabcare-app/usuarios/usuarios.parquet\ndiabcare-app/modelos/modelo_diabetes.pkl"]
-    PocketBase["PocketBase\nlocalhost:8090\nFuente de datos origen"]
-    Airflow["Apache Airflow 2.9.1\nDocker Compose\nlocalhost:8080"]
-    ML["scikit-learn\nRandomForest 100 árboles\npyarrow lectura eficiente"]
+    Browser["Navegador — DiabCare Hospital\nclinico/ + negocio/ + datos/"]
+    FastAPI["FastAPI + Uvicorn\nPrincipal.py :8000"]
+    JWT["JWT · roles · PERMISOS_MODULOS"]
+    PG["PostgreSQL BDR\ninformes simples HIS"]
+    MinIO["MinIO columnar\ndiabetes-data/stage/\ndiabcare-app operativo/ negocio/"]
+    PocketBase["PocketBase :8090"]
+    Airflow["Airflow :8080\norquestación ELT"]
+    ML["sklearn + pyarrow"]
 
-    Browser -- "fetch() + Bearer Token" --> FastAPI
-    FastAPI -- "FileResponse HTML" --> Browser
-    FastAPI -- "verificar_token()" --> JWT
-    FastAPI -- "minio-py read/write/list" --> MinIO
-    FastAPI -- "pd.concat + sklearn" --> ML
-    PocketBase -- "API REST" --> Airflow
-    Airflow -- "sube parquet stage/" --> MinIO
+    Browser --> FastAPI
+    FastAPI --> JWT
+    FastAPI --> PG
+    FastAPI --> MinIO
+    FastAPI --> ML
+    PocketBase --> Airflow
+    Airflow --> MinIO
+    PG -. "objetivo TA11" .-> FastAPI
 ```
 
 ### Flujo de autenticación
@@ -75,10 +79,17 @@ diabcare/
 │       ├── auditoria/
 │       ├── configuracion/
 │       ├── modelo_ml/
+│       ├── facturacion/          ← P16
+│       ├── farmacia/             ← P17
+│       ├── laboratorio/          ← P18
+│       ├── urgencias/            ← P19
+│       ├── comorbilidades/       ← P3-ext
+│       ├── rrhh/                 ← P20
+│       ├── notificaciones/
 │       └── clinico/
 │           ├── pacientes/
 │           ├── admisiones/
-│           └── citas/
+│           └── citas/            ← agenda + mis_citas
 │
 ├── frontend/
 │   ├── estaticos/                ← estilos.css, navegacion.js, api.js
@@ -455,3 +466,76 @@ Se usan 1-3 ejemplos representativos para operaciones con MinIO y Airflow:
 | `PrediccionServicio` | Property (serialización, probabilidad, métricas) |
 | `ConfiguracionClienteMinio` | Integration (buckets, conectividad) |
 | Frontend páginas | Example (estructura HTML, endpoints consumidos) |
+
+---
+
+## DiabCare Hospital — diseño v3 (ampliación)
+
+### Overview adicional
+
+Además del DWH clínico de diabetes, el sistema opera un **HIS de demostración** con paquetes P16–P20 y comorbilidades. Los datos operativos viven en `diabcare-app/operativo/` y `diabcare-app/negocio/` mediante `ParquetStore` (CRUD + soft-delete). El generador sintético puede expandir una muestra de stage a un **flujo E2E** (paciente → cita/admisión → registro → lab/farmacia/urgencia → factura).
+
+### Arquitectura (capa hospitalaria)
+
+```mermaid
+flowchart LR
+  Gen["POST /api/dataset/generar"] --> Stage["diabetes-data/stage/"]
+  Gen --> DWH["diabcare-app hechos/dims"]
+  Gen --> Flujo["DatasetFlujoServicio"]
+  Flujo --> Op["operativo/ pacientes citas admisiones"]
+  Flujo --> Neg["negocio/ P16-P20"]
+  UI["Frontend clinico/ + negocio/"] --> API["FastAPI routers hospital"]
+  API --> Op
+  API --> Neg
+```
+
+### Paquetes backend nuevos
+
+| Paquete | Rutas / Servicio | Prefijo MinIO |
+|---------|------------------|---------------|
+| facturacion | FacturacionRutas/Servicio | `negocio/` seguros, tarifas, facturas, pagos |
+| farmacia | FarmaciaRutas/Servicio | `negocio/` meds, recetas, inventario, ventas… |
+| laboratorio | LaboratorioRutas/Servicio | `negocio/` pruebas, órdenes, resultados |
+| urgencias | UrgenciasRutas/Servicio | `negocio/` emergencias, agg espera |
+| comorbilidades | ComorbilidadesRutas/Servicio | `negocio/oper_comorbilidades_paciente` |
+| rrhh | RrhhRutas/Servicio | `negocio/` cargos, turnos, costeo, productividad |
+| dataset | DatasetHospitalServicio + DatasetFlujoServicio | generación E2E |
+| nucleo | ParquetStore.py | CRUD genérico Parquet |
+
+### Frontend hospitalario
+
+- `frontend/paginas/clinico/`: laboratorio, urgencias, comorbilidades (+ pacientes/admisiones/citas existentes)
+- `frontend/paginas/negocio/`: facturacion, farmacia, recetas, rrhh
+- `frontend/estaticos/crud-modulo.js`: helper CRUD sin IDs visibles (selects por nombre)
+- `navegacion.js`: 6 bloques + `ACCESO` por rol
+
+### Flujo de generación E2E
+
+1. `DatasetServicio.generar_y_subir` escribe stage y materializa DWH.
+2. Si `incluir_hospital`: lee muestra del Parquet generado → `expandir_flujo_operativo`.
+3. Crea pacientes, batch citas/admisiones, registros con `id_paciente`, luego `generar_hospital` reutilizando esos IDs.
+4. sklearn se importa **lazy** en predicción para no bloquear el arranque del servidor.
+
+### Decisiones
+
+| Fecha | Decisión | Razón |
+|-------|----------|-------|
+| 2026-07 | `negocio/` separado de DWH star-schema | CRUD operativo sin mezclar materialización analítica |
+| 2026-07 | Soft-delete (`estado`/`activo`) | RN-CRUD: no borrar físico en demo hospitalaria |
+| 2026-07 | Flujo E2E hasta 5K pacientes/corrida (batch Parquet) | Stage puede ser 100K/semana; operativo usable sin saturar MinIO |
+| 2026-07 | Import diferido de sklearn | Arranque usable en Python 3.14 |
+
+### Nivel táctico (Tarea 11)
+
+| Capa | Tecnología | Informes | Ejemplos demo |
+|------|------------|----------|----------------|
+| BDR | PostgreSQL (diseño) | Simples | Agenda, Mis citas, Facturación, Farmacia turno, Urgencias triage |
+| Columnar | MinIO/Parquet | Compuestos | Dashboard, Estadísticas, Calidad diabetes, Reportes PDF, Dataset/DWH |
+| ELT | Airflow + Pipeline UI | Materialización | PocketBase → stage/ → hechos/dimensiones |
+
+### Pendiente de diseño/implementación
+
+- Cableado productivo PostgreSQL ↔ servicios hospitalarios (hoy Parquet operativo)
+- DAGs Airflow productivos en repo (demo ELT vía FastAPI)
+- Suite pytest ampliada P16–P20 y reglas RN (cobro, stock, triage)
+- Benchmarking / corporativo (fuera de demo operativa)

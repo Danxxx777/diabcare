@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Pacientes</title>
+<title>DiabCare - Pacientes</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="stylesheet" href="/estaticos/estilos.css">
 <link rel="stylesheet" href="/estaticos/dashboard.css">
@@ -127,21 +127,25 @@
     <div class="page-header">
       <div>
         <div class="page-title">Expedientes <span>clínicos</span></div>
-        <div class="page-sub">Historia clínica del paciente (HCE)</div>
+        <div class="page-sub">Expedientes de pacientes</div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nuevo paciente</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nuevo paciente</button>
+      </div>
     </div>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="st-total">—</div></div>
-      <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value green" id="st-activos">—</div></div>
-      <div class="stat-card"><div class="stat-label">Inactivos</div><div class="stat-value" id="st-inactivos">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="st-total">-</div></div>
+      <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value green" id="st-activos">-</div></div>
+      <div class="stat-card"><div class="stat-label">Inactivos</div><div class="stat-value" id="st-inactivos">-</div></div>
     </div>
     <div class="tabla-card">
       <div class="tabla-top">
-        <input class="search" id="f-q" placeholder="Buscar nombre o documento…" onkeydown="if(event.key==='Enter'){pag=1;cargar()}">
+        <input class="search" id="f-q" type="search" autocomplete="off"
+          placeholder="Escribe cédula, nombre o H. clínica…">
         <button class="btn btn-primary btn-sm" onclick="pag=1;cargar()">Buscar</button>
       </div>
       <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+      <div id="dataPager" class="data-pager" hidden></div>
     </div>
   </div>
 </div>
@@ -153,12 +157,11 @@
       <input type="hidden" id="f-id">
       <label>Nombre<input id="m-nombre" required></label>
       <label>Apellido<input id="m-apellido"></label>
-      <label>Documento<input id="m-documento"></label>
+      <label>Cédula<input id="m-documento" placeholder="Ej. 1712345678 (provincia 01–24)" maxlength="10" inputmode="numeric"></label>
       <label>Edad<input id="m-edad" type="number" min="0" max="120"></label>
       <label>Género<select id="m-genero"><option>Femenino</option><option>Masculino</option><option>Otro</option></select></label>
       <label>Teléfono<input id="m-telefono"></label>
       <label>Email<input id="m-email" type="email"></label>
-      <label class="span-full">Sede<input id="m-sede" value="Sede principal"></label>
       <label class="span-full">Notas<textarea id="m-notas" rows="2"></textarea></label>
       <label class="span-full">Foto del paciente
         <input type="file" id="m-foto" accept="image/jpeg,image/png,image/webp" onchange="previewFoto(this)">
@@ -180,8 +183,8 @@
       <div class="expediente-header">
         <img id="exp-foto" class="expediente-foto" alt="">
         <div class="expediente-meta">
-          <h3 id="exp-nombre">—</h3>
-          <p id="exp-codigo">—</p>
+          <h3 id="exp-nombre">-</h3>
+          <p id="exp-codigo">-</p>
         </div>
       </div>
       <div class="expediente-datos" id="exp-datos"></div>
@@ -206,8 +209,11 @@
 </div>
 <script>
 DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico', 'enfermero', 'farmaceutico']);
 const API = DiabCareNav.getApi();
 let pag = 1, _rows = [];
+let _totalRows = 0;
+const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 12;
 let _expedienteId = '';
 const _fotoBust = {};
 const _fotoLocal = {};
@@ -233,42 +239,58 @@ function pacienteTieneFoto(p) {
   return !!(p.tiene_foto || _fotoLocal[p.id_paciente]);
 }
 
-const THUMB_STYLE = 'width:36px;height:36px;object-fit:cover;border-radius:50%;background:var(--border);display:block;';
-const THUMB_EMPTY = '<span style="width:36px;height:36px;display:inline-block;background:var(--border);border-radius:50%;"></span>';
-
-function htmlThumb(p) {
-  if (!pacienteTieneFoto(p)) return THUMB_EMPTY;
-  const src = srcFotoPaciente(p);
-  const id = p.id_paciente.replace(/'/g, "\\'");
-  return `<button type="button" class="paciente-thumb-btn" onclick="verFoto('${id}')" title="Ver foto">
-    <img src="${src}" alt="" style="${THUMB_STYLE}">
-  </button>`;
-}
-
 function renderTabla() {
+  const body = document.getElementById('tablaBody');
   if (!_rows.length) {
-    document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin pacientes</div>';
+    body.innerHTML = '<div class="loading">Sin pacientes</div>';
+    pintarPager();
     return;
   }
-  let h = '<table class="tabla"><thead><tr><th></th><th>Código</th><th>Paciente</th><th>Documento</th><th>Edad</th><th>Sede</th><th>Estado</th><th></th></tr></thead><tbody>';
-  _rows.forEach(p => {
-    h += `<tr data-pid="${p.id_paciente}">
-      <td>${htmlThumb(p)}</td>
-      <td>${p.codigo||'—'}</td>
-      <td>${p.nombre_completo||p.nombre||'—'}</td>
-      <td>${p.documento||'—'}</td>
-      <td>${p.edad??'—'}</td>
-      <td>${p.sede||'—'}</td>
-      <td><span class="badge ${p.estado==='activo'?'b-activo':'b-inactivo'}">${p.estado||'—'}</span></td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-primary btn-sm" onclick="verExpediente('${p.id_paciente}')">Expediente</button>
-        <button class="btn btn-ghost btn-sm" onclick="editar('${p.id_paciente}')">Editar</button>
-        <button class="btn btn-ghost btn-sm" onclick="irPrediccion('${p.id_paciente}')">Predicción</button>
-        <button class="btn btn-ghost btn-sm" onclick="baja('${p.id_paciente}')">Baja</button>
-      </td></tr>`;
+  body.innerHTML = DiabCareAPI.buildDataGrid({
+    rows: _rows,
+    idField: 'id_paciente',
+    columns: [
+      {
+        key: 'nombre_completo', label: 'Paciente', title: true,
+        render: p => p.nombre_completo || p.nombre || '—',
+      },
+      {
+        key: 'estado', label: 'Estado', badge: true,
+        render: p => (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(p.estado) : p.estado) || '—',
+      },
+      { key: 'documento', label: 'Cédula', render: p => p.documento || '—' },
+      { key: 'codigo', label: 'H. clínica', render: p => p.codigo || '—' },
+      { key: 'edad', label: 'Edad', render: p => p.edad ?? '—' },
+    ],
+    actionsHtml: (_p, id) =>
+      `<button type="button" class="btn btn-primary btn-sm" data-exp="${id}">Expediente</button>` +
+      `<button type="button" class="btn btn-ghost btn-sm" data-edit="${id}">Editar</button>` +
+      `<button type="button" class="btn btn-ghost btn-sm" data-pred="${id}">Predicción</button>` +
+      `<button type="button" class="btn btn-ghost btn-sm" data-del="${id}">Baja</button>`,
   });
-  h += '</tbody></table>';
-  document.getElementById('tablaBody').innerHTML = h;
+  body.querySelectorAll('[data-exp]').forEach(btn => {
+    btn.onclick = () => verExpediente(btn.getAttribute('data-exp'));
+  });
+  body.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.onclick = () => editar(btn.getAttribute('data-edit'));
+  });
+  body.querySelectorAll('[data-pred]').forEach(btn => {
+    btn.onclick = () => irPrediccion(btn.getAttribute('data-pred'));
+  });
+  body.querySelectorAll('[data-del]').forEach(btn => {
+    btn.onclick = () => baja(btn.getAttribute('data-del'));
+  });
+  pintarPager();
+}
+
+function pintarPager() {
+  if (!window.DiabCareAPI) return;
+  DiabCareAPI.renderPager(document.getElementById('dataPager') || DiabCareAPI.ensurePagerHost(), {
+    page: pag,
+    pageSize: LIMIT,
+    total: _totalRows,
+    onPage: (p) => { pag = p; cargar(); },
+  });
 }
 
 function marcarFotoLocal(idPaciente, src) {
@@ -325,19 +347,44 @@ async function cargarResumen() {
   document.getElementById('st-inactivos').textContent = d.inactivos ?? 0;
 }
 
+let _buscaSeq = 0;
+
 async function cargar() {
   const q = document.getElementById('f-q').value.trim();
-  const url = `${API}/api/pacientes/?offset=${(pag-1)*50}&limit=50&q=${encodeURIComponent(q)}`;
-  const r = await fetch(url, { headers: authHdr() });
-  if (r.status === 401) { window.location.href = '/'; return; }
-  const data = await r.json();
-  _rows = data.pacientes || [];
-  _rows.forEach(p => {
-    if (pacienteTieneFoto(p) && !_fotoLocal[p.id_paciente]) {
-      _fotoBust[p.id_paciente] = _fotoBust[p.id_paciente] || Date.now();
+  const seq = ++_buscaSeq;
+  const url = `${API}/api/pacientes/?offset=${(pag-1)*LIMIT}&limit=${LIMIT}&q=${encodeURIComponent(q)}&_=${Date.now()}`;
+  const cuerpo = document.getElementById('tablaBody');
+  if (q) {
+    cuerpo.innerHTML = '<div class="loading"><div class="spinner"></div>Buscando…</div>';
+  }
+  try {
+    const r = await fetch(url, { headers: authHdr(), cache: 'no-store' });
+    if (r.status === 401) { window.location.href = '/'; return; }
+    if (seq !== _buscaSeq) return;
+    const data = await r.json();
+    _rows = data.pacientes || [];
+    _totalRows = Number(data.total ?? data.resumen?.total ?? _rows.length) || 0;
+    if (data.resumen) {
+      document.getElementById('st-total').textContent = data.resumen.total ?? data.total ?? 0;
+      document.getElementById('st-activos').textContent = data.resumen.activos ?? 0;
+      document.getElementById('st-inactivos').textContent = data.resumen.inactivos ?? 0;
     }
-  });
-  renderTabla();
+    _rows.forEach(p => {
+      if (pacienteTieneFoto(p) && !_fotoLocal[p.id_paciente]) {
+        _fotoBust[p.id_paciente] = _fotoBust[p.id_paciente] || Date.now();
+      }
+    });
+    if (!_rows.length && q) {
+      cuerpo.innerHTML = `<div class="loading">Sin coincidencias para “${q.replace(/[<>&]/g, '')}”</div>`;
+      pintarPager();
+      return;
+    }
+    renderTabla();
+  } catch {
+    if (seq !== _buscaSeq) return;
+    cuerpo.innerHTML = '<div class="loading">Error al buscar</div>';
+    pintarPager();
+  }
 }
 
 function previewFoto(input) {
@@ -382,7 +429,6 @@ function abrirModal(p) {
   document.getElementById('m-genero').value = p?.genero || 'Femenino';
   document.getElementById('m-telefono').value = p?.telefono || '';
   document.getElementById('m-email').value = p?.email || '';
-  document.getElementById('m-sede').value = p?.sede || 'Sede principal';
   document.getElementById('m-notas').value = p?.notas || '';
   if (p?.tiene_foto && p?.id_paciente) {
     document.getElementById('foto-preview-wrap').style.display = 'block';
@@ -406,15 +452,14 @@ function renderExpedienteDatos(p) {
     foto.removeAttribute('src');
     foto.style.display = 'none';
   }
-  document.getElementById('exp-nombre').textContent = p.nombre_completo || `${p.nombre || ''} ${p.apellido || ''}`.trim() || '—';
-  document.getElementById('exp-codigo').textContent = `${p.codigo || '—'} · ${p.documento || 'Sin documento'} · ${p.estado || '—'}`;
+  document.getElementById('exp-nombre').textContent = p.nombre_completo || `${p.nombre || ''} ${p.apellido || ''}`.trim() || '-';
+  document.getElementById('exp-codigo').textContent = `Cédula ${p.documento || '-'} · H. clínica ${p.codigo || '-'} · ${p.estado || '-'}`;
   const campos = [
-    ['Edad', p.edad ?? '—'],
-    ['Género', p.genero || '—'],
-    ['Teléfono', p.telefono || '—'],
-    ['Email', p.email || '—'],
-    ['Sede', p.sede || '—'],
-    ['Notas', p.notas || '—'],
+    ['Edad', p.edad ?? '-'],
+    ['Género', p.genero || '-'],
+    ['Teléfono', p.telefono || '-'],
+    ['Email', p.email || '-'],
+    ['Notas', p.notas || '-'],
   ];
   document.getElementById('exp-datos').innerHTML = campos.map(([k, v]) =>
     `<div><span>${k}</span>${v}</div>`).join('');
@@ -434,18 +479,22 @@ async function cargarConsultasExpediente(id) {
     box.innerHTML = '<div class="loading">Sin consultas registradas. Use «Nueva consulta» para documentar la atención.</div>';
     return;
   }
-  let h = '<table class="tabla"><thead><tr><th>Fecha</th><th>HbA1c</th><th>Glucosa</th><th>IMC</th><th>Diabetes</th></tr></thead><tbody>';
-  rows.forEach(c => {
-    h += `<tr>
-      <td>${c.fecha || c.encounter_date || '—'}</td>
-      <td>${c.hba1c ?? c.HbA1c ?? '—'}</td>
-      <td>${c.glucosa ?? c.glucose ?? '—'}</td>
-      <td>${c.imc ?? c.bmi ?? '—'}</td>
-      <td>${c.diabetes ?? '—'}</td>
-    </tr>`;
+  box.innerHTML = DiabCareAPI.buildDataGrid({
+    rows,
+    showAvatar: false,
+    columns: [
+      { key: 'fecha', label: 'Fecha', title: true, render: c => c.fecha || c.encounter_date || '—' },
+      { key: 'diabetes', label: 'Diabetes', badge: true, render: c => {
+        const d = c.diabetes;
+        if (d === 1 || d === '1' || d === true || d === 'Sí' || d === 'si') return 'Sí';
+        if (d === 0 || d === '0' || d === false || d === 'No' || d === 'no') return 'No';
+        return d ?? '—';
+      }},
+      { key: 'hba1c', label: 'HbA1c', render: c => c.hba1c ?? c.HbA1c ?? '—' },
+      { key: 'glucosa', label: 'Glucosa', render: c => c.glucosa ?? c.glucose ?? '—' },
+      { key: 'imc', label: 'IMC', render: c => c.imc ?? c.bmi ?? '—' },
+    ],
   });
-  h += '</tbody></table>';
-  box.innerHTML = h;
 }
 
 async function verExpediente(id) {
@@ -481,7 +530,7 @@ async function guardar() {
     genero: document.getElementById('m-genero').value,
     telefono: document.getElementById('m-telefono').value.trim(),
     email: document.getElementById('m-email').value.trim(),
-    sede: document.getElementById('m-sede').value.trim(),
+    sede: 'Sede principal',
     notas: document.getElementById('m-notas').value.trim(),
   };
   const url = id ? `${API}/api/pacientes/${id}` : `${API}/api/pacientes/`;
@@ -497,13 +546,12 @@ async function guardar() {
   const foto = await subirFoto(pid);
 
   actualizarFilaPaciente(pid, {
-    codigo: id ? (_rows.find(x => x.id_paciente === pid)?.codigo || '—') : (d.codigo || '—'),
+    codigo: id ? (_rows.find(x => x.id_paciente === pid)?.codigo || '-') : (d.codigo || '-'),
     nombre: body.nombre,
     apellido: body.apellido,
     nombre_completo: nombreCompleto,
     documento: body.documento,
     edad: body.edad,
-    sede: body.sede,
     tiene_foto: (foto.ok && foto.subida) ? true : !!(_rows.find(x => x.id_paciente === pid)?.tiene_foto),
   });
 
@@ -513,7 +561,6 @@ async function guardar() {
     toast(id ? 'Paciente actualizado' : 'Paciente creado');
   }
   cerrarModal();
-  cargarResumen();
   cargar();
 }
 
@@ -527,11 +574,13 @@ async function baja(id) {
   const r = await fetch(`${API}/api/pacientes/${id}`, { method: 'DELETE', headers: authHdr() });
   if (!r.ok) { toast('No se pudo desactivar', 'error'); return; }
   toast('Paciente desactivado');
-  cargarResumen();
   cargar();
 }
 
-cargarResumen();
+DiabCareAPI.bindLiveSearch({
+  input: document.getElementById('f-q'),
+  onSearch: () => { pag = 1; return cargar(); },
+});
 cargar();
 </script>
 </body>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Consulta clínica</title>
+<title>DiabCare - Consulta clínica</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -134,7 +134,7 @@
     <div class="pred-grid">
       <!-- Formulario predicción -->
       <div class="pred-card">
-        <div class="pred-title">Datos del paciente — CU22: Predecir riesgo diabetes</div>
+        <div class="pred-title">Datos del paciente - Predecir riesgo de diabetes</div>
         <div class="form-grid">
           <div class="fg">
             <label class="fl">Edad</label>
@@ -170,12 +170,12 @@
         <button class="btn btn-primary" onclick="predecir()" id="btnPredecir">Predecir diagnóstico</button>
 
         <div class="result-box" id="resultBox">
-          <div class="result-diag" id="resultDiag">—</div>
+          <div class="result-diag" id="resultDiag">-</div>
           <div class="prob-track"><div class="prob-fill" id="probFill" style="width:0%"></div></div>
-          <div style="font-size:10px;color:var(--muted,var(--text3));margin-bottom:12px;font-family:var(--mono)" id="probLabel">—</div>
-          <div class="result-row"><span class="result-label">Probabilidad de diabetes</span><span class="result-val" id="rProbabilidad">—</span></div>
-          <div class="result-row"><span class="result-label">Nivel de riesgo</span><span class="result-val" id="rRiesgo">—</span></div>
-          <div class="result-row"><span class="result-label">Diagnóstico</span><span class="result-val" id="rDiag">—</span></div>
+          <div style="font-size:10px;color:var(--muted,var(--text3));margin-bottom:12px;font-family:var(--mono)" id="probLabel">-</div>
+          <div class="result-row"><span class="result-label">Probabilidad de diabetes</span><span class="result-val" id="rProbabilidad">-</span></div>
+          <div class="result-row"><span class="result-label">Nivel de riesgo</span><span class="result-val" id="rRiesgo">-</span></div>
+          <div class="result-row"><span class="result-label">Diagnóstico</span><span class="result-val" id="rDiag">-</span></div>
           <div id="factoresBox" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
             <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Factores clínicos detectados</div>
             <div id="factoresList"></div>
@@ -183,16 +183,8 @@
         </div>
       </div>
 
-      <!-- Guía clínica -->
       <div class="pred-card">
-        <div class="pred-title">Guía clínica de interpretación</div>
-        <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:16px">
-          Esta pantalla es para el <strong style="color:var(--text)">médico</strong>: ingresa variables del paciente
-          y obtienes probabilidad de diabetes y nivel de riesgo. La gestión técnica del modelo
-          (métricas, reentrenamiento, historial) está en
-          <a href="/paginas/datos/modelo_ml/index.html" class="link-gestion">Modelo ML → Gestión y entrenamiento</a>.
-        </p>
-        <div class="pred-title" style="margin-bottom:12px">Umbrales de referencia</div>
+        <div class="pred-title">Umbrales de referencia</div>
           <div class="info-row"><span class="info-label">HbA1c &gt; 6.5%</span><span class="info-val" style="color:rgba(248,113,113,0.8)">Indica diabetes</span></div>
           <div class="info-row"><span class="info-label">Glucosa &gt; 200 mg/dL</span><span class="info-val" style="color:rgba(248,113,113,0.8)">Indica diabetes</span></div>
           <div class="info-row"><span class="info-label">BMI &gt; 30</span><span class="info-val" style="color:rgba(251,191,36,0.8)">Factor de riesgo</span></div>
@@ -206,6 +198,7 @@
 
 <script>
 DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico', 'analista']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 
@@ -235,18 +228,18 @@ async function cargarEstado() {
     if (d.modelo_disponible) {
       document.getElementById('noModelo').classList.remove('show');
       pill.className = 'modelo-pill ok';
-      pill.textContent = '● Modelo listo para predecir';
-      hint.textContent = 'RandomForest activo — puedes consultar pacientes.';
+      pill.textContent = '● Modelo listo';
+      hint.textContent = 'Modelo disponible';
     } else {
       document.getElementById('noModelo').classList.add('show');
       pill.className = 'modelo-pill warn';
       pill.textContent = '● Modelo no disponible';
-      hint.textContent = 'Entrena el modelo antes de hacer predicciones clínicas.';
+      hint.textContent = 'Modelo no entrenado';
     }
   } catch {
     pill.className = 'modelo-pill warn';
     pill.textContent = '● Sin conexión';
-    hint.textContent = 'No se pudo verificar el estado del modelo.';
+    hint.textContent = 'Estado del modelo no disponible';
   }
 }
 

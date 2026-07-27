@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare - Facturación</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<style>
+.caja-shell { width: 100%; max-width: none; box-sizing: border-box; }
+.content.caja-shell { padding: 16px 18px 20px; }
+.caja-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.caja-brand {
+  flex: 1 1 320px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: none;
+}
+.caja-kicker {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .14em;
+  color: var(--cyan); font-weight: 650; margin-bottom: 6px;
+}
+.caja-brand .page-title { margin: 0 0 4px; }
+.caja-brand .page-sub { margin: 0; }
+.caja-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.analista-note {
+  font-size: 12px; color: var(--muted); margin: 0 0 10px;
+}
+.kpi-row { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+@media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(2,1fr); } }
+.kpi-card { padding: 14px 16px; }
+.kpi-card .kpi-val { min-height: 28px; font-size: 24px; }
+.crud-tabs {
+  display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; padding:6px;
+  border:1px solid var(--border); border-radius:10px; background:rgba(0,0,0,.25);
+}
+.crud-tabs .btn { border-radius:8px; min-width:96px; }
+.tabla-card {
+  border-radius: 12px;
+  width: 100%;
+}
+.tabla-wrap { width: 100%; }
+.tabla { width: 100%; }
+.money { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.badge-estado {
+  display:inline-block; font-size:10px; font-family:var(--mono);
+  padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.04em;
+}
+.badge-estado.pagada { background:rgba(74,222,128,.12); color:#4ade80; border:1px solid rgba(74,222,128,.3); }
+.badge-estado.emitida { background:rgba(251,191,36,.12); color:#fbbf24; border:1px solid rgba(251,191,36,.3); }
+.badge-estado.anulada { background:rgba(248,113,113,.12); color:#f87171; border:1px solid rgba(248,113,113,.3); }
+.pac-cell { display:flex; flex-direction:column; gap:2px; }
+.pac-cell strong { font-size:12px; font-weight:600; color:var(--text); }
+.pac-cell span { font-size:10px; font-family:var(--mono); color:var(--muted); }
+.pagos-lista { display:flex; flex-direction:column; gap:8px; max-height:280px; overflow:auto; }
+.pago-row {
+  display:flex; justify-content:space-between; gap:12px;
+  padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-size:12px;
+}
+.pago-row .muted { color: var(--muted); }
+.empty-caja {
+  text-align:center; padding:36px 16px; color:var(--muted); font-size:13px; line-height:1.5;
+}
+.empty-caja strong { color: var(--text); display:block; margin-bottom:6px; }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Facturación</span>
+  </div>
+  <div class="content caja-shell">
+    <div class="caja-top">
+      <div class="caja-brand">
+        <div class="caja-kicker">Negocio hospitalario · caja</div>
+        <div class="page-title">Caja <span>y facturación</span></div>
+        <div class="page-sub" id="pageSub">Cobros y cartera</div>
+      </div>
+      <div class="caja-actions">
+        <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
+        <a class="btn btn-ghost btn-sm" href="/paginas/clinico/agenda/index.html">Agenda (turnos)</a>
+        <a class="btn btn-ghost btn-sm" href="/paginas/negocio/farmacia/index.html">Mostrador farmacia</a>
+        <button class="btn btn-primary btn-sm" id="btnNuevoFac" onclick="abrirModal()">+ Emitir / cobrar</button>
+      </div>
+    </div>
+    <p class="analista-note" id="analistaNote" style="display:none">Solo consulta · sin emitir ni cobrar</p>
+
+    <div class="kpi-row" id="kpisCaja">
+      <div class="kpi-card cyan">
+        <div class="kpi-label">Facturado</div>
+        <div class="kpi-val cyan money" id="k-emitido">$0.00</div>
+        <div class="kpi-sub" id="k-total-n">0 documentos</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Cobrado</div>
+        <div class="kpi-val green money" id="k-pagado">$0.00</div>
+        <div class="kpi-sub" id="k-pagadas-n">0 pagadas</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Por cobrar</div>
+        <div class="kpi-val amber money" id="k-pendiente">$0.00</div>
+        <div class="kpi-sub" id="k-emitidas-n">0 emitidas</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-label">Anuladas</div>
+        <div class="kpi-val red" id="k-anuladas">0</div>
+        <div class="kpi-sub">fuera de caja</div>
+      </div>
+    </div>
+
+    <div class="crud-tabs" id="crudTabs"></div>
+    <div class="tabla-card">
+      <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Abriendo caja…</div></div></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+<div id="modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span id="modal-titulo">Nuevo</span></div>
+    <div class="modal-body form-modal-grid" id="modalFields"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="btnGuardarFac" onclick="guardarCrud()">Guardar</button>
+    </div>
+  </div>
+</div>
+<div id="modalPagos" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span>Detalle de cobros</span></div>
+    <div class="modal-body">
+      <div id="pagosDetalle" class="pagos-lista"><div class="loading">Cargando…</div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarPagos()">Cerrar</button>
+    </div>
+  </div>
+</div>
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador','analista','farmaceutico']);
+
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+const hdr = () => ({ Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' });
+const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+const esAnalista = (u.rol || '') === 'analista';
+const readOnly = esAnalista;
+
+if (esAnalista) {
+  document.getElementById('analistaNote').style.display = '';
+  document.getElementById('btnNuevoFac').style.display = 'none';
+  document.getElementById('btnSeed').style.display = 'none';
+}
+
+function cerrarPagos() {
+  document.getElementById('modalPagos').style.display = 'none';
+}
+
+function money(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '$0.00';
+  return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function esc(s) {
+  return String(s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+}
+function badgeEstado(est) {
+  const e = String(est || 'emitida').toLowerCase();
+  const cls = e.includes('pagad') ? 'pagada' : (e.includes('anul') ? 'anulada' : 'emitida');
+  const label = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.capLabel)
+    ? DiabCareAPI.capLabel(e)
+    : (e.charAt(0).toUpperCase() + e.slice(1));
+  return `<span class="badge-estado ${cls}">${label}</span>`;
+}
+function cellPaciente(row) {
+  const raw = row.paciente_nombre && row.paciente_nombre !== '-'
+    ? row.paciente_nombre
+    : (row.paciente_label || 'Paciente');
+  const nom = esc(String(raw).split(' · ')[0]);
+  const doc = esc(row.paciente_documento || '');
+  return `<div class="pac-cell"><strong>${nom}</strong>${doc ? `<span>CI ${doc}</span>` : ''}</div>`;
+}
+
+async function cargarKpis() {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 12000);
+    const r = await fetch(`${API}/api/facturacion/resumen`, { headers: hdr(), cache: 'no-store', signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok) {
+      document.getElementById('k-total-n').textContent = 'sin resumen API';
+      return;
+    }
+    const d = await r.json();
+    document.getElementById('k-emitido').textContent = money(d.monto_emitido);
+    document.getElementById('k-pagado').textContent = money(d.monto_pagado);
+    document.getElementById('k-pendiente').textContent = money(d.monto_pendiente);
+    document.getElementById('k-anuladas').textContent = d.anuladas ?? 0;
+    document.getElementById('k-total-n').textContent = `${d.total_facturas ?? 0} documentos`;
+    document.getElementById('k-pagadas-n').textContent = `${d.pagadas ?? 0} pagadas`;
+    document.getElementById('k-emitidas-n').textContent = `${d.emitidas ?? 0} por cobrar`;
+  } catch (_) {
+    document.getElementById('k-total-n').textContent = 'reintente · API/MinIO';
+  }
+}
+
+window.seedModulo = async function() {
+  const r = await fetch(`${API}/api/facturacion/seed`, { method: 'POST', headers: hdr() });
+  const d = await r.json().catch(() => ({}));
+  const t = document.getElementById('toast');
+  document.getElementById('t-msg').textContent = r.ok ? (d.mensaje || 'Catálogo listo') : (d.detail || 'Error al cargar catálogo');
+  document.getElementById('t-icon').textContent = r.ok ? '✓' : '✗';
+  t.className = `toast ${r.ok ? 'success' : 'error'} show`;
+  setTimeout(() => t.classList.remove('show'), 2800);
+  if (r.ok) {
+    cargarKpis();
+    const h = window.__facHandle;
+    if (h && h.cargar) h.cargar();
+  }
+};
+
+const pacLookup = {
+  field: 'id_paciente', url: '/api/pacientes/?limit=12', listKey: 'pacientes',
+  idKey: 'id_paciente', typeahead: true,
+  label: p => {
+    const nom = p.nombre_completo || ((p.nombre||'') + ' ' + (p.apellido||'')).trim() || 'Paciente';
+    return p.documento ? `${nom} · ${p.documento}` : nom;
+  }
+};
+const segLookup = {
+  field: 'id_seguro', url: '/api/seguros?limit=100', listKey: 'seguros',
+  idKey: 'id_seguro', labelKey: 'nombre'
+};
+
+DiabCareCrud.mountTabs({
+  seedBtnId: 'btnSeed',
+  onTab(tab) {
+    cargarKpis();
+    const btn = document.getElementById('btnNuevoFac');
+    if (btn && !esAnalista) {
+      btn.style.display = (tab.hideCreate || tab.id === 'cobro-consulta') ? 'none' : '';
+    }
+  },
+  tabs: [
+    {
+      id: 'cobro-consulta',
+      label: 'Cobro consulta',
+      sub: 'Todos los turnos',
+      listUrl: '/api/citas/',
+      listKey: 'citas',
+      idField: 'id_cita',
+      itemUrl: id => '/api/citas/' + id,
+      hideCreate: true, hideEdit: true, hideDelete: true,
+      readOnly: esAnalista,
+      searchPlaceholder: 'Paciente, médico o motivo…',
+      columns: [
+        { key: 'hora', label: 'Hora' },
+        { key: 'paciente_nombre', label: 'Paciente' },
+        { key: 'medico', label: 'Médico' },
+        { key: 'motivo', label: 'Motivo' },
+        { key: 'estado', label: 'Estado', render: r => esc(r.estado_label || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(r.estado) : r.estado) || '—') },
+        {
+          key: 'pago', label: 'Cobro',
+          render: r => r.consulta_pagada
+            ? '<span class="badge-estado pagada">Cobrada</span>'
+            : '<span class="badge-estado emitida">Pendiente</span>',
+        },
+      ],
+      fields: [],
+      rowActions: esAnalista ? [] : [{
+        id: 'cobrar',
+        label: 'Cobrar consulta',
+        show: (row) => !row.consulta_pagada
+          && !['cancelada', 'atendida', 'no_asistio'].includes(String(row.estado || '').toLowerCase()),
+        async onClick(row, ctx) {
+          const ok = typeof DiabCareAPI !== 'undefined'
+            ? await DiabCareAPI.confirm({
+                title: 'Cobrar consulta',
+                message: `Cobrar consulta a ${row.paciente_nombre || 'paciente'}?`,
+                confirmLabel: 'Cobrar',
+              })
+            : confirm('¿Cobrar consulta ahora?');
+          if (!ok) return;
+          const r = await fetch(`${ctx.API}/api/citas/${row.id_cita}/cobrar-consulta`, {
+            method: 'POST',
+            headers: ctx.hdr(),
+            body: JSON.stringify({ metodo: 'efectivo' }),
+          });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            const t = document.getElementById('toast');
+            document.getElementById('t-msg').textContent = d.detail || d.error || 'No se pudo cobrar';
+            document.getElementById('t-icon').textContent = '✗';
+            t.className = 'toast error show';
+            setTimeout(() => t.classList.remove('show'), 3200);
+            return;
+          }
+          const total = Number(d.total);
+          const t = document.getElementById('toast');
+          document.getElementById('t-msg').textContent = d.mensaje
+            || (Number.isFinite(total) ? `Consulta cobrada · $${total.toFixed(2)}` : 'Consulta cobrada');
+          document.getElementById('t-icon').textContent = '✓';
+          t.className = 'toast success show';
+          setTimeout(() => t.classList.remove('show'), 2800);
+          cargarKpis();
+          if (ctx.cargar) ctx.cargar();
+        },
+      }],
+      onLoaded(rows) {
+        cargarKpis();
+        const q = document.getElementById('crud-live-search')?.value?.trim();
+        if (!rows.length && !q) {
+          const body = document.getElementById('tablaBody');
+          if (body) {
+            body.innerHTML = `<div class="empty-caja">
+              <strong>Sin turnos</strong>
+              <a href="/paginas/clinico/agenda/index.html">Agenda</a>
+            </div>`;
+          }
+        }
+      },
+    },
+    {
+      id: 'facturas', label: 'Facturas', sub: 'Cartera',
+      listUrl: '/api/facturas', listKey: 'facturas', idField: 'id_factura',
+      itemUrl: id => '/api/facturas/' + id,
+      listLimit: 150,
+      searchPlaceholder: 'Cédula, paciente o estado…',
+      readOnly, seedUrl: '/api/facturacion/seed',
+      lookups: [pacLookup, segLookup],
+      columns: [
+        {key:'paciente', label:'Paciente', render: cellPaciente},
+        {key:'id_seguro', label:'Seguro', lookup:'id_seguro'},
+        {key:'total', label:'Total', render: r => `<span class="money">${money(r.total)}</span>`},
+        {key:'estado', label:'Estado', render: r => badgeEstado(r.estado)},
+        {key:'fecha', label:'Fecha'}
+      ],
+      fields: [
+        {key:'id_paciente', required:true, labelUi:'Paciente (cédula)', full:true},
+        {key:'id_seguro', labelUi:'Seguro / cobertura', full:true},
+        {key:'subtotal', type:'number', labelUi:'Subtotal (USD)', default:0},
+        {key:'descuento', type:'number', labelUi:'Descuento (USD)', default:0},
+        {key:'estado', as:'select', labelUi:'Estado', options:['emitida','pagada','anulada'], default:'emitida'},
+        {key:'fecha', type:'date', labelUi:'Fecha'}
+      ],
+      beforeSave(b){ b.id_orden_venta = b.id_orden_venta || ('ov-manual-' + Date.now()); },
+      onLoaded(rows) {
+        cargarKpis();
+        const q = document.getElementById('crud-live-search')?.value?.trim();
+        if (!rows.length && !q) {
+          const body = document.getElementById('tablaBody');
+          if (body) {
+            body.innerHTML = `<div class="empty-caja">
+              <strong>Sin facturas</strong>
+              Genere una venta en farmacia o use Cargar catálogo.
+            </div>`;
+          }
+        }
+      },
+      createTitle: 'Emitir factura'
+    },
+    {
+      id: 'seguros', label: 'Seguros', sub: 'Planes de cobertura',
+      listUrl: '/api/seguros', listKey: 'seguros', idField: 'id_seguro',
+      itemUrl: id => '/api/seguros/' + id,
+      searchPlaceholder: 'Buscar plan…',
+      readOnly, seedUrl: '/api/facturacion/seed',
+      columns: [
+        {key:'nombre', label:'Plan'},
+        {key:'cobertura_pct', label:'Cobertura', render: r => `<span class="money">${r.cobertura_pct ?? 0}%</span>`},
+        {key:'activo', label:'Activo'}
+      ],
+      fields: [
+        {key:'nombre', required:true, labelUi:'Nombre del plan', full:true},
+        {key:'cobertura_pct', type:'number', labelUi:'Cobertura %', default:0}
+      ],
+      createTitle: 'Nuevo seguro',
+      onLoaded(rows) {
+        const q = document.getElementById('crud-live-search')?.value?.trim();
+        if (!rows.length && !q) {
+          document.getElementById('tablaBody').innerHTML = `<div class="empty-caja">
+            <strong>Sin planes de seguro</strong>
+            Use Cargar catálogo.
+          </div>`;
+        }
+      }
+    },
+    {
+      id: 'tarifario', label: 'Tarifario', sub: 'Tarifas',
+      listUrl: '/api/tarifario', listKey: 'tarifas', idField: 'id_tarifa',
+      itemUrl: id => '/api/tarifario/' + id,
+      searchPlaceholder: 'Código o servicio…',
+      readOnly, seedUrl: '/api/facturacion/seed',
+      columns: [
+        {key:'codigo', label:'Código'},
+        {key:'descripcion', label:'Servicio'},
+        {key:'precio', label:'Precio', render: r => `<span class="money">${money(r.precio)}</span>`},
+        {key:'activo', label:'Activo'}
+      ],
+      fields: [
+        {key:'codigo', required:true, labelUi:'Código'},
+        {key:'descripcion', required:true, labelUi:'Descripción', full:true},
+        {key:'precio', type:'number', labelUi:'Precio (USD)', default:0}
+      ],
+      createTitle: 'Nueva tarifa',
+      onLoaded(rows) {
+        const q = document.getElementById('crud-live-search')?.value?.trim();
+        if (!rows.length && !q) {
+          document.getElementById('tablaBody').innerHTML = `<div class="empty-caja">
+            <strong>Tarifario vacío</strong>
+            Use Cargar catálogo.
+          </div>`;
+        }
+      }
+    },
+    {
+      id: 'pagos', label: 'Cobros', sub: 'Registrar pago',
+      listUrl: '/api/facturas', listKey: 'facturas', idField: 'id_factura',
+      itemUrl: id => '/api/pagos/' + id,
+      listLimit: 150,
+      searchPlaceholder: 'Cédula o paciente a cobrar…',
+      hideEdit: true, hideDelete: true,
+      readOnly,
+      createUrlFn: (b) => '/api/facturas/' + b.id_factura + '/pagos',
+      columns: [
+        {key:'paciente', label:'Paciente', render: cellPaciente},
+        {key:'total', label:'Total', render: r => `<span class="money">${money(r.total)}</span>`},
+        {key:'estado', label:'Estado', render: r => badgeEstado(r.estado)},
+        {key:'fecha', label:'Fecha'}
+      ],
+      fields: [
+        {key:'id_factura', required:true, labelUi:'Factura a cobrar', full:true},
+        {key:'monto', type:'number', labelUi:'Monto (USD)', required:true},
+        {key:'metodo', as:'select', labelUi:'Método', options:['efectivo','tarjeta','transferencia'], default:'efectivo'},
+        {key:'fecha', type:'date', labelUi:'Fecha'}
+      ],
+      lookups: [{
+        field: 'id_factura', url: '/api/facturas?limit=150', listKey: 'facturas',
+        idKey: 'id_factura',
+        label: f => `${f.paciente_label || 'Paciente'} · ${money(f.total)} · ${f.estado || ''}`
+      }],
+      rowActions: [{
+        id: 'ver-pagos', label: 'Ver cobros',
+        async onClick(row, ctx) {
+          const panel = document.getElementById('pagosDetalle');
+          panel.innerHTML = '<div class="loading">Cargando…</div>';
+          document.getElementById('modalPagos').style.display = 'flex';
+          const r = await fetch(`${ctx.API}/api/facturas/${row.id_factura}/pagos`, { headers: ctx.hdr() });
+          const d = await r.json().catch(() => ({}));
+          const pagos = d.pagos || [];
+          if (!pagos.length) {
+            panel.innerHTML = '<div class="muted">Sin cobros registrados.</div>';
+            return;
+          }
+          const suma = pagos.reduce((a, p) => a + (parseFloat(p.monto) || 0), 0);
+          panel.innerHTML = pagos.map(p =>
+            `<div class="pago-row">
+              <div><div>${p.metodo || 'pago'}</div><div class="muted">${p.fecha || '-'}</div></div>
+              <div class="money">${money(p.monto)}</div>
+            </div>`
+          ).join('') +
+          `<div class="pago-row"><span class="muted">Cobrado</span><strong class="money">${money(suma)}</strong></div>
+           <div class="pago-row"><span class="muted">Factura</span><strong class="money">${money(row.total)}</strong></div>`;
+        }
+      }],
+      createTitle: 'Registrar cobro',
+      beforeSave(b) {
+        if (!b.id_factura) return { error: 'Seleccione factura' };
+        if (!(parseFloat(b.monto) > 0)) return { error: 'Ingrese un monto válido' };
+      },
+      onLoaded: () => cargarKpis()
+    }
+  ]
+}).then(api => {
+  window.__facHandle = api.getHandle();
+  window.__facSwitch = api.switchTab;
+});
+
+cargarKpis();
+</script>
+</body>
+</html>

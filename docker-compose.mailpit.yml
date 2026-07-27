@@ -1,0 +1,12 @@
+# Mailpit — SMTP de desarrollo (open source, gratis, local)
+# Uso: docker compose -f docker-compose.mailpit.yml up -d
+# UI de bandeja: http://127.0.0.1:8025
+# SMTP: 127.0.0.1:1025 (sin TLS / sin auth)
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: diabcare-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped

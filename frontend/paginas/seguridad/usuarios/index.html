@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Usuarios</title>
+<title>DiabCare - Usuarios</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -29,6 +29,8 @@ tbody td { padding:12px 16px; color:var(--text2); }
 .badge-admin    { background:rgba(139,92,246,0.12); color:rgba(167,139,250,0.9); border:1px solid rgba(139,92,246,0.25); }
 .badge-medico   { background:rgba(74,222,128,0.1);  color:rgba(74,222,128,0.85);  border:1px solid rgba(74,222,128,0.25); }
 .badge-analista { background:rgba(34,211,238,0.1);  color:rgba(103,232,249,0.9);  border:1px solid rgba(34,211,238,0.25); }
+.badge-enfermero { background:rgba(251,191,36,0.1); color:rgba(252,211,77,0.95); border:1px solid rgba(251,191,36,0.3); }
+.badge-farmaceutico { background:rgba(52,211,153,0.1); color:rgba(110,231,183,0.95); border:1px solid rgba(52,211,153,0.3); }
 .badge-activo   { background:rgba(74,222,128,0.08); color:rgba(74,222,128,0.8);   border:1px solid rgba(74,222,128,0.2); }
 .badge-inactivo { background:rgba(248,113,113,0.08); color:rgba(248,113,113,0.8);   border:1px solid rgba(248,113,113,0.2); }
 .acciones { display:flex; gap:6px; }
@@ -77,28 +79,39 @@ tbody td { padding:12px 16px; color:var(--text2); }
     </div>
 
     <div class="stats-grid" style="margin-bottom:18px;">
-      <div class="stat-card"><div class="stat-label">Total usuarios</div><div class="stat-value blue" id="k-total">—</div></div>
-      <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value green" id="k-activos">—</div></div>
-      <div class="stat-card"><div class="stat-label">Inactivos</div><div class="stat-value red" id="k-inactivos">—</div></div>
-      <div class="stat-card"><div class="stat-label">Administradores</div><div class="stat-value amber" id="k-admins">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total usuarios</div><div class="stat-value blue" id="k-total">-</div></div>
+      <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value green" id="k-activos">-</div></div>
+      <div class="stat-card"><div class="stat-label">Inactivos</div><div class="stat-value red" id="k-inactivos">-</div></div>
+      <div class="stat-card"><div class="stat-label">Admins sistema</div><div class="stat-value amber" id="k-admins">-</div></div>
     </div>
 
     <div class="u-tabla-wrap solicitudes-wrap">
       <div class="u-tabla-top">
         <strong style="font-size:13px;color:var(--text)">Solicitudes de acceso pendientes</strong>
         <button class="btn btn-ghost btn-sm" onclick="cargarSolicitudes()">↺ Recargar</button>
-        <span class="u-info" id="sol-info">—</span>
+        <span class="u-info" id="sol-info">-</span>
       </div>
       <div id="solicitudesBody">
         <div class="loading"><div class="spinner"></div>Cargando solicitudes...</div>
       </div>
     </div>
 
+    <div class="u-tabla-wrap" style="margin-bottom:18px;">
+      <div class="u-tabla-top">
+        <strong style="font-size:13px;color:var(--text)">Sesiones activas</strong>
+        <button class="btn btn-ghost btn-sm" onclick="cargarSesionesAdmin()">↺ Recargar</button>
+        <span class="u-info" id="ses-info">-</span>
+      </div>
+      <div id="sesionesAdminBody">
+        <div class="loading"><div class="spinner"></div>Cargando sesiones...</div>
+      </div>
+    </div>
+
     <div class="u-tabla-wrap">
       <div class="u-tabla-top">
-        <input class="u-search" id="busqueda" type="search" autocomplete="off" placeholder="Buscar por nombre o email..." oninput="filtrar()">
+        <input class="u-search" id="busqueda" type="search" autocomplete="off" placeholder="Escribe nombre, email o rol…">
         <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Recargar</button>
-        <span class="u-info" id="u-info">—</span>
+        <span class="u-info" id="u-info">-</span>
       </div>
       <div id="tablaBody">
         <div class="loading"><div class="spinner"></div>Cargando usuarios...</div>
@@ -119,13 +132,37 @@ tbody td { padding:12px 16px; color:var(--text2); }
       <label class="fl">Rol</label>
       <select class="fs" id="f-rol">
         <option value="medico">Médico</option>
+        <option value="enfermero">Enfermero</option>
+        <option value="farmaceutico">Farmacéutico (admin. clínica)</option>
         <option value="analista">Analista</option>
-        <option value="administrador">Administrador</option>
+        <option value="administrador">Admin de sistema (app)</option>
       </select>
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="btnGuardar" onclick="guardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalAprobar">
+  <div class="modal">
+    <div class="modal-title">Aprobar <span>acceso</span></div>
+    <p id="aprobarSub" style="font-size:12px;color:var(--text2);margin:0 0 16px;line-height:1.45"></p>
+    <div class="fg">
+      <label class="fl">Rol a asignar</label>
+      <select class="fs" id="aprobar-rol">
+        <option value="medico">Médico</option>
+        <option value="enfermero">Enfermero</option>
+        <option value="farmaceutico">Farmacéutico (admin. clínica)</option>
+        <option value="analista">Analista</option>
+        <option value="administrador">Admin de sistema (app)</option>
+      </select>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin:0 0 8px">Se generará una contraseña temporal y se enviará por correo (o se mostrará aquí si el correo está desactivado).</p>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="cerrarAprobar()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="btnConfirmarAprobar" onclick="confirmarAprobar()">Aprobar y enviar credenciales</button>
     </div>
   </div>
 </div>
@@ -150,28 +187,12 @@ function initUser() {
   const u = JSON.parse(localStorage.getItem('usuario') || '{}');
   if (u.nombre) {
     document.getElementById('userName').textContent   = u.nombre;
-    document.getElementById('userRol').textContent    = u.rol || '';
+    document.getElementById('userRol').textContent    = DiabCareNav.etiquetaRol(u.rol);
     document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
   }
 }
 
 function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
-
-function aplicarRoles() {
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  const rol = u.rol || '';
-  const OCULTAR = {
-    'medico':   ['Dataset','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-    'analista': ['Registros clínicos','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-  };
-  const ocultar = OCULTAR[rol] || [];
-  document.querySelectorAll('.nav-group').forEach(g => {
-    const label = g.querySelector('.nav-group-label');
-    if (!label) return;
-    const txt = label.textContent.trim();
-if (ocultar.some(o => txt.includes(o))) g.style.display = 'none';
-  });
-}
 
 function toast(msg, type = 'success') {
   const t = document.getElementById('toast');
@@ -182,8 +203,17 @@ function toast(msg, type = 'success') {
 }
 
 function badgeRol(rol) {
-  const cls = rol === 'administrador' ? 'badge-admin' : rol === 'medico' ? 'badge-medico' : 'badge-analista';
-  return `<span class="badge ${cls}">${rol}</span>`;
+  const map = {
+    administrador: 'badge-admin',
+    medico: 'badge-medico',
+    analista: 'badge-analista',
+    enfermero: 'badge-enfermero',
+    farmaceutico: 'badge-farmaceutico',
+  };
+  const cls = map[rol] || 'badge-analista';
+  const label = (typeof DiabCareNav !== 'undefined' && DiabCareNav.etiquetaRol)
+    ? DiabCareNav.etiquetaRol(rol) : rol;
+  return `<span class="badge ${cls}">${label}</span>`;
 }
 
 function renderTabla(data) {
@@ -198,7 +228,7 @@ function renderTabla(data) {
   data.forEach((u, i) => {
     const color  = COLORES[i % COLORES.length];
     const inicial = (u.nombre || '?')[0].toUpperCase();
-    const fecha  = u.creado_en ? u.creado_en.split('T')[0] : '—';
+    const fecha  = u.creado_en ? u.creado_en.split('T')[0] : '-';
     h += `<tr>
       <td><div style="display:flex;align-items:center;gap:10px;">
         <div class="u-avatar" style="background:${color}">${inicial}</div>
@@ -252,12 +282,12 @@ function renderSolicitudes(data) {
     <th>Solicitante</th><th>Email</th><th>Rol solicitado</th><th>Motivo</th><th>Fecha</th><th>Acciones</th>
   </tr></thead><tbody>`;
   data.forEach(s => {
-    const fecha = s.creado_en ? s.creado_en.split('T')[0] : '—';
+    const fecha = s.creado_en ? s.creado_en.split('T')[0] : '-';
     h += `<tr>
       <td class="td-nombre">${s.nombre}</td>
       <td class="td-email">${s.email}</td>
       <td>${badgeRol(s.rol_solicitado || 'analista')}</td>
-      <td style="max-width:220px;font-size:11px;color:var(--text2)">${s.motivo || '—'}</td>
+      <td style="max-width:220px;font-size:11px;color:var(--text2)">${s.motivo || '-'}</td>
       <td class="td-fecha">${fecha}</td>
       <td><div class="acciones">
         <button class="btn-aprob" onclick="aprobarSolicitud('${s.id}','${s.rol_solicitado || 'analista'}','${s.nombre}')">Aprobar</button>
@@ -269,21 +299,68 @@ function renderSolicitudes(data) {
   document.getElementById('solicitudesBody').innerHTML = h;
 }
 
+let pendienteAprobar = null;
+
 async function aprobarSolicitud(id, rol, nombre) {
-  const rolFinal = prompt(`Aprobar acceso de ${nombre}. Rol a asignar:`, rol || 'analista');
-  if (!rolFinal) return;
-  const r = await fetch(`${API}/api/usuarios/solicitudes/${id}/aprobar`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-    body: JSON.stringify({ rol: rolFinal.trim() })
-  });
-  const d = await r.json();
-  cargarSolicitudes(); cargar();
-  toast(r.ok ? `Acceso aprobado para ${nombre}` : (d.detail || 'Error'), r.ok ? 'success' : 'error');
+  pendienteAprobar = { id, nombre };
+  const rolesOk = ['medico', 'enfermero', 'farmaceutico', 'analista', 'administrador'];
+  const rolIni = rolesOk.includes((rol || '').toLowerCase()) ? (rol || '').toLowerCase() : 'farmaceutico';
+  document.getElementById('aprobarSub').textContent =
+    `Confirmar acceso para ${nombre}. Se creará la cuenta y se enviarán las credenciales temporales.`;
+  document.getElementById('aprobar-rol').value = rolIni;
+  document.getElementById('modalAprobar').classList.add('show');
+}
+
+function cerrarAprobar() {
+  pendienteAprobar = null;
+  document.getElementById('modalAprobar').classList.remove('show');
+}
+
+async function confirmarAprobar() {
+  if (!pendienteAprobar) return;
+  const { id, nombre } = pendienteAprobar;
+  const rolFinal = document.getElementById('aprobar-rol').value;
+  const btn = document.getElementById('btnConfirmarAprobar');
+  btn.disabled = true;
+  btn.textContent = 'Aprobando…';
+  try {
+    const r = await fetch(`${API}/api/usuarios/solicitudes/${id}/aprobar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ rol: rolFinal })
+    });
+    const d = await r.json();
+    cerrarAprobar();
+    cargarSolicitudes(); cargar(); cargarSesionesAdmin();
+    if (!r.ok) {
+      toast(d.detail || 'Error', 'error');
+      return;
+    }
+    let msg = d.mensaje || `Acceso aprobado para ${nombre}`;
+    if (d.email_error) {
+      msg += ` · Error correo: ${d.email_error}`;
+    }
+    if (d.password_temp_dev) {
+      msg += ` · Clave temporal: ${d.password_temp_dev}`;
+    }
+    toast(msg, d.email_enviado ? 'success' : 'error');
+  } catch {
+    toast('Error de conexión', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Aprobar y enviar credenciales';
+  }
 }
 
 async function rechazarSolicitud(id, nombre) {
-  if (!confirm(`¿Rechazar la solicitud de ${nombre}?`)) return;
+  const ok = await DiabCareAPI.confirm({
+    title: 'Rechazar solicitud',
+    message: `¿Rechazar la solicitud de acceso de ${nombre}?`,
+    confirmLabel: 'Rechazar',
+    cancelLabel: 'Cancelar',
+    danger: true,
+  });
+  if (!ok) return;
   const r = await fetch(`${API}/api/usuarios/solicitudes/${id}/rechazar`, {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + token }
@@ -308,11 +385,12 @@ async function cargar() {
 }
 
 function filtrar() {
-  const q = document.getElementById('busqueda').value.toLowerCase();
-  renderTabla(usuarios.filter(u =>
-    (u.nombre || '').toLowerCase().includes(q) ||
-    (u.email  || '').toLowerCase().includes(q)
-  ));
+  const q = document.getElementById('busqueda').value;
+  const filtrados = DiabCareAPI.rankRows(usuarios, q, u =>
+    [u.nombre, u.email, u.rol, u.estado].join(' ')
+  );
+  renderTabla(filtrados);
+  actualizarKPI(q ? filtrados : usuarios);
 }
 
 function abrirModal() {
@@ -368,14 +446,68 @@ async function guardar() {
 }
 
 async function desactivar(id, nombre) {
-  if (!confirm(`¿Desactivar a ${nombre}?`)) return;
+  const ok = await DiabCareAPI.confirm({
+    title: 'Desactivar usuario',
+    message: `¿Desactivar a ${nombre}? No podrá iniciar sesión.`,
+    confirmLabel: 'Desactivar',
+    cancelLabel: 'Cancelar',
+    danger: true,
+  });
+  if (!ok) return;
   const r = await fetch(`${API}/api/usuarios/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
   const d = await r.json();
   cargar();
   toast(r.ok ? `${nombre} desactivado` : (d.detail || 'Error'), r.ok ? 'success' : 'error');
 }
 
-setTimeout(() => { cargar(); cargarSolicitudes(); }, 150);
+async function cargarSesionesAdmin() {
+  const box = document.getElementById('sesionesAdminBody');
+  if (!box) return;
+  box.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/auth/sesiones?solo_activas=true&limit=40`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const d = await r.json();
+    const sesiones = d.sesiones || [];
+    document.getElementById('ses-info').textContent = `${d.total || sesiones.length} activas`;
+    if (!sesiones.length) {
+      box.innerHTML = '<div class="loading">Sin sesiones activas</div>';
+      return;
+    }
+    let h = `<table><thead><tr><th>Usuario</th><th>IP</th><th>Creada</th><th></th></tr></thead><tbody>`;
+    sesiones.forEach(s => {
+      const fecha = (s.creado_en || '').replace('T', ' ').slice(0, 19);
+      h += `<tr>
+        <td>${s.email || s.id_usuario}</td>
+        <td class="mono">${s.ip || '-'}</td>
+        <td class="mono">${fecha}</td>
+        <td><button class="btn-desact" onclick="revocarSesionAdmin('${s.id_sesion}')">Revocar</button></td>
+      </tr>`;
+    });
+    h += '</tbody></table>';
+    box.innerHTML = h;
+  } catch {
+    box.innerHTML = '<div class="loading">Error de conexión</div>';
+  }
+}
+
+async function revocarSesionAdmin(id) {
+  const r = await fetch(`${API}/api/auth/sesiones/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  const d = await r.json();
+  toast(r.ok ? 'Sesión revocada' : (d.detail || 'Error'), r.ok ? 'success' : 'error');
+  cargarSesionesAdmin();
+}
+
+setTimeout(() => {
+  DiabCareAPI.bindLiveSearch({ input: document.getElementById('busqueda'), onSearch: () => filtrar(), delay: 120 });
+  cargar();
+  cargarSolicitudes();
+  cargarSesionesAdmin();
+}, 150);
 </script>
 </body>
 </html>

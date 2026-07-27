@@ -26,6 +26,17 @@ PATH_DIM_RAZA = "dimensiones/dim_raza.parquet"
 PATH_DIM_CONDICION = "dimensiones/dim_condicion.parquet"
 PATH_DIM_TIEMPO = "dimensiones/dim_tiempo.parquet"
 PATH_META = "dwh/materializacion.json"
+# Prefijos en diabcare-app generados por el pipeline E2E / DWH (no usuarios ni config).
+PREFIXES_VACIADO = (
+    "hechos/",
+    "dimensiones/",
+    "agregados/",
+    "puente/",
+    "operativo/",
+    "negocio/",
+    "dwh/",
+    "catalogo/",
+)
 
 RAZA_COLS = [
     "race_AfricanAmerican", "race_Asian", "race_Caucasian",
@@ -47,25 +58,28 @@ def _subir_df(c, path: str, df: pd.DataFrame) -> None:
 
 def _leer_df(c, path: str) -> pd.DataFrame:
     try:
-        obj = c.get_object(BUCKET_APP, path)
-        return pd.read_parquet(io.BytesIO(obj.read()))
+        from nucleo.utilidades.ParquetCache import leer
+        return leer(BUCKET_APP, path, ttl=30.0)
     except Exception:
         return pd.DataFrame()
 
 
 def _leer_stage_plano() -> pd.DataFrame:
+    from paquetes.dataset.DatasetServicio import fusionar_stage_dataframes
+
     c = get_cliente()
-    objetos = list(c.list_objects(MINIO_BUCKET, prefix=MINIO_STAGE_PATH, recursive=True))
-    parquets = [o for o in objetos if o.object_name.endswith(".parquet")]
-    if not parquets:
+    objetos = sorted(
+        [o for o in c.list_objects(MINIO_BUCKET, prefix=MINIO_STAGE_PATH, recursive=True)
+         if o.object_name.endswith(".parquet")],
+        key=lambda o: o.object_name,
+    )
+    if not objetos:
         return pd.DataFrame()
     dfs = []
-    for o in parquets:
+    for o in objetos:
         obj = c.get_object(MINIO_BUCKET, o.object_name)
         dfs.append(pd.read_parquet(io.BytesIO(obj.read())))
-    if not dfs:
-        return pd.DataFrame()
-    return pd.concat(dfs, ignore_index=True)
+    return fusionar_stage_dataframes(dfs)
 
 
 def _normalizar_plano(df: pd.DataFrame) -> pd.DataFrame:
@@ -94,6 +108,7 @@ def _normalizar_plano(df: pd.DataFrame) -> pd.DataFrame:
         out.insert(0, "encounter_id", range(1, len(out) + 1))
     out = out.dropna(subset=["encounter_id"])
     out["encounter_id"] = out["encounter_id"].astype(int)
+    # La unicidad entre archivos ya la resolvió fusionar_stage_dataframes
     out = out.drop_duplicates(subset=["encounter_id"], keep="last").reset_index(drop=True)
     return out
 
@@ -417,23 +432,98 @@ def _materializar_extendido(c, hechos: pd.DataFrame, plano: pd.DataFrame) -> dic
     return conteos
 
 
-def materializar_dwh() -> dict:
-    """Reconstruye el star schema desde stage/ y lo persiste en diabcare-app."""
-    plano = _normalizar_plano(_leer_stage_plano())
+def vaciar_dwh() -> dict:
+    """Elimina tablas DWH + operativo/negocio generados e invalida caches en memoria."""
+    c = get_cliente()
+    _asegurar_bucket(c)
+    eliminados = 0
+    vistos: set[str] = set()
+
+    def _borrar(path: str) -> None:
+        nonlocal eliminados
+        if not path or path in vistos:
+            return
+        vistos.add(path)
+        try:
+            c.remove_object(BUCKET_APP, path)
+            eliminados += 1
+        except Exception:
+            pass
+
+    for prefix in PREFIXES_VACIADO:
+        try:
+            for o in c.list_objects(BUCKET_APP, prefix=prefix, recursive=True):
+                _borrar(o.object_name)
+        except Exception:
+            pass
+
+    for t in TABLAS:
+        _borrar(t.path)
+    for extra in (
+        PATH_META, PATH_HECHOS, PATH_DIM_PACIENTE, PATH_DIM_UBICACION,
+        PATH_DIM_RAZA, PATH_DIM_CONDICION, PATH_DIM_TIEMPO,
+        "operativo/pacientes.parquet",
+        "operativo/citas.parquet",
+        "operativo/admisiones.parquet",
+    ):
+        _borrar(extra)
+
+    ahora = datetime.now(timezone.utc).isoformat()
+    meta = {
+        "ultima_materializacion": ahora,
+        "filas_stage": 0,
+        "hechos": 0,
+        "vaciado": True,
+        "tablas_total": len(TABLAS),
+        "tablas_materializadas": {},
+    }
+    body = json.dumps(meta, ensure_ascii=False, indent=2).encode("utf-8")
+    c.put_object(BUCKET_APP, PATH_META, io.BytesIO(body), len(body), content_type="application/json")
+
+    try:
+        from paquetes.registros_clinicos.RegistrosClinicosServicio import invalidar_cache
+        invalidar_cache()
+    except Exception:
+        pass
+
+    return {
+        "ok": True,
+        "vaciado": True,
+        "eliminados": eliminados,
+        "hechos": 0,
+        "filas_stage": 0,
+        "ultima_materializacion": ahora,
+        "mensaje": "DWH y datos operativos generados eliminados",
+    }
+
+
+def materializar_dwh(plano: pd.DataFrame | None = None) -> dict:
+    """Reconstruye el star schema desde stage/ (o desde un DataFrame ya cargado)."""
+    if plano is None:
+        plano = _normalizar_plano(_leer_stage_plano())
+    else:
+        plano = _normalizar_plano(plano)
     if plano.empty:
-        return {"ok": False, "error": "No hay datos en stage/ para materializar"}
+        # Sin stage no dejar DWH viejo colgando: vaciar en caliente (sin reiniciar backend).
+        return vaciar_dwh()
 
     pac, locs, raz, cond, tiempos = _construir_dimensiones(plano)
     hechos = _construir_hechos(plano, pac, locs, raz, cond, tiempos)
 
     c = get_cliente()
     _asegurar_bucket(c)
-    _subir_df(c, PATH_HECHOS, hechos)
-    _subir_df(c, PATH_DIM_PACIENTE, pac)
-    _subir_df(c, PATH_DIM_UBICACION, locs)
-    _subir_df(c, PATH_DIM_RAZA, raz)
-    _subir_df(c, PATH_DIM_CONDICION, cond)
-    _subir_df(c, PATH_DIM_TIEMPO, tiempos)
+    # Subidas en paralelo (cuello de botella típico de MinIO secuencial)
+    from concurrent.futures import ThreadPoolExecutor
+    uploads = [
+        (PATH_HECHOS, hechos),
+        (PATH_DIM_PACIENTE, pac),
+        (PATH_DIM_UBICACION, locs),
+        (PATH_DIM_RAZA, raz),
+        (PATH_DIM_CONDICION, cond),
+        (PATH_DIM_TIEMPO, tiempos),
+    ]
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        list(pool.map(lambda item: _subir_df(c, item[0], item[1]), uploads))
 
     extendido = _materializar_extendido(c, hechos, plano)
 
@@ -457,11 +547,15 @@ def materializar_dwh() -> dict:
 
 
 def esquema_dwh() -> dict:
-    """Catálogo completo del DWH hospitalario + conteos actuales."""
+    """Catálogo completo del DWH hospitalario + conteos actuales (una sola pasada)."""
     c = get_cliente()
     tablas = []
+    conteos = {}
+    total_filas = 0
     for t in TABLAS:
         filas = len(_leer_df(c, t.path))
+        conteos[t.id] = filas
+        total_filas += filas
         tablas.append({
             "id": t.id,
             "nombre": t.nombre,
@@ -478,10 +572,34 @@ def esquema_dwh() -> dict:
     por_grupo: dict[str, list] = {}
     for row in tablas:
         por_grupo.setdefault(row["grupo"], []).append(row)
+
+    meta = {}
+    try:
+        obj = c.get_object(BUCKET_APP, PATH_META)
+        meta = json.loads(obj.read().decode("utf-8"))
+    except Exception:
+        pass
+
+    # Meta escribe filas_stage; aceptar aliases antiguos por compatibilidad
+    resumen = {
+        "conteos": conteos,
+        "total_hechos": conteos.get("hechos_diabetes", 0),
+        "total_tablas": len(TABLAS),
+        "total_filas_dwh": total_filas,
+        "total_stage": int(
+            meta.get("filas_stage")
+            or meta.get("filas_origen")
+            or meta.get("total_stage")
+            or 0
+        ),
+        "materializado": conteos.get("hechos_diabetes", 0) > 0,
+        "ultima_materializacion": meta.get("ultima_materializacion"),
+        "meta": meta,
+    }
     return {
         "total_tablas": len(tablas),
         "grupos": por_grupo,
-        "resumen": resumen_dwh(),
+        "resumen": resumen,
     }
 
 

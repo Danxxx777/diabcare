@@ -28,7 +28,9 @@ cuentas. Solo el administrador tiene acceso.
 |-------|-----|----------|
 | Administrador | `administrador` | CRUD de usuarios y asignación de roles |
 
-Acceso: todos los endpoints usan `Depends(require_admin)`.
+- **RF-O-P02-010**: Solicitud pública de acceso sin contraseña; al aprobar, se genera
+  clave temporal, se envía por correo (o `password_temp_dev` si email off) y la cuenta
+  queda con `debe_cambiar_password=true`.
 
 ## 4. Requisitos funcionales
 

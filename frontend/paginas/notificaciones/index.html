@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Notificaciones</title>
+<title>DiabCare - Notificaciones</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -48,10 +48,10 @@
     </div>
 
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="st-total">—</div></div>
-      <div class="stat-card"><div class="stat-label">No leídas</div><div class="stat-value" id="st-unread">—</div></div>
-      <div class="stat-card"><div class="stat-label">Hoy</div><div class="stat-value green" id="st-hoy">—</div></div>
-      <div class="stat-card"><div class="stat-label">Emails enviados</div><div class="stat-value" id="st-mail">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="st-total">-</div></div>
+      <div class="stat-card"><div class="stat-label">No leídas</div><div class="stat-value" id="st-unread">-</div></div>
+      <div class="stat-card"><div class="stat-label">Hoy</div><div class="stat-value green" id="st-hoy">-</div></div>
+      <div class="stat-card"><div class="stat-label">Emails enviados</div><div class="stat-value" id="st-mail">-</div></div>
     </div>
 
     <div class="tabla-card">
@@ -60,7 +60,7 @@
         <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;">
           <input type="checkbox" id="f-solo" onchange="cargar()"> Solo no leídas
         </label>
-        <span class="tabla-info" id="info">—</span>
+        <span class="tabla-info" id="info">-</span>
       </div>
       <div id="lista"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
     </div>
@@ -71,6 +71,7 @@
 
 <script>
 DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico', 'analista', 'enfermero', 'farmaceutico']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 
@@ -86,6 +87,11 @@ function badgeTipo(tipo) {
   const t = (tipo || 'info').toLowerCase();
   const cls = ['warning','error','critico','success'].includes(t) ? t : 'info';
   return `<span class="badge-tipo badge-${cls}">${t}</span>`;
+}
+
+async function pintarStatsDesdeLista(d) {
+  document.getElementById('st-total').textContent = d.total ?? 0;
+  document.getElementById('st-unread').textContent = d.no_leidas ?? 0;
 }
 
 async function cargarStats() {
@@ -111,6 +117,7 @@ async function cargar() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || 'Error');
     document.getElementById('info').textContent = `${d.total} notificación(es)`;
+    pintarStatsDesdeLista(d);
     if (!d.notificaciones?.length) {
       lista.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">Sin notificaciones</div>';
       return;
@@ -119,13 +126,12 @@ async function cargar() {
       <div class="notif-row ${n.leida ? '' : 'unread'}" data-id="${n.id}">
         <div>${badgeTipo(n.tipo)}</div>
         <div class="notif-body">
-          <div class="notif-title">${n.titulo || '—'}</div>
+          <div class="notif-title">${n.titulo || '-'}</div>
           <div class="notif-msg">${n.mensaje || ''}</div>
           <div class="notif-meta">${(n.creado_en || '').replace('T',' ').slice(0,19)}${n.email_enviado ? ' · ✉ enviado' : ''}</div>
         </div>
         ${n.leida ? '' : `<button class="btn btn-ghost btn-sm" onclick="marcar('${n.id}')">Leída</button>`}
       </div>`).join('');
-    await cargarStats();
   } catch (e) {
     lista.innerHTML = `<div style="padding:16px;color:var(--red);">${e.message}</div>`;
   }
@@ -160,8 +166,8 @@ async function evaluar() {
 }
 
 if (!token) window.location.href = '/';
-cargarStats();
 cargar();
+cargarStats();
 </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 
 from nucleo.utilidades.Dependencias import require_modulo
 from paquetes.notificaciones.NotificacionesServicio import (
@@ -8,6 +8,7 @@ from paquetes.notificaciones.NotificacionesServicio import (
     estadisticas,
     evaluar_alertas_clinicas,
     crear,
+    emitir,
 )
 
 router = APIRouter(prefix="/api/notificaciones", tags=["Notificaciones"])
@@ -20,12 +21,21 @@ def listar_notificaciones(
     solo_no_leidas: bool = False,
     payload: dict = Depends(require_modulo("notificaciones")),
 ):
-    return listar(skip=skip, limit=limit, solo_no_leidas=solo_no_leidas)
+    return listar(
+        skip=skip,
+        limit=limit,
+        solo_no_leidas=solo_no_leidas,
+        user_id=str(payload.get("sub", "")),
+        rol=str(payload.get("rol", "")),
+    )
 
 
 @router.get("/estadisticas")
 def stats(payload: dict = Depends(require_modulo("notificaciones"))):
-    return estadisticas()
+    return estadisticas(
+        user_id=str(payload.get("sub", "")),
+        rol=str(payload.get("rol", "")),
+    )
 
 
 @router.post("/evaluar")
@@ -35,16 +45,22 @@ def evaluar(payload: dict = Depends(require_modulo("notificaciones"))):
 
 @router.patch("/{notif_id}/leida")
 def leida(notif_id: str, payload: dict = Depends(require_modulo("notificaciones"))):
-    resultado = marcar_leida(notif_id)
+    resultado = marcar_leida(
+        notif_id,
+        user_id=str(payload.get("sub", "")),
+        rol=str(payload.get("rol", "")),
+    )
     if resultado.get("error"):
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=resultado["error"])
     return resultado
 
 
 @router.post("/leer-todas")
 def leer_todas(payload: dict = Depends(require_modulo("notificaciones"))):
-    return marcar_todas_leidas()
+    return marcar_todas_leidas(
+        user_id=str(payload.get("sub", "")),
+        rol=str(payload.get("rol", "")),
+    )
 
 
 @router.post("/")
@@ -53,11 +69,13 @@ def crear_manual(
     payload: dict = Depends(require_modulo("notificaciones")),
 ):
     if payload.get("rol") != "administrador":
-        from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Solo administrador puede crear notificaciones manuales")
-    return crear(
+    return emitir(
         datos.get("titulo", "Aviso"),
         datos.get("mensaje", ""),
         datos.get("tipo", "info"),
-        enviar_email=bool(datos.get("enviar_email")),
+        destinatario_tipo=datos.get("destinatario_tipo", "todos"),
+        destinatario=datos.get("destinatario", ""),
+        canal=datos.get("canal") or ("ambos" if datos.get("enviar_email") else "in_app"),
+        destino_email=datos.get("destino_email"),
     )

@@ -18,7 +18,8 @@ generación de reportes) para cumplimiento y trazabilidad clínica.
 ## 2. Contexto
 
 Complementa CU-O01–O10: las operaciones sobre datos clínicos y configuración
-deben dejar huella auditable. Persistencia en MinIO `diabcare-app/auditoria/eventos.parquet`.
+deben dejar huella auditable. Persistencia en MinIO `diabcare-app/auditoria/eventos.parquet`
+con `ip`, `user_agent`, `sesion_id`, `resultado`; filtros por usuario/módulo/resultado.
 
 ## 3. Actores
 

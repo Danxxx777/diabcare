@@ -31,10 +31,11 @@ def listar(
     limit: int = Query(50, ge=1, le=200),
     fecha: str = "",
     estado: str = "",
+    q: str = "",
     payload: dict = Depends(require_modulo("mis_citas")),
 ):
     uid = str(payload.get("sub") or "")
-    return listar_por_medico(uid, offset, limit, fecha, estado, nombre_jwt=_nombre(payload))
+    return listar_por_medico(uid, offset, limit, fecha, estado, nombre_jwt=_nombre(payload), q=q)
 
 
 @router.put("/{id_cita}/estado")

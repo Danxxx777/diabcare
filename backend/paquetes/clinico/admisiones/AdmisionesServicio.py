@@ -61,17 +61,43 @@ def resumen() -> dict:
 
 
 def listar(offset: int = 0, limit: int = 50, estado: str = "", q: str = "") -> dict:
+    from nucleo.utilidades.Busqueda import rankear_dataframe
+
     df = _extraer()
     if df.empty:
         return {"total": 0, "admisiones": []}
     if estado:
         df = df[df["estado"] == estado]
     if q:
-        ql = q.lower()
-        df = df[df["paciente_nombre"].astype(str).str.lower().str.contains(ql, na=False)]
+        df = rankear_dataframe(
+            df, q,
+            ["paciente_nombre", "documento", "medico_nombre", "servicio", "tipo", "estado", "motivo", "sede"],
+        )
+    elif "fecha_ingreso" in df.columns:
+        df = df.sort_values("fecha_ingreso", ascending=False)
     total = len(df)
-    chunk = df.sort_values("fecha_ingreso", ascending=False).iloc[offset:offset + limit]
-    return {"total": total, "admisiones": chunk.fillna("").to_dict(orient="records")}
+    chunk = df.iloc[offset:offset + limit]
+    rows = chunk.fillna("").to_dict(orient="records")
+    ids = {str(r.get("id_paciente") or "") for r in rows if r.get("id_paciente")}
+    mapa = {}
+    if ids:
+        try:
+            from nucleo.utilidades.PacientesLookup import mapa_pacientes
+            mapa = mapa_pacientes(ids)
+        except Exception:
+            mapa = {}
+    out = []
+    for r in rows:
+        x = dict(r)
+        pid = str(x.get("id_paciente") or "")
+        p = mapa.get(pid) or {}
+        if p.get("nombre_completo") and not str(x.get("paciente_nombre") or "").strip():
+            x["paciente_nombre"] = p["nombre_completo"]
+        if p.get("documento") and not str(x.get("documento") or "").strip():
+            x["documento"] = p["documento"]
+        x["tiene_foto"] = bool(p.get("tiene_foto"))
+        out.append(x)
+    return {"total": total, "admisiones": out}
 
 
 def obtener(id_admision: str) -> dict:

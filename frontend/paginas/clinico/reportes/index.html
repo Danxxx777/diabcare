@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Reportes PDF</title>
+<title>DiabCare - Reportes PDF</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -78,7 +78,7 @@
     <div class="page-header">
       <div>
         <div class="page-title">Reportes <span>clínicos</span></div>
-        <div class="page-sub">Informes PDF con estadísticas, modelo ML y análisis filtrado — listos para archivo clínico</div>
+        <div class="page-sub">Informes PDF con estadísticas, modelo ML y análisis filtrado - listos para archivo clínico</div>
       </div>
       <button class="btn btn-primary btn-sm" onclick="generar()" id="btnGenerar">⬇ Generar reporte</button>
     </div>
@@ -127,14 +127,14 @@
         </div>
       </div>
 
-      <!-- Vista previa del documento -->
+      <!-- Vista previa del informe -->
       <div class="rep-card">
         <div class="rep-title">Formato del reporte PDF</div>
         <div class="rep-preview">
           <img src="/estaticos/img/logo-icon.png" alt="DiabCare">
           <div>
-            <h3>DiabCare Analytics — Reporte clínico agregado</h3>
-            <p>Documento profesional con logo institucional, resumen ejecutivo en lenguaje claro, métricas explicadas y código QR de verificación en cada página.</p>
+            <h3>DiabCare Analytics - Reporte clínico agregado</h3>
+            <p>Informe profesional con logo institucional, resumen ejecutivo en lenguaje claro, métricas explicadas y código QR de verificación en cada página.</p>
           </div>
         </div>
         <div class="rep-secciones">
@@ -160,11 +160,11 @@
           </div>
         </div>
         <div class="rep-qr-note">
-          <strong>Código QR de verificación</strong> — Cada reporte incluye un código único (ej. <code>DC-20250620-A1B2C3</code>) y un QR en el pie de página.
+          <strong>Código QR de verificación</strong> - Cada reporte incluye un código único (ej. <code>DC-20250620-A1B2C3</code>) y un QR en el pie de página.
           Próximamente podrá escanearse para validar autenticidad, abrir el portal de auditoría o vincular el PDF a un expediente institucional.
         </div>
         <div style="margin-top:14px;font-size:11px;color:var(--muted)">
-          Por privacidad, el PDF solo contiene datos agregados — nunca nombres, documentos ni identificadores de pacientes.
+          Por privacidad, el PDF solo contiene datos agregados - nunca nombres, documentos ni identificadores de pacientes.
         </div>
       </div>
     </div>
@@ -188,6 +188,7 @@
 
 <script>
 DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico', 'analista', 'farmaceutico']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 
@@ -264,8 +265,8 @@ async function cargarReportes() {
       return;
     }
     tbody.innerHTML = reportes.map(rp => {
-      const fecha = rp.fecha ? new Date(rp.fecha).toLocaleString('es-ES') : '—';
-      const cod = rp.codigo_verificacion || '—';
+      const fecha = rp.fecha ? new Date(rp.fecha).toLocaleString('es-ES') : '-';
+      const cod = rp.codigo_verificacion || '-';
       return `<tr>
         <td>${rp.nombre}</td>
         <td class="codigo-verif">${cod}</td>

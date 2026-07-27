@@ -4,7 +4,9 @@ from typing import Optional
 
 from nucleo.utilidades.Dependencias import require_modulo, require_auth
 from paquetes.registros_clinicos.RegistrosClinicosServicio import (
-    listar, obtener, crear, actualizar, eliminar, buscar, estadisticas as _estadisticas
+    listar, obtener, crear, actualizar, eliminar, buscar,
+    estadisticas as _estadisticas,
+    calidad_diabetes as _calidad_diabetes,
 )
 
 router = APIRouter(prefix="/api/registros", tags=["Registros Clínicos"])
@@ -26,7 +28,7 @@ def _auditar(usuario: str, tipo: str, detalle: str):
 class RegistroEntrada(BaseModel):
     year: int
     gender: str
-    age: float
+    age: int
     location: str
     hypertension: int = 0
     heart_disease: int = 0
@@ -40,7 +42,7 @@ class RegistroEntrada(BaseModel):
 
 class ActualizarEntrada(BaseModel):
     gender: Optional[str] = None
-    age: Optional[float] = None
+    age: Optional[int] = None
     location: Optional[str] = None
     bmi: Optional[float] = None
     hbA1c_level: Optional[float] = None
@@ -54,6 +56,12 @@ class ActualizarEntrada(BaseModel):
 @router.get("/estadisticas")
 def estadisticas(payload: dict = Depends(require_auth)):
     return _estadisticas()
+
+
+@router.get("/calidad-diabetes")
+def calidad_diabetes(payload: dict = Depends(require_modulo("analisis"))):
+    """Indicadores de control DM (HbA1c, glucosa, riesgo) — rol analista / BI."""
+    return _calidad_diabetes()
 
 
 @router.get("/ubicaciones")

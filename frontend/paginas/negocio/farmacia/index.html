@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare - Farmacia</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<style>
+.negocio-shell { width: 100%; max-width: none; }
+.content.negocio-shell { padding-left: 18px; padding-right: 18px; }
+.negocio-kicker {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
+  color: var(--cyan); margin-bottom: 6px; font-weight: 600;
+}
+.crud-tabs {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 14px; padding: 6px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: rgba(0,0,0,0.2);
+}
+.crud-tabs .btn { border-radius: 8px; }
+.money { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Farmacia</span>
+  </div>
+  <div class="content negocio-shell">
+    <div class="page-header">
+      <div>
+        <div class="negocio-kicker">Negocio · mostrador</div>
+        <div class="page-title">Farmacia <span>operativa</span></div>
+        <div class="page-sub" id="pageSub">Catálogo, inventario, ventas y caja</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn btn-ghost btn-sm" href="/paginas/negocio/facturacion/index.html">Ir a facturación</a>
+        <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
+        <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nuevo</button>
+      </div>
+    </div>
+
+    <div class="dash-row dash-4" style="margin-bottom:14px">
+      <div class="kpi-card cyan">
+        <div class="kpi-label">Medicamentos</div>
+        <div class="kpi-val cyan" id="k-meds">—</div>
+        <div class="kpi-sub">en catálogo</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Lotes</div>
+        <div class="kpi-val amber" id="k-lotes">—</div>
+        <div class="kpi-sub">inventario</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Ventas</div>
+        <div class="kpi-val green" id="k-ventas">—</div>
+        <div class="kpi-sub">registradas</div>
+      </div>
+      <div class="kpi-card" id="kpi-rx" style="cursor:pointer" title="Ver recetas pendientes del médico">
+        <div class="kpi-label">Rx pendientes</div>
+        <div class="kpi-val" id="k-rx">—</div>
+        <div class="kpi-sub">por dispensar</div>
+      </div>
+    </div>
+
+    <div class="crud-tabs" id="crudTabs"></div>
+    <div class="tabla-card">
+      <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando mostrador…</div></div></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+<div id="modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span id="modal-titulo">Nuevo</span></div>
+    <div class="modal-body form-modal-grid" id="modalFields"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarCrud()">Guardar</button>
+    </div>
+  </div>
+</div>
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador','farmaceutico']);
+
+const API = DiabCareNav.getApi();
+const token = localStorage.getItem('token');
+const hdr = () => ({ Authorization: 'Bearer ' + token });
+
+async function kpi(url, key) {
+  try {
+    const r = await fetch(`${API}${url}`, { headers: hdr(), cache: 'no-store' });
+    if (!r.ok) return '—';
+    const d = await r.json();
+    if (typeof d.total === 'number') return d.total;
+    const list = d[key] || [];
+    return Array.isArray(list) ? list.length : '—';
+  } catch (_) { return '—'; }
+}
+
+async function cargarKpisFarm() {
+  const [meds, lotes, ventas, rx] = await Promise.all([
+    kpi('/api/medicamentos?limit=1', 'medicamentos'),
+    kpi('/api/farmacia/inventario?limit=1', 'lotes'),
+    kpi('/api/farmacia/ventas?limit=1', 'ventas'),
+    kpi('/api/farmacia/recetas?limit=1&estado=emitida', 'recetas'),
+  ]);
+  document.getElementById('k-meds').textContent = meds;
+  document.getElementById('k-lotes').textContent = lotes;
+  document.getElementById('k-ventas').textContent = ventas;
+  document.getElementById('k-rx').textContent = rx;
+}
+cargarKpisFarm();
+
+const medLookup = {
+  field: 'id_medicamento', url: '/api/medicamentos?limit=500', listKey: 'medicamentos',
+  idKey: 'id_medicamento', labelKey: 'nombre', typeahead: 'medicamento'
+};
+const provLookup = {
+  field: 'id_proveedor', url: '/api/proveedores?limit=100', listKey: 'proveedores',
+  idKey: 'id_proveedor', labelKey: 'nombre'
+};
+const recLookup = {
+  field: 'id_receta', url: '/api/farmacia/recetas?limit=200&estado=emitida', listKey: 'recetas',
+  idKey: 'id_receta',
+  label: r => {
+    const doc = r.paciente_documento || r.paciente_nombre || '';
+    const ind = (r.indicaciones || 'Sin indicación').slice(0, 48);
+    return `${r.fecha || ''} · ${doc ? doc + ' · ' : ''}${ind}`;
+  }
+};
+const pacLookup = {
+  field: 'id_paciente', url: '/api/pacientes/?limit=12', listKey: 'pacientes',
+  idKey: 'id_paciente', typeahead: true,
+  label: p => (p.nombre_completo || ((p.nombre||'') + ' ' + (p.apellido||'')).trim() || p.codigo || 'Paciente')
+};
+
+const money = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(2) : '—';
+};
+const estadoLbl = (row, key = 'estado') =>
+  row[key + '_label'] || (row[key] ? String(row[key]).charAt(0).toUpperCase() + String(row[key]).slice(1) : '—');
+
+let farmTabs = null;
+
+function irDespacharDesdeRx(row) {
+  if (!row || !row.id_receta) return;
+  const doc = row.paciente_documento || '';
+  const nom = row.paciente_nombre || '';
+  const ind = (row.indicaciones || '').slice(0, 56);
+  sessionStorage.setItem('farm_prefill_rx', JSON.stringify({
+    id_receta: row.id_receta,
+    label: [doc || nom, ind].filter(Boolean).join(' · ') || row.id_receta
+  }));
+  if (farmTabs) farmTabs.switchTab('dispensar');
+  else alert('Abra la pestaña Dispensar y elija la receta.');
+}
+
+function aplicarPrefillRx(handle) {
+  const raw = sessionStorage.getItem('farm_prefill_rx');
+  if (!raw) return;
+  sessionStorage.removeItem('farm_prefill_rx');
+  let pref;
+  try { pref = JSON.parse(raw); } catch (_) { return; }
+  if (!pref || !pref.id_receta) return;
+  setTimeout(() => {
+    if (handle && typeof handle.abrir === 'function') handle.abrir(null);
+    else if (typeof window.abrirModal === 'function') window.abrirModal();
+    const sel = document.getElementById('m-id_receta');
+    if (!sel) return;
+    const id = String(pref.id_receta);
+    if (![...sel.options].some(o => o.value === id)) {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = pref.label || id;
+      sel.appendChild(opt);
+    }
+    sel.value = id;
+  }, 250);
+}
+
+DiabCareCrud.mountTabs({
+  onTab(tab, handle) {
+    if (tab && tab.id === 'dispensar') aplicarPrefillRx(handle);
+  },
+  tabs: [
+    {
+      id: 'meds', label: 'Medicamentos', sub: 'Catálogo',
+      listUrl: '/api/medicamentos', listKey: 'medicamentos', idField: 'id_medicamento',
+      itemUrl: id => '/api/medicamentos/' + id, seedUrl: '/api/farmacia/seed',
+      columns: [
+        {key:'nombre', label:'Medicamento'}, {key:'principio_activo', label:'Principio activo'},
+        {key:'precio_venta', label:'PVP', render: r => money(r.precio_venta)},
+        {key:'stock_minimo', label:'Mínimo'}, {key:'activo', label:'Activo'}
+      ],
+      fields: [
+        {
+          key:'nombre', required:true, labelUi:'Nombre comercial', full:true,
+          placeholder:'Ej. Metformina 850 mg'
+        },
+        {
+          key:'principio_activo', labelUi:'Principio activo',
+          placeholder:'Ej. metformina'
+        },
+        {
+          key:'precio_venta', type:'number', labelUi:'Precio venta (PVP)', default:0,
+          placeholder:'4.00'
+        },
+        {
+          key:'precio_costo', type:'number', labelUi:'Precio costo', default:0,
+          placeholder:'1.20'
+        },
+        {
+          key:'stock_minimo', type:'number', labelUi:'Stock mínimo', default:10,
+          placeholder:'10'
+        },
+        {
+          key:'venta_libre', as:'select', labelUi:'¿Se vende sin receta?',
+          options:[
+            {value:'false', label:'No — requiere receta médica'},
+            {value:'true', label:'Sí — venta libre / OTC'}
+          ],
+          default:'false'
+        }
+      ],
+      beforeSave(b){ b.venta_libre = String(b.venta_libre)==='true'; b.forma='unidad'; },
+      createTitle: 'Nuevo medicamento',
+      editTitle: 'Editar medicamento'
+    },
+    {
+      id: 'proveedores', label: 'Proveedores', sub: 'Proveedores',
+      listUrl: '/api/proveedores', listKey: 'proveedores', idField: 'id_proveedor',
+      itemUrl: id => '/api/proveedores/' + id,
+      columns: [
+        {key:'nombre', label:'Nombre'}, {key:'ruc', label:'RUC'},
+        {key:'contacto', label:'Contacto'}, {key:'activo', label:'Activo'}
+      ],
+      fields: [
+        {key:'nombre', required:true, labelUi:'Razón social', full:true, placeholder:'Ej. FarmaDistrito S.A.'},
+        {key:'ruc', labelUi:'RUC', placeholder:'Ej. 1790012345001'},
+        {key:'contacto', labelUi:'Contacto / teléfono', placeholder:'Ej. 0991234567'},
+        {key:'condiciones_pago', labelUi:'Condiciones de pago', placeholder:'Ej. 30 días factura'}
+      ],
+      createTitle: 'Nuevo proveedor',
+      editTitle: 'Editar proveedor'
+    },
+    {
+      id: 'compras', label: 'Compras', sub: 'Compras',
+      listUrl: '/api/farmacia/compras', listKey: 'compras', idField: 'id_compra',
+      itemUrl: id => '/api/farmacia/compras/' + id,
+      createUrl: '/api/farmacia/compras',
+      lookups: [provLookup, medLookup],
+      columns: [
+        {key:'proveedor_nombre', label:'Proveedor', render: r => r.proveedor_nombre || '—'},
+        {key:'fecha_compra', label:'Fecha'},
+        {key:'total', label:'Total', render: r => money(r.total)},
+        {key:'estado', label:'Estado', render: r => estadoLbl(r)}
+      ],
+      fields: [
+        {key:'id_proveedor', required:true, labelUi:'Proveedor', full:true},
+        {key:'id_medicamento', required:true, labelUi:'Medicamento', full:true},
+        {key:'cantidad', type:'number', labelUi:'Cantidad', default:10, placeholder:'10'},
+        {key:'precio_unitario', type:'number', labelUi:'Precio unitario (USD)', default:1, placeholder:'1.20'},
+        {key:'lote', labelUi:'Lote', default:'L1', placeholder:'L-2026-01'},
+        {key:'fecha_vencimiento', type:'date', labelUi:'Vencimiento'},
+        {key:'fecha_compra', type:'date', labelUi:'Fecha de compra'}
+      ],
+      beforeSave(b) {
+        b.lineas = [{
+          id_medicamento: b.id_medicamento,
+          cantidad: b.cantidad,
+          precio_unitario: b.precio_unitario,
+          lote: b.lote || 'L1',
+          fecha_vencimiento: b.fecha_vencimiento || ''
+        }];
+        delete b.id_medicamento; delete b.cantidad; delete b.precio_unitario;
+        delete b.lote; delete b.fecha_vencimiento;
+      },
+      createTitle: 'Registrar compra'
+    },
+    {
+      id: 'inventario', label: 'Inventario', sub: 'Inventario',
+      listUrl: '/api/farmacia/inventario', listKey: 'lotes', idField: 'id_inventario',
+      itemUrl: id => '/api/farmacia/inventario/' + id,
+      lookups: [medLookup],
+      columns: [
+        {key:'id_medicamento', label:'Medicamento', lookup:'id_medicamento'},
+        {key:'lote', label:'Lote'}, {key:'fecha_vencimiento', label:'Vence'},
+        {key:'cantidad', label:'Cantidad'},
+        {key:'costo_unitario', label:'Costo u.', render: r => money(r.costo_unitario)}
+      ],
+      fields: [
+        {key:'id_medicamento', required:true, labelUi:'Medicamento', full:true},
+        {key:'lote', required:true, labelUi:'Lote', placeholder:'Ej. L-2026-01'},
+        {key:'fecha_vencimiento', type:'date', labelUi:'Vencimiento'},
+        {key:'cantidad', type:'number', labelUi:'Cantidad', default:0, placeholder:'100'},
+        {key:'costo_unitario', type:'number', labelUi:'Costo unitario (USD)', default:0, placeholder:'1.20'}
+      ],
+      createTitle: 'Cargar lote',
+      editTitle: 'Editar lote'
+    },
+    {
+      id: 'rx', label: 'Rx pendientes', sub: 'Rx pendientes',
+      listUrl: '/api/farmacia/recetas?estado=emitida', listKey: 'recetas', idField: 'id_receta',
+      itemUrl: id => '/api/farmacia/recetas/' + id,
+      hideCreate: true, hideEdit: true, hideDelete: true,
+      searchPlaceholder: 'Buscar por cédula, paciente o indicación…',
+      columns: [
+        {key:'paciente_documento', label:'Cédula'},
+        {key:'paciente_nombre', label:'Paciente'},
+        {key:'indicaciones', label:'Indicación'},
+        {key:'fecha', label:'Fecha'},
+        {key:'estado', label:'Estado', render: r => estadoLbl(r)}
+      ],
+      fields: [],
+      rowActions: [
+        { id: 'despachar', label: 'Despachar', onClick: (row) => irDespacharDesdeRx(row) }
+      ]
+    },
+    {
+      id: 'dispensar', label: 'Dispensar', sub: 'Dispensar',
+      listUrl: '/api/farmacia/dispensaciones', listKey: 'dispensaciones', idField: 'id_dispensacion',
+      itemUrl: id => '/api/farmacia/dispensaciones/' + id,
+      createUrl: '/api/farmacia/dispensar',
+      hideEdit: true,
+      lookups: [medLookup, recLookup],
+      columns: [
+        {key:'id_medicamento', label:'Medicamento', lookup:'id_medicamento'},
+        {key:'cantidad', label:'Cantidad'}, {key:'lote', label:'Lote'},
+        {key:'fecha', label:'Fecha'},
+        {key:'estado', label:'Estado', render: r => estadoLbl(r)}
+      ],
+      fields: [
+        {key:'id_medicamento', required:true, labelUi:'Medicamento', full:true},
+        {key:'id_receta', labelUi:'Receta', full:true},
+        {key:'cantidad', type:'number', labelUi:'Cantidad', required:true, default:1, placeholder:'1'}
+      ],
+      createTitle: 'Dispensar'
+    },
+    {
+      id: 'ventas', label: 'Ventas', sub: 'Ventas',
+      listUrl: '/api/farmacia/ventas', listKey: 'ventas', idField: 'id_venta',
+      itemUrl: id => '/api/farmacia/ventas/' + id,
+      createUrl: '/api/farmacia/ventas',
+      hideEdit: true,
+      lookups: [pacLookup, medLookup, recLookup],
+      columns: [
+        {key:'total_neto', label:'Total neto', render: r => money(r.total_neto)},
+        {key:'iva', label:'IVA', render: r => money(r.iva)},
+        {key:'factura_label', label:'Factura', render: r => r.factura_label || '—'},
+        {key:'fecha', label:'Fecha'},
+        {key:'estado', label:'Estado', render: r => estadoLbl(r)}
+      ],
+      fields: [
+        {key:'id_paciente', labelUi:'Paciente', full:true},
+        {key:'id_medicamento', required:true, labelUi:'Medicamento', full:true},
+        {key:'cantidad', type:'number', labelUi:'Cantidad', default:1, placeholder:'1'},
+        {key:'precio_unitario', type:'number', labelUi:'Precio unitario (USD)', default:0, placeholder:'0 = PVP'},
+        {key:'tipo', as:'select', labelUi:'Tipo de venta', options:[
+          {value:'venta_libre', label:'Venta libre'},
+          {value:'con_receta', label:'Con receta'}
+        ], default:'venta_libre'},
+        {key:'id_receta', labelUi:'Receta', full:true}
+      ],
+      beforeSave(b) {
+        if (b.tipo === 'con_receta' && !b.id_receta) return { error: 'Seleccione la receta emitida' };
+        b.lineas = [{
+          id_medicamento: b.id_medicamento,
+          cantidad: b.cantidad,
+          precio_unitario: b.precio_unitario
+        }];
+        b.emitir_factura = true;
+        delete b.id_medicamento; delete b.cantidad; delete b.precio_unitario;
+      },
+      createTitle: 'Registrar venta'
+    },
+    {
+      id: 'kardex', label: 'Kardex', sub: 'Kardex',
+      listUrl: '/api/farmacia/kardex', listKey: 'kardex', idField: 'id_movimiento_kardex',
+      itemUrl: id => '/api/farmacia/kardex/' + id,
+      hideEdit: true, hideDelete: true, hideCreate: true,
+      lookups: [medLookup],
+      columns: [
+        {key:'id_medicamento', label:'Medicamento', lookup:'id_medicamento'},
+        {key:'fecha', label:'Fecha'}, {key:'tipo_movimiento', label:'Tipo'},
+        {key:'cantidad', label:'Cant.'}, {key:'saldo_cantidad', label:'Saldo'}
+      ],
+      fields: []
+    },
+    {
+      id: 'cxp', label: 'Cuentas por pagar', sub: 'Cuentas por pagar',
+      listUrl: '/api/farmacia/cuentas-por-pagar', listKey: 'cuentas_por_pagar', idField: 'id_cxp',
+      itemUrl: id => '/api/farmacia/cuentas-por-pagar/' + id,
+      columns: [
+        {key:'compra_label', label:'Compra', render: r => r.compra_label || '—'},
+        {key:'monto_pendiente', label:'Pendiente', render: r => money(r.monto_pendiente)},
+        {key:'fecha_vencimiento', label:'Vence'},
+        {key:'estado', label:'Estado', render: r => estadoLbl(r)}
+      ],
+      fields: [
+        {key:'id_compra', labelUi:'Referencia de compra', full:true, placeholder:'id de la orden de compra'},
+        {key:'monto_pendiente', type:'number', labelUi:'Monto pendiente (USD)', default:0, placeholder:'150.00'},
+        {key:'fecha_vencimiento', type:'date', labelUi:'Fecha de pago'},
+        {key:'estado', as:'select', labelUi:'Estado', options:[
+          {value:'vigente', label:'Vigente'},
+          {value:'pagada', label:'Pagada'},
+          {value:'anulada', label:'Anulada'}
+        ], default:'vigente'}
+      ],
+      createTitle: 'Registrar CxP',
+      editTitle: 'Editar CxP'
+    },
+    {
+      id: 'cierre', label: 'Cierre de caja', sub: 'Cierre de caja',
+      listUrl: '/api/farmacia/cierre-caja', listKey: 'cierres', idField: 'id_cierre',
+      itemUrl: id => '/api/farmacia/cierre-caja/' + id,
+      createUrl: '/api/farmacia/cierre-caja',
+      columns: [
+        {key:'fecha', label:'Fecha'},
+        {key:'monto_esperado', label:'Esperado', render: r => money(r.monto_esperado)},
+        {key:'monto_contado', label:'Contado', render: r => money(r.monto_contado)},
+        {key:'diferencia', label:'Dif.', render: r => money(r.diferencia)},
+        {key:'estado', label:'Estado', render: r => estadoLbl(r)}
+      ],
+      fields: [
+        {key:'fecha', type:'date', labelUi:'Fecha'},
+        {key:'total_ventas_efectivo', type:'number', labelUi:'Ventas en efectivo (USD)', default:0, placeholder:'0.00'},
+        {key:'total_ventas_tarjeta', type:'number', labelUi:'Ventas con tarjeta (USD)', default:0, placeholder:'0.00'},
+        {key:'total_ventas_seguro', type:'number', labelUi:'Ventas por seguro (USD)', default:0, placeholder:'0.00'},
+        {key:'monto_esperado', type:'number', labelUi:'Monto esperado', default:0},
+        {key:'monto_contado', type:'number', labelUi:'Monto contado', default:0}
+      ],
+      createTitle: 'Cerrar caja'
+    }
+  ]
+}).then(ctl => {
+  farmTabs = ctl;
+  const kpiRx = document.getElementById('kpi-rx');
+  if (kpiRx) kpiRx.addEventListener('click', () => farmTabs && farmTabs.switchTab('rx'));
+});
+</script>
+</body>
+</html>

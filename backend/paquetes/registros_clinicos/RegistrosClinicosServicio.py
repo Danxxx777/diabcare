@@ -18,7 +18,7 @@ from paquetes.dataset.DatasetTraducciones import (
 )
 
 ARCHIVO_PRINCIPAL = f"{MINIO_STAGE_PATH}diabcare_registros.parquet"
-STATS_SNAPSHOT = f"{MINIO_STAGE_PATH}.diabcare_estadisticas_v2.json"
+STATS_SNAPSHOT = f"{MINIO_STAGE_PATH}.diabcare_estadisticas_v3.json"
 RAZAS = ["race_AfricanAmerican", "race_Asian", "race_Caucasian", "race_Hispanic", "race_Other"]
 EDAD_BINS = [0, 20, 30, 40, 50, 60, 70, 200]
 EDAD_LABELS = ["<20", "20-30", "31-40", "41-50", "51-60", "61-70", "70+"]
@@ -35,7 +35,7 @@ STATS_COLS = [
 ] + RAZAS
 CHUNK_STATS = 250_000
 
-_cache = {"df": None, "fp": None, "stats": None, "stats_fp": None}
+_cache = {"df": None, "fp": None, "stats": None, "stats_fp": None, "calidad": None, "calidad_fp": None}
 
 _GENERO_MAP: dict[str, str] = {}
 for _canon, _aliases in GENERO_CANON.items():
@@ -49,10 +49,18 @@ def invalidar_cache():
     _cache["fp"] = None
     _cache["stats"] = None
     _cache["stats_fp"] = None
-    try:
-        get_cliente().remove_object(MINIO_BUCKET, STATS_SNAPSHOT)
-    except Exception:
-        pass
+    _cache["calidad"] = None
+    _cache["calidad_fp"] = None
+    # Snapshot de MinIO: borrar para que stats no resuciten con fingerprint viejo
+    for snap in (
+        STATS_SNAPSHOT,
+        f"{MINIO_STAGE_PATH}.diabcare_estadisticas_v2.json",
+        f"{MINIO_STAGE_PATH}.diabcare_estadisticas.json",
+    ):
+        try:
+            get_cliente().remove_object(MINIO_BUCKET, snap)
+        except Exception:
+            pass
 
 
 def _traducir_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -93,6 +101,7 @@ def _iter_chunks(batch_size: int = CHUNK_STATS):
     import pyarrow.parquet as pq
 
     c = get_cliente()
+    max_id = 0
     for o in _listar_parquets():
         obj = c.get_object(MINIO_BUCKET, o.object_name)
         pf = pq.ParquetFile(io.BytesIO(obj.read()))
@@ -102,8 +111,29 @@ def _iter_chunks(batch_size: int = CHUNK_STATS):
             cols = ["encounter_id"] + cols
         if not cols:
             continue
+        shift = None
+        file_max = max_id
         for batch in pf.iter_batches(batch_size=batch_size, columns=cols):
-            yield batch.to_pandas()
+            chunk = batch.to_pandas()
+            if chunk.empty:
+                continue
+            if "encounter_id" in chunk.columns:
+                ids = pd.to_numeric(chunk["encounter_id"], errors="coerce")
+                chunk = chunk.loc[ids.notna()].copy()
+                if chunk.empty:
+                    continue
+                chunk["encounter_id"] = ids.loc[ids.notna()].astype("int64")
+                if shift is None:
+                    mn = int(chunk["encounter_id"].min())
+                    if max_id > 0 and mn <= max_id:
+                        shift = max_id + 1 - mn
+                    else:
+                        shift = 0
+                if shift:
+                    chunk["encounter_id"] = chunk["encounter_id"] + shift
+                file_max = max(file_max, int(chunk["encounter_id"].max()))
+            yield chunk
+        max_id = max(max_id, file_max)
 
 
 def _leer_snapshot(fp: str) -> dict | None:
@@ -126,6 +156,8 @@ def _guardar_snapshot(fp: str, payload: dict) -> None:
 
 
 def _extraer(force: bool = False) -> pd.DataFrame:
+    from paquetes.dataset.DatasetServicio import fusionar_stage_dataframes
+
     fp = _fingerprint()
     if not fp:
         return pd.DataFrame()
@@ -140,15 +172,15 @@ def _extraer(force: bool = False) -> pd.DataFrame:
             dfs.append(pd.read_parquet(io.BytesIO(data.read())))
         if not dfs:
             return pd.DataFrame()
-        df = pd.concat(dfs, ignore_index=True)
-        if "encounter_id" in df.columns:
-            df = df.drop_duplicates(subset=["encounter_id"], keep="last")
+        df = fusionar_stage_dataframes(dfs)
         if "encounter_id" not in df.columns:
             df.insert(0, "encounter_id", range(1, len(df) + 1))
         _cache["df"] = df
         _cache["fp"] = fp
         _cache["stats"] = None
         _cache["stats_fp"] = None
+        _cache["calidad"] = None
+        _cache["calidad_fp"] = None
         return df
     except Exception as e:
         print(f"[ELT] Error extrayendo: {e}")
@@ -165,6 +197,8 @@ def _cargar(df: pd.DataFrame):
         _cache["fp"] = _fingerprint()
         _cache["stats"] = None
         _cache["stats_fp"] = None
+        _cache["calidad"] = None
+        _cache["calidad_fp"] = None
         try:
             from paquetes.dataset.DatasetDwhServicio import materializar_dwh
             materializar_dwh()
@@ -177,6 +211,85 @@ def _cargar(df: pd.DataFrame):
             pass
     except Exception as e:
         print(f"[ELT] Error cargando: {e}")
+
+def _a_python(v):
+    """Convierte escalares numpy/pandas a tipos Python JSON-seguros."""
+    if v is None:
+        return None
+    try:
+        import pandas as pd
+        if pd.isna(v):
+            return None
+    except Exception:
+        pass
+    if hasattr(v, "item") and callable(v.item):
+        try:
+            return v.item()
+        except Exception:
+            pass
+    return v
+
+
+def _serializar_registro(reg: dict) -> dict:
+    """Normaliza fecha, números y textos para la UI (sin floats sucios)."""
+    out = {k: _a_python(v) for k, v in dict(reg).items()}
+
+    fecha = (
+        out.get("created_at")
+        or out.get("encounter_date")
+        or out.get("fecha")
+        or ""
+    )
+    fecha = str(fecha).strip() if fecha not in (None, "") else ""
+    if fecha and fecha not in ("nan", "None", "NaT", "NaN"):
+        # ISO date o timestamp
+        if len(fecha) >= 10 and fecha[4] == "-":
+            out["fecha"] = fecha[:10]
+        else:
+            try:
+                out["fecha"] = str(int(float(fecha)))
+            except (TypeError, ValueError):
+                out["fecha"] = fecha[:10] if len(fecha) >= 10 else fecha
+    else:
+        anio = out.get("year")
+        try:
+            if anio not in (None, "", "nan", "NaN"):
+                out["fecha"] = str(int(float(anio)))
+            else:
+                out["fecha"] = ""
+        except (TypeError, ValueError):
+            out["fecha"] = ""
+
+    if out.get("age") not in (None, ""):
+        try:
+            out["age"] = int(round(float(out["age"])))
+        except (TypeError, ValueError):
+            out["age"] = None
+
+    for key, decimales in (
+        ("bmi", 1),
+        ("hbA1c_level", 1),
+        ("blood_glucose_level", 0),
+    ):
+        if out.get(key) in (None, ""):
+            continue
+        try:
+            val = float(out[key])
+            out[key] = int(round(val)) if decimales == 0 else round(val, decimales)
+        except (TypeError, ValueError):
+            pass
+
+    loc = out.get("location")
+    if loc not in (None, ""):
+        out["location"] = str(loc).strip().title()
+
+    gen = out.get("gender")
+    if gen not in (None, ""):
+        g = str(gen).strip()
+        out["gender"] = g[:1].upper() + g[1:] if g else g
+
+    return out
+
 
 def listar(limit: int = 50, offset: int = 0, filtros: dict = None) -> dict:
     df = _extraer()
@@ -192,40 +305,77 @@ def listar(limit: int = 50, offset: int = 0, filtros: dict = None) -> dict:
         if filtros.get("age_max") is not None:
             df = df[df["age"] <= filtros["age_max"]]
         if filtros.get("q"):
-            ql = str(filtros["q"]).lower().strip()
-            if "paciente_nombre" in df.columns:
-                df = df[df["paciente_nombre"].astype(str).str.lower().str.contains(ql, na=False)]
-            else:
-                df = df.iloc[0:0]
+            from nucleo.utilidades.Busqueda import rankear_dataframe
+            campos = [c for c in (
+                "paciente_nombre", "id_paciente", "location", "gender", "encounter_id",
+            ) if c in df.columns]
+            df = rankear_dataframe(df, str(filtros["q"]), campos)
     total = len(df)
-    chunk = _traducir_df(df.iloc[offset:offset + limit])
-    return {"total": total, "registros": chunk.fillna("").to_dict(orient="records")}
+    chunk = _traducir_df(df.iloc[offset:offset + limit]).copy()
+    # Redondeo en DataFrame antes de serializar (evita float64 sucio en JSON)
+    if "age" in chunk.columns:
+        chunk["age"] = pd.to_numeric(chunk["age"], errors="coerce").round(0)
+    if "bmi" in chunk.columns:
+        chunk["bmi"] = pd.to_numeric(chunk["bmi"], errors="coerce").round(1)
+    if "hbA1c_level" in chunk.columns:
+        chunk["hbA1c_level"] = pd.to_numeric(chunk["hbA1c_level"], errors="coerce").round(1)
+    if "blood_glucose_level" in chunk.columns:
+        chunk["blood_glucose_level"] = pd.to_numeric(chunk["blood_glucose_level"], errors="coerce").round(0)
+    if "year" in chunk.columns and "fecha" not in chunk.columns:
+        yrs = pd.to_numeric(chunk["year"], errors="coerce")
+        chunk["fecha"] = yrs.map(lambda y: str(int(y)) if pd.notna(y) else "")
+    registros = [_serializar_registro(r) for r in chunk.where(pd.notnull(chunk), None).to_dict(orient="records")]
+    ids = {str(r.get("id_paciente") or "") for r in registros if r.get("id_paciente")}
+    if ids:
+        try:
+            from nucleo.utilidades.PacientesLookup import mapa_pacientes
+            mapa = mapa_pacientes(ids)
+            for r in registros:
+                pid = str(r.get("id_paciente") or "")
+                p = mapa.get(pid) or {}
+                if p.get("nombre_completo") and not str(r.get("paciente_nombre") or "").strip():
+                    r["paciente_nombre"] = p["nombre_completo"]
+                r["tiene_foto"] = bool(p.get("tiene_foto"))
+        except Exception:
+            for r in registros:
+                r.setdefault("tiene_foto", False)
+    return {"total": total, "registros": registros}
 
 def obtener(encounter_id: int) -> dict:
     df = _extraer()
     fila = df[df["encounter_id"] == encounter_id]
     if fila.empty:
         return {"error": "Registro no encontrado"}
-    return traducir_registro(fila.fillna("").iloc[0].to_dict())
+    return _serializar_registro(traducir_registro(fila.where(pd.notnull(fila), None).iloc[0].to_dict()))
 
 def crear(datos: dict) -> dict:
+    id_pac = str(datos.get("id_paciente") or "").strip()
+    if not id_pac:
+        return {"error": "Debe vincular un paciente del expediente (HCE) antes de guardar la consulta"}
+    datos["id_paciente"] = id_pac
     df = _extraer()
     nuevo_id = int(df["encounter_id"].max()) + 1 if not df.empty else 1
     datos["encounter_id"] = nuevo_id
     datos["created_at"] = datetime.utcnow().isoformat()
-    if "id_paciente" not in datos:
-        datos["id_paciente"] = datos.get("id_paciente") or ""
-    if datos.get("id_paciente"):
+    datos.setdefault("year", datetime.utcnow().year)
+    if "age" in datos and datos["age"] not in (None, ""):
         try:
-            from paquetes.clinico.pacientes.PacientesServicio import obtener as obtener_paciente
-            p = obtener_paciente(str(datos["id_paciente"]))
-            if "error" not in p:
-                datos.setdefault("age", p.get("edad", datos.get("age", 45)))
-                datos.setdefault("gender", p.get("genero", datos.get("gender", "Femenino")))
-                datos.setdefault("location", p.get("sede", datos.get("location", "California")))
-                datos["paciente_nombre"] = p.get("nombre_completo", "")
-        except Exception:
+            datos["age"] = int(round(float(datos["age"])))
+        except (TypeError, ValueError):
             pass
+    if datos.get("location"):
+        datos["location"] = str(datos["location"]).strip().title()
+    try:
+        from paquetes.clinico.pacientes.PacientesServicio import obtener as obtener_paciente
+        p = obtener_paciente(id_pac)
+        if "error" in p:
+            return {"error": "Paciente no encontrado en el expediente (HCE)"}
+        datos.setdefault("age", p.get("edad", datos.get("age", 45)))
+        datos.setdefault("gender", p.get("genero", datos.get("gender", "Femenino")))
+        datos.setdefault("location", p.get("sede", datos.get("location", "California")))
+        datos["paciente_nombre"] = p.get("nombre_completo", "")
+    except Exception:
+        return {"error": "No se pudo validar el paciente del expediente"}
     nuevo_df = pd.concat([df, pd.DataFrame([datos])], ignore_index=True)
     _cargar(nuevo_df)
     invalidar_cache()
@@ -234,7 +384,7 @@ def crear(datos: dict) -> dict:
         materializar_dwh()
     except Exception:
         pass
-    return {"mensaje": "Registro creado", "encounter_id": nuevo_id}
+    return {"mensaje": "Registro creado", "encounter_id": nuevo_id, "paciente_nombre": datos.get("paciente_nombre", "")}
 
 
 def listar_por_paciente(id_paciente: str, limit: int = 50) -> dict:
@@ -249,16 +399,34 @@ def listar_por_paciente(id_paciente: str, limit: int = 50) -> dict:
     if total > 1:
         sub = sub.sort_values("encounter_id", ascending=False)
     rows = sub.head(limit).fillna("").to_dict(orient="records")
-    return {"consultas": [traducir_registro(r) for r in rows], "total": total}
+    return {"consultas": [_serializar_registro(traducir_registro(r)) for r in rows], "total": total}
 
 def actualizar(encounter_id: int, cambios: dict) -> dict:
     df = _extraer()
     idx = df.index[df["encounter_id"] == encounter_id].tolist()
     if not idx:
         return {"error": "Registro no encontrado"}
+    if "age" in cambios and cambios["age"] not in (None, ""):
+        try:
+            cambios["age"] = int(round(float(cambios["age"])))
+        except (TypeError, ValueError):
+            pass
+    if cambios.get("location"):
+        cambios["location"] = str(cambios["location"]).strip().title()
+    id_pac = str(cambios.get("id_paciente") or "").strip()
+    if id_pac:
+        try:
+            from paquetes.clinico.pacientes.PacientesServicio import obtener as obtener_paciente
+            p = obtener_paciente(id_pac)
+            if "error" not in p:
+                cambios["id_paciente"] = id_pac
+                cambios["paciente_nombre"] = p.get("nombre_completo", "")
+        except Exception:
+            pass
     for k, v in cambios.items():
         df.at[idx[0], k] = v
     _cargar(df)
+    invalidar_cache()
     return {"mensaje": "Registro actualizado", "encounter_id": encounter_id}
 
 def eliminar(encounter_id: int) -> dict:
@@ -307,7 +475,6 @@ def _calc_estadisticas_incremental() -> dict:
         },
     }
     year_acc: dict[int, list[int]] = {}
-    vistos_encounter: set[int] = set()
 
     for chunk in _iter_chunks():
         if chunk.empty:
@@ -316,10 +483,6 @@ def _calc_estadisticas_incremental() -> dict:
         if "encounter_id" in chunk.columns:
             chunk = chunk.dropna(subset=["encounter_id"]).copy()
             chunk["encounter_id"] = chunk["encounter_id"].astype(int)
-            chunk = chunk[~chunk["encounter_id"].isin(vistos_encounter)]
-            if chunk.empty:
-                continue
-            vistos_encounter.update(chunk["encounter_id"].tolist())
 
         diab = chunk["diabetes"].fillna(0).astype(int) if "diabetes" in chunk.columns else pd.Series(0, index=chunk.index)
         mask_con = diab == 1
@@ -538,6 +701,221 @@ def estadisticas() -> dict:
         _guardar_snapshot(fp, result)
     return result
 
+
+def calidad_diabetes() -> dict:
+    """
+    Indicadores de control y riesgo en la cohorte con diabetes.
+    Pensado para el rol analista (calidad clínica DM, sin PHI).
+    """
+    fp = _fingerprint()
+    if not fp:
+        return {"total_registros": 0, "con_diabetes": 0}
+
+    if _cache.get("calidad") is not None and _cache.get("calidad_fp") == fp:
+        return _cache["calidad"]
+
+    df = _extraer()
+    if df.empty or "diabetes" not in df.columns:
+        out = {"total_registros": 0, "con_diabetes": 0}
+        _cache["calidad"] = out
+        _cache["calidad_fp"] = fp
+        return out
+
+    total = int(len(df))
+    mask_dm = df["diabetes"].fillna(0).astype(int) == 1
+    dm = df.loc[mask_dm].copy()
+    n = int(len(dm))
+    prevalencia = _pct(n, total)
+
+    def _num(series):
+        return pd.to_numeric(series, errors="coerce")
+
+    hba = _num(dm["hbA1c_level"]) if "hbA1c_level" in dm.columns else pd.Series(dtype=float)
+    glc = _num(dm["blood_glucose_level"]) if "blood_glucose_level" in dm.columns else pd.Series(dtype=float)
+    bmi = _num(dm["bmi"]) if "bmi" in dm.columns else pd.Series(dtype=float)
+    age = _num(dm["age"]) if "age" in dm.columns else pd.Series(dtype=float)
+
+    hba_ok = hba.notna()
+    n_hba = int(hba_ok.sum())
+    control = int(((hba < 7) & hba_ok).sum())
+    suboptimo = int(((hba >= 7) & (hba < 9) & hba_ok).sum())
+    descontrol = int(((hba >= 9) & hba_ok).sum())
+
+    glc_ok = glc.notna()
+    n_glc = int(glc_ok.sum())
+    glc_alta = int(((glc >= 180) & glc_ok).sum())
+    glc_critica = int(((glc >= 250) & glc_ok).sum())
+
+    bmi_ok = bmi.notna()
+    n_bmi = int(bmi_ok.sum())
+    obesidad = int(((bmi >= 30) & bmi_ok).sum())
+
+    hiper = pd.Series(0, index=dm.index)
+    cardio = pd.Series(0, index=dm.index)
+    if "hypertension" in dm.columns:
+        hiper = dm["hypertension"].fillna(0).astype(int)
+    if "heart_disease" in dm.columns:
+        cardio = dm["heart_disease"].fillna(0).astype(int)
+    n_hiper = int((hiper == 1).sum())
+    n_cardio = int((cardio == 1).sum())
+    n_ambas = int(((hiper == 1) & (cardio == 1)).sum())
+
+    # Estrato de riesgo clínico (prioridad: alto > medio > controlado)
+    riesgo_alto = (
+        ((hba >= 9) & hba_ok)
+        | ((glc >= 250) & glc_ok)
+        | ((hiper == 1) & (cardio == 1))
+    )
+    riesgo_medio = (
+        ~riesgo_alto
+        & (
+            ((hba >= 7) & (hba < 9) & hba_ok)
+            | ((glc >= 180) & (glc < 250) & glc_ok)
+            | (hiper == 1)
+            | (cardio == 1)
+        )
+    )
+    riesgo_bajo = ~riesgo_alto & ~riesgo_medio
+    n_alto = int(riesgo_alto.sum())
+    n_medio = int(riesgo_medio.sum())
+    n_bajo = int(riesgo_bajo.sum())
+
+    # Descontrol HbA1c por grupo de edad
+    por_edad = []
+    if n and age.notna().any() and n_hba:
+        cats = pd.cut(age, bins=EDAD_BINS, labels=EDAD_LABELS, right=False)
+        for lbl in EDAD_LABELS:
+            m = cats == lbl
+            nn = int(m.sum())
+            if not nn:
+                continue
+            dh = int(((hba >= 9) & hba_ok & m).sum())
+            por_edad.append({
+                "grupo": lbl,
+                "con_diabetes": nn,
+                "descontrol_hba1c": dh,
+                "pct_descontrol": _pct(dh, int((m & hba_ok).sum()) or nn),
+            })
+
+    # Sedes con mayor % descontrol (top 8)
+    por_sede = []
+    if n and "location" in dm.columns and n_hba:
+        loc = dm["location"].fillna("").astype(str).str.strip().str.title()
+        for sede, idx in loc.groupby(loc).groups.items():
+            if not sede or sede.lower() in ("", "nan", "none"):
+                continue
+            sub = dm.loc[idx]
+            h = _num(sub["hbA1c_level"]) if "hbA1c_level" in sub.columns else pd.Series(dtype=float)
+            ok = h.notna()
+            nn = int(ok.sum())
+            if nn < 5:
+                continue
+            dh = int(((h >= 9) & ok).sum())
+            por_sede.append({
+                "sede": sede[:40],
+                "con_diabetes": int(len(sub)),
+                "con_hba1c": nn,
+                "descontrol_hba1c": dh,
+                "pct_descontrol": _pct(dh, nn),
+            })
+        por_sede.sort(key=lambda x: (-x["pct_descontrol"], -x["con_diabetes"]))
+        por_sede = por_sede[:8]
+
+    out = {
+        "total_registros": total,
+        "con_diabetes": n,
+        "sin_diabetes": total - n,
+        "prevalencia_pct": prevalencia,
+        "control_hba1c": {
+            "con_dato": n_hba,
+            "controlado_lt7": control,
+            "suboptimo_7_9": suboptimo,
+            "descontrol_gte9": descontrol,
+            "pct_controlado": _pct(control, n_hba),
+            "pct_suboptimo": _pct(suboptimo, n_hba),
+            "pct_descontrol": _pct(descontrol, n_hba),
+            "promedio": round(float(hba.mean()), 2) if n_hba else None,
+        },
+        "glucosa": {
+            "con_dato": n_glc,
+            "alta_gte180": glc_alta,
+            "critica_gte250": glc_critica,
+            "pct_alta": _pct(glc_alta, n_glc),
+            "pct_critica": _pct(glc_critica, n_glc),
+            "promedio": round(float(glc.mean()), 1) if n_glc else None,
+        },
+        "obesidad": {
+            "con_dato": n_bmi,
+            "bmi_gte30": obesidad,
+            "pct_obesidad": _pct(obesidad, n_bmi),
+            "promedio_bmi": round(float(bmi.mean()), 1) if n_bmi else None,
+        },
+        "comorbilidades_en_dm": {
+            "hipertension": n_hiper,
+            "cardiopatia": n_cardio,
+            "ambas": n_ambas,
+            "pct_hipertension": _pct(n_hiper, n),
+            "pct_cardiopatia": _pct(n_cardio, n),
+            "pct_ambas": _pct(n_ambas, n),
+        },
+        "riesgo": {
+            "alto": n_alto,
+            "medio": n_medio,
+            "controlado": n_bajo,
+            "pct_alto": _pct(n_alto, n),
+            "pct_medio": _pct(n_medio, n),
+            "pct_controlado": _pct(n_bajo, n),
+        },
+        "descontrol_por_edad": por_edad,
+        "sedes_descontrol": por_sede,
+        "recomendaciones": _recomendaciones_analista(
+            n, n_hba, control, descontrol, glc_critica, n_ambas, n_alto
+        ),
+    }
+    _cache["calidad"] = out
+    _cache["calidad_fp"] = fp
+    return out
+
+
+def _recomendaciones_analista(
+    n_dm: int,
+    n_hba: int,
+    control: int,
+    descontrol: int,
+    glc_critica: int,
+    ambas_comorb: int,
+    riesgo_alto: int,
+) -> list[str]:
+    tips = []
+    if not n_dm:
+        return ["Sin cohorte diabética en el dataset. Genere o materialice datos clínicos."]
+    if n_hba and _pct(descontrol, n_hba) >= 20:
+        tips.append(
+            "Alto % con HbA1c ≥ 9%: priorice reporte de descontrol y revisión de sedes críticas."
+        )
+    if n_hba and _pct(control, n_hba) < 40:
+        tips.append(
+            "Control glucémico (HbA1c < 7%) bajo: contraste con predicción ML y reentrenar si el modelo envejeció."
+        )
+    if glc_critica:
+        tips.append(
+            f"{glc_critica} registros DM con glucosa ≥ 250: útil para alertas y cohortes de riesgo en reportes PDF."
+        )
+    if ambas_comorb:
+        tips.append(
+            f"{ambas_comorb} con hipertensión + cardiopatía: cohorte cardiovascular-diabetes para BI."
+        )
+    if riesgo_alto and _pct(riesgo_alto, n_dm) >= 25:
+        tips.append(
+            "≥25% de la cohorte DM en riesgo alto: eleve el hallazgo al dashboard ejecutivo y a notificaciones."
+        )
+    if not tips:
+        tips.append(
+            "Cohorte estable: genere reporte PDF de prevalencia y valide el modelo ML con métricas actuales."
+        )
+    return tips
+
+
 def buscar(filtros: dict) -> dict:
     df = _extraer()
     if filtros.get("diabetes") is not None:
@@ -550,4 +928,4 @@ def buscar(filtros: dict) -> dict:
         df = df[df["age"] >= filtros["age_min"]]
     if filtros.get("age_max"):
         df = df[df["age"] <= filtros["age_max"]]
-    return {"total": len(df), "registros": _traducir_df(df.head(100)).fillna("").to_dict(orient="records")}
+    return listar(limit=100, offset=0, filtros={k: v for k, v in filtros.items() if v is not None})

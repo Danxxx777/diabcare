@@ -3,13 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Mis citas</title>
+<title>DiabCare - Mis citas</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="stylesheet" href="/estaticos/estilos.css">
 <link rel="stylesheet" href="/estaticos/dashboard.css">
 <script src="/estaticos/iconos.js"></script>
 <script src="/estaticos/navegacion.js"></script>
 <script src="/estaticos/api.js"></script>
+<style>
+.at-meta {
+  font-size: 12px; color: var(--text2); margin-bottom: 12px;
+  padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: rgba(0,0,0,0.25); line-height: 1.45;
+}
+.at-meta b { color: var(--text); }
+#modalAtender .modal-card { max-width: 560px; width: 94vw; }
+</style>
 </head>
 <body>
 <aside class="sidebar" id="diabcare-sidebar"></aside>
@@ -21,31 +30,76 @@
     <div class="page-header">
       <div>
         <div class="page-title">Mis <span>citas</span></div>
-        <div class="page-sub">Agenda asignada por administración — confirmar o registrar atención</div>
+        <div class="page-sub">Turnos asignados al médico · confirmar, atender o marcar no asistió</div>
       </div>
     </div>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total asignadas</div><div class="stat-value blue" id="st-total">—</div></div>
-      <div class="stat-card"><div class="stat-label">Médico</div><div class="stat-value" id="st-medico" style="font-size:14px">—</div></div>
+      <div class="stat-card"><div class="stat-label">Turnos asignados</div><div class="stat-value blue" id="st-total">-</div></div>
+      <div class="stat-card"><div class="stat-label">Médico</div><div class="stat-value" id="st-medico" style="font-size:14px">-</div></div>
     </div>
     <div class="tabla-card">
       <div class="tabla-top">
-        <input class="search" id="f-fecha" type="date" onchange="cargar()">
-        <select class="search" id="f-estado" onchange="cargar()">
+        <input class="search" id="f-q" type="search" autocomplete="off" placeholder="Paciente o motivo…">
+        <input class="search" id="f-fecha" type="date" onchange="pag=1;cargar()">
+        <select class="search" id="f-estado" onchange="pag=1;cargar()">
           <option value="">Todos los estados</option>
-          <option>programada</option><option>confirmada</option><option>atendida</option>
+          <option value="programada">Programada</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="atendida">Atendida</option>
         </select>
       </div>
       <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+      <div id="dataPager" class="data-pager" hidden></div>
     </div>
   </div>
 </div>
+
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<div id="modalAtender" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span>Atender consulta</span></div>
+    <div class="modal-body form-modal-grid">
+      <input type="hidden" id="at-id-cita">
+      <input type="hidden" id="at-id-paciente">
+      <div class="span-full at-meta" id="at-meta">—</div>
+      <label>Edad<input id="at-age" type="number" min="1" max="120" step="1" required></label>
+      <label>Género
+        <select id="at-gender">
+          <option>Femenino</option>
+          <option>Masculino</option>
+          <option>Otro</option>
+        </select>
+      </label>
+      <label class="span-full">Ubicación<input id="at-location" placeholder="Ciudad / sede"></label>
+      <label>BMI<input id="at-bmi" type="number" step="0.1" min="0"></label>
+      <label>HbA1c %<input id="at-hba" type="number" step="0.1" min="0"></label>
+      <label>Glucosa<input id="at-glc" type="number" step="1" min="0"></label>
+      <label>Hipertensión
+        <select id="at-hiper"><option value="0">No</option><option value="1">Sí</option></select>
+      </label>
+      <label>Cardiopatía
+        <select id="at-cardio"><option value="0">No</option><option value="1">Sí</option></select>
+      </label>
+      <label>Diabetes
+        <select id="at-diabetes"><option value="0">No</option><option value="1">Sí</option></select>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" type="button" onclick="cerrarAtender()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" type="button" id="btnGuardarAtender" onclick="guardarAtencion()">Guardar y cerrar consulta</button>
+    </div>
+  </div>
+</div>
+
 <script>
 DiabCareNav.init();
-DiabCareNav.guardRol(['medico']);
+DiabCareNav.guardRol(['administrador', 'medico']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
+let pag = 1;
+let _totalRows = 0;
+const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 12;
 let _rows = [];
 
 function toast(msg, type='success') {
@@ -56,50 +110,90 @@ function toast(msg, type='success') {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+function esc(s) {
+  return String(s || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+}
+
+function pintarPager() {
+  DiabCareAPI.renderPager(document.getElementById('dataPager'), {
+    page: pag, pageSize: LIMIT, total: _totalRows,
+    onPage: (p) => { pag = p; cargar(); },
+  });
+}
+
 async function cargar() {
   const body = document.getElementById('tablaBody');
   body.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando…</div>';
   const fecha = document.getElementById('f-fecha').value;
   const estado = document.getElementById('f-estado').value;
-  let url = `${API}/api/mis-citas?limit=100`;
-  if (fecha) url += `&fecha=${fecha}`;
-  if (estado) url += `&estado=${estado}`;
+  const q = document.getElementById('f-q')?.value.trim() || '';
+  const rel = DiabCareAPI.listUrlWithPage('/api/mis-citas', {
+    page: pag,
+    pageSize: LIMIT,
+    q,
+    extra: { fecha, estado },
+  });
+  const url = `${API}${rel}`;
   try {
-    const r = await fetch(url, { headers: { Authorization: 'Bearer '+token } });
+    const r = await fetch(url, { headers: { Authorization: 'Bearer '+token }, cache: 'no-store' });
     if (r.status === 401) { window.location.href = '/'; return; }
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       const msg = data.detail || data.error || 'Sin acceso';
       body.innerHTML = `<div class="loading">${typeof msg === 'string' ? msg : 'Sin acceso'}</div>`;
       toast(typeof msg === 'string' ? msg : 'Sin acceso', 'error');
+      pintarPager();
       return;
     }
     _rows = data.citas || [];
-    document.getElementById('st-total').textContent = data.total ?? 0;
-    document.getElementById('st-medico').textContent = data.medico || JSON.parse(localStorage.getItem('usuario') || '{}').nombre || '—';
+    _totalRows = Number(data.total) || 0;
+    document.getElementById('st-total').textContent = _totalRows;
+    document.getElementById('st-medico').textContent = data.medico || JSON.parse(localStorage.getItem('usuario') || '{}').nombre || '-';
     if (!_rows.length) {
-      body.innerHTML = '<div class="loading">Sin citas asignadas</div>';
+      body.innerHTML = q
+        ? `<div class="loading">Sin coincidencias para “${esc(q)}”</div>`
+        : '<div class="loading">Sin citas asignadas</div>';
+      pintarPager();
       return;
     }
-    let h = '<table class="tabla"><thead><tr><th>Fecha</th><th>Hora</th><th>Paciente</th><th>Motivo</th><th>Estado</th><th></th></tr></thead><tbody>';
-    _rows.forEach(c => {
-      const acciones = [];
-      if (c.estado === 'programada') {
-        acciones.push(`<button class="btn btn-ghost btn-sm" onclick="cambiarEstado('${c.id_cita}','confirmada')">Confirmar</button>`);
-      }
-      if (c.estado === 'programada' || c.estado === 'confirmada') {
-        acciones.push(`<button class="btn btn-primary btn-sm" onclick="atender('${c.id_cita}','${c.id_paciente}')">Atender</button>`);
-      }
-      h += `<tr>
-        <td>${c.fecha||'—'}</td><td>${c.hora||'—'}</td><td>${c.paciente_nombre||'—'}</td>
-        <td>${c.motivo||'—'}</td><td><span class="badge b-activo">${c.estado||'—'}</span></td>
-        <td style="white-space:nowrap">${acciones.join(' ')||'—'}</td></tr>`;
+    body.innerHTML = DiabCareAPI.buildDataGrid({
+      rows: _rows,
+      idField: 'id_cita',
+      columns: [
+        { key: 'paciente_nombre', label: 'Paciente', title: true, render: c => esc(c.paciente_nombre) || '—' },
+        { key: 'estado', label: 'Estado', badge: true, render: c =>
+          c.estado_label || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(c.estado) : c.estado) || '—' },
+        { key: 'fecha', label: 'Fecha' },
+        { key: 'hora', label: 'Hora' },
+        { key: 'motivo', label: 'Motivo', render: c => esc(c.motivo) || '—' },
+        { key: 'pago_label', label: 'Cobro', render: c =>
+          c.pago_label || (c.consulta_pagada ? 'Cobrada' : 'Pendiente cobro') },
+      ],
+      actionsHtml: (c, id) => {
+        const acciones = [];
+        const pagada = !!c.consulta_pagada;
+        if ((c.estado === 'programada' || c.estado === 'confirmada') && pagada) {
+          acciones.push(`<button type="button" class="btn btn-primary btn-sm" data-atender="${id}">Atender</button>`);
+        } else if (c.estado === 'programada' || c.estado === 'confirmada') {
+          acciones.push(`<span class="muted" style="font-size:12px">Esperando cobro</span>`);
+        }
+        if (c.estado === 'programada' || c.estado === 'confirmada') {
+          acciones.push(`<button type="button" class="btn btn-ghost btn-sm" data-no-asistio="${id}">No asistió</button>`);
+        }
+        return acciones.join(' ');
+      },
     });
-    h += '</tbody></table>';
-    body.innerHTML = h;
+    body.querySelectorAll('[data-atender]').forEach(btn => {
+      btn.onclick = () => abrirAtender(btn.getAttribute('data-atender'));
+    });
+    body.querySelectorAll('[data-no-asistio]').forEach(btn => {
+      btn.onclick = () => cambiarEstado(btn.getAttribute('data-no-asistio'), 'no_asistio');
+    });
+    pintarPager();
   } catch (e) {
     body.innerHTML = '<div class="loading">Error de conexión con el servidor</div>';
     toast('Error de conexión', 'error');
+    pintarPager();
   }
 }
 
@@ -111,26 +205,122 @@ async function cambiarEstado(id, estado) {
   });
   const d = await r.json();
   if (!r.ok) { toast(d.detail || d.error || 'Error', 'error'); return; }
-  toast('Cita confirmada');
+  toast(estado === 'no_asistio' ? 'Marcado como no asistió' : 'Estado actualizado');
   cargar();
 }
 
-async function atender(idCita, idPaciente) {
-  const r = await fetch(`${API}/api/mis-citas/${idCita}/estado`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+token },
-    body: JSON.stringify({ estado: 'atendida' }),
-  });
-  if (!r.ok) {
-    const d = await r.json().catch(() => ({}));
-    toast(d.detail || d.error || 'No se pudo marcar atendida', 'error');
+function cerrarAtender() {
+  document.getElementById('modalAtender').style.display = 'none';
+}
+
+async function abrirAtender(idCita) {
+  const c = _rows.find(x => x.id_cita === idCita);
+  if (!c) return;
+  document.getElementById('at-id-cita').value = c.id_cita;
+  document.getElementById('at-id-paciente').value = c.id_paciente || '';
+  document.getElementById('at-meta').innerHTML =
+    `<div><b>Paciente:</b> ${esc(c.paciente_nombre) || '—'}</div>` +
+    `<div style="margin-top:4px"><b>Motivo:</b> ${esc(c.motivo) || '—'}</div>` +
+    `<div style="margin-top:4px"><b>Turno:</b> ${esc(c.fecha)} ${esc(c.hora)}</div>`;
+
+  document.getElementById('at-age').value = 45;
+  document.getElementById('at-gender').value = 'Femenino';
+  document.getElementById('at-location').value = '';
+  document.getElementById('at-bmi').value = 28;
+  document.getElementById('at-hba').value = 6.5;
+  document.getElementById('at-glc').value = 140;
+  document.getElementById('at-hiper').value = '0';
+  document.getElementById('at-cardio').value = '0';
+  document.getElementById('at-diabetes').value = '0';
+
+  if (c.id_paciente) {
+    try {
+      const r = await fetch(`${API}/api/pacientes/${c.id_paciente}`, {
+        headers: { Authorization: 'Bearer '+token }, cache: 'no-store',
+      });
+      if (r.ok) {
+        const p = await r.json();
+        if (p.edad != null && p.edad !== '') document.getElementById('at-age').value = Math.round(Number(p.edad)) || 45;
+        if (p.genero) document.getElementById('at-gender').value = p.genero;
+        if (p.sede) document.getElementById('at-location').value = p.sede;
+      }
+    } catch (_) { /* defaults */ }
+  }
+
+  document.getElementById('modalAtender').style.display = 'flex';
+  setTimeout(() => document.getElementById('at-bmi').focus(), 50);
+}
+
+async function guardarAtencion() {
+  const idCita = document.getElementById('at-id-cita').value;
+  const idPaciente = document.getElementById('at-id-paciente').value;
+  const age = Math.round(parseFloat(document.getElementById('at-age').value) || 0);
+  const bmi = Math.round((parseFloat(document.getElementById('at-bmi').value) || 0) * 10) / 10;
+  const hba = Math.round((parseFloat(document.getElementById('at-hba').value) || 0) * 10) / 10;
+  const glc = Math.round(parseFloat(document.getElementById('at-glc').value) || 0);
+  if (!age || age < 1) { toast('Indique la edad', 'error'); return; }
+  if (!(bmi > 0) || !(hba > 0) || !(glc > 0)) {
+    toast('Complete BMI, HbA1c y glucosa', 'error');
     return;
   }
-  if (idPaciente) localStorage.setItem('diabcare_paciente_reg', idPaciente);
-  window.location.href = '/paginas/clinico/registros_clinicos/index.html';
+
+  const btn = document.getElementById('btnGuardarAtender');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  const registro = {
+    id_paciente: idPaciente || null,
+    age,
+    gender: document.getElementById('at-gender').value,
+    location: (document.getElementById('at-location').value || '').trim() || 'Sede principal',
+    bmi,
+    hbA1c_level: hba,
+    blood_glucose_level: glc,
+    hypertension: parseInt(document.getElementById('at-hiper').value, 10) || 0,
+    heart_disease: parseInt(document.getElementById('at-cardio').value, 10) || 0,
+    diabetes: parseInt(document.getElementById('at-diabetes').value, 10) || 0,
+    year: new Date().getFullYear(),
+    smoking_history: 'never',
+  };
+
+  try {
+    const rReg = await fetch(`${API}/api/registros/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+token },
+      body: JSON.stringify(registro),
+    });
+    const dReg = await rReg.json().catch(() => ({}));
+    if (!rReg.ok || dReg.error) {
+      toast(dReg.error || dReg.detail || 'No se pudo guardar el diagnóstico', 'error');
+      return;
+    }
+
+    const rEst = await fetch(`${API}/api/mis-citas/${idCita}/estado`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+token },
+      body: JSON.stringify({ estado: 'atendida' }),
+    });
+    if (!rEst.ok) {
+      const d = await rEst.json().catch(() => ({}));
+      toast(d.detail || d.error || 'Diagnóstico guardado, pero no se marcó atendida', 'error');
+      cerrarAtender();
+      cargar();
+      return;
+    }
+
+    toast('Consulta documentada');
+    cerrarAtender();
+    cargar();
+  } catch (_) {
+    toast('Error de conexión', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar y cerrar consulta';
+  }
 }
 
 document.getElementById('f-fecha').value = new Date().toISOString().slice(0, 10);
+DiabCareAPI.bindLiveSearch({ input: document.getElementById('f-q'), onSearch: () => { pag = 1; return cargar(); } });
 cargar();
 </script>
 </body>

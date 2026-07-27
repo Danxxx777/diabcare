@@ -1,4 +1,3 @@
-﻿# DiabCare Analytics â€” Generador de Datos SintÃ©ticos
-# Genera 100k registros sintÃ©ticos semanales con las mismas 16 columnas del dataset
-# Ejecutar: python GeneradorSinteticos.py
-
+﻿# DiabCare Analytics — Generador de datos sintéticos
+# Diabetes (stage/) + hospital (negocio/ P16–P20) vía DatasetServicio / DatasetHospitalServicio.
+# API: POST /api/dataset/generar  |  POST /api/dataset/hospital/generar

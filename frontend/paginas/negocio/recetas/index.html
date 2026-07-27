@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>DiabCare - Recetas</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css">
+<link rel="stylesheet" href="/estaticos/dashboard.css">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/api.js"></script>
+<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+</head>
+<body>
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Recetas</span>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Recetas <span>médicas</span></div>
+        <div class="page-sub">Prescripciones</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nueva receta</button>
+      </div>
+    </div>
+    <div class="tabla-card">
+      <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+<div id="modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span id="modal-titulo">Nueva receta</span></div>
+    <div class="modal-body form-modal-grid">
+      <input type="hidden" id="f-id">
+      <label class="span-full pac-typeahead-wrap">Paciente (cédula o nombre)
+        <input type="hidden" id="m-id_paciente" value="">
+        <input class="pac-typeahead-q" type="search" id="m-id_paciente-q" placeholder="Escribe cédula o nombre…" autocomplete="off">
+        <div id="m-id_paciente-res" class="pac-suggest" hidden></div>
+        <div id="m-id_paciente-chip" class="pac-chip" style="display:none"></div>
+      </label>
+      <label class="span-full">Indicaciones
+        <textarea id="m-indicaciones" rows="3" required placeholder="Ej. Metformina 850 mg cada 12 h × 30 días"></textarea>
+      </label>
+      <label>Fecha<input id="m-fecha" type="date"></label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarCrud()">Guardar</button>
+    </div>
+  </div>
+</div>
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico']);
+DiabCareCrud.mount({
+  listUrl: '/api/recetas', listKey: 'recetas', idField: 'id_receta',
+  itemUrl: id => '/api/recetas/' + id,
+  createTitle: 'Nueva receta',
+  editTitle: 'Editar receta',
+  listLimit: 100,
+  searchPlaceholder: 'Buscar por paciente, cédula o indicaciones…',
+  lookups: [{
+    field: 'id_paciente', url: '/api/pacientes/?limit=200', listKey: 'pacientes',
+    idKey: 'id_paciente', typeahead: true,
+    label: p => {
+      const n = (p.nombre_completo || ((p.nombre||'') + ' ' + (p.apellido||'')).trim() || 'Paciente');
+      return p.documento ? `${n} · ${p.documento}` : n;
+    }
+  }],
+  columns: [
+    { key: 'paciente_nombre', label: 'Paciente', title: true, render: r => r.paciente_nombre || '—' },
+    { key: 'estado', label: 'Estado', badge: true, render: r => r.estado_label || r.estado || '—' },
+    { key: 'documento', label: 'Cédula', render: r => r.documento || r.paciente_documento || '—' },
+    { key: 'indicaciones', label: 'Indicaciones' },
+    { key: 'fecha', label: 'Fecha' }
+  ],
+  fields: [
+    { key: 'id_paciente', required: true, labelUi: 'Paciente' },
+    { key: 'indicaciones', required: true, labelUi: 'Indicaciones' },
+    { key: 'fecha' }
+  ],
+  beforeSave(b) {
+    b.estado = 'emitida';
+    if (!b.fecha) b.fecha = new Date().toISOString().slice(0, 10);
+  }
+});
+</script>
+</body>
+</html>

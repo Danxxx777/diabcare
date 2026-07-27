@@ -11,6 +11,7 @@ from datetime import datetime
 import pandas as pd
 
 from paquetes.configuracion.ConfiguracionClienteMinio import get_cliente
+from nucleo.utilidades.ParquetCache import leer, escribir
 
 BUCKET_APP = "diabcare-app"
 ARCHIVO_META = "operativo/fotos_entidad.parquet"
@@ -35,24 +36,11 @@ def _es_true(val) -> bool:
 
 
 def _extraer() -> pd.DataFrame:
-    try:
-        c = get_cliente()
-        if not c.bucket_exists(BUCKET_APP):
-            c.make_bucket(BUCKET_APP)
-        obj = c.get_object(BUCKET_APP, ARCHIVO_META)
-        return pd.read_parquet(io.BytesIO(obj.read()))
-    except Exception:
-        return pd.DataFrame(columns=COLUMNAS)
+    return leer(BUCKET_APP, ARCHIVO_META, COLUMNAS)
 
 
 def _cargar(df: pd.DataFrame) -> None:
-    c = get_cliente()
-    if not c.bucket_exists(BUCKET_APP):
-        c.make_bucket(BUCKET_APP)
-    buf = io.BytesIO()
-    df.to_parquet(buf, index=False)
-    buf.seek(0)
-    c.put_object(BUCKET_APP, ARCHIVO_META, buf, buf.getbuffer().nbytes)
+    escribir(BUCKET_APP, ARCHIVO_META, df)
 
 
 def _ext(mime: str) -> str:
@@ -148,3 +136,186 @@ def leer_bytes_foto(tipo_entidad: str, id_entidad: str) -> dict:
         }
     except Exception as e:
         return {"error": f"No se pudo leer la foto: {e}"}
+
+
+def _seed_int(valor: str) -> int:
+    h = 0
+    for ch in str(valor):
+        h = (h * 131 + ord(ch)) & 0xFFFFFFFF
+    return int(h)
+
+
+_NOMBRES_F = {
+    "ana", "maría", "maria", "elena", "sofía", "sofia", "paula", "lucía", "lucia",
+    "valeria", "camila", "diana", "rosa", "carmen", "laura", "andrea", "isabel",
+    "patricia", "gabriela", "alejandra", "daniela", "fernanda", "carolina", "mónica",
+    "monica", "adriana", "claudia", "verónica", "veronica", "julia", "natalia",
+}
+_NOMBRES_M = {
+    "luis", "carlos", "josé", "jose", "diego", "andrés", "andres", "miguel", "pedro",
+    "jorge", "mateo", "daniel", "juan", "antonio", "francisco", "manuel", "álex",
+    "alex", "david", "pablo", "rafael", "sergio", "javier", "ricardo", "eduardo",
+}
+
+
+def _inferir_carpeta_genero(genero: str, nombre: str = "", apellido: str = "") -> str:
+    """women | men según género del expediente (y nombre si es Otro/desconocido)."""
+    try:
+        from paquetes.dataset.DatasetTraducciones import normalizar_genero
+        canon = normalizar_genero(genero)
+    except Exception:
+        canon = str(genero or "").strip()
+
+    c = (canon or "").strip().lower()
+    if c in ("femenino", "female", "f", "mujer", "woman"):
+        return "women"
+    if c in ("masculino", "male", "m", "hombre", "man"):
+        return "men"
+
+    # Fallback: primer nombre del paciente
+    prim = str(nombre or "").strip().split(" ")[0].lower()
+    if prim in _NOMBRES_F:
+        return "women"
+    if prim in _NOMBRES_M:
+        return "men"
+    # sin señal clara: no mezclar al azar por id (evita “hombre con cara de mujer”)
+    # usar lego solo si no hay género; preferimos men/women por apellido seed estable
+    return "women" if (_seed_int(f"{nombre}|{apellido}|{genero}") % 2 == 0) else "men"
+
+
+def _url_retrato_demo(genero: str, id_entidad: str, nombre: str = "", apellido: str = "") -> str:
+    """Retratos demo de randomuser.me acorde al género del paciente."""
+    carpeta = _inferir_carpeta_genero(genero, nombre, apellido)
+    idx = _seed_int(f"{id_entidad}|{carpeta}") % 100
+    return f"https://randomuser.me/api/portraits/{carpeta}/{idx}.jpg"
+
+
+def _descargar_imagen(url: str) -> tuple[bytes, str]:
+    import urllib.request
+
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "DiabCare/1.0 (demo patient portraits)"},
+    )
+    with urllib.request.urlopen(req, timeout=25) as resp:
+        data = resp.read()
+        mime = (resp.headers.get_content_type() or "image/jpeg").split(";")[0].strip().lower()
+    if not data:
+        raise RuntimeError("Respuesta vacía")
+    if len(data) > MAX_BYTES:
+        raise RuntimeError("Imagen demasiado grande")
+    if mime not in MIME_OK:
+        mime = "image/jpeg"
+    return data, mime
+
+
+def asignar_fotos_automaticas(
+    limite: int = 200,
+    solo_sin_foto: bool = True,
+    usuario: str = "sistema",
+) -> dict:
+    """Asigna fotos demo a pacientes (randomuser.me). Limite 1–2000 por llamada."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from paquetes.clinico.pacientes.PacientesServicio import _extraer as pacientes_df
+
+    limite = max(1, min(int(limite or 200), 2000))
+    pdf = pacientes_df()
+    if pdf.empty:
+        return {"mensaje": "No hay pacientes", "asignadas": 0, "omitidas": 0, "errores": 0}
+
+    con_foto = set()
+    try:
+        fdf = _extraer()
+        if not fdf.empty:
+            con_foto = set(
+                fdf[
+                    (fdf["tipo_entidad"].astype(str) == "paciente")
+                    & fdf["es_principal"].map(_es_true)
+                ]["id_entidad"].astype(str).tolist()
+            )
+    except Exception:
+        pass
+
+    candidatos = []
+    por_genero = {"women": 0, "men": 0}
+    for _, row in pdf.iterrows():
+        pid = str(row.get("id_paciente") or "")
+        if not pid:
+            continue
+        if solo_sin_foto and pid in con_foto:
+            continue
+        genero = str(row.get("genero") or "")
+        nombre = str(row.get("nombre") or "")
+        apellido = str(row.get("apellido") or "")
+        carpeta = _inferir_carpeta_genero(genero, nombre, apellido)
+        por_genero[carpeta] = por_genero.get(carpeta, 0) + 1
+        candidatos.append({
+            "id_paciente": pid,
+            "genero": genero,
+            "nombre": nombre,
+            "apellido": apellido,
+            "carpeta": carpeta,
+        })
+        if len(candidatos) >= limite:
+            break
+
+    if not candidatos:
+        return {
+            "mensaje": "Todos los pacientes del lote ya tienen foto" if solo_sin_foto else "Sin candidatos",
+            "asignadas": 0,
+            "omitidas": 0,
+            "errores": 0,
+            "candidatos": 0,
+            "por_genero": por_genero,
+            "fuente": "randomuser.me",
+        }
+
+    asignadas = 0
+    errores = 0
+    detalle_err: list[str] = []
+
+    def _uno(item: dict) -> tuple[bool, str]:
+        try:
+            url = _url_retrato_demo(
+                item["genero"],
+                item["id_paciente"],
+                item.get("nombre") or "",
+                item.get("apellido") or "",
+            )
+            data, mime = _descargar_imagen(url)
+            res = guardar_foto(
+                "paciente",
+                item["id_paciente"],
+                data,
+                mime,
+                usuario=usuario or "sistema",
+                es_principal=True,
+            )
+            if res.get("error"):
+                return False, str(res["error"])
+            return True, ""
+        except Exception as e:
+            return False, str(e)
+
+    workers = min(12, max(2, len(candidatos) // 5 or 2))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(_uno, c): c for c in candidatos}
+        for fut in as_completed(futures):
+            ok, err = fut.result()
+            if ok:
+                asignadas += 1
+            else:
+                errores += 1
+                if len(detalle_err) < 8 and err:
+                    detalle_err.append(err)
+
+    return {
+        "mensaje": f"{asignadas} foto(s) asignada(s) automáticamente",
+        "asignadas": asignadas,
+        "omitidas": 0,
+        "errores": errores,
+        "candidatos": len(candidatos),
+        "por_genero": por_genero,
+        "fuente": "randomuser.me (retratos según género del expediente)",
+        "errores_detalle": detalle_err,
+    }

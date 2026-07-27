@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel
 from typing import Optional
 
-from nucleo.utilidades.Dependencias import require_modulo
+from nucleo.utilidades.Dependencias import require_modulo, require_escritura
 from paquetes.clinico.citas.CitasServicio import (
     hoy, listar, listar_por_medico, obtener, crear, actualizar, cancelar, actualizar_estado_medico,
+    cobrar_consulta,
 )
 
 router = APIRouter(prefix="/api/citas", tags=["Agenda clínica"])
@@ -56,6 +57,10 @@ class CitaEstadoMedico(BaseModel):
     estado: str
 
 
+class CobrarConsultaIn(BaseModel):
+    metodo: str = "efectivo"
+
+
 @router.get("/hoy")
 def citas_hoy(payload: dict = Depends(require_modulo("citas"))):
     return hoy()
@@ -67,10 +72,11 @@ def mis_citas(
     limit: int = Query(50, ge=1, le=200),
     fecha: str = "",
     estado: str = "",
+    q: str = "",
     payload: dict = Depends(require_modulo("mis_citas")),
 ):
     uid = str(payload.get("sub") or "")
-    return listar_por_medico(uid, offset, limit, fecha, estado, nombre_jwt=_nombre(payload))
+    return listar_por_medico(uid, offset, limit, fecha, estado, nombre_jwt=_nombre(payload), q=q)
 
 
 @router.get("/")
@@ -99,6 +105,20 @@ def estado_cita_medico(
     return res
 
 
+@router.post("/{id_cita}/cobrar-consulta")
+def post_cobrar_consulta(
+    id_cita: str = _ID_CITA,
+    datos: CobrarConsultaIn = CobrarConsultaIn(),
+    payload: dict = Depends(require_escritura("facturacion")),
+):
+    """Caja: cobra CONS-DM y deja la cita lista para el médico (RN-CIT-010)."""
+    res = cobrar_consulta(id_cita, metodo=datos.metodo)
+    if res.get("error"):
+        raise HTTPException(status_code=400, detail=res["error"])
+    _auditar(_usuario(payload), "create", f"Cobro consulta cita {id_cita} factura={res.get('id_factura')}")
+    return res
+
+
 @router.get("/{id_cita}")
 def obtener_cita(id_cita: str = _ID_CITA, payload: dict = Depends(require_modulo("citas"))):
     res = obtener(id_cita)
@@ -122,7 +142,10 @@ def editar_cita(
     datos: CitaActualizar = ...,
     payload: dict = Depends(require_modulo("citas")),
 ):
-    res = actualizar(id_cita, datos.dict(exclude_none=True))
+    # Estado no se edita aquí: Cancelar / Confirmación / Atender del médico.
+    cambios = datos.dict(exclude_none=True)
+    cambios.pop("estado", None)
+    res = actualizar(id_cita, cambios)
     if "error" in res:
         raise HTTPException(status_code=404, detail=res["error"])
     _auditar(_usuario(payload), "update", f"Cita {id_cita}")

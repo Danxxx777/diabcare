@@ -526,8 +526,27 @@ def generar_y_subir(filtros: dict, usuario: str) -> dict:
     except Exception:
         pass
     try:
-        from paquetes.notificaciones.NotificacionesServicio import crear as _notif
-        _notif("Reporte generado", f"Reporte {codigo} listo para descarga.", "success")
+        from paquetes.notificaciones.NotificacionesServicio import emitir as _notif
+        _notif(
+            "Reporte generado",
+            f"Reporte {codigo} listo para descarga.",
+            "success",
+            destinatario_tipo="rol",
+            destinatario="analista",
+            canal="in_app",
+            referencia_tipo="reporte",
+            referencia_id=str(codigo),
+        )
+        _notif(
+            "Reporte generado",
+            f"Reporte {codigo} listo para descarga.",
+            "success",
+            destinatario_tipo="rol",
+            destinatario="administrador",
+            canal="in_app",
+            referencia_tipo="reporte",
+            referencia_id=str(codigo),
+        )
     except Exception:
         pass
     return metadatos

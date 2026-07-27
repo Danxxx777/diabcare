@@ -2,9 +2,11 @@
 
 ## Introduction
 
-DiabCare Analytics es una plataforma SaaS académica (6to semestre — Construcción del Software) para la gestión y análisis de datos clínicos de diabetes hospitalaria. El sistema lee archivos `.parquet` almacenados en MinIO, genera estadísticas clínicas con pandas, expone visualizaciones analíticas, gestión de usuarios, registros clínicos, predicción ML y pipeline ELT con autenticación JWT por roles.
+DiabCare Analytics / **DiabCare Hospital** es una plataforma SaaS académica (6to semestre — Construcción del Software) para la gestión y análisis de datos clínicos de diabetes hospitalaria. Incluye un HIS de demostración (pacientes, citas, mis citas, urgencias, laboratorio, farmacia, facturación, RRHH) y analítica clínica/negocio sobre almacenamiento columnar.
 
-**Stack tecnológico:** FastAPI + Python 3.14 (backend), MinIO (object storage), pandas (transformación ELT), scikit-learn (ML), pyarrow (lectura eficiente de Parquet), HTML/CSS/JS vanilla (frontend multi-página), PocketBase (fuente origen), Apache Airflow 2.9.1 Docker (orquestación), Uvicorn (servidor).
+**Stack tecnológico:** FastAPI + Python 3.14 (backend), **PostgreSQL** (BDR operativa — informes simples / transacciones del enunciado TA11), MinIO/Parquet (BD columnar — informes compuestos y DWH), pandas (transformación ELT), scikit-learn (ML), pyarrow, HTML/CSS/JS vanilla (frontend multi-página), PocketBase (origen del pipeline), Apache Airflow 2.9.1 Docker (orquestación ELT en diseño), Uvicorn.
+
+**Nota de implementación:** la demo actual persiste gran parte del operativo en Parquet bajo MinIO (`operativo/`, `negocio/`); la documentación táctica y de arquitectura identifica **PostgreSQL** como BDR y **MinIO** como capa columnar, alineado al enunciado de Tarea 11.
 
 ---
 
@@ -12,10 +14,11 @@ DiabCare Analytics es una plataforma SaaS académica (6to semestre — Construcc
 
 - **Sistema**: La aplicación web DiabCare Analytics (backend FastAPI + frontend HTML/JS multi-página).
 - **API**: Endpoints REST expuestos por el backend FastAPI en `localhost:8000`.
-- **MinIO**: Object storage local en `localhost:9000`. Bucket principal: `diabetes-data`, prefijo `stage/`. Bucket app: `diabcare-app`.
+- **PostgreSQL (BDR)**: Base relacional operativa del HIS (informes simples: listados y totales del turno). En el diseño TA11 es el origen transaccional; la UI demo consume APIs que hoy materializan sobre Parquet operativo hasta completar el cableado JDBC/SQLAlchemy.
+- **MinIO**: Object storage local en `localhost:9000`. Bucket principal: `diabetes-data`, prefijo `stage/` (analítica columnar). Bucket app: `diabcare-app` (`operativo/`, `negocio/`, usuarios, modelos, reportes).
 - **Dataset**: DataFrame de pandas cargado concatenando todos los `.parquet` en MinIO `stage/`, con registros clínicos de diabetes sintéticos.
 - **Token JWT**: Token de autenticación generado al iniciar sesión, válido por 8 horas, almacenado en `localStorage`.
-- **Roles**: `administrador`, `medico`, `analista`. Cada rol tiene acceso restringido a módulos específicos del sidebar y de la API.
+- **Roles**: `administrador`, `medico`, `analista`, `enfermero`, `farmaceutico`. Cada rol tiene acceso restringido a módulos específicos del sidebar y de la API.
 - **PocketBase**: Base de datos en `localhost:8090` que almacena datos origen del pipeline.
 - **Airflow**: Orquestador de pipelines ELT en Docker Compose que mueve datos de PocketBase a MinIO.
 - **Modelo ML**: Archivo `diabcare-app/modelos/modelo_diabetes.pkl` en MinIO con el modelo RandomForest entrenado.
@@ -53,7 +56,7 @@ DiabCare Analytics es una plataforma SaaS académica (6to semestre — Construcc
 1. WHEN un usuario con rol `administrador` realiza `GET /api/usuarios/`, THE Sistema SHALL retornar HTTP 200 con lista de usuarios conteniendo id, nombre, email, rol, activo, creado_en por cada usuario, sin incluir el campo `password_hash`.
 2. WHEN un administrador realiza `POST /api/usuarios/` con nombre, email, password y rol válidos, THE Sistema SHALL crear el usuario con `activo=True`, `creado_en` en formato ISO 8601, y password almacenado como hash SHA-256, retornando HTTP 201.
 3. IF el email proporcionado en `POST /api/usuarios/` ya existe en el sistema (activo o inactivo), THE Sistema SHALL retornar HTTP 400 con `detail: "Email ya registrado"`.
-4. IF el rol proporcionado en `POST /api/usuarios/` o `PUT /api/usuarios/{id}/rol` no es uno de `administrador`, `medico`, `analista`, THE Sistema SHALL retornar HTTP 400 con `detail: "Rol inválido"`.
+4. IF el rol proporcionado en `POST /api/usuarios/` o `PUT /api/usuarios/{id}/rol` no es uno de `administrador`, `medico`, `analista`, `enfermero`, `farmaceutico`, THE Sistema SHALL retornar HTTP 400 con `detail: "Rol inválido"`.
 5. WHEN un administrador realiza `PUT /api/usuarios/{id}/rol` con un rol válido, THE Sistema SHALL actualizar el rol del usuario y retornar HTTP 200 con el usuario actualizado.
 6. IF el `id` en `PUT /api/usuarios/{id}/rol` o `DELETE /api/usuarios/{id}` no corresponde a ningún usuario, THE Sistema SHALL retornar HTTP 404 con `detail: "Usuario no encontrado"`.
 7. WHEN un administrador realiza `DELETE /api/usuarios/{id}`, THE Sistema SHALL establecer `activo=False` en el registro del usuario sin eliminarlo del Parquet, retornando HTTP 200.
@@ -182,7 +185,7 @@ DiabCare Analytics es una plataforma SaaS académica (6to semestre — Construcc
 
 ### RNF-01: Seguridad
 1. Todos los endpoints (excepto `/api/auth/login` y páginas frontend) SHALL requerir token JWT válido.
-2. Los roles SHALL restringir acceso: `usuarios/configuracion/auditoria` → solo administrador; `registros/analisis/prediccion/reportes` → administrador y médico; `dataset/pipeline_etl/modelo_ml/integraciones` → administrador y analista; `notificaciones` → todos los roles.
+2. Los roles SHALL restringir acceso según `PERMISOS_MODULOS` (incl. `enfermero` y `farmaceutico` para módulos clínicos/farmacia).
 3. Las contraseñas SHALL almacenarse como hash SHA-256, nunca en texto plano.
 4. El sidebar SHALL ocultar los grupos de navegación no permitidos para el rol mediante la función `aplicarRoles()` en cada página, usando `setTimeout(aplicarRoles, 50)` para evitar flash visual.
 
@@ -202,3 +205,98 @@ DiabCare Analytics es una plataforma SaaS académica (6to semestre — Construcc
 2. THE Sistema SHALL crear el usuario admin por defecto si el Parquet de usuarios está vacío.
 3. `warnings.filterwarnings("ignore", category=UserWarning)` SHALL suprimir logs de JWT key length.
 4. `GET /favicon.ico` SHALL retornar HTTP 204 para suprimir logs de 404 en consola.
+
+---
+
+## DiabCare Hospital — ampliación operativa (v3)
+
+Extiende el analytics clínico a un HIS de demostración: facturación, farmacia, laboratorio, urgencias, RRHH/costeo y comorbilidades diabéticas, con generación sintética que simula un flujo E2E.
+
+### Glossary (adiciones)
+
+- **Roles hospitalarios**: además de `administrador`, `medico`, `analista` → `enfermero`, `farmaceutico`.
+- **negocio/**: prefijo MinIO `diabcare-app/negocio/*.parquet` (P16–P20 + comorbilidades) vía `ParquetStore` (CRUD + borrado lógico).
+- **operativo/**: pacientes, citas, admisiones en `diabcare-app/operativo/`.
+- **Flujo E2E sintético**: muestra de registros stage → pacientes + citas/admisiones + registros clínicos enlazados + tablas `negocio/`.
+
+### Requirement 9: Roles y navegación hospitalaria
+
+**User Story:** Como administrador, quiero roles de enfermero y farmacéutico con menú por área clínica/negocio.
+
+#### Acceptance Criteria
+
+1. THE Sistema SHALL aceptar roles `enfermero` y `farmaceutico` en alta/cambio de rol de usuarios.
+2. THE Sistema SHALL restringir módulos vía `PERMISOS_MODULOS` (p. ej. farmacia → admin/farmacéutico/enfermero; urgencias triage → enfermero; facturación escritura → admin).
+3. THE Frontend SHALL agrupar navegación en: Atención clínica, Farmacia y recetas, Negocio hospitalario, Análisis, Datos, Gobierno.
+4. WHEN un rol no tiene permiso a la página, THE Frontend SHALL redirigir al home permitido por rol.
+
+### Requirement 10: Generador con flujo operativo E2E
+
+**User Story:** Como analista, quiero que al generar datos sintéticos también se pueblen pacientes y el recorrido clínico-administrativo.
+
+#### Acceptance Criteria
+
+1. WHEN `POST /api/dataset/generar` incluye `incluir_hospital=true` (default), THE Sistema SHALL (a) subir stage, (b) materializar DWH, (c) expandir flujo operativo.
+2. THE expansión SHALL crear pacientes en `operativo/pacientes.parquet`, citas, admisiones y registros clínicos con `id_paciente`, más tablas `negocio/` coherentes (misma muestra de IDs).
+3. THE volumen de pacientes del flujo SHALL escalar con `cantidad` hasta un tope de `5000` pacientes operativos E2E por corrida (`min(max(30, cantidad), 5000)`). El stage puede seguir creciendo en lotes de ~100K semanales.
+4. THE Sistema SHALL exponer `POST /api/dataset/hospital/generar` para regenerar solo el flujo hospitalario.
+5. THE Frontend del generador SHALL ofrecer checkbox “Incluir flujo operativo completo” y mostrar conteos de pacientes/citas/admisiones al terminar.
+6. UI de formularios hospitalarios SHALL preferir selects por nombre (sin forzar IDs visibles al usuario).
+
+### Requirement 11: Facturación (P16)
+
+**User Story:** Como administrador, quiero seguros, tarifario, facturas y pagos con soft-delete.
+
+#### Acceptance Criteria
+
+1. THE Sistema SHALL exponer CRUD de seguros, tarifario, facturas y pagos bajo `/api/seguros`, `/api/tarifario`, `/api/facturas`, `/api/pagos`.
+2. WHEN se crea factura, SHALL exigir `encounter_id` o `id_orden_venta`; descuento no puede exceder cobertura del seguro.
+3. Persistencia en `negocio/dim_seguro`, `dim_tarifa`, `hechos_facturacion`, `oper_facturas_detalle`, `oper_pagos`, `bridge_paciente_seguro`, `agg_costo_servicio`, `oper_retenciones`.
+
+### Requirement 12: Farmacia (P17)
+
+**User Story:** Como farmacéutico, quiero catálogo, recetas, inventario, dispensación, compras, ventas y caja.
+
+#### Acceptance Criteria
+
+1. THE Sistema SHALL exponer CRUD/operaciones de medicamentos, recetas, inventario, dispensar, proveedores, compras, ventas, kardex, CxP, notas, cierre caja y seed.
+2. Dispensar SHALL respetar stock/FIFO y receta (salvo venta libre); compras SHALL generar entrada de inventario.
+3. Persistencia bajo `negocio/` (dims + oper_* + hechos_* + agg_margen_farmacia).
+
+### Requirement 13: Laboratorio, urgencias, comorbilidades, RRHH (P18–P20 + P3-ext)
+
+#### Acceptance Criteria
+
+1. Laboratorio: pruebas, órdenes, resultados (`/api/laboratorio/...`) con feedback de HbA1c/glucosa.
+2. Urgencias: triage (enfermero) y atender (médico) en `negocio/hechos_emergencia` + agg tiempos de espera.
+3. Comorbilidades: tipos diabéticos controlados; requiere paciente, médico y fecha.
+4. RRHH: cargos, turnos, personal/costeo, productividad; seed de catálogos.
+5. THE Frontend SHALL ofrecer páginas CRUD principales en `frontend/paginas/clinico/` y `negocio/` para estos módulos.
+
+### Requirement 14: Calidad diabetes, mis citas y cobro (CU-O04-B / CU-O14)
+
+**User Story:** Como analista, quiero KPIs de calidad DM sin editar HCE; como médico/farmacéutico, quiero cola de citas y cobro previo a atender.
+
+#### Acceptance Criteria
+
+1. THE Frontend SHALL exponer **Calidad diabetes** con cohorte DM, control HbA1c, estratificación de riesgo y comorbilidades desde agregaciones columnar (stage/DWH).
+2. THE Frontend SHALL exponer **Mis citas** con cola del médico, estados confirmada/atendida/no_asistio y acciones Confirmar/Atender.
+3. WHEN el médico pulsa Atender, THE Sistema SHALL validar **RN-CIT-010** (cobro pagado) antes de marcar atendida.
+4. THE Frontend SHALL exponer **Caja / facturación** con totales Facturado/Cobrado/Por cobrar (informe simple).
+
+### Requirement 15: Nivel táctico (Tarea 11)
+
+**User Story:** Como jefatura, quiero objetivos tácticos con informes simples (BDR PostgreSQL) vs compuestos (MinIO columnar).
+
+#### Acceptance Criteria
+
+1. THE Análisis táctico SHALL usar tabla: Departamento | Objetivos | ¿Informe simple? | ¿Informe compuesto?
+2. **Informe simple** = listado/total transaccional desde BDR PostgreSQL (demo: pantallas HIS operativas).
+3. **Informe compuesto** = agregación en MinIO/Parquet (Dashboard, Calidad diabetes, PDF, Dataset/DWH).
+4. THE ELT/Airflow SHALL documentarse como pipeline hacia la capa columnar; demo ejecutable desde Pipeline ELT (UI).
+
+### Requirement 16 (evolución): UI secundaria, KPIs negocio y pruebas
+
+1. THE Frontend SHALL mantener CRUD secundario hospitalario (seguros, tarifario, compras, kardex, cierre, etc.).
+2. THE Dashboard SHALL incorporar KPIs de negocio (margen farmacia, facturación, espera urgencias, productividad) donde existan agregados.
+3. THE suite de pruebas SHALL ampliar smoke y CRUD API de P16–P20 (parcial en repo).

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Admisiones</title>
+<title>DiabCare - Admisiones</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="stylesheet" href="/estaticos/estilos.css">
 <link rel="stylesheet" href="/estaticos/dashboard.css">
@@ -21,17 +21,21 @@
     <div class="page-header">
       <div>
         <div class="page-title">Admisiones <span>hospitalarias</span></div>
-        <div class="page-sub">Ingresos — solo administración asigna médico tratante</div>
+        <div class="page-sub">Ingresos hospitalarios</div>
       </div>
       <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nueva admisión</button>
     </div>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="st-total">—</div></div>
-      <div class="stat-card"><div class="stat-label">Activas</div><div class="stat-value green" id="st-activas">—</div></div>
-      <div class="stat-card"><div class="stat-label">Altas</div><div class="stat-value" id="st-altas">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="st-total">-</div></div>
+      <div class="stat-card"><div class="stat-label">Activas</div><div class="stat-value green" id="st-activas">-</div></div>
+      <div class="stat-card"><div class="stat-label">Altas</div><div class="stat-value" id="st-altas">-</div></div>
     </div>
     <div class="tabla-card">
+      <div class="tabla-top">
+        <input class="search" id="f-q" type="search" autocomplete="off" placeholder="Escribe paciente, cédula, médico o servicio…">
+      </div>
       <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+      <div id="dataPager" class="data-pager" hidden></div>
     </div>
   </div>
 </div>
@@ -41,11 +45,23 @@
     <div class="modal-header"><span id="modal-titulo">Nueva admisión</span></div>
     <div class="modal-body form-modal-grid">
       <input type="hidden" id="f-id">
-      <label class="span-full">Paciente
-        <select id="m-paciente"></select>
+      <label class="span-full pac-typeahead-wrap">Paciente (cédula o nombre)
+        <input type="hidden" id="m-paciente" value="">
+        <input class="pac-typeahead-q" type="search" id="m-paciente-q" placeholder="Escribe cédula o nombre…" autocomplete="off">
+        <div id="m-paciente-res" class="pac-suggest" hidden></div>
+        <div id="m-paciente-chip" class="pac-chip" style="display:none"></div>
       </label>
-      <label>Tipo<select id="m-tipo"><option>ambulatoria</option><option>urgencia</option><option>hospitalizacion</option></select></label>
-      <label>Estado<select id="m-estado"><option>activa</option><option>programada</option><option>alta</option><option>cancelada</option></select></label>
+      <label>Tipo<select id="m-tipo">
+        <option value="ambulatoria">Ambulatoria</option>
+        <option value="urgencia">Urgencia</option>
+        <option value="hospitalizacion">Hospitalización</option>
+      </select></label>
+      <label>Estado<select id="m-estado">
+        <option value="activa">Activa</option>
+        <option value="programada">Programada</option>
+        <option value="alta">Alta</option>
+        <option value="cancelada">Cancelada</option>
+      </select></label>
       <label>Servicio<input id="m-servicio" value="Medicina interna"></label>
       <label class="span-full">Médico tratante
         <select id="m-medico" required></select>
@@ -63,10 +79,14 @@
 </div>
 <script>
 DiabCareNav.init();
-DiabCareNav.guardRol(['administrador']);
+DiabCareNav.guardRol(['administrador', 'farmaceutico', 'enfermero']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
-let _rows = [], _pacientes = [], _medicos = [];
+let pag = 1;
+let _totalRows = 0;
+const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 12;
+let _rows = [], _medicos = [];
+let _pacTA = null;
 
 function toast(msg, type='success') {
   const t = document.getElementById('toast');
@@ -81,11 +101,6 @@ async function cargarMedicos() {
   if (r.ok) _medicos = (await r.json()).medicos || [];
 }
 
-async function cargarPacientes() {
-  const r = await fetch(`${API}/api/pacientes/?limit=200`, { headers: { Authorization: 'Bearer '+token } });
-  if (r.ok) _pacientes = (await r.json()).pacientes || [];
-}
-
 async function cargarResumen() {
   const r = await fetch(`${API}/api/admisiones/resumen`, { headers: { Authorization: 'Bearer '+token } });
   if (!r.ok) return;
@@ -96,50 +111,70 @@ async function cargarResumen() {
 }
 
 async function cargar() {
-  const r = await fetch(`${API}/api/admisiones/?limit=100`, { headers: { Authorization: 'Bearer '+token } });
+  const q = document.getElementById('f-q')?.value.trim() || '';
+  const rel = DiabCareAPI.listUrlWithPage('/api/admisiones/', {
+    page: pag, pageSize: LIMIT, q,
+  });
+  const url = `${API}${rel}`;
+  const r = await fetch(url, { headers: { Authorization: 'Bearer '+token }, cache: 'no-store' });
   if (r.status === 401) { window.location.href = '/'; return; }
   const data = await r.json();
   _rows = data.admisiones || [];
+  _totalRows = Number(data.total) || 0;
   if (!_rows.length) {
-    document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin admisiones registradas</div>';
+    document.getElementById('tablaBody').innerHTML = q
+      ? `<div class="loading">Sin coincidencias para “${q.replace(/[<>&]/g, '')}”</div>`
+      : '<div class="loading">Sin admisiones registradas</div>';
+    DiabCareAPI.renderPager(document.getElementById('dataPager'), {
+      page: pag, pageSize: LIMIT, total: _totalRows,
+      onPage: (p) => { pag = p; cargar(); },
+    });
     return;
   }
-  let h = '<table class="tabla"><thead><tr><th>Paciente</th><th>Tipo</th><th>Servicio</th><th>Ingreso</th><th>Estado</th><th></th></tr></thead><tbody>';
-  _rows.forEach(a => {
-    h += `<tr>
-      <td>${a.paciente_nombre||'—'}</td><td>${a.tipo||'—'}</td><td>${a.servicio||'—'}</td>
-      <td>${a.fecha_ingreso||'—'}</td><td>${a.estado||'—'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="editar('${a.id_admision}')">Editar</button></td>
-    </tr>`;
+  const body = document.getElementById('tablaBody');
+  body.innerHTML = DiabCareAPI.buildDataGrid({
+    rows: _rows,
+    idField: 'id_admision',
+    columns: [
+      { key: 'paciente_nombre', label: 'Paciente', title: true },
+      { key: 'estado', label: 'Estado', badge: true, render: a =>
+        (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(a.estado) : a.estado) || '—' },
+      { key: 'tipo', label: 'Tipo', render: a =>
+        (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(a.tipo) : a.tipo) || '—' },
+      { key: 'servicio', label: 'Servicio' },
+      { key: 'fecha_ingreso', label: 'Ingreso' },
+      { key: 'medico_nombre', label: 'Médico' },
+    ],
+    actionsHtml: (_a, id) =>
+      `<button type="button" class="btn btn-ghost btn-sm" data-edit="${id}">Editar</button>`,
   });
-  h += '</tbody></table>';
-  document.getElementById('tablaBody').innerHTML = h;
+  body.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.onclick = () => editar(btn.getAttribute('data-edit'));
+  });
+  DiabCareAPI.renderPager(document.getElementById('dataPager'), {
+    page: pag, pageSize: LIMIT, total: _totalRows,
+    onPage: (p) => { pag = p; cargar(); },
+  });
 }
 
 function llenarMedicos(selected) {
   const sel = document.getElementById('m-medico');
   sel.innerHTML = _medicos.length
     ? _medicos.map(m => `<option value="${(m.nombre || '').replace(/"/g, '&quot;')}">${m.nombre || m.email}</option>`).join('')
-    : '<option value="">— Registre un usuario con rol Médico —</option>';
+    : '<option value="">- Registre un usuario con rol Médico -</option>';
   if (selected) {
     const match = [...sel.options].find(o => o.value === selected);
     sel.value = match ? selected : (sel.options[0]?.value || '');
   } else if (_medicos.length) sel.value = _medicos[0].nombre || '';
 }
 
-function llenarPacientes(selId, selected) {
-  const sel = document.getElementById(selId);
-  sel.innerHTML = _pacientes.length
-    ? _pacientes.map(p => `<option value="${p.id_paciente}">${p.nombre_completo||p.nombre} (${p.documento||'sin doc'})</option>`).join('')
-    : '<option value="">— Cree un paciente primero —</option>';
-  if (selected) sel.value = selected;
-}
-
-function abrirModal(a) {
+async function abrirModal(a) {
   document.getElementById('modal').style.display = 'flex';
   document.getElementById('modal-titulo').textContent = a ? 'Editar admisión' : 'Nueva admisión';
   document.getElementById('f-id').value = a?.id_admision || '';
-  llenarPacientes('m-paciente', a?.id_paciente || _pacientes[0]?.id_paciente);
+  if (!_pacTA) _pacTA = DiabCareAPI.mountPacienteTypeahead({ field: 'paciente' });
+  if (a?.id_paciente) await _pacTA.setPaciente(a.id_paciente, a.paciente_nombre || '');
+  else _pacTA.clear();
   document.getElementById('m-tipo').value = a?.tipo || 'ambulatoria';
   document.getElementById('m-estado').value = a?.estado || 'activa';
   document.getElementById('m-servicio').value = a?.servicio || 'Medicina interna';
@@ -151,6 +186,7 @@ function abrirModal(a) {
   if (!document.getElementById('m-ingreso').value) {
     document.getElementById('m-ingreso').value = new Date().toISOString().slice(0, 10);
   }
+  if (!a?.id_paciente) setTimeout(() => document.getElementById('m-paciente-q').focus(), 50);
 }
 function cerrarModal() { document.getElementById('modal').style.display = 'none'; }
 function editar(id) { abrirModal(_rows.find(x => x.id_admision === id)); }
@@ -168,7 +204,7 @@ async function guardar() {
     motivo: document.getElementById('m-motivo').value.trim(),
     notas: document.getElementById('m-notas').value.trim(),
   };
-  if (!body.id_paciente) { toast('Seleccione un paciente', 'error'); return; }
+  if (!body.id_paciente) { toast('Busque y seleccione un paciente por cédula', 'error'); return; }
   if (!body.medico_nombre) { toast('Seleccione un médico', 'error'); return; }
   const url = id ? `${API}/api/admisiones/${id}` : `${API}/api/admisiones/`;
   const r = await fetch(url, {
@@ -184,7 +220,11 @@ async function guardar() {
   cargar();
 }
 
-Promise.all([cargarPacientes(), cargarMedicos()]).then(() => { cargarResumen(); cargar(); });
+cargarMedicos().then(() => {
+  DiabCareAPI.bindLiveSearch({ input: document.getElementById('f-q'), onSearch: () => { pag = 1; return cargar(); } });
+  cargarResumen();
+  cargar();
+});
 </script>
 </body>
 </html>

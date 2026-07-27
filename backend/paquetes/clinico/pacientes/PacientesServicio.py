@@ -1,8 +1,7 @@
-import io
 import uuid
 import pandas as pd
 from datetime import datetime
-from paquetes.configuracion.ConfiguracionClienteMinio import get_cliente
+from nucleo.utilidades.ParquetCache import leer, escribir
 
 BUCKET_APP = "diabcare-app"
 ARCHIVO = "operativo/pacientes.parquet"
@@ -13,38 +12,41 @@ COLUMNAS = [
 
 
 def _extraer() -> pd.DataFrame:
-    try:
-        c = get_cliente()
-        if not c.bucket_exists(BUCKET_APP):
-            c.make_bucket(BUCKET_APP)
-        obj = c.get_object(BUCKET_APP, ARCHIVO)
-        return pd.read_parquet(io.BytesIO(obj.read()))
-    except Exception:
-        return pd.DataFrame(columns=COLUMNAS)
+    return leer(BUCKET_APP, ARCHIVO, COLUMNAS)
 
 
 def _cargar(df: pd.DataFrame):
-    c = get_cliente()
-    if not c.bucket_exists(BUCKET_APP):
-        c.make_bucket(BUCKET_APP)
-    buf = io.BytesIO()
-    df.to_parquet(buf, index=False)
-    buf.seek(0)
-    c.put_object(BUCKET_APP, ARCHIVO, buf, buf.getbuffer().nbytes)
+    escribir(BUCKET_APP, ARCHIVO, df)
 
 
-def _fila_a_dict(row) -> dict:
-    d = row.to_dict()
+def _ids_con_foto_paciente() -> set[str]:
+    try:
+        from paquetes.clinico.pacientes.FotosEntidadServicio import _extraer as fotos_df, _es_true
+        fdf = fotos_df()
+        if fdf.empty:
+            return set()
+        sub = fdf[
+            (fdf["tipo_entidad"].astype(str) == "paciente")
+            & fdf["es_principal"].map(_es_true)
+        ]
+        return set(sub["id_entidad"].astype(str).tolist())
+    except Exception:
+        return set()
+
+
+def _fila_a_dict(row, fotos: set[str] | None = None) -> dict:
+    d = row.to_dict() if hasattr(row, "to_dict") else dict(row)
     out = {k: (None if isinstance(v, float) and pd.isna(v) else v) for k, v in d.items()}
     out["nombre_completo"] = f"{out.get('nombre') or ''} {out.get('apellido') or ''}".strip()
-    try:
-        from paquetes.clinico.pacientes.FotosEntidadServicio import obtener_principal
-        if obtener_principal("paciente", str(out.get("id_paciente", ""))):
-            out["tiene_foto"] = True
-        else:
+    pid = str(out.get("id_paciente", ""))
+    if fotos is not None:
+        out["tiene_foto"] = pid in fotos
+    else:
+        try:
+            from paquetes.clinico.pacientes.FotosEntidadServicio import obtener_principal
+            out["tiene_foto"] = bool(obtener_principal("paciente", pid))
+        except Exception:
             out["tiene_foto"] = False
-    except Exception:
-        out["tiene_foto"] = False
     return out
 
 
@@ -59,25 +61,30 @@ def resumen() -> dict:
 
 
 def listar(offset: int = 0, limit: int = 50, q: str = "", estado: str = "") -> dict:
+    from nucleo.utilidades.Busqueda import rankear_dataframe
+
     df = _extraer()
     if df.empty:
         return {"total": 0, "pacientes": []}
     if estado:
         df = df[df["estado"] == estado]
     if q:
-        ql = q.lower()
-        mask = (
-            df["nombre"].astype(str).str.lower().str.contains(ql, na=False)
-            | df["apellido"].astype(str).str.lower().str.contains(ql, na=False)
-            | df["documento"].astype(str).str.lower().str.contains(ql, na=False)
-            | df["codigo"].astype(str).str.lower().str.contains(ql, na=False)
+        if "nombre" in df.columns and "apellido" in df.columns:
+            df = df.assign(_nombre_completo=(df["nombre"].astype(str) + " " + df["apellido"].astype(str)))
+        df = rankear_dataframe(
+            df, q,
+            ["documento", "codigo", "nombre", "apellido", "_nombre_completo", "sede", "email", "telefono"],
         )
-        df = df[mask]
+        if "_nombre_completo" in df.columns:
+            df = df.drop(columns=["_nombre_completo"])
     total = len(df)
     chunk = df.iloc[offset:offset + limit]
+    fotos = _ids_con_foto_paciente()
+    kp = resumen()
     return {
         "total": total,
-        "pacientes": [_fila_a_dict(r) for _, r in chunk.iterrows()],
+        "pacientes": [_fila_a_dict(r, fotos) for _, r in chunk.iterrows()],
+        "resumen": kp,
     }
 
 
@@ -93,11 +100,12 @@ def crear(datos: dict) -> dict:
     df = _extraer()
     doc = str(datos.get("documento") or "").strip()
     if doc and not df.empty and doc in df["documento"].astype(str).values:
-        return {"error": "Ya existe un paciente con ese documento"}
+        return {"error": "Ya existe un paciente con esa cédula"}
     now = datetime.utcnow().isoformat()
+    year = datetime.utcnow().year
     nuevo = {
         "id_paciente": str(uuid.uuid4()),
-        "codigo": str(datos.get("codigo") or f"P{len(df)+1:05d}"),
+        "codigo": str(datos.get("codigo") or f"HC-{year}-{len(df)+1:05d}"),
         "nombre": str(datos.get("nombre") or "").strip(),
         "apellido": str(datos.get("apellido") or "").strip(),
         "documento": doc,

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Dataset</title>
+<title>DiabCare - Dataset</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -49,7 +49,7 @@
     <div class="page-header">
       <div>
         <div class="page-title">Dataset <span>clínico-hospitalario</span></div>
-        <div class="page-sub">Esquema DWH — hechos, dimensiones, agregados y catálogos operativos</div>
+        <div class="page-sub">Esquema DWH - hechos, dimensiones, agregados y catálogos operativos</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <a href="/paginas/datos/dataset/generador.html" class="btn btn-ghost btn-sm">Generador →</a>
@@ -59,15 +59,22 @@
     </div>
 
     <div class="stats-grid-compact" id="statsTop">
-      <div class="stat-card"><div class="stat-label">Tablas</div><div class="stat-value blue" id="st-tablas">—</div></div>
-      <div class="stat-card"><div class="stat-label">Filas DWH</div><div class="stat-value" id="st-filas">—</div></div>
-      <div class="stat-card"><div class="stat-label">Hechos diabetes</div><div class="stat-value" id="st-fact">—</div></div>
-      <div class="stat-card"><div class="stat-label">Stage</div><div class="stat-value" id="st-stage">—</div></div>
+      <div class="stat-card"><div class="stat-label">Tablas</div><div class="stat-value blue" id="st-tablas">-</div></div>
+      <div class="stat-card"><div class="stat-label">Filas DWH</div><div class="stat-value" id="st-filas">-</div></div>
+      <div class="stat-card"><div class="stat-label">Hechos diabetes</div><div class="stat-value" id="st-fact">-</div></div>
+      <div class="stat-card"><div class="stat-label">Stage</div><div class="stat-value" id="st-stage">-</div></div>
+    </div>
+
+    <div class="dwh-meta-bar" id="dwh-aviso" style="display:none;border-color:rgba(234,179,8,.4);color:var(--text2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <span>Stage vacío pero aun hay datos generados (DWH / hospital). Vacía todo para dejar el entorno limpio.</span>
+        <button type="button" class="btn btn-primary btn-sm" onclick="vaciarTodoAhora()">Vaciar todo ahora</button>
+      </div>
     </div>
 
     <div class="dwh-meta-bar">
-      <strong style="color:var(--text2)">Modelo Hecho-Dimensión hospitalario</strong> — 57+ tablas en MinIO <code>diabcare-app</code>
-      <span style="float:right;font-family:var(--mono);font-size:10px" id="dwh-meta">—</span>
+      <strong style="color:var(--text2)">Modelo de datos hospitalario</strong> - tablas en MinIO <code>diabcare-app</code>
+      <span style="float:right;font-family:var(--mono);font-size:10px" id="dwh-meta">-</span>
     </div>
 
     <div class="dwh-layout">
@@ -75,9 +82,9 @@
 
       <div class="tabla-card">
         <div class="tabla-top">
-          <span class="tabla-title" id="tablaActual">—</span>
+          <span class="tabla-title" id="tablaActual">-</span>
           <button class="btn btn-ghost btn-sm" onclick="cargarTabla()">↺ Recargar</button>
-          <span class="tabla-info" id="info">—</span>
+          <span class="tabla-info" id="info">-</span>
         </div>
         <div id="tablaDesc" style="padding:10px 16px 0;font-size:11px;color:var(--text3);"></div>
         <div class="dwh-badges" id="tablaBadges" style="padding:0 16px;"></div>
@@ -98,6 +105,7 @@
 
 <script>
 DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'analista']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 let pag = 1, tablaActual = 'hechos_diabetes', esquema = null;
@@ -115,7 +123,10 @@ function badgeEstado(e) {
 
 async function cargarEsquema() {
   try {
-    const r = await fetch(`${API}/api/dataset/dwh/esquema`, { headers: { Authorization: 'Bearer ' + token } });
+    const r = await fetch(`${API}/api/dataset/dwh/esquema`, {
+      headers: { Authorization: 'Bearer ' + token },
+      cache: 'no-store',
+    });
     if (r.status === 401) { window.location.href = '/'; return; }
     if (!r.ok) return;
     esquema = await r.json();
@@ -127,8 +138,13 @@ async function cargarEsquema() {
     document.getElementById('st-stage').textContent = (res.total_stage || 0).toLocaleString('es-ES');
     const meta = res.ultima_materializacion
       ? `Últ. mat. ${res.ultima_materializacion.slice(0, 19).replace('T', ' ')}`
-      : 'Sin materializar — use Generador o Reconstruir DWH';
+      : 'Sin materializar - use Generador o Reconstruir DWH';
     document.getElementById('dwh-meta').textContent = meta;
+    const aviso = document.getElementById('dwh-aviso');
+    if (aviso) {
+      const desync = (res.total_stage || 0) === 0 && (res.total_filas_dwh || 0) > 0;
+      aviso.style.display = desync ? 'block' : 'none';
+    }
     if (!tablaActual && esquema.grupos?.hechos?.[0]) {
       tablaActual = esquema.grupos.hechos[0].id;
     }
@@ -190,35 +206,119 @@ function seleccionarTabla(id, reload = true) {
 }
 
 async function compactarStage() {
-  if (!confirm('¿Fusionar archivos duplicados en stage/? Los registros repetidos se eliminarán.')) return;
+  const ok = await DiabCareAPI.confirm({
+    title: 'Compactar stage',
+    message: '¿Fusionar archivos duplicados en <code>stage/</code>? Los registros repetidos se eliminarán.',
+    confirmLabel: 'Compactar',
+  });
+  if (!ok) return;
   try {
     const r = await fetch(`${API}/api/dataset/stage/compactar`, {
-      method: 'POST', headers: { Authorization: 'Bearer ' + token },
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
     });
     const d = await r.json();
-    if (d.error) { alert(d.error); return; }
-    alert(`Stage compactado: ${d.filas_unicas?.toLocaleString('es-ES')} registros únicos (${d.duplicados_eliminados?.toLocaleString('es-ES')} duplicados eliminados)`);
+    if (d.error) {
+      DiabCareAPI.toast(d.error, 'error');
+      return;
+    }
+    DiabCareAPI.toast(
+      `Stage compactado: ${(d.filas_unicas || 0).toLocaleString('es-ES')} únicos`,
+      'success'
+    );
     await cargarEsquema();
-  } catch { alert('Error de conexión'); }
+  } catch {
+    DiabCareAPI.toast('Error de conexión', 'error');
+  }
+}
+
+async function vaciarDwhUi() {
+  const r = await fetch(`${API}/api/dataset/dwh`, {
+    method: 'DELETE', headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!(r.ok && (d.ok || d.vaciado))) {
+    throw new Error(d.error || d.detail || 'No se pudo vaciar el DWH');
+  }
+  return d;
+}
+
+async function vaciarTodoAhora() {
+  const ok = await DiabCareAPI.confirm({
+    title: 'Vaciar datos generados',
+    message: 'Se eliminarán stage, DWH, recetas, facturas, pacientes sintéticos y resto del hospital generado.',
+    confirmLabel: 'Vaciar todo',
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    let r = await fetch(`${API}/api/dataset/limpiar-generados`, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+    });
+    let d = await r.json().catch(() => ({}));
+    if (r.status === 404 || d.error) {
+      try {
+        d = await vaciarDwhUi();
+        r = { ok: true };
+      } catch (e2) {
+        // último recurso: DELETE stage + DELETE dwh
+        await fetch(`${API}/api/dataset/archivos/todos`, {
+          method: 'DELETE', headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+        });
+        d = await vaciarDwhUi();
+      }
+    }
+    try {
+      sessionStorage.removeItem('diabcare_dashboard_stats');
+      sessionStorage.removeItem('diabcare_stats_v2');
+    } catch {}
+    await cargarEsquema();
+    cargarTabla();
+    DiabCareAPI.toast(d.mensaje || 'Datos generados eliminados', 'success');
+  } catch (e) {
+    DiabCareAPI.toast(e.message || 'No se pudo vaciar', 'error');
+  }
 }
 
 async function reconstruirDwh() {
+  const btn = document.querySelector('button[onclick="reconstruirDwh()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Sincronizando…'; }
   try {
     const r = await fetch(`${API}/api/dataset/dwh/reconstruir`, {
-      method: 'POST', headers: { Authorization: 'Bearer ' + token },
+      method: 'POST', headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
     });
-    const d = await r.json();
-    if (d.ok) { await cargarEsquema(); cargarTabla(); }
-    else alert(d.error || 'Error al reconstruir DWH');
-  } catch { alert('Error de conexión'); }
+    let d = await r.json().catch(() => ({}));
+    const errMsg = String(d.error || d.detail || '');
+    // Backend viejo devolvía error si stage vacío; vaciar DWH en caliente.
+    if (!(d.ok || d.vaciado) && /stage/i.test(errMsg)) {
+      d = await vaciarDwhUi();
+    }
+    if (d.ok || d.vaciado) {
+      try {
+        sessionStorage.removeItem('diabcare_dashboard_stats');
+        sessionStorage.removeItem('diabcare_stats_v2');
+      } catch {}
+      await cargarEsquema();
+      cargarTabla();
+      DiabCareAPI.toast(
+        d.vaciado ? 'DWH vacío - stage sin datos' : 'DWH reconstruido',
+        'success'
+      );
+    } else {
+      DiabCareAPI.toast(errMsg || 'Error al reconstruir DWH', 'error');
+    }
+  } catch (e) {
+    DiabCareAPI.toast(e.message || 'Error de conexión', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Reconstruir DWH'; }
+  }
 }
 
 async function cargarTabla() {
   if (!tablaActual) return;
   document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
   try {
-    const url = `${API}/api/dataset/dwh/tabla/${tablaActual}?skip=${(pag-1)*LIMIT}&limit=${LIMIT}`;
-    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    const url = `${API}/api/dataset/dwh/tabla/${tablaActual}?skip=${(pag-1)*LIMIT}&limit=${LIMIT}&_=${Date.now()}`;
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
     if (r.status === 401) { window.location.href = '/'; return; }
     const data = await r.json();
     const rows = data.datos || [];
@@ -226,6 +326,7 @@ async function cargarTabla() {
     document.getElementById('info').textContent =
       `${rows.length} filas · total ${(data.total||0).toLocaleString('es-ES')}`;
     document.getElementById('pagInfo').textContent = `Pág ${pag}`;
+
 
     if (!rows.length) {
       const msg = data.error || (data.total === 0 ? 'Tabla vacía (esquema listo para datos operativos)' : 'Sin datos');
@@ -236,7 +337,7 @@ async function cargarTabla() {
     const cols = data.columnas?.length ? data.columnas : Object.keys(rows[0]);
     let h = `<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
     rows.forEach(row => {
-      h += `<tr>${cols.map(c => `<td class="mono">${row[c] ?? '—'}</td>`).join('')}</tr>`;
+      h += `<tr>${cols.map(c => `<td class="mono">${row[c] ?? '-'}</td>`).join('')}</tr>`;
     });
     h += '</tbody></table>';
     document.getElementById('tablaBody').innerHTML = h;
@@ -250,6 +351,9 @@ function nextPag() { pag++; cargarTabla(); }
 
 if (!localStorage.getItem('token')) window.location.href = '/';
 cargarEsquema();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') cargarEsquema();
+});
 </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare — Auditoría</title>
+<title>DiabCare - Auditoría</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css">
@@ -31,33 +31,41 @@
     </div>
 
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total eventos</div><div class="stat-value blue" id="st-total">—</div></div>
-      <div class="stat-card"><div class="stat-label">Hoy</div><div class="stat-value" id="st-hoy">—</div></div>
-      <div class="stat-card"><div class="stat-label">Errores</div><div class="stat-value red" id="st-errores">—</div></div>
-      <div class="stat-card"><div class="stat-label">Usuarios activos</div><div class="stat-value green" id="st-users">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total eventos</div><div class="stat-value blue" id="st-total">-</div></div>
+      <div class="stat-card"><div class="stat-label">Hoy</div><div class="stat-value" id="st-hoy">-</div></div>
+      <div class="stat-card"><div class="stat-label">Errores</div><div class="stat-value red" id="st-errores">-</div></div>
+      <div class="stat-card"><div class="stat-label">Usuarios activos</div><div class="stat-value green" id="st-users">-</div></div>
     </div>
 
     <div class="tabla-card">
       <div class="tabla-top">
         <span class="tabla-title">Eventos del sistema</span>
-        <select class="search" id="f-tipo" style="width:160px" onchange="cargar()">
+        <select class="search" id="f-tipo" style="width:140px" onchange="cargar()">
           <option value="">Todos los tipos</option>
           <option value="login">Login</option>
           <option value="logout">Logout</option>
+          <option value="aprobacion">Aprobación</option>
+          <option value="revoke">Revocar sesión</option>
           <option value="create">Creación</option>
           <option value="update">Actualización</option>
           <option value="delete">Eliminación</option>
           <option value="error">Error</option>
         </select>
-        <span class="tabla-info" id="info">—</span>
+        <input class="search" id="f-usuario" placeholder="Usuario..." style="width:140px" onkeydown="if(event.key==='Enter')cargar()">
+        <select class="search" id="f-resultado" style="width:120px" onchange="cargar()">
+          <option value="">Resultado</option>
+          <option value="ok">ok</option>
+          <option value="fallo">fallo</option>
+        </select>
+        <span class="tabla-info" id="info">-</span>
       </div>
       <div class="tabla-wrap">
         <div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando eventos...</div></div>
       </div>
-      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;">
-        <button class="btn btn-ghost btn-sm" onclick="prevPag()">&#8592; Anterior</button>
-        <span style="font-size:11px;color:var(--text3);font-family:var(--mono)" id="pagInfo">Pág 1</span>
-        <button class="btn btn-ghost btn-sm" onclick="nextPag()">Siguiente &#8594;</button>
+      <div class="data-pager" id="dataPager">
+        <button class="btn btn-ghost btn-sm" onclick="prevPag()">← Anterior</button>
+        <span class="data-pager-info" id="pagInfo">Pág 1</span>
+        <button class="btn btn-ghost btn-sm" onclick="nextPag()">Siguiente →</button>
       </div>
     </div>
   </div>
@@ -71,7 +79,8 @@ DiabCareNav.guardRol(['administrador']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 let pag = 1;
-const LIMIT = 50;
+const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 12;
+let _totalRows = 0;
 
 function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
 
@@ -104,63 +113,93 @@ if (ocultar.some(o => txt.includes(o))) g.style.display = 'none';
   });
 }
 
-function tipoColor(tipo) {
-  const t = (tipo || '').toLowerCase();
-  if (t === 'error')  return 'b-inactivo';
-  if (t === 'login')  return 'b-activo';
-  if (t === 'create') return 'b-medico';
-  if (t === 'update') return 'b-analista';
-  if (t === 'delete') return 'b-inactivo';
-  return 'b-admin';
-}
-
 async function cargar() {
   document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
   try {
     const tipo = document.getElementById('f-tipo').value;
+    const usuario = document.getElementById('f-usuario').value.trim();
+    const resultado = document.getElementById('f-resultado').value;
     let url = `${API}/api/auditoria/?skip=${(pag-1)*LIMIT}&limit=${LIMIT}`;
-    if (tipo) url += `&tipo=${tipo}`;
+    if (tipo) url += `&tipo=${encodeURIComponent(tipo)}`;
+    if (usuario) url += `&usuario=${encodeURIComponent(usuario)}`;
+    if (resultado) url += `&resultado=${encodeURIComponent(resultado)}`;
 
-    const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    const hdr = { 'Authorization': 'Bearer ' + token };
+    const [r, rs] = await Promise.all([
+      fetch(url, { headers: hdr }),
+      fetch(`${API}/api/auditoria/estadisticas`, { headers: hdr }),
+    ]);
     if (r.status === 401) { window.location.href = '/'; return; }
     if (r.status === 403) { window.location.href = '/paginas/clinico/analisis/index.html'; return; }
 
     const data = await r.json();
     const eventos = Array.isArray(data) ? data : (data.eventos || data.items || []);
+    _totalRows = data.total != null ? Number(data.total) : ((pag - 1) * LIMIT + eventos.length);
+    const total = _totalRows;
+    const totalPags = Math.max(1, Math.ceil(total / LIMIT) || 1);
+    if (pag > totalPags && total > 0) { pag = totalPags; return cargar(); }
 
-    document.getElementById('st-total').textContent   = eventos.length >= LIMIT ? LIMIT + '+' : eventos.length;
-    document.getElementById('st-hoy').textContent     = eventos.filter(e => (e.fecha||'').startsWith(new Date().toISOString().split('T')[0])).length;
-    document.getElementById('st-errores').textContent = eventos.filter(e => (e.tipo||'').toLowerCase() === 'error').length;
-    const users = new Set(eventos.map(e => e.usuario || e.user_id).filter(Boolean));
-    document.getElementById('st-users').textContent   = users.size;
-    document.getElementById('info').textContent       = eventos.length + ' eventos';
-    document.getElementById('pagInfo').textContent    = `Pág ${pag}`;
+    if (rs.ok) {
+      try {
+        const st = await rs.json();
+        document.getElementById('st-total').textContent = st.total ?? total;
+        document.getElementById('st-hoy').textContent = st.hoy ?? '-';
+        document.getElementById('st-errores').textContent = st.errores ?? '-';
+        document.getElementById('st-users').textContent = st.usuarios ?? '-';
+      } catch (_) { /* ignore */ }
+    }
+
+    document.getElementById('info').textContent = total + ' eventos';
+    const from = total ? (pag - 1) * LIMIT + 1 : 0;
+    const to = Math.min(pag * LIMIT, total);
+    document.getElementById('pagInfo').textContent = total
+      ? `${from}–${to} de ${total} · Pág ${pag} / ${totalPags}`
+      : `Pág ${pag}`;
+    const prevBtn = document.querySelector('#dataPager [onclick="prevPag()"]');
+    const nextBtn = document.querySelector('#dataPager [onclick="nextPag()"]');
+    if (prevBtn) prevBtn.disabled = pag <= 1;
+    if (nextBtn) nextBtn.disabled = pag >= totalPags;
 
     if (!eventos.length) {
       document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin eventos registrados</div>';
       return;
     }
 
-    let h = `<table><thead><tr><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Módulo</th><th>Detalle</th></tr></thead><tbody>`;
-    eventos.forEach(e => {
-      const fecha = (e.fecha || e.timestamp || e.creado_en || '—').replace('T', ' ').split('.')[0];
-      h += `<tr>
-        <td class="mono">${fecha}</td>
-        <td class="name">${e.usuario || e.user_id || '—'}</td>
-        <td><span class="badge ${tipoColor(e.tipo)}">${e.tipo || '—'}</span></td>
-        <td class="mono">${e.modulo || e.endpoint || '—'}</td>
-        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.detalle || e.descripcion || e.mensaje || '—'}</td>
-      </tr>`;
+    document.getElementById('tablaBody').innerHTML = DiabCareAPI.buildDataGrid({
+      rows: eventos,
+      showAvatar: false,
+      columns: [
+        {
+          key: 'tipo', label: 'Tipo', title: true,
+          render: e => e.tipo || e.modulo || e.endpoint || '—',
+        },
+        {
+          key: 'resultado', label: 'Resultado', badge: true,
+          render: e => e.resultado || 'ok',
+        },
+        {
+          key: 'fecha', label: 'Fecha',
+          render: e => (e.fecha || e.timestamp || e.creado_en || '—').replace('T', ' ').split('.')[0],
+        },
+        { key: 'usuario', label: 'Usuario', render: e => e.usuario || e.user_id || '—' },
+        { key: 'modulo', label: 'Módulo', render: e => e.modulo || e.endpoint || '—' },
+        { key: 'ip', label: 'IP', render: e => e.ip || '—' },
+        {
+          key: 'detalle', label: 'Detalle',
+          render: e => e.detalle || e.descripcion || e.mensaje || '—',
+        },
+      ],
     });
-    h += '</tbody></table>';
-    document.getElementById('tablaBody').innerHTML = h;
   } catch {
     document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
   }
 }
 
 function prevPag() { if (pag > 1) { pag--; cargar(); } }
-function nextPag() { pag++; cargar(); }
+function nextPag() {
+  const pages = Math.max(1, Math.ceil(_totalRows / LIMIT) || 1);
+  if (pag < pages) { pag++; cargar(); }
+}
 
 cargar();
 </script>

@@ -40,8 +40,11 @@ autenticada. Define los roles y la verificación de tokens usada por el resto.
   código. *Real*: `POST /api/auth/recuperar`, `POST /api/auth/resetear`.
 - **RF-O-P01-005**: El sistema DEBE permitir cambiar la contraseña autenticado.
   *Real*: `PUT /api/auth/cambiar-password`.
-- **RF-O-P01-006**: El sistema DEBE restringir el acceso a cada módulo según la
-  matriz de permisos por rol. *Real*: `utilidades/Dependencias.require_modulo`.
+- **RF-O-P01-007**: Al aprobar acceso, el sistema DEBE emitir credenciales temporales
+  y exigir cambio de contraseña en el primer acceso (`debe_cambiar_password`).
+- **RF-O-P01-008**: El sistema DEBE registrar sesiones JWT (`jti`) con revocación y
+  límite de concurrencia (máx. 5). *Real*: `GET/DELETE /api/auth/mis-sesiones`,
+  `GET/DELETE /api/auth/sesiones` (admin).
 
 ## 5. Requisitos no funcionales
 
