@@ -706,20 +706,49 @@
     paintExtras();
   }
 
+  // Un skeleton nunca debe sobrevivir a su petición. Si una llamada no cierra
+  // el suyo (error de red, promesa que no resuelve, navegación a media carga),
+  // _fetchDepth queda en >0 y clearExtras() ya no vuelve a ejecutarse nunca:
+  // la tarjeta se queda tapada de forma permanente y ninguna llamada posterior
+  // la recupera. Este plazo máximo garantiza que la UI siempre vuelva.
+  // Holgado a proposito: entrenar el modelo o generar dataset son operaciones
+  // legitimamente largas. Esto no es un tiempo de espera, es el ultimo recurso
+  // para que la interfaz nunca quede tapada de forma permanente.
+  const SK_MAX_MS = 20000;
+  let _skDesde = 0;
+
+  function _forzarLimpieza() {
+    _fetchDepth = 0;
+    _skDesde = 0;
+    try { clearExtras(); } catch (_) { /* ignore */ }
+  }
+
   function beginFetchSkeleton() {
     _fetchDepth += 1;
-    if (_fetchDepth === 1) paintAllForFetch();
+    if (_fetchDepth === 1) {
+      _skDesde = Date.now();
+      paintAllForFetch();
+    }
     return Date.now();
   }
 
   async function endFetchSkeleton(skAt, minMs) {
+    // Descontar ANTES de la espera cosmética: si el temporizador no llega a
+    // dispararse (navegación, pestaña suspendida), el contador ya quedó bien y
+    // la siguiente llamada puede limpiar. Descontando después, esa ventana
+    // dejaba el contador alto y el skeleton no se retiraba nunca más.
+    _fetchDepth = Math.max(0, _fetchDepth - 1);
     const wait = Math.max(0, (minMs == null ? MIN_MS : minMs) - (Date.now() - (skAt || Date.now())));
     if (wait) await new Promise((r) => setTimeout(r, wait));
-    _fetchDepth = Math.max(0, _fetchDepth - 1);
     if (_fetchDepth === 0) {
+      _skDesde = 0;
       try { clearExtras(); } catch (_) { /* ignore */ }
     }
   }
+
+  setInterval(() => {
+    if (_fetchDepth > 0 && _skDesde && (Date.now() - _skDesde) > SK_MAX_MS) _forzarLimpieza();
+  }, 2000);
 
   window.DiabCareSkeleton = {
     paint, paintInto,     paintAllForFetch, enrich, waitFrom, MIN_MS, clearExtras,
