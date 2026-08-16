@@ -6,11 +6,19 @@ pytestmark = pytest.mark.api
 
 
 def _auth(client, email="admin@diabcare.com", password="Admin2026*"):
+    """
+    Inicia sesión y deja la cookie en el cliente.
+
+    Devuelve cabeceras vacías a propósito: la sesión dejó de viajar en un JWT
+    de localStorage y ahora va en una cookie httpOnly que TestClient conserva.
+    Se sigue devolviendo un dict para no tocar cada llamada de las pruebas.
+    """
     r = client.post("/api/auth/login", json={"email": email, "password": password})
     assert r.status_code == 200, r.text
-    token = r.json().get("token") or r.json().get("access_token")
-    assert token
-    return {"Authorization": f"Bearer {token}"}
+    cuerpo = r.json()
+    assert cuerpo.get("usuario"), "el login debe identificar al usuario"
+    token = cuerpo.get("token") or cuerpo.get("access_token")
+    return {"Authorization": f"Bearer {token}"} if token else {}
 
 
 def test_negocio_kpis(client):

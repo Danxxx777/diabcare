@@ -38,6 +38,23 @@
 .caja-brand .page-title { margin: 0 0 4px; }
 .caja-brand .page-sub { margin: 0; }
 .caja-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+/* Estado del turno: si la caja esta cerrada no se puede cobrar, asi que tiene
+   que verse antes de intentarlo, no descubrirse con un error al guardar. */
+.caja-turno {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700;
+  border:1px solid var(--uv-line, var(--border));
+  background:var(--uv-card, var(--card)); color:var(--text2);
+}
+.caja-turno-dot { width:8px; height:8px; border-radius:50%; background:var(--dc-riesgo); flex-shrink:0; }
+.caja-turno.abierta { color:var(--dc-ok); border-color:var(--dc-ok); background:var(--dc-ok-suave); }
+.caja-turno.abierta .caja-turno-dot { background:var(--dc-ok); }
+.caja-arqueo { display:grid; gap:8px; margin:10px 0 4px; }
+.caja-arqueo-fila { display:flex; justify-content:space-between; font-size:13px; color:var(--text2); }
+.caja-arqueo-fila b { font-variant-numeric:tabular-nums; color:var(--text); }
+.caja-arqueo-total { border-top:1px solid var(--uv-line, var(--border)); padding-top:8px; font-size:15px; }
+.caja-dif-ok { color:var(--dc-ok); font-weight:800; }
+.caja-dif-mal { color:var(--dc-riesgo); font-weight:800; }
 .analista-note {
   font-size: 13px; color: var(--text2); font-weight: 600; margin: 0 0 10px;
 }
@@ -93,6 +110,10 @@
         <div class="page-sub" id="pageSub">Cobros y cartera</div>
       </div>
       <div class="caja-actions">
+        <span class="caja-turno" id="cajaTurno" title="Estado del turno de caja">
+          <i class="caja-turno-dot"></i><span id="cajaTurnoTxt">Caja…</span>
+        </span>
+        <button class="btn btn-ghost btn-sm" id="btnTurno" onclick="alternarTurno()">Caja…</button>
         <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
         <a class="btn btn-ghost btn-sm" href="/paginas/clinico/agenda/index.html">Agenda (turnos)</a>
         <a class="btn btn-ghost btn-sm" href="/paginas/negocio/farmacia/index.html">Mostrador farmacia</a>
@@ -244,6 +265,93 @@ async function cargarKpis() {
   } catch (_) {
     document.getElementById('k-total-n').textContent = 'reintente · API/MinIO';
   }
+}
+
+// ── Turno de caja ──────────────────────────────────────────────────────────
+let _caja = { abierta: false };
+
+async function cargarTurno() {
+  try {
+    const r = await fetch(`${API}/api/caja/estado`, { headers: hdr(), cache: 'no-store' });
+    _caja = r.ok ? await r.json() : { abierta: false };
+  } catch (_) {
+    _caja = { abierta: false };
+  }
+  const chip = document.getElementById('cajaTurno');
+  const txt = document.getElementById('cajaTurnoTxt');
+  const btn = document.getElementById('btnTurno');
+  if (!chip || !txt || !btn) return;
+  if (_caja.abierta) {
+    chip.classList.add('abierta');
+    const t = _caja.totales || {};
+    txt.textContent = `Caja abierta · ${money(_caja.esperado_efectivo)} en efectivo`;
+    chip.title = `Fondo ${money(_caja.fondo_inicial)} · ${_caja.num_pagos} cobros · `
+      + `tarjeta ${money(t.tarjeta)} · transferencia ${money(t.transferencia)}`;
+    btn.textContent = 'Cerrar caja';
+  } else {
+    chip.classList.remove('abierta');
+    txt.textContent = 'Caja cerrada';
+    chip.title = 'Sin turno abierto: no se puede cobrar';
+    btn.textContent = 'Abrir caja';
+  }
+  // Cobrar con la caja cerrada devuelve 400: mejor no ofrecer el boton.
+  const nuevo = document.getElementById('btnNuevoFac');
+  if (nuevo) {
+    nuevo.disabled = !_caja.abierta;
+    nuevo.title = _caja.abierta ? '' : 'Abra el turno de caja para poder cobrar';
+  }
+}
+
+window.alternarTurno = function() {
+  return _caja.abierta ? cerrarCaja() : abrirCaja();
+};
+
+async function abrirCaja() {
+  const v = prompt('Fondo inicial en efectivo (lo que hay en el cajón al abrir):', '0');
+  if (v === null) return;
+  const fondo = Number(String(v).replace(',', '.'));
+  if (!Number.isFinite(fondo) || fondo < 0) { DiabCareAPI.toast('Fondo inicial no válido', 'error'); return; }
+  const r = await fetch(`${API}/api/caja/abrir`, {
+    method: 'POST', headers: { ...hdr(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fondo_inicial: fondo }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { DiabCareAPI.toast(d.detail || 'No se pudo abrir la caja', 'error'); return; }
+  DiabCareAPI.toast(`Caja abierta con ${money(fondo)}`, 'success');
+  cargarTurno();
+}
+
+async function cerrarCaja() {
+  // Se muestra el desglose ANTES de pedir el conteo, pero el esperado no: si
+  // el cajero lo ve primero, escribe ese numero y el arqueo deja de servir.
+  const t = _caja.totales || {};
+  const detalle = `Turno abierto ${String(_caja.abierto_en || '').replace('T', ' ').slice(0, 16)}\n`
+    + `Cobros del turno: ${_caja.num_pagos}\n`
+    + `  efectivo      ${money(t.efectivo)}\n`
+    + `  tarjeta / QR  ${money(t.tarjeta)}\n`
+    + `  transferencia ${money(t.transferencia)}\n\n`
+    + `Cuente el efectivo del cajón (incluyendo el fondo inicial) y anótelo:`;
+  const v = prompt(detalle, '');
+  if (v === null) return;
+  const contado = Number(String(v).replace(',', '.'));
+  if (!Number.isFinite(contado) || contado < 0) { DiabCareAPI.toast('Monto contado no válido', 'error'); return; }
+  const r = await fetch(`${API}/api/caja/cerrar`, {
+    method: 'POST', headers: { ...hdr(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contado_efectivo: contado }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { DiabCareAPI.toast(d.detail || 'No se pudo cerrar la caja', 'error'); return; }
+  const dif = Number(d.diferencia || 0);
+  alert(
+    `${d.mensaje}\n\n`
+    + `Esperado en cajón : ${money(d.esperado_efectivo)}\n`
+    + `Contado           : ${money(d.contado_efectivo)}\n`
+    + `Diferencia        : ${dif > 0 ? '+' : ''}${money(dif)}\n\n`
+    + `Cobros: ${d.num_pagos} · tarjeta ${money((d.totales || {}).tarjeta)}`
+  );
+  DiabCareAPI.toast(d.mensaje, d.cuadrada ? 'success' : 'error');
+  cargarTurno();
+  cargarKpis();
 }
 
 window.seedModulo = async function() {
@@ -511,6 +619,7 @@ DiabCareCrud.mountTabs({
 });
 
 cargarKpis();
+cargarTurno();
 </script>
 </body>
 </html>
