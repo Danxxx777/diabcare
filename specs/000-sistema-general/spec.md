@@ -11,19 +11,23 @@
 
 ## 1. Nombre del sistema
 
-DiabCare Analytics — Plataforma SaaS de análisis clínico de datos de diabetes
+DiabCare Analytics - Plataforma SaaS de análisis clínico de datos de diabetes
 hospitalaria.
 
 ## 2. Objetivo general
 
-Facilitar el análisis de datos clínicos de diabetes mediante una plataforma web
-con flujo ELT y modelos de Machine Learning, escalando como SaaS. El objetivo de
-negocio (TA06) es la expansión internacional vía growth digital, APIs, nube e
-inteligencia de negocio (BI).
+Unificar la operación hospitalaria de una clínica especializada en diabetes con
+analítica, data warehouse (ELT) y Machine Learning, escalando como SaaS. El
+objetivo de negocio (TA06) es la expansión internacional vía growth digital,
+APIs, nube e inteligencia de negocio (BI).
 
-- **Misión**: Facilitar el análisis de datos clínicos de diabetes con una
-  plataforma web, ELT y ML.
-- **Visión**: Ser plataforma de referencia escalando globalmente como SaaS.
+- **Misión**: Unificar la operación de una clínica especializada en diabetes
+  - recepción, consulta, laboratorio, farmacia, facturación y seguimiento - con
+  analítica táctica, data warehouse e inteligencia artificial, para que cada
+  rol del equipo actúe a tiempo y mejore el control del paciente.
+- **Visión**: Ser la plataforma hospitalaria-analítica de referencia en
+  diabetes: un SaaS que conecta cuidado continuo, datos confiables y predicción
+  clínica, escalable a redes de salud en la región y partners internacionales.
 
 ## 3. Actores principales
 
@@ -32,7 +36,7 @@ inteligencia de negocio (BI).
 | Médico | Registros clínicos, predicciones, análisis y reportes | `medico` |
 | Administrador | Usuarios, configuración, auditoría, benchmarking, dataset | `administrador` |
 | Analista | Dataset, pipeline ELT, modelo ML, integraciones | `analista` |
-| Sistema (Airflow) | Ejecuta el pipeline ELT automatizado | — (proceso) |
+| Sistema (Airflow) | Ejecuta el pipeline ELT automatizado | - (proceso) |
 
 Roles válidos definidos en código (`backend/nucleo/utilidades/Dependencias.py`):
 `administrador`, `medico`, `analista`.
@@ -44,13 +48,13 @@ constitución):
 
 | Nivel | Horizonte | Objetivos | Casos de uso | Carpeta |
 |-------|-----------|-----------|--------------|---------|
-| Estratégico | 3–5 años | OE1–OE4 | CU-E01–CU-E08 | `specs/001-estrategico-adm/` |
-| Táctico | 6–12 meses | OT1.1–OT4.2 | CU-T01–CU-T10 | `specs/002-tactico/` |
-| Operativo | Día a día | OO1.x–OO5.x | CU-O01–CU-O16 | `specs/003-operativo/` |
+| Estratégico | 3-5 años | OE1-OE4 | CU-E01-CU-E08 | `specs/001-estrategico-adm/` |
+| Táctico | 6-12 meses | OT1.1-OT4.2 | CU-T01-CU-T10 | `specs/002-tactico/` |
+| Operativo | Día a día | OO1.x-OO5.x | CU-O01-CU-O16 | `specs/003-operativo/` |
 
 ## 5. Módulos del sistema (15 paquetes funcionales)
 
-El sistema se organiza en 15 paquetes (P1–P15). Estado verificado contra el
+El sistema se organiza en 15 paquetes (P1-P15). Estado verificado contra el
 código (`backend/Principal.py`, rutas, servicios y páginas frontend) al
 2026-06-19:
 
@@ -62,20 +66,20 @@ código (`backend/Principal.py`, rutas, servicios y páginas frontend) al
 | P4 | Dataset y datos sintéticos | `dataset` | Implementado |
 | P5 | Análisis y visualización | `analisis` | Implementado (vía endpoints de registros/dataset) |
 | P6 | Predicción ML | `prediccion` | Implementado |
-| P7 | Reportes | `reportes` | Implementado (entrega GA07 — salida de datos) |
-| P8 | Pipeline ELT | `pipeline_elt` | Implementado (entrega GA07 — procesamiento) |
+| P7 | Reportes | `reportes` | Implementado (entrega GA07 - salida de datos) |
+| P8 | Pipeline ELT | `pipeline_elt` | Implementado (entrega GA07 - procesamiento) |
 | P9 | Información corporativa | `corporativo` | Planificado (fuera de demo GA07) |
 | P10 | Notificaciones y alertas | `notificaciones` | Parcial GA07 (clínicas + Brevo; churn pendiente) |
 | P11 | Auditoría y trazabilidad | `auditoria` | Implementado (entrega GA07) |
 | P12 | Configuración del sistema | `configuracion` | Implementado (entrega GA07) |
 | P13 | Comparación y benchmarking | `benchmarking` | Planificado (fuera de demo GA07) |
-| P14 | Gestión del modelo ML | `modelo_ml` | Implementado (entrega GA07 — ciclo ML) |
+| P14 | Gestión del modelo ML | `modelo_ml` | Implementado (entrega GA07 - ciclo ML) |
 | P15 | API pública e integraciones | `integraciones` | Planificado (fuera de demo GA07) |
 
 ### 5.1 Estructura de código y mapeo de paquetes (2026-07)
 
 Cada paquete agrupa **Rutas + Servicio** en un solo folder de backend. El frontend
-se organiza por **departamento**. Los identificadores P1–P15 viven en specs y
+se organiza por **departamento**. Los identificadores P1-P15 viven en specs y
 trazabilidad; **no** van en nombres de carpeta.
 
 **Árbol del repositorio:**
@@ -96,7 +100,7 @@ diabcare/
 │       ├── auditoria/               # P11
 │       ├── configuracion/           # P12
 │       ├── modelo_ml/               # P14
-│       └── clinico/                 # CU-O02–O04
+│       └── clinico/                 # CU-O02-O04
 │           ├── pacientes/
 │           ├── admisiones/
 │           └── citas/
@@ -104,12 +108,12 @@ diabcare/
     ├── estaticos/                   # navegacion.js, api.js, CSS
     └── paginas/
         ├── seguridad/               # P1, P2
-        ├── clinico/                 # P3, P5–P7 + pacientes/admisiones/agenda
+        ├── clinico/                 # P3, P5-P7 + pacientes/admisiones/agenda
         ├── datos/                   # P4, P8, P14
         └── gobierno/                # P11, P12
 ```
 
-**Mapeo completo P1–P15 → rutas en código:**
+**Mapeo completo P1-P15 → rutas en código:**
 
 | Paq. | Nombre | Departamento | Backend (`backend/paquetes/…`) | Frontend (`frontend/paginas/…`) | Estado |
 |:----:|--------|--------------|--------------------------------|----------------------------------|--------|
@@ -121,15 +125,15 @@ diabcare/
 | P6 | Predicción ML | Clínico | `prediccion/` | `clinico/prediccion/` | ✅ |
 | P7 | Reportes PDF | Clínico | `reportes/` | `clinico/reportes/` | ✅ |
 | P8 | Pipeline ELT | Datos | `pipeline_elt/` | `datos/pipeline_elt/` | ✅ |
-| P9 | Corporativo | BI | *(planificado)* | — | 🔜 |
+| P9 | Corporativo | BI | *(planificado)* | - | 🔜 |
 | P10 | Notificaciones | Crecimiento | `notificaciones/` | `gobierno/notificaciones/` | ✅ parcial |
 | P11 | Auditoría | Gobierno | `auditoria/` | `gobierno/auditoria/` | ✅ |
 | P12 | Configuración | Gobierno | `configuracion/` | `gobierno/configuracion/` | ✅ |
-| P13 | Benchmarking | BI | *(planificado)* | — | 🔜 |
+| P13 | Benchmarking | BI | *(planificado)* | - | 🔜 |
 | P14 | Modelo ML | Datos | `modelo_ml/` | `datos/modelo_ml/` | ✅ |
-| P15 | API / integraciones | Crecimiento | *(planificado)* | — | 🔜 |
+| P15 | API / integraciones | Crecimiento | *(planificado)* | - | 🔜 |
 
-**Módulos clínicos adicionales (CU-O02–O04):**
+**Módulos clínicos adicionales (CU-O02-O04):**
 
 | Módulo | Backend | Frontend |
 |--------|---------|----------|
@@ -166,10 +170,10 @@ hechos (`HechosDiabetes`) y 5 dimensiones (`DimensionPaciente`,
 `DimensionUbicacion`, `DimensionRaza`, `DimensionCondicion`, `DimensionTiempo`).
 
 Punto de entrada real del backend: `backend/Principal.py`
-(`uvicorn Principal:app`). Registra 14 routers de API (P1–P15; P9 Corporativo
+(`uvicorn Principal:app`). Registra 14 routers de API (P1-P15; P9 Corporativo
 añadido en GA07).
 
-### 7.1 Demo GA07 — flujo de datos presentable
+### 7.1 Demo GA07 - flujo de datos presentable
 
 Flujo de datos y menú activo (`frontend/estaticos/navegacion.js`):
 

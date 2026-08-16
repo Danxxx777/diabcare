@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -6,180 +6,456 @@
 <title>DiabCare - Reportes PDF</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
+<script src="/estaticos/api.js?v=uv-11"></script>
 <style>
-.rep-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
-@media(max-width:900px){ .rep-grid{ grid-template-columns:1fr; } }
-.rep-card {
-  background:var(--card,var(--bg2)); border:1px solid var(--border);
-  border-radius:10px; padding:24px;
+.rep-shell { width:100%; max-width:100%; min-width:0; }
+.rep-tipos { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:18px; align-items:stretch; }
+@media(max-width:900px){ .rep-tipos{ grid-template-columns:1fr; } }
+
+.tipo-pick {
+  text-align:left; cursor:pointer; color:inherit; font:inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.035) 100%);
+  border:1px solid rgba(255,255,255,0.10);
+  border-radius: var(--radius, 22px);
+  padding:14px 14px 12px;
+  box-shadow: var(--shadow-card, 0 14px 40px rgba(0,0,0,0.28));
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+  position:relative; overflow:hidden; min-width:0;
+  min-height:132px; height:100%;
+  display:flex; flex-direction:column;
 }
-.rep-title {
-  font-size:10px; text-transform:uppercase; letter-spacing:.08em;
-  color:var(--muted,var(--text3)); margin-bottom:18px;
+.tipo-pick:hover {
+  transform: translateY(-2px);
+  border-color: rgba(90, 127, 140, 0.45);
+  box-shadow: 0 18px 44px rgba(0,0,0,0.32);
 }
-.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
-.rep-preview {
-  display:flex; gap:16px; align-items:flex-start; margin-bottom:18px;
-  padding:14px; border-radius:10px; border:1px solid var(--border);
-  background:rgba(34,211,238,0.04);
+.tipo-pick.active {
+  background: linear-gradient(145deg, rgba(90, 127, 140, 0.95) 0%, rgba(0, 230, 192, 0.92) 55%, rgba(0, 204, 168, 0.95) 100%);
+  border-color: transparent;
+  box-shadow: 0 16px 40px rgba(0, 230, 192, 0.35);
+  color:#fff;
 }
-.rep-preview img { width:52px; height:52px; border-radius:10px; flex-shrink:0; }
-.rep-preview h3 { font-size:14px; font-weight:700; margin:0 0 4px; }
-.rep-preview p { font-size:11px; color:var(--muted); margin:0; line-height:1.5; }
-.rep-secciones { display:grid; gap:8px; }
+.tipo-pick .tp-kicker { font-size:11px; font-weight:700; color:var(--text2); margin-bottom:6px; }
+.tipo-pick.active .tp-kicker { color:rgba(255,255,255,0.85); }
+.tipo-pick .tp-title {
+  font-size:17px; font-weight:800; letter-spacing:-0.03em; margin-bottom:6px;
+  font-family:'Figtree', system-ui, sans-serif;
+}
+.tipo-pick .tp-desc {
+  font-size:12px; line-height:1.35; color:var(--muted); margin-bottom:10px; flex:1;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.tipo-pick.active .tp-desc { color:rgba(255,255,255,0.88); }
+.tipo-pick .tp-tag {
+  display:inline-block; font-size:10px; font-weight:700;
+  padding:4px 10px; border-radius:999px; margin-top:auto; align-self:flex-start;
+  background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+  color:var(--text2);
+}
+.tipo-pick.active .tp-tag {
+  background:rgba(255,255,255,0.18); border-color:rgba(255,255,255,0.28); color:#fff;
+}
+
+.rep-main {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(280px,0.95fr);
+  gap:18px; margin-bottom:18px; align-items:start;
+}
+@media(max-width:980px){ .rep-main{ grid-template-columns:1fr; } }
+
+.panel-config { display:flex; flex-direction:column; gap:0; min-height:0; }
+.panel-preview {
+  display:flex; flex-direction:column;
+  height:560px; max-height:560px; position:sticky; top:12px;
+}
+.panel-preview .panel-title { margin-bottom:10px; }
+
+.step-pill {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:22px; height:22px; padding:0 7px; border-radius:999px; margin-right:8px;
+  font-size:11px; font-weight:800; font-family:var(--mono);
+  background:rgba(90, 127, 140, 0.18); color:rgba(180, 255, 241, 0.98);
+}
+
+.depto-grid { display:flex; flex-wrap:wrap; gap:8px; }
+.depto-chip {
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.04);
+  color:var(--text);
+  border-radius:999px; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer;
+  transition: border-color .15s, background .15s, transform .15s;
+}
+.depto-chip:hover {
+  border-color:rgba(90, 127, 140, 0.45);
+  background:rgba(90, 127, 140, 0.12);
+  transform:translateY(-1px);
+}
+.depto-chip.active {
+  background:rgba(90, 127, 140, 0.22);
+  border-color:rgba(90, 127, 140, 0.55);
+  color:#fff;
+}
+.depto-hint { font-size:12px; color:var(--muted); margin:12px 0 0; line-height:1.45; }
+
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media(max-width:640px){ .form-grid{ grid-template-columns:1fr; } }
+.filtros-extra { margin-top:16px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.08); }
+.filtros-extra.hidden { display:none; }
+.filtros-extra .fl { display:block; font-size:11px; font-weight:700; color:var(--text2); margin-bottom:6px; }
+.filtros-extra .fi, .filtros-extra .fs {
+  width:100%; box-sizing:border-box;
+  background:rgba(15,23,42,0.55);
+  border:1px solid rgba(255,255,255,0.12);
+  color:var(--text); border-radius:12px; padding:10px 12px; font-size:13px;
+}
+.filtros-extra .fi:focus, .filtros-extra .fs:focus {
+  outline:none; border-color:rgba(90, 127, 140, 0.55);
+  box-shadow:0 0 0 3px rgba(90, 127, 140, 0.18);
+}
+
+.alcance-box {
+  margin-top:16px; padding:12px 14px; border-radius:14px;
+  border:1px solid rgba(90, 127, 140, 0.28);
+  background:linear-gradient(135deg, rgba(90, 127, 140, 0.14), rgba(0, 230, 192, 0.06));
+  font-size:12px; line-height:1.5;
+}
+.alcance-box strong { color:rgba(180, 255, 241, 0.98); }
+
+.rep-secciones { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:12px; }
 .rep-seccion {
-  display:flex; gap:10px; align-items:flex-start; padding:10px 12px;
-  border-radius:8px; border:1px solid var(--border); font-size:12px;
+  display:flex; gap:8px; align-items:flex-start; padding:8px 10px;
+  border-radius:10px; border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.03); font-size:12px;
 }
+.rep-seccion.off { opacity:.38; }
 .rep-seccion-num {
-  font-family:var(--mono); font-size:10px; font-weight:700; color:var(--cyan);
-  background:rgba(34,211,238,0.12); border-radius:6px; padding:4px 7px; flex-shrink:0;
+  font-family:var(--mono); font-size:10px; font-weight:800;
+  color:rgba(180, 255, 241, 0.98);
+  background:rgba(90, 127, 140, 0.16); border-radius:10px; padding:5px 8px; flex-shrink:0;
 }
-.rep-seccion-body strong { display:block; margin-bottom:2px; }
-.rep-seccion-body span { color:var(--muted); font-size:11px; }
-.rep-qr-note {
-  margin-top:14px; padding:12px 14px; border-radius:8px; font-size:11px; line-height:1.55;
-  border:1px dashed rgba(34,211,238,0.35); color:var(--muted);
-  background:rgba(34,211,238,0.05);
+.rep-seccion-body strong { display:block; margin-bottom:2px; font-size:12px; }
+.rep-seccion-body span { display:none; color:var(--muted); font-size:11px; line-height:1.35; }
+@media(max-width:640px){
+  .rep-secciones{ grid-template-columns:1fr; }
+  .rep-seccion-body span{ display:block; }
 }
-.rep-qr-note strong { color:var(--text); }
+
+/* Vista previa PDF */
+.prev-toolbar {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-bottom:12px; flex-wrap:wrap;
+}
+.prev-meta { font-size:11px; color:var(--muted); font-family:var(--mono); }
+.prev-stage {
+  flex:1; min-height:0; border-radius:16px;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(90, 127, 140, 0.12), transparent 55%),
+    rgba(8,12,28,0.55);
+  border:1px solid rgba(255,255,255,0.08);
+  display:flex; align-items:center; justify-content:center;
+  padding:14px; position:relative; overflow:hidden;
+}
+.pdf-sheet {
+  width:min(100%, 340px); aspect-ratio:210/297;
+  background:#f8fafc; color:#0f172a; border-radius:4px;
+  box-shadow:0 18px 50px rgba(0,0,0,0.45), 0 0 0 1px rgba(15,23,42,0.08);
+  padding:18px 16px 14px; display:flex; flex-direction:column; gap:10px;
+  font-family:'Figtree', system-ui, sans-serif;
+  transform-origin:center top;
+}
+.pdf-sheet .ph {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  border-bottom:2px solid #00a8cc; padding-bottom:8px;
+}
+.pdf-sheet .brand { font-weight:800; font-size:13px; color:#1e3a8a; letter-spacing:-0.02em; }
+.pdf-sheet .badge {
+  font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  background:#dbeafe; color:#00a8cc; padding:3px 7px; border-radius:999px;
+}
+.pdf-sheet h3 {
+  margin:0; font-size:14px; font-weight:800; letter-spacing:-0.02em; line-height:1.25;
+}
+.pdf-sheet .sub { font-size:9px; color:#64748b; line-height:1.35; }
+.pdf-sheet .kpi-row { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.pdf-sheet .kpi {
+  background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:7px 6px; text-align:center;
+}
+.pdf-sheet .kpi b { display:block; font-size:12px; color:#00a8cc; }
+.pdf-sheet .kpi span { font-size:7px; color:#64748b; text-transform:uppercase; letter-spacing:.03em; }
+.pdf-sheet .block {
+  border:1px solid #e2e8f0; border-radius:6px; padding:7px 8px; background:#fff;
+}
+.pdf-sheet .block.on { border-color:#b8f7ff; background:#f8fbff; }
+.pdf-sheet .block.off { opacity:.35; }
+.pdf-sheet .block strong { display:block; font-size:9px; margin-bottom:2px; }
+.pdf-sheet .block span { font-size:8px; color:#64748b; }
+.pdf-sheet .bars { display:grid; gap:4px; }
+.pdf-sheet .bar {
+  height:6px; border-radius:99px; background:#e2e8f0; overflow:hidden;
+}
+.pdf-sheet .bar i {
+  display:block; height:100%; border-radius:99px;
+  background:linear-gradient(90deg,#5A7F8C,#A98D72);
+}
+.pdf-sheet .foot {
+  margin-top:auto; display:flex; align-items:flex-end; justify-content:space-between;
+  border-top:1px solid #e2e8f0; padding-top:8px; gap:8px;
+}
+.pdf-sheet .qr {
+  width:34px; height:34px; border-radius:4px;
+  background:
+    repeating-linear-gradient(0deg,#0f172a 0 2px, transparent 2px 4px),
+    repeating-linear-gradient(90deg,#0f172a 0 2px, transparent 2px 4px);
+  background-size:8px 8px; opacity:.85; flex-shrink:0;
+}
+.pdf-sheet .foot small { font-size:7px; color:#94a3b8; line-height:1.3; }
+
+.pdf-frame-wrap {
+  position:absolute; inset:0; display:none; background:#0b1020;
+}
+.pdf-frame-wrap.show { display:block; }
+.pdf-frame-wrap iframe {
+  width:100%; height:100%; border:0; background:#525659;
+}
+.prev-empty {
+  position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+  flex-direction:column; gap:8px; color:var(--muted); font-size:13px; text-align:center; padding:24px;
+}
+.prev-empty.show { display:flex; }
+.prev-actions { display:flex; gap:8px; align-items:center; }
+
+.hist-top {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  margin-bottom:14px;
+}
+.hist-top .panel-title { margin-bottom:0; }
 .tabla { width:100%; border-collapse:collapse; font-size:12px; }
 .tabla th {
-  text-align:left; padding:10px 8px; border-bottom:1px solid var(--border);
-  font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted,var(--text3));
+  text-align:left; padding:12px 10px; border-bottom:1px solid rgba(255,255,255,0.08);
+  font-size:11px; font-weight:700; color:var(--text2);
 }
-.tabla td { padding:10px 8px; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:11px; }
+.tabla td {
+  padding:12px 10px; border-bottom:1px solid rgba(255,255,255,0.06);
+  font-family:var(--mono); font-size:11px; vertical-align:middle;
+}
 .tabla tr:last-child td { border-bottom:none; }
-.vacio { padding:24px; text-align:center; color:var(--muted,var(--text3)); font-size:12px; }
-.btn-dl {
-  background:rgba(34,211,238,0.1); color:rgba(34,211,238,0.95);
-  border:1px solid rgba(34,211,238,0.25); border-radius:6px;
-  padding:5px 12px; font-size:11px; cursor:pointer; font-family:var(--mono);
+.tabla tbody tr:hover td { background:rgba(255,255,255,0.03); }
+.tabla tbody tr.active-row td { background:rgba(90, 127, 140, 0.12); }
+.vacio { padding:28px; text-align:center; color:var(--muted); font-size:13px; font-family:'Figtree',system-ui,sans-serif; }
+.btn-dl, .btn-del, .btn-prev {
+  border-radius:999px; padding:6px 12px; font-size:11px; font-weight:700;
+  cursor:pointer; font-family:'Figtree',system-ui,sans-serif; border:1px solid transparent;
 }
-.btn-dl:hover { background:rgba(34,211,238,0.18); }
-.codigo-verif { font-size:10px; color:var(--cyan); }
+.btn-dl {
+  background:rgba(90, 127, 140, 0.16); color:rgba(180, 255, 241, 0.98);
+  border-color:rgba(90, 127, 140, 0.28);
+}
+.btn-dl:hover { background:rgba(90, 127, 140, 0.28); }
+.btn-prev {
+  background:rgba(74,222,128,0.12); color:#4ade80;
+  border-color:rgba(74,222,128,0.28); margin-right:6px;
+}
+.btn-prev:hover { background:rgba(74,222,128,0.22); }
+.btn-del {
+  background:rgba(248,113,113,0.12); color:#f87171;
+  border-color:rgba(248,113,113,0.28); margin-left:6px;
+}
+.btn-del:hover { background:rgba(248,113,113,0.22); }
+.codigo-verif { font-size:10px; color:rgba(180, 255, 241, 0.95); }
+.acciones-cell { text-align:right; white-space:nowrap; }
+.page-header .btn { white-space:nowrap; }
+.rep-note { margin-top:12px; font-size:11px; color:var(--muted); line-height:1.45; }
+
+/* Modo completo: densificar para no dejar huecos */
+.rep-shell.modo-completo .rep-tipos { gap:10px; margin-bottom:12px; }
+.rep-shell.modo-completo .tipo-pick { padding:12px 12px 10px; }
+.rep-shell.modo-completo .tipo-pick .tp-title { font-size:15px; margin-bottom:4px; }
+.rep-shell.modo-completo .tipo-pick .tp-desc { font-size:11px; margin-bottom:8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.rep-shell.modo-completo .rep-main { gap:12px; margin-bottom:12px; align-items:start; }
+.rep-shell.modo-completo .panel { padding:14px 16px; }
+.rep-shell.modo-completo .panel-title { margin-bottom:10px; font-size:14px; }
+.rep-shell.modo-completo .depto-chip { padding:6px 10px; font-size:11px; }
+.rep-shell.modo-completo .depto-hint { margin-top:8px; font-size:11px; }
+.rep-shell.modo-completo .filtros-extra { margin-top:10px; padding-top:10px; }
+.rep-shell.modo-completo .form-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.rep-shell.modo-completo .filtros-extra .fi,
+.rep-shell.modo-completo .filtros-extra .fs { padding:8px 10px; font-size:12px; border-radius:10px; }
+.rep-shell.modo-completo .alcance-box { margin-top:10px; padding:10px 12px; font-size:11px; }
+.rep-shell.modo-completo .rep-secciones {
+  display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px;
+}
+.rep-shell.modo-completo .rep-seccion { padding:8px 10px; border-radius:10px; gap:8px; }
+.rep-shell.modo-completo .rep-seccion-body strong { font-size:11px; }
+.rep-shell.modo-completo .rep-seccion-body span { display:none; }
+.rep-shell.modo-completo .rep-note { margin-top:8px; font-size:10px; }
+.rep-shell.modo-completo .panel-preview { min-height:0; }
+.rep-shell.modo-completo .prev-stage { min-height:360px; padding:12px; }
+.rep-shell.modo-completo .pdf-sheet { width:min(100%, 300px); gap:7px; padding:14px 12px 10px; }
+@media(max-width:720px){
+  .rep-shell.modo-completo .form-grid,
+  .rep-shell.modo-completo .rep-secciones { grid-template-columns:1fr; }
+}
 </style>
 </head>
-<body>
+<body class="dc-uv">
 
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 
 <div class="main">
   <div class="topbar">
-    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Reportes PDF</span>
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Exportar PDF</span>
     <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div></div>
   </div>
-  <div class="content">
-    <div class="page-header">
+
+  <div class="content dash-shell rep-shell">
+    <div class="page-header dash-welcome">
       <div>
-        <div class="page-title">Reportes <span>clínicos</span></div>
-        <div class="page-sub">Informes PDF con estadísticas, modelo ML y análisis filtrado - listos para archivo clínico</div>
+        <div class="page-title">Exportar <span>PDF</span></div>
+        <div class="page-sub">Elige el tipo de informe y el departamento; la vista previa se actualiza al instante.</div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="generar()" id="btnGenerar">⬇ Generar reporte</button>
-    </div>
-
-    <div class="rep-grid">
-      <!-- Formulario de filtros -->
-      <div class="rep-card">
-        <div class="rep-title">Filtros opcionales del resumen</div>
-        <div class="form-grid">
-          <div class="fg">
-            <label class="fl">Diagnóstico</label>
-            <select class="fs" id="f-diabetes">
-              <option value="">Todos</option>
-              <option value="1">Con diabetes</option>
-              <option value="0">Sin diabetes</option>
-            </select>
-          </div>
-          <div class="fg">
-            <label class="fl">Género</label>
-            <select class="fs" id="f-gender">
-              <option value="">Todos</option>
-              <option value="Masculino">Masculino</option>
-              <option value="Femenino">Femenino</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
-          <div class="fg">
-            <label class="fl">Ubicación contiene</label>
-            <input class="fi" id="f-location" type="text" placeholder="ej. Alabama">
-          </div>
-          <div class="fg">
-            <label class="fl">Año</label>
-            <input class="fi" id="f-year" type="number" placeholder="ej. 2024">
-          </div>
-          <div class="fg">
-            <label class="fl">Edad mínima</label>
-            <input class="fi" id="f-agemin" type="number" step="0.1" placeholder="ej. 30">
-          </div>
-          <div class="fg">
-            <label class="fl">Edad máxima</label>
-            <input class="fi" id="f-agemax" type="number" step="0.1" placeholder="ej. 70">
-          </div>
-        </div>
-        <div style="font-size:11px;color:var(--muted,var(--text3))">
-          Deja los filtros vacíos para generar un reporte sobre todo el dataset.
-        </div>
-      </div>
-
-      <!-- Vista previa del informe -->
-      <div class="rep-card">
-        <div class="rep-title">Formato del reporte PDF</div>
-        <div class="rep-preview">
-          <img src="/estaticos/img/logo-icon.png" alt="DiabCare">
-          <div>
-            <h3>DiabCare Analytics - Reporte clínico agregado</h3>
-            <p>Informe profesional con logo institucional, resumen ejecutivo en lenguaje claro, métricas explicadas y código QR de verificación en cada página.</p>
-          </div>
-        </div>
-        <div class="rep-secciones">
-          <div class="rep-seccion">
-            <span class="rep-seccion-num">RES</span>
-            <div class="rep-seccion-body"><strong>Resumen ejecutivo</strong><span>Lectura rápida para directivos y equipos clínicos</span></div>
-          </div>
-          <div class="rep-seccion">
-            <span class="rep-seccion-num">01</span>
-            <div class="rep-seccion-body"><strong>Panorama del dataset</strong><span>Total de registros, diabetes, género y promedios clínicos</span></div>
-          </div>
-          <div class="rep-seccion">
-            <span class="rep-seccion-num">02</span>
-            <div class="rep-seccion-body"><strong>Modelo predictivo</strong><span>Exactitud, precisión, sensibilidad y F1 del algoritmo ML</span></div>
-          </div>
-          <div class="rep-seccion">
-            <span class="rep-seccion-num">03</span>
-            <div class="rep-seccion-body"><strong>Subconjunto filtrado</strong><span>Resultados según los criterios que elija abajo</span></div>
-          </div>
-          <div class="rep-seccion">
-            <span class="rep-seccion-num">04</span>
-            <div class="rep-seccion-body"><strong>Glosario y QR</strong><span>Términos clínicos y código para verificación futura</span></div>
-          </div>
-        </div>
-        <div class="rep-qr-note">
-          <strong>Código QR de verificación</strong> - Cada reporte incluye un código único (ej. <code>DC-20250620-A1B2C3</code>) y un QR en el pie de página.
-          Próximamente podrá escanearse para validar autenticidad, abrir el portal de auditoría o vincular el PDF a un expediente institucional.
-        </div>
-        <div style="margin-top:14px;font-size:11px;color:var(--muted)">
-          Por privacidad, el PDF solo contiene datos agregados - nunca nombres, documentos ni identificadores de pacientes.
-        </div>
+      <div class="dash-welcome-actions">
+        <button type="button" class="btn btn-primary btn-sm" onclick="generar()" id="btnGenerar">Generar reporte</button>
       </div>
     </div>
 
-    <!-- Tabla de reportes previos -->
-    <div class="rep-card">
-      <div class="rep-title">Reportes generados</div>
-      <table class="tabla">
-        <thead>
-          <tr><th>Nombre</th><th>Código</th><th>Fecha</th><th>Tamaño</th><th style="text-align:right">Acción</th></tr>
-        </thead>
-        <tbody id="tbody">
-          <tr><td colspan="4" class="vacio">Cargando…</td></tr>
-        </tbody>
-      </table>
+    <div class="rep-tipos" id="tipoGrid">
+      <button type="button" class="tipo-pick active" data-tipo="simple">
+        <div class="tp-kicker">Paso 1 · Tipo</div>
+        <div class="tp-title">Informe simple</div>
+        <div class="tp-desc">Listado o ficha del día a día: filtros, detalle y búsqueda por paciente o estado.</div>
+        <span class="tp-tag">listado</span>
+      </button>
+      <button type="button" class="tipo-pick" data-tipo="compuesto">
+        <div class="tp-kicker">Paso 1 · Tipo</div>
+        <div class="tp-title">Informe compuesto</div>
+        <div class="tp-desc">Totales, rankings y cruces alimentados por el pipeline ELT en MinIO.</div>
+        <span class="tp-tag">agregado</span>
+      </button>
+      <button type="button" class="tipo-pick" data-tipo="completo">
+        <div class="tp-kicker">Paso 1 · Tipo</div>
+        <div class="tp-title">Informe completo</div>
+        <div class="tp-desc">Combina listados, agregados, panorama del dataset, modelo ML y filtros clínicos.</div>
+        <span class="tp-tag">completo</span>
+      </button>
+    </div>
+
+    <div class="rep-main">
+      <div class="panel panel-config">
+        <div class="panel-title"><span><span class="step-pill">2</span>Departamento</span></div>
+        <div class="depto-grid" id="deptoGrid"></div>
+        <p class="depto-hint" id="deptoHint">Selecciona un área o deja «Todos» para incluir todos los departamentos disponibles.</p>
+
+        <div class="filtros-extra hidden" id="filtrosExtra">
+          <div class="panel-title" style="margin-bottom:12px"><span><span class="step-pill">3</span>Filtros clínicos opcionales</span></div>
+          <div class="form-grid">
+            <div class="fg">
+              <label class="fl" for="f-diabetes">Diagnóstico</label>
+              <select class="fs" id="f-diabetes">
+                <option value="">Todos</option>
+                <option value="1">Con diabetes</option>
+                <option value="0">Sin diabetes</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-gender">Género</label>
+              <select class="fs" id="f-gender">
+                <option value="">Todos</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-location">Ubicación contiene</label>
+              <input class="fi" id="f-location" type="text" placeholder="ej. Alabama">
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-year">Año</label>
+              <input class="fi" id="f-year" type="number" min="0" step="1" placeholder="ej. 2024">
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-agemin">Edad mínima</label>
+              <input class="fi" id="f-agemin" type="number" min="0" step="0.1" placeholder="ej. 30">
+            </div>
+            <div class="fg">
+              <label class="fl" for="f-agemax">Edad máxima</label>
+              <input class="fi" id="f-agemax" type="number" min="0" step="0.1" placeholder="ej. 70">
+            </div>
+            <p class="field-hint" style="grid-column:1/-1;margin:0">Año y edades no pueden ser negativos. La edad máxima no puede ser menor que la mínima.</p>
+          </div>
+        </div>
+
+        <div class="alcance-box" id="alcanceBox">
+          Se generará un <strong>informe simple</strong> de <strong>todos los departamentos</strong>.
+        </div>
+        <div class="rep-secciones" id="prevSecciones"></div>
+        <p class="rep-note">El PDF solo incluye datos agregados (sin nombres ni documentos). El QR abre una página de verificación. Para escanearlo desde datos móviles (no solo tu Wi‑Fi), configura la URL pública en Configuración → Sistema o ejecuta <code>.\scripts\tunel-publico.ps1</code>. Genera un PDF <strong>nuevo</strong> después de guardar esa URL.</p>
+      </div>
+
+      <div class="panel panel-preview">
+        <div class="prev-toolbar">
+          <div class="panel-title" style="margin:0">Vista previa del PDF</div>
+          <div class="prev-actions">
+            <span class="prev-meta" id="prevMeta">Borrador en vivo</span>
+            <button type="button" class="btn btn-ghost btn-sm" id="btnVolverMock" onclick="mostrarMock()" style="display:none">Ver maqueta</button>
+          </div>
+        </div>
+        <div class="prev-stage" id="prevStage">
+          <div class="pdf-sheet" id="pdfSheet" aria-label="Maqueta del PDF">
+            <div class="ph">
+              <span class="brand">DiabCare Analytics</span>
+              <span class="badge" id="pdfBadge">Operativo</span>
+            </div>
+            <h3 id="pdfTitle">Informe simple</h3>
+            <div class="sub" id="pdfSub">Departamento: Todos</div>
+            <div class="kpi-row">
+              <div class="kpi"><b id="pdfK1">—</b><span>Cobertura</span></div>
+              <div class="kpi"><b id="pdfK2">—</b><span>Indicadores</span></div>
+              <div class="kpi"><b id="pdfK3">QR</b><span>Verificación</span></div>
+            </div>
+            <div class="bars" id="pdfBars"></div>
+            <div id="pdfBlocks"></div>
+            <div class="foot">
+              <small id="pdfFoot">Documento agregado · sin datos personales<br>Código de verificación en pie</small>
+              <div class="qr" title="QR de verificación"></div>
+            </div>
+          </div>
+          <div class="pdf-frame-wrap" id="pdfFrameWrap">
+            <iframe id="pdfFrame" title="Vista previa del PDF generado"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="hist-top">
+        <div class="panel-title">Reportes generados</div>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnVaciarHistorial" onclick="vaciarHistorial()">Vaciar historial</button>
+      </div>
+      <div class="tabla-wrap">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Código</th>
+              <th>Fecha</th>
+              <th>Tamaño</th>
+              <th style="text-align:right">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="5" class="vacio">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -190,74 +466,280 @@
 DiabCareNav.init();
 DiabCareNav.guardRol(['administrador', 'medico', 'analista', 'farmaceutico']);
 const API = DiabCareNav.getApi();
-const token = localStorage.getItem('token');
+const _rol = String((JSON.parse(localStorage.getItem('usuario') || '{}').rol || '')).toLowerCase();
 
-function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
+const DEPTOS_SIMPLE = [
+  { id: 'todos', label: 'Todos' },
+  { id: 'citas', label: 'Agenda / citas' },
+  { id: 'urgencias', label: 'Urgencias' },
+  { id: 'laboratorio', label: 'Laboratorio' },
+  { id: 'caja', label: 'Caja' },
+  { id: 'pacientes', label: 'Pacientes' },
+  { id: 'admisiones', label: 'Admisiones' },
+  { id: 'farmacia', label: 'Farmacia' },
+  { id: 'rrhh', label: 'RRHH' },
+  { id: 'comorbilidades', label: 'Comorbilidades' },
+];
+const DEPTOS_COMPUESTO = [
+  { id: 'todos', label: 'Todos' },
+  { id: 'caja', label: 'Caja / ingresos' },
+  { id: 'farmacia', label: 'Farmacia / margen' },
+  { id: 'rrhh', label: 'Productividad médica' },
+  { id: 'urgencias', label: 'Espera urgencias' },
+];
 
-function initUser() {
-  if (!token) { window.location.href = '/'; return; }
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  if (u.nombre) {
-    document.getElementById('userName').textContent   = u.nombre;
-    document.getElementById('userRol').textContent    = u.rol || '';
-    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
-  }
-}
+const PUEDE_DEPTO = {
+  administrador: ['todos','citas','urgencias','laboratorio','caja','pacientes','admisiones','farmacia','rrhh','comorbilidades'],
+  medico:        ['todos','citas','urgencias','laboratorio','pacientes','comorbilidades'],
+  farmaceutico:  ['todos','citas','urgencias','caja','pacientes','admisiones','farmacia'],
+  analista:      ['todos','caja','rrhh'],
+};
 
-function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
+let estado = { tipo: 'simple', departamento: 'todos' };
+let _previewUrl = null;
+let _previewNombre = null;
 
 function toast(msg, type='success') {
   const t = document.getElementById('toast');
   document.getElementById('t-msg').textContent  = msg;
-  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '!';
   t.className = `toast ${type} show`;
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+function deptosDelTipo(tipo) {
+  const base = tipo === 'compuesto' ? DEPTOS_COMPUESTO : DEPTOS_SIMPLE;
+  const puede = PUEDE_DEPTO[_rol] || PUEDE_DEPTO.administrador;
+  return base.filter(d => d.id === 'todos' || puede.includes(d.id));
+}
+
+function labelTipo(t) {
+  return ({ simple: 'informe simple', compuesto: 'informe compuesto', completo: 'informe completo' })[t] || t;
+}
+function labelTipoTitle(t) {
+  return ({ simple: 'Informe simple', compuesto: 'Informe compuesto', completo: 'Informe completo' })[t] || t;
+}
+function labelDepto(id) {
+  const all = [...DEPTOS_SIMPLE, ...DEPTOS_COMPUESTO];
+  const hit = all.find(d => d.id === id);
+  return hit ? hit.label : id;
+}
+
+function seccionesActuales() {
+  const secs = [];
+  secs.push({ on: true, num: 'RES', t: 'Resumen ejecutivo', d: 'Hallazgos principales del alcance elegido' });
+  let n = 1;
+  if (estado.tipo === 'completo') {
+    secs.push({ on: true, num: String(n++), t: 'Panorama del dataset', d: 'Registros, diabetes, género y promedios' });
+  }
+  if (estado.tipo === 'simple' || estado.tipo === 'completo') {
+    secs.push({ on: true, num: String(n++), t: 'Informes simples', d: estado.departamento === 'todos' ? 'KPIs operativos por departamento' : `KPIs de ${labelDepto(estado.departamento)}` });
+  } else {
+    secs.push({ on: false, num: '-', t: 'Informes simples', d: 'No incluidos en este tipo' });
+  }
+  if (estado.tipo === 'compuesto' || estado.tipo === 'completo') {
+    secs.push({ on: true, num: String(n++), t: 'Informes compuestos (ELT)', d: estado.departamento === 'todos' ? 'Agregados columnar' : `Agregados de ${labelDepto(estado.departamento)}` });
+  } else {
+    secs.push({ on: false, num: '-', t: 'Informes compuestos (ELT)', d: 'No incluidos en este tipo' });
+  }
+  if (estado.tipo === 'completo') {
+    secs.push({ on: true, num: String(n++), t: 'Modelo predictivo', d: 'Exactitud, precisión, sensibilidad y F1' });
+    secs.push({ on: true, num: String(n++), t: 'Subconjunto filtrado', d: 'Resultados con los filtros clínicos opcionales' });
+  }
+  secs.push({ on: true, num: String(n), t: 'Glosario y QR', d: 'Términos clínicos y verificación del documento' });
+  return secs;
+}
+
+function renderDeptos() {
+  const list = deptosDelTipo(estado.tipo);
+  if (!list.some(d => d.id === estado.departamento)) estado.departamento = 'todos';
+  const grid = document.getElementById('deptoGrid');
+  grid.innerHTML = list.map(d =>
+    `<button type="button" class="depto-chip${d.id === estado.departamento ? ' active' : ''}" data-depto="${d.id}">${d.label}</button>`
+  ).join('');
+  grid.querySelectorAll('.depto-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      estado.departamento = btn.dataset.depto;
+      renderDeptos();
+      actualizarPreview();
+    });
+  });
+  const hint = document.getElementById('deptoHint');
+  if (estado.tipo === 'compuesto') {
+    hint.textContent = 'Los departamentos compuestos corresponden a agregados ELT (ingresos, margen, productividad, espera).';
+  } else if (estado.tipo === 'simple') {
+    hint.textContent = 'Cada departamento genera un informe simple con sus KPIs operativos.';
+  } else {
+    hint.textContent = 'En el informe completo puedes limitar los bloques operativos/ELT a un departamento; la analítica clínica va aparte.';
+  }
+}
+
+function actualizarMaquetaPdf() {
+  const badge = ({ simple: 'Operativo', compuesto: 'ELT', completo: 'Completo' })[estado.tipo];
+  document.getElementById('pdfBadge').textContent = badge;
+  document.getElementById('pdfTitle').textContent = labelTipoTitle(estado.tipo);
+  document.getElementById('pdfSub').textContent = `Departamento: ${labelDepto(estado.departamento)} · datos agregados`;
+  const onSecs = seccionesActuales().filter(s => s.on);
+  document.getElementById('pdfK1').textContent = estado.departamento === 'todos' ? 'Global' : 'Área';
+  document.getElementById('pdfK2').textContent = String(Math.max(onSecs.length - 1, 1));
+  document.getElementById('pdfBars').innerHTML = [78, 54, 66].map((w, i) =>
+    `<div class="bar"><i style="width:${w - (estado.tipo === 'simple' ? i * 8 : i * 4)}%"></i></div>`
+  ).join('');
+  document.getElementById('pdfBlocks').innerHTML = onSecs.slice(0, 4).map(s => `
+    <div class="block on" style="margin-top:6px">
+      <strong>${s.num}. ${s.t}</strong>
+      <span>${s.d}</span>
+    </div>`).join('');
+  document.getElementById('pdfFoot').innerHTML =
+    `DiabCare · ${labelTipoTitle(estado.tipo)}<br>Código QR de verificación en el pie`;
+}
+
+function actualizarPreview() {
+  const shell = document.querySelector('.rep-shell');
+  if (shell) shell.classList.toggle('modo-completo', estado.tipo === 'completo');
+
+  const box = document.getElementById('alcanceBox');
+  const deptoTxt = estado.departamento === 'todos'
+    ? 'todos los departamentos'
+    : `el departamento de ${labelDepto(estado.departamento)}`;
+  box.innerHTML = `Se generará un <strong>${labelTipo(estado.tipo)}</strong> de <strong>${deptoTxt}</strong>.`;
+
+  document.getElementById('filtrosExtra').classList.toggle('hidden', estado.tipo !== 'completo');
+
+  const secs = seccionesActuales();
+  document.getElementById('prevSecciones').innerHTML = secs.map(s => `
+    <div class="rep-seccion${s.on ? '' : ' off'}">
+      <span class="rep-seccion-num">${s.num}</span>
+      <div class="rep-seccion-body"><strong>${s.t}</strong><span>${s.d}</span></div>
+    </div>`).join('');
+
+  actualizarMaquetaPdf();
+  if (!_previewNombre) {
+    document.getElementById('prevMeta').textContent = 'Borrador en vivo';
+  }
+}
+
+function mostrarMock() {
+  const wrap = document.getElementById('pdfFrameWrap');
+  const sheet = document.getElementById('pdfSheet');
+  wrap.classList.remove('show');
+  sheet.style.display = '';
+  document.getElementById('btnVolverMock').style.display = 'none';
+  document.getElementById('prevMeta').textContent = 'Borrador en vivo';
+  _previewNombre = null;
+  document.querySelectorAll('#tbody tr.active-row').forEach(tr => tr.classList.remove('active-row'));
+}
+
+async function mostrarPdfReal(nombre) {
+  try {
+    const r = await fetch(`${API}/api/reportes/${encodeURIComponent(nombre)}`, {
+      headers: { 'Authorization': 'Bearer ' + token },
+      skeleton: false,
+    });
+    if (!r.ok) { toast('No se pudo abrir la vista previa', 'error'); return; }
+    const blob = await r.blob();
+    if (_previewUrl) URL.revokeObjectURL(_previewUrl);
+    _previewUrl = URL.createObjectURL(blob);
+    _previewNombre = nombre;
+    const frame = document.getElementById('pdfFrame');
+    const wrap = document.getElementById('pdfFrameWrap');
+    const sheet = document.getElementById('pdfSheet');
+    frame.src = _previewUrl;
+    sheet.style.display = 'none';
+    wrap.classList.add('show');
+    document.getElementById('btnVolverMock').style.display = '';
+    document.getElementById('prevMeta').textContent = nombre;
+    document.querySelectorAll('#tbody tr').forEach(tr => {
+      tr.classList.toggle('active-row', tr.dataset.nombre === nombre);
+    });
+  } catch {
+    toast('Error de conexión', 'error');
+  }
+}
+
+document.querySelectorAll('#tipoGrid .tipo-pick').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('#tipoGrid .tipo-pick').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    estado.tipo = card.dataset.tipo;
+    renderDeptos();
+    actualizarPreview();
+  });
+});
+
 function leerFiltros() {
-  const f = {};
-  const diabetes = document.getElementById('f-diabetes').value;
-  const gender   = document.getElementById('f-gender').value;
-  const location = document.getElementById('f-location').value.trim();
-  const year     = document.getElementById('f-year').value;
-  const agemin   = document.getElementById('f-agemin').value;
-  const agemax   = document.getElementById('f-agemax').value;
-  if (diabetes !== '') f.diabetes = parseInt(diabetes);
-  if (gender)          f.gender = gender;
-  if (location)        f.location = location;
-  if (year)            f.year = parseInt(year);
-  if (agemin)          f.age_min = parseFloat(agemin);
-  if (agemax)          f.age_max = parseFloat(agemax);
+  const f = {
+    tipo: estado.tipo,
+    departamento: estado.departamento,
+  };
+  if (estado.tipo === 'completo') {
+    const diabetes = document.getElementById('f-diabetes').value;
+    const gender   = document.getElementById('f-gender').value;
+    const location = document.getElementById('f-location').value.trim();
+    const year     = document.getElementById('f-year').value;
+    const agemin   = document.getElementById('f-agemin').value;
+    const agemax   = document.getElementById('f-agemax').value;
+    if (diabetes !== '') f.diabetes = parseInt(diabetes);
+    if (gender)          f.gender = gender;
+    if (location)        f.location = location;
+    if (year)            f.year = parseInt(year);
+    if (agemin)          f.age_min = parseFloat(agemin);
+    if (agemax)          f.age_max = parseFloat(agemax);
+    if (f.year != null && (Number.isNaN(f.year) || f.year < 0)) {
+      toast('El año no puede ser negativo.', 'error');
+      return null;
+    }
+    if (f.age_min != null && (Number.isNaN(f.age_min) || f.age_min < 0)) {
+      toast('La edad mínima no puede ser negativa.', 'error');
+      return null;
+    }
+    if (f.age_max != null && (Number.isNaN(f.age_max) || f.age_max < 0)) {
+      toast('La edad máxima no puede ser negativa.', 'error');
+      return null;
+    }
+    if (f.age_min != null && f.age_max != null && f.age_max < f.age_min) {
+      toast('La edad máxima no puede ser menor que la mínima.', 'error');
+      return null;
+    }
+  }
   return f;
 }
 
 async function generar() {
   const btn = document.getElementById('btnGenerar');
-  btn.textContent = 'Generando…';
+  btn.textContent = 'Generando...';
   btn.disabled = true;
   try {
-    const r = await fetch(`${API}/api/reportes/generar`, {
+    const f = leerFiltros();
+    if (!f) return;
+    const r = await DiabCareAPI.fetch('/api/reportes/generar', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify(leerFiltros())
+      body: f,
     });
     const d = await r.json();
     if (!r.ok) { toast(d.detail || 'No se pudo generar', 'error'); return; }
     const cod = d.codigo_verificacion ? ` (${d.codigo_verificacion})` : '';
-    toast(`Reporte generado${cod}`, 'success');
-    cargarReportes();
+    const urlV = d.url_verificacion ? ` · QR: ${d.url_verificacion}` : '';
+    toast(`Reporte generado${cod}${urlV}`, 'success');
+    await cargarReportes();
+    if (d.nombre) await mostrarPdfReal(d.nombre);
   } catch {
     toast('Error de conexión', 'error');
   } finally {
-    btn.textContent = '⬇ Generar reporte';
+    btn.textContent = 'Generar reporte';
     btn.disabled = false;
   }
 }
 
+function escAttr(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
 async function cargarReportes() {
-  const tbody = document.getElementById('tbody');
+  const tbody = document.getElementById('tbody') || document.getElementById('tablaBody');
+  if (!tbody) return;
   try {
-    const r = await fetch(`${API}/api/reportes/`, { headers: { 'Authorization': 'Bearer ' + token } });
+    const r = await DiabCareAPI.fetch('/api/reportes/');
     const d = await r.json();
     const reportes = d.reportes || [];
     if (!reportes.length) {
@@ -267,12 +749,18 @@ async function cargarReportes() {
     tbody.innerHTML = reportes.map(rp => {
       const fecha = rp.fecha ? new Date(rp.fecha).toLocaleString('es-ES') : '-';
       const cod = rp.codigo_verificacion || '-';
-      return `<tr>
-        <td>${rp.nombre}</td>
-        <td class="codigo-verif">${cod}</td>
+      const nom = escAttr(rp.nombre);
+      const active = _previewNombre === rp.nombre ? ' active-row' : '';
+      return `<tr class="${active.trim()}" data-nombre="${nom}">
+        <td>${nom}</td>
+        <td class="codigo-verif">${escAttr(cod)}</td>
         <td>${fecha}</td>
         <td>${rp.tamano_mb} MB</td>
-        <td style="text-align:right"><button class="btn-dl" onclick="descargar('${rp.nombre}')">Descargar</button></td>
+        <td class="acciones-cell">
+          <button type="button" class="btn-prev" onclick="mostrarPdfReal('${nom}')">Ver</button>
+          <button type="button" class="btn-dl" onclick="descargar('${nom}')">Descargar</button>
+          <button type="button" class="btn-del" onclick="eliminarReporte('${nom}')">Eliminar</button>
+        </td>
       </tr>`;
     }).join('');
   } catch {
@@ -283,7 +771,8 @@ async function cargarReportes() {
 async function descargar(nombre) {
   try {
     const r = await fetch(`${API}/api/reportes/${encodeURIComponent(nombre)}`, {
-      headers: { 'Authorization': 'Bearer ' + token }
+      headers: { 'Authorization': 'Bearer ' + token },
+      skeleton: false,
     });
     if (!r.ok) { toast('No se pudo descargar', 'error'); return; }
     const blob = await r.blob();
@@ -300,7 +789,94 @@ async function descargar(nombre) {
   }
 }
 
+async function eliminarReporte(nombre) {
+  const ok = window.DiabCareAPI && DiabCareAPI.confirm
+    ? await DiabCareAPI.confirm({
+        title: 'Eliminar reporte',
+        message: `Se eliminará <strong>${escAttr(nombre)}</strong> del historial.`,
+        confirmLabel: 'Eliminar',
+        danger: true,
+      })
+    : confirm(`¿Eliminar ${nombre}?`);
+  if (!ok) return;
+  try {
+    const r = await fetch(`${API}/api/reportes/${encodeURIComponent(nombre)}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(d.detail || 'No se pudo eliminar', 'error'); return; }
+    toast('Reporte eliminado', 'success');
+    if (_previewNombre === nombre) mostrarMock();
+    cargarReportes();
+  } catch {
+    toast('Error de conexión', 'error');
+  }
+}
+
+async function vaciarHistorial() {
+  const ok = window.DiabCareAPI && DiabCareAPI.confirm
+    ? await DiabCareAPI.confirm({
+        title: 'Vaciar historial',
+        message: 'Se eliminarán <strong>todos</strong> los reportes PDF generados. Esta acción no se puede deshacer.',
+        confirmLabel: 'Vaciar historial',
+        danger: true,
+      })
+    : confirm('¿Vaciar todo el historial de reportes?');
+  if (!ok) return;
+  const btn = document.getElementById('btnVaciarHistorial');
+  if (btn) { btn.disabled = true; btn.textContent = 'Vaciando...'; }
+  const hdr = { 'Authorization': 'Bearer ' + token };
+  try {
+    // Preferir POST (más compatible si el backend no recargó DELETE)
+    let r = await fetch(`${API}/api/reportes/vaciar-historial`, { method: 'POST', headers: hdr });
+    if (r.status === 404 || r.status === 405) {
+      r = await fetch(`${API}/api/reportes/historial`, { method: 'DELETE', headers: hdr });
+    }
+    const d = await r.json().catch(() => ({}));
+    const detail = typeof d.detail === 'string' ? d.detail
+      : (Array.isArray(d.detail) ? d.detail.map(x => x.msg || x).join('; ') : '');
+    if (!r.ok) {
+      toast(detail || `No se pudo vaciar (${r.status}). Reinicia el backend y prueba de nuevo.`, 'error');
+      return;
+    }
+    if (d.error) {
+      toast(d.error, 'error');
+      return;
+    }
+    toast(`Historial vaciado (${d.eliminados || 0} archivos)`, 'success');
+    mostrarMock();
+    cargarReportes();
+  } catch {
+    toast('Error de conexión', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Vaciar historial'; }
+  }
+}
+
+renderDeptos();
+actualizarPreview();
 cargarReportes();
+['f-year', 'f-agemin', 'f-agemax'].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    if (el.value === '') return;
+    const n = Number(el.value);
+    if (!Number.isFinite(n) || n < 0) el.value = '0';
+  });
+});
+const ageMin = document.getElementById('f-agemin');
+const ageMax = document.getElementById('f-agemax');
+if (ageMin && ageMax) {
+  const syncEdad = () => {
+    if (ageMin.value !== '') ageMax.min = ageMin.value;
+    else ageMax.min = '0';
+  };
+  ageMin.addEventListener('change', syncEdad);
+  ageMin.addEventListener('input', syncEdad);
+  syncEdad();
+}
 </script>
 </body>
 </html>

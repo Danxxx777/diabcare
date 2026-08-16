@@ -464,12 +464,14 @@ def expandir_flujo_operativo(
 
     # Notificaciones de flujo (muestra)
     try:
-        from paquetes.notificaciones.NotificacionesServicio import crear as notif_crear
-        notif_crear({
-            "titulo": "Flujo sintético generado",
-            "mensaje": f"{len(pacientes)} pacientes con citas, registros y módulos hospitalarios.",
-            "tipo": "info",
-        })
+        from paquetes.notificaciones.NotificacionesServicio import emitir_a_roles
+        emitir_a_roles(
+            "Flujo sintético generado",
+            f"{len(pacientes)} pacientes con citas, registros y módulos hospitalarios.",
+            "info",
+            roles=["administrador", "analista"],
+            referencia_tipo="dataset",
+        )
     except Exception:
         pass
 

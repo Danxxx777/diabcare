@@ -4,92 +4,69 @@
 
 **Caso de uso operativo**: CU-O06 (Ejecutar pipeline ELT) · OO5.3.1
 
-**Estado**: Parcial (consulta de estado implementada; ejecución orquestada pendiente)
+**Estado**: Implementado (consulta + pasos E·T·L + DAGs Airflow + benchmark SQL)
 
-**Creado**: 2026-06-19
+**Creado**: 2026-06-19 · **Actualizado**: 2026-08-11
 
 > **Identificador técnico en código**: carpetas y permisos usan `pipeline_etl`
 > (compatibilidad P8). La nomenclatura funcional y de documentación es
-> **Pipeline ELT** (Extract → Load → Transform).
+> **Pipeline ELT** (Extract → Load → Transform). Orden en código y DAGs: **E→L→T**.
 
-**Rutas reales**: `backend/paquetes/pipeline_elt/PipelineEtlRutas.py`,
-`backend/paquetes/pipeline_elt/PipelineEtlServicio.py`,
-`frontend/paginas/datos/pipeline_elt/index.html`. Orquestación prevista con
-Apache Airflow (`dags/`).
+**Rutas reales**:
+- Proceso: `etl/` (`extract.py`, `load.py`, `transform.py`, `benchmark_sql.py`)
+- API: `backend/paquetes/pipeline_elt/`
+- UI: `frontend/paginas/datos/pipeline_elt/index.html`
+- Orquestación: `dags/diabcare_elt.py`, `diabcare_elt_historico.py`, `diabcare_benchmark_sql.py`
 
 ## 1. Objetivo
 
-Ejecutar y supervisar el pipeline ELT que carga datos al Data Warehouse
-(PocketBase → Airflow → Parquet/MinIO), y consultar su estado.
+Ejecutar y supervisar el pipeline **ELT** (PocketBase → Airflow → landing MinIO →
+transformación en stage/DWH), medir duraciones y comparar informe SQL vs columnar.
 
-## 2. Contexto
+## 2. Orden ELT (no ETL)
 
-P8 mantiene el DWH actualizado. Actualmente está implementada la consulta de
-estado (archivos en stage, fechas, tamaños); la ejecución orquestada por Airflow
-es la parte pendiente.
+| Paso | Qué hace | Destino |
+|------|----------|---------|
+| **E** Extraer | Lee PocketBase (incremental o histórico) | work temporal |
+| **L** Cargar | Sube **crudo** al almacén | `diabetes-data/landing/` |
+| **T** Transformar | Normaliza + Hecho-Dim | `stage/` + DWH |
 
-## 3. Actores
+Landing está **fuera** de `stage/` para no mezclar crudo con lecturas clínicas.
 
-| Actor | Rol | Acciones |
-|-------|-----|----------|
-| Analista | `analista` | Consultar estado del pipeline |
-| Administrador | `administrador` | Acceso total |
-| Sistema (Airflow) | proceso | Ejecutar el ELT automatizado |
+## 3. DAGs (hoja de ruta)
 
-Acceso: `PERMISOS_MODULOS["pipeline_etl"] = ["administrador", "analista"]`.
+| DAG | Schedule | Modo |
+|-----|----------|------|
+| `diabcare_elt` | `@hourly` | Incremental E→L→T |
+| `diabcare_elt_historico` | `0 3 * * 0` | Histórico E→L→T |
+| `diabcare_benchmark_sql` | `@daily` | SQL vs Parquet |
 
-## 4. Requisitos funcionales
+Estrategia: **incremental** (no borrar landing/stage). Histórico añade Parquet y rematerializa DWH.
 
-- **RF-O-P08-001** (CU-O06): El sistema DEBE permitir consultar el estado del
-  pipeline (estado, bucket, total de archivos, último archivo y fecha, listado
-  reciente). *Real*: `GET /api/pipeline/estado`.
-- **RF-O-P08-002** (CU-O06): El sistema DEBE ejecutar el pipeline ELT sin
-  intervención manual (orquestado por Airflow). *Pendiente* — DAGs en `dags/`.
+## 4. Requisitos
 
-## 5. Requisitos no funcionales
+- **RF-O-P08-001**: Consultar estado (`GET /api/pipeline/estado`).
+- **RF-O-P08-002**: Ejecutar ELT orquestado por Airflow (DAGs en `dags/`).
+- **RF-O-P08-003**: Pasos internos `extraer` → `cargar` → `transformar`.
+- **RF-O-P08-004**: Benchmark SQL tradicional vs Parquet.
+- **RNF-O-P08-002**: Meta ELT 600K &lt; 15 min; duración en UI.
 
-- **RNF-O-P08-001**: El acceso exige rol `analista` o `administrador`.
-- **RNF-O-P08-002**: El ELT de 600K registros DEBE completarse en < 15 min (meta
-  TA06).
+## 5. Compatibilidad SQL / PocketBase
 
-## 6. Reglas de negocio
+- Benchmark: SQLite 3 + SQL ANSI.
+- Extracción PB: fallback filtro local si el filtro `updated` falla.
 
-- **RN-O-P08-001**: Los datos cargados se almacenan como Parquet en el prefijo
-  stage del bucket.
-- **RN-O-P08-002**: La consulta de estado reporta los archivos más recientes.
+## 6. OE / dashboards / IA
 
-## 7. Entradas
+| OE | Dashboard / módulo | IA |
+|----|--------------------|-----|
+| OE4 BI | Estadísticas, Análisis, KPIs, Reportes | — |
+| OE4 ML | Predicción, Modelo ML | **Random Forest** (OO5.6.1) |
+| OE1–OE3 | Fuera demo GA07 | No requiere IA |
 
-- Token de sesión. (La ejecución programada no requiere entrada de usuario.)
+## 7. Criterios de aceptación
 
-## 8. Salidas
-
-- Estado del pipeline: bucket, prefijo, total de archivos, último archivo, fecha
-  y listado reciente.
-
-## 9. Escenarios
-
-### Escenario 1: Consultar estado del pipeline
-- **Dado** un analista autenticado,
-- **Cuando** consulta `GET /api/pipeline/estado`,
-- **Entonces** recibe el estado y los archivos recientes del stage.
-
-### Escenario 2: Sin conexión al almacenamiento
-- **Dado** un fallo de conexión a MinIO,
-- **Cuando** consulta el estado,
-- **Entonces** el sistema responde con estado "error" y el detalle.
-
-## 10. Criterios de aceptación
-
-- **CA-O-P08-001**: La consulta de estado lista los Parquet del stage.
-- **CA-O-P08-002**: Ante error de almacenamiento, la respuesta indica "error".
-- **CA-O-P08-003**: Un rol sin permiso recibe 403.
-
-## 11. Dependencias
-
-- P1 (sesión y rol), MinIO/Parquet, Apache Airflow (orquestación).
-
-## 12. Restricciones y fuera de alcance
-
-- Fuera de alcance en esta iteración: disparo manual del DAG desde la UI y
-  reprocesos selectivos; se documentará al implementar la orquestación.
+- CA: DAGs en orden E→L→T en Airflow.
+- CA: Crudo en `landing/`; limpio en `stage/`.
+- CA: Benchmark con `tiempos_ms`.
+- CA: Duraciones E/L/T visibles en UI.

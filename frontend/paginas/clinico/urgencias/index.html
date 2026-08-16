@@ -6,12 +6,14 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>DiabCare - Urgencias</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
 <style>
 #modalAtender .at-meta {
   font-size: 12px; color: var(--text2); margin-bottom: 12px;
@@ -21,7 +23,7 @@
 #modalAtender .at-meta b { color: var(--text); }
 </style>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -36,6 +38,11 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" id="btnNuevo" onclick="abrirModal()">+ Nuevo triage</button>
       </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Casos activos</div><div class="stat-value blue" id="st-total">-</div></div>
+      <div class="stat-card"><div class="stat-label">En triage / espera</div><div class="stat-value amber" id="st-espera">-</div></div>
+      <div class="stat-card"><div class="stat-label">Atendidas</div><div class="stat-value green" id="st-atendidas">-</div></div>
     </div>
     <div class="tabla-card">
       <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
@@ -64,6 +71,14 @@
           <option value="V">V · No urgente</option>
         </select>
       </label>
+      <label class="span-full">Vía de llegada
+        <select id="m-via_llegada">
+          <option value="propia">Por sus propios medios</option>
+          <option value="ambulancia">Ambulancia</option>
+          <option value="referido">Referido de otro centro</option>
+        </select>
+      </label>
+      <p class="span-full field-hint" id="urg-via-hint">Si llega en ambulancia y está grave, elija prioridad I o II: se atiende igual por Urgencias.</p>
       <label class="span-full">Motivo de consulta<input id="m-motivo" required placeholder="Ej. hipoglucemia, herida en pie, dolor torácico…"></label>
     </div>
     <div class="modal-footer">
@@ -144,9 +159,21 @@ async function guardarAtencion() {
     (_atCtx || { toast: () => {} }).toast('Atención registrada');
     cerrarModalAtender();
     if (_atCtx && _atCtx.cargar) _atCtx.cargar();
+    cargarResumenUrgencias();
   } finally {
     btn.disabled = false;
   }
+}
+
+async function cargarResumenUrgencias() {
+  const API = DiabCareNav.getApi();
+  const token = localStorage.getItem('token');
+  const r = await fetch(`${API}/api/urgencias/resumen`, { headers: { Authorization: 'Bearer '+token } });
+  if (!r.ok) return;
+  const j = await r.json();
+  document.getElementById('st-total').textContent = j.total ?? 0;
+  document.getElementById('st-espera').textContent = j.en_atencion_o_espera ?? 0;
+  document.getElementById('st-atendidas').textContent = j.atendidas ?? 0;
 }
 
 DiabCareCrud.mount({
@@ -166,6 +193,7 @@ DiabCareCrud.mount({
     { key: 'paciente_nombre', label: 'Paciente', render: r => r.paciente_nombre || r.paciente_label || (r.id_paciente ? String(r.id_paciente).slice(0, 8) + '…' : '—') },
     { key: 'documento', label: 'Cédula', render: r => r.documento || '—' },
     { key: 'triage', label: 'Prioridad', render: r => fmtTriage(r) },
+    { key: 'via_llegada', label: 'Llegada', render: r => ({ propia: 'Por sus medios', ambulancia: 'Ambulancia', referido: 'Referido' }[r.via_llegada] || '—') },
     { key: 'motivo', label: 'Motivo' },
     { key: 'estado', label: 'Estado', render: r => fmtEstado(r) },
     { key: 'desenlace', label: 'Desenlace', render: r => fmtDesenlace(r) },
@@ -173,6 +201,11 @@ DiabCareCrud.mount({
   fields: [
     { key: 'id_paciente', required: true, labelUi: 'Paciente' },
     { key: 'triage' },
+    { key: 'via_llegada', as: 'select', labelUi: 'Vía de llegada', options: [
+      { value: 'propia', label: 'Por sus propios medios' },
+      { value: 'ambulancia', label: 'Ambulancia' },
+      { value: 'referido', label: 'Referido de otro centro' },
+    ]},
     { key: 'motivo', required: true, labelUi: 'Motivo' },
   ],
   rowActions: puedeAtender ? [{
@@ -180,7 +213,8 @@ DiabCareCrud.mount({
     label: 'Atender',
     show: row => ['triage', 'en_espera', 'registrado'].includes(String(row.estado || '').toLowerCase()),
     onClick(row, ctx) { abrirModalAtender(row, ctx); }
-  }] : []
+  }] : [],
+  onLoaded: () => cargarResumenUrgencias(),
 });
 
 const TRIAGE_UI = {

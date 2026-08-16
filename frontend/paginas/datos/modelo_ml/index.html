@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -6,10 +6,12 @@
 <title>DiabCare - Modelo ML</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
 <style>
 .mm-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
@@ -17,7 +19,7 @@
 .mm-title { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted,var(--text3)); margin-bottom:18px; }
 .metricas-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
 .metrica-card { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:14px; text-align:center; }
-.metrica-val { font-size:24px; font-weight:700; font-family:var(--mono); color:rgba(34,211,238,0.9); }
+.metrica-val { font-size:24px; font-weight:700; font-family:var(--mono); color:rgba(0, 229, 255, 0.9); }
 .metrica-lbl { font-size:10px; color:var(--muted,var(--text3)); text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
 .info-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; }
 .info-row:last-child { border-bottom:none; }
@@ -34,7 +36,7 @@
 .link-cyan:hover { text-decoration:underline; }
 </style>
 </head>
-<body>
+<body class="dc-uv">
 
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 
@@ -49,14 +51,14 @@
         <div class="page-title">Gestión del <span>modelo</span></div>
         <div class="page-sub">Métricas, reentrenamiento e historial del modelo</div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="reentrenar()" id="btnReentrenar">↺ Reentrenar modelo</button>
+      <button class="btn btn-primary btn-sm" onclick="reentrenar()" id="btnReentrenar">? Reentrenar modelo</button>
     </div>
 
-    <div style="background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.15);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.55">
+    <div style="background:rgba(0, 229, 255, 0.06);border:1px solid rgba(0, 229, 255, 0.15);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.55">
       <strong style="color:var(--text)">¿Diferencia con Predicción ML?</strong>
       Aquí gestionas el artefacto técnico (entrenar, métricas, historial).
       Para consultar un paciente concreto usa
-      <a href="/paginas/clinico/prediccion/index.html" class="link-cyan">Predicción ML → Consulta clínica</a>.
+      <a href="/paginas/clinico/prediccion/index.html" class="link-cyan">Predicción ML ? Consulta clínica</a>.
     </div>
 
     <div class="alert-banner no-modelo" id="noModelo"><span data-icon="alert" data-icon-size="14"></span> Modelo no entrenado. Pulsa "Reentrenar modelo" para iniciar el entrenamiento.</div>
@@ -89,13 +91,13 @@
       <div class="mm-title">Historial de entrenamientos</div>
       <table class="tabla">
         <thead><tr><th>Fecha</th><th>Usuario</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead>
-        <tbody id="tbody"><tr><td colspan="6" class="vacio">Cargando…</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="6" class="vacio">Cargando</td></tr></tbody>
       </table>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+<div class="toast" id="toast"><span id="t-icon">?</span><span id="t-msg"></span></div>
 
 <script>
 DiabCareNav.init();
@@ -121,7 +123,7 @@ function initUser() {
 function toast(msg, type='success') {
   const t = document.getElementById('toast');
   document.getElementById('t-msg').textContent  = msg;
-  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  document.getElementById('t-icon').textContent = type === 'success' ? '?' : '?';
   t.className = `toast ${type} show`;
   setTimeout(() => t.classList.remove('show'), 3000);
 }
@@ -134,7 +136,7 @@ async function cargarInfo() {
     document.getElementById('i-trees').textContent = d.n_estimators || '-';
     document.getElementById('i-split').textContent = d.split || '-';
     document.getElementById('i-feats').textContent = (d.features || []).join(', ');
-    document.getElementById('i-estado').textContent = d.disponible ? '✓ Entrenado' : 'No entrenado';
+    document.getElementById('i-estado').textContent = d.disponible ? '? Entrenado' : 'No entrenado';
     if (!d.disponible) {
       document.getElementById('noModelo').classList.add('show');
       ['m-acc','m-pre','m-rec','m-f1'].forEach(id => document.getElementById(id).textContent = '-');
@@ -173,8 +175,8 @@ async function cargarHistorial() {
 
 async function reentrenar() {
   const btn = document.getElementById('btnReentrenar');
-  btn.textContent = 'Entrenando…'; btn.disabled = true;
-  toast('Reentrenando modelo, puede tardar 1-2 minutos…');
+  btn.textContent = 'Entrenando'; btn.disabled = true;
+  toast('Reentrenando modelo, puede tardar 1-2 minutos');
   try {
     const r = await fetch(`${API}/api/modelo-ml/reentrenar`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
     const d = await r.json();
@@ -182,7 +184,7 @@ async function reentrenar() {
     toast(`Modelo reentrenado - Accuracy ${pct(d.accuracy)}`);
     cargarInfo(); cargarHistorial();
   } catch { toast('Error al reentrenar', 'error'); }
-  finally { btn.textContent = '↺ Reentrenar modelo'; btn.disabled = false; }
+  finally { btn.textContent = '? Reentrenar modelo'; btn.disabled = false; }
 }
 
 cargarInfo();

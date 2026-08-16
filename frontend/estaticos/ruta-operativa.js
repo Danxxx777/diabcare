@@ -62,7 +62,7 @@ window.DiabCareRuta = {
       href: '/paginas/integraciones/index.html', check: (s) => !!s.integraciones?.cicd?.ultimo_despliegue },
     { id: 'alertas', label: 'Notificaciones',
       roles: ['administrador', 'medico', 'analista'],
-      href: '/paginas/notificaciones/index.html', check: (s) => (s.notif?.total || 0) > 0 },
+      href: '/paginas/seguridad/notificaciones/index.html', check: (s) => (s.notif?.total || 0) > 0 },
     { id: 'reporte', label: 'Reportes PDF',
       roles: ['administrador', 'medico', 'analista'],
       href: '/paginas/clinico/reportes/index.html', check: (s) => (s.reportes?.total || 0) > 0 },
@@ -74,7 +74,7 @@ window.DiabCareRuta = {
       href: '/paginas/benchmarking/index.html', check: (s) => s.benchmark === true },
   ],
 
-  async _fetchJson(url, token, ms = 12000) {
+  async _fetchJson(url, token, ms = 8000) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), ms);
     try {
@@ -155,7 +155,7 @@ window.DiabCareRuta = {
           html += `<span class="ruta-item ruta-pronto">
             <span class="ruta-badge">◇</span>
             <span class="ruta-label">${p.label}</span>
-            <span class="ruta-tag-pronto">pronto</span>
+            <span class="ruta-tag-pronto">próximo</span>
           </span>`;
           return;
         }

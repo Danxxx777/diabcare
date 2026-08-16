@@ -42,3 +42,20 @@ def costeo() -> dict:
 
 def productividad_resumen() -> dict:
     return productividad.listar(limit=200, incluir_inactivos=True)
+
+
+def resumen_operativo() -> dict:
+    """Informe simple: personal costeado, turnos y actividad del periodo."""
+    _tope = 10**9
+    per = personal.listar(limit=_tope, incluir_inactivos=True).get("personal") or []
+    asg = bridge_turno.listar(limit=_tope, incluir_inactivos=True).get("asignaciones") or []
+    prod = productividad.listar(limit=_tope, incluir_inactivos=True).get("productividad") or []
+    costo_prom = round(sum(float(p.get("costo_hora") or 0) for p in per) / len(per), 2) if per else 0.0
+    return {
+        "tipo": "informe_simple",
+        "personal_costeado": len(per),
+        "asignaciones_turno": len(asg),
+        "costo_hora_promedio": costo_prom,
+        "consultas_periodo": int(sum(int(p.get("num_consultas") or 0) for p in prod)),
+        "ingreso_generado": round(sum(float(p.get("ingreso_generado") or 0) for p in prod), 2),
+    }

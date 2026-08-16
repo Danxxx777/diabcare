@@ -142,7 +142,21 @@ def post_rec(d: RecetaIn, payload=Depends(require_modulo("recetas"))):
     if not data.get("fecha"):
         data["fecha"] = date.today().isoformat()
     r = _ok(S.recetas.crear(data))
-    S.recetas.auditar(_u(payload), "create", f"Receta {r.get('id_receta')}", "farmacia"); return r
+    S.recetas.auditar(_u(payload), "create", f"Receta {r.get('id_receta')}", "farmacia")
+    try:
+        from paquetes.notificaciones.NotificacionesServicio import emitir_a_roles
+        rid = r.get("id_receta") or ""
+        emitir_a_roles(
+            "Nueva receta para dispensar",
+            f"Receta emitida pendiente en mostrador (id {rid}).",
+            "info",
+            roles=["farmaceutico"],
+            referencia_tipo="receta",
+            referencia_id=str(rid),
+        )
+    except Exception:
+        pass
+    return r
 
 @router.put("/recetas/{id_receta}")
 def put_rec(id_receta: str, d: RecetaIn, payload=Depends(require_modulo("recetas"))):
@@ -267,6 +281,10 @@ def del_com(id_compra: str, payload=Depends(require_escritura("farmacia_caja")))
 def get_margen(payload=Depends(require_modulo("farmacia"))):
     return S.resumen_margen()
 
+@router.get("/farmacia/resumen")
+def get_resumen_farmacia(payload=Depends(require_modulo("farmacia"))):
+    return S.resumen_operativo()
+
 # Ventas
 @router.get("/farmacia/ventas")
 def list_ven(offset: int = 0, limit: int = 50, payload=Depends(require_modulo("farmacia"))):
@@ -275,6 +293,22 @@ def list_ven(offset: int = 0, limit: int = 50, payload=Depends(require_modulo("f
 @router.get("/farmacia/ventas/{id_venta}")
 def get_ven(id_venta: str, payload=Depends(require_modulo("farmacia"))):
     return _nf(S.ventas.obtener(id_venta))
+
+@router.get("/farmacia/ventas/{id_venta}/comprobante")
+def comprobante_venta(
+    id_venta: str,
+    formato: str = "html",
+    payload=Depends(require_modulo("farmacia")),
+):
+    """Recibo de farmacia para el cliente (usa la factura emitida al vender)."""
+    data = S.comprobante_venta(id_venta)
+    if data.get("error"):
+        raise HTTPException(404, data["error"])
+    if str(formato or "html").lower() == "json":
+        return data
+    from fastapi.responses import HTMLResponse
+    from paquetes.facturacion.FacturacionServicio import html_comprobante
+    return HTMLResponse(html_comprobante(data))
 
 @router.post("/farmacia/ventas")
 def post_ven(d: VentaIn, payload=Depends(require_escritura("farmacia_caja"))):

@@ -6,10 +6,12 @@
 <title>DiabCare - Consulta clínica</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
 <style>
 .pred-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
@@ -60,7 +62,7 @@
   background:rgba(255,255,255,0.02); border:1px solid var(--border);
   border-radius:8px; padding:14px; text-align:center;
 }
-.metrica-val { font-size:24px; font-weight:700; font-family:var(--mono); color:rgba(34,211,238,0.9); }
+.metrica-val { font-size:24px; font-weight:700; font-family:var(--mono); color:rgba(0, 229, 255, 0.9); }
 .metrica-lbl { font-size:10px; color:var(--muted,var(--text3)); text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
 
 .info-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; }
@@ -102,7 +104,7 @@
 .link-gestion:hover { text-decoration:underline; }
 </style>
 </head>
-<body>
+<body class="dc-uv">
 
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 

@@ -1,5 +1,4 @@
 import uuid
-import hashlib
 import pandas as pd
 from datetime import datetime
 from nucleo.utilidades.ParquetCache import leer, escribir
@@ -105,7 +104,9 @@ def asegurar_admin(password: str | None = None, datos: dict | None = None) -> di
 
 
 def _hash(p):
-    return hashlib.sha256(p.encode()).hexdigest()
+    """Hash bcrypt (no reversible). Reemplaza el SHA-256 anterior."""
+    from nucleo.utilidades.PasswordHash import hash_password
+    return hash_password(p)
 
 
 def _asegurar_columnas(df: pd.DataFrame) -> pd.DataFrame:
@@ -310,6 +311,8 @@ def asignar_rol(id_usuario, rol):
 
 
 def verificar_credenciales(email, password):
+    from nucleo.utilidades.PasswordHash import verificar_password, necesita_rehash, hash_password
+
     df = _extraer()
     if df.empty:
         return None
@@ -318,6 +321,16 @@ def verificar_credenciales(email, password):
     if fila.empty:
         return None
     usuario = fila.iloc[0]
-    if usuario["password_hash"] != _hash(password):
+    stored = str(usuario.get("password_hash") or "")
+    if not verificar_password(password, stored):
         return None
+    # Migración silenciosa SHA-256 → bcrypt en el primer login correcto
+    if necesita_rehash(stored):
+        try:
+            i = fila.index[0]
+            df.at[i, "password_hash"] = hash_password(password)
+            _cargar(df)
+            usuario = df.loc[i]
+        except Exception:
+            pass
     return _serie_a_dict(usuario)

@@ -7,8 +7,35 @@ import sys
 from pathlib import Path
 
 _BACKEND_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _BACKEND_DIR.parent
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
+# Carpeta etl/ en la raíz del repo (proceso ELT de exhibición)
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+
+def _cargar_dotenv() -> None:
+    """Carga .env de la raíz del repo sin dependencia externa."""
+    import os
+    env_path = _REPO_ROOT / ".env"
+    if not env_path.is_file():
+        return
+    try:
+        for raw in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = val
+    except Exception:
+        pass
+
+
+_cargar_dotenv()
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -17,10 +44,10 @@ from nucleo.utilidades.LogConfig import silenciar_logs, log_advertencia
 
 silenciar_logs()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 # API — paquetes P1–P15 + clínico
 from paquetes.autenticacion.AutenticacionRutas import router as router_auth
@@ -59,10 +86,15 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# ── CORS ──
+# ── CORS (orígenes explícitos: credentials + wildcard no son compatibles) ──
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -98,9 +130,55 @@ _FRONTEND = _BASE.parent / "frontend"
 app.mount("/estaticos", StaticFiles(directory=str(_FRONTEND / "estaticos")), name="estaticos")
 
 
+@app.middleware("http")
+async def _cache_y_seguridad(request, call_next):
+    """Caché sensata para estáticos versionados + cabeceras básicas de seguridad."""
+    response = await call_next(request)
+    path = request.url.path or ""
+
+    # Seguridad básica (demo local + endurecimiento mínimo)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+
+    if path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    # HTML de páginas: siempre fresco (evita UI vieja tras deploys de demo)
+    if path.startswith("/paginas/") or path.startswith("/v/") or path.startswith("/p/") or path in ("/", "/index.html"):
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return response
+
+    # Estáticos. CSS/JS se revalidan siempre contra el ETag que ya emite
+    # StaticFiles: un 304 vacío es barato y garantiza que nunca se sirva
+    # una versión vieja.
+    #
+    # No usar "immutable" mientras el ?v= del HTML se escriba a mano: si el
+    # archivo cambia y la cadena de versión no, el navegador reutiliza lo que
+    # tiene durante todo el max-age sin preguntar al servidor — ni siquiera al
+    # recargar. Para volver a cachear en largo, la versión tiene que derivarse
+    # del contenido del archivo (hash o mtime), no de una etiqueta manual.
+    if path.startswith("/estaticos/"):
+        versionado = bool(request.url.query) and ("v=" in request.url.query or "ver=" in request.url.query)
+        if path.endswith((".css", ".js", ".html")):
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        elif versionado:
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=60, must-revalidate"
+        return response
+
+    return response
+
+
 @app.get("/", include_in_schema=False)
 def inicio():
-    return FileResponse(_FRONTEND / "paginas/seguridad/autenticacion/index.html")
+    return FileResponse(
+        _FRONTEND / "paginas/seguridad/autenticacion/index.html",
+        media_type="text/html; charset=utf-8",
+    )
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
@@ -108,6 +186,32 @@ def favicon():
     if icon.is_file():
         return FileResponse(icon, media_type="image/x-icon")
     return FileResponse(_FRONTEND / "estaticos/img/favicon.svg", media_type="image/svg+xml")
+
+
+@app.get("/p/{token}", include_in_schema=False)
+def pagar_qr_corto(token: str, request: Request):
+    """URL corta del QR de cobro: abre la página pública de pago."""
+    from urllib.parse import quote
+    safe = quote((token or "").strip(), safe="")
+    dest = f"/paginas/pagar/index.html?t={safe}"
+    qs = request.url.query
+    if qs:
+        dest = f"{dest}&{qs}"
+    return RedirectResponse(url=dest, status_code=302)
+
+
+@app.get("/v/{codigo}", include_in_schema=False)
+def verificar_qr_corto(codigo: str):
+    """URL corta del QR: abre el lanzable móvil de verificación."""
+    from urllib.parse import quote
+    safe = quote((codigo or "").strip(), safe="")
+    return RedirectResponse(url=f"/paginas/verificar/index.html?c={safe}", status_code=302)
+
+
+@app.get("/verificar", include_in_schema=False)
+@app.get("/verificar/", include_in_schema=False)
+def verificar_alias():
+    return RedirectResponse(url="/paginas/verificar/index.html", status_code=302)
 
 # ── HEALTH CHECK ──
 @app.get("/api/health", tags=["Sistema"])
@@ -133,8 +237,6 @@ async def startup():
 
 # ── PÁGINAS HTML ──
 # ── REDIRECTS (URLs legacy) ──
-from fastapi.responses import RedirectResponse
-
 _LEGACY = {
     "autenticacion/index.html": "seguridad/autenticacion/index.html",
     "usuarios/index.html": "seguridad/usuarios/index.html",
@@ -156,16 +258,29 @@ _LEGACY = {
     "configuracion/index.html": "gobierno/configuracion/index.html",
 }
 
+def _html_file(path: Path) -> FileResponse:
+    """Sirve HTML con charset UTF-8; sin cache agresivo para no servir JS/HTML viejo."""
+    return FileResponse(
+        path,
+        media_type="text/html; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
+
+
 @app.get("/paginas/{modulo}/{archivo}", include_in_schema=False)
 def pagina_legacy(modulo: str, archivo: str):
     key = f"{modulo}/{archivo}"
     if key in _LEGACY:
         return RedirectResponse(url=f"/paginas/{_LEGACY[key]}", status_code=301)
-    return FileResponse(_FRONTEND / "paginas" / modulo / archivo)
+    return _html_file(_FRONTEND / "paginas" / modulo / archivo)
 
 @app.get("/paginas/{ruta:path}", include_in_schema=False)
 def pagina_archivo(ruta: str):
-    return FileResponse(_FRONTEND / "paginas" / ruta)
+    return _html_file(_FRONTEND / "paginas" / ruta)
 
 if __name__ == "__main__":
     import socket

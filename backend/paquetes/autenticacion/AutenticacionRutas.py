@@ -1,15 +1,33 @@
 ﻿from fastapi import APIRouter, Header, HTTPException, Request, Depends, UploadFile, File
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from typing import Optional
 from paquetes.autenticacion.AutenticacionServicio import (
     iniciar_sesion, verificar_token, cambiar_password,
     generar_codigo_reset, resetear_password, obtener_perfil, actualizar_perfil,
-    cerrar_sesion,
+    cerrar_sesion, EXPIRACION_HORAS,
 )
-from nucleo.utilidades.Dependencias import require_admin, require_auth_cambio_password
+from paquetes.autenticacion.AuthCookies import aplicar_cookie_sesion, borrar_cookie_sesion
+from nucleo.utilidades.Dependencias import (
+    require_admin,
+    require_auth_cambio_password,
+    resolver_token_crudo,
+    auth_desde_request,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["Autenticación"])
+
+
+def _respuesta_con_sesion(resultado: dict) -> JSONResponse:
+    """Devuelve JSON sin exponer el JWT al JS; lo deja solo en cookie httpOnly."""
+    token = resultado.get("token") or ""
+    body = {k: v for k, v in resultado.items() if k != "token"}
+    body["sesion_cookie"] = True
+    resp = JSONResponse(content=body)
+    if token:
+        max_age = int(resultado.get("expira_en") or EXPIRACION_HORAS * 3600)
+        aplicar_cookie_sesion(resp, token, max_age)
+    return resp
 
 
 class LoginEntrada(BaseModel):
@@ -75,7 +93,6 @@ def login(datos: LoginEntrada, request: Request):
     try:
         from paquetes.auditoria.AuditoriaServicio import registrar
         jti = ""
-        # jti no viene en respuesta usuario; reconstruir de token si hace falta
         tok = resultado.get("token", "")
         if tok:
             vr = verificar_token(tok, validar_sesion=False)
@@ -86,16 +103,16 @@ def login(datos: LoginEntrada, request: Request):
         )
     except Exception:
         pass
-    return resultado
+    return _respuesta_con_sesion(resultado)
 
 
 @router.post("/logout")
-def logout(authorization: Optional[str] = Header(None), request: Request = None):
-    token = authorization.replace("Bearer ", "") if authorization else ""
+def logout(request: Request, authorization: Optional[str] = Header(None)):
+    token = resolver_token_crudo(request, authorization)
     resultado = cerrar_sesion(token)
     try:
         from paquetes.auditoria.AuditoriaServicio import registrar
-        ip, ua = _meta_request(request) if request else ("", "")
+        ip, ua = _meta_request(request)
         email = ""
         if token:
             vr = verificar_token(token, validar_sesion=False)
@@ -103,7 +120,30 @@ def logout(authorization: Optional[str] = Header(None), request: Request = None)
         registrar(email or "anon", "logout", "autenticacion", "Cierre de sesión", ip=ip, user_agent=ua)
     except Exception:
         pass
-    return resultado
+    resp = JSONResponse(content=resultado)
+    borrar_cookie_sesion(resp)
+    return resp
+
+
+@router.get("/sesion")
+def sesion_actual(request: Request, authorization: Optional[str] = Header(None)):
+    """Comprueba cookie/cabecera y devuelve datos públicos del usuario (sin JWT)."""
+    try:
+        payload = auth_desde_request(request, authorization, permitir_cambio_obligatorio=True)
+    except HTTPException:
+        return {"ok": False, "autenticado": False}
+    return {
+        "ok": True,
+        "autenticado": True,
+        "usuario": {
+            "id": str(payload.get("sub") or ""),
+            "nombre": str(payload.get("nombre") or ""),
+            "email": str(payload.get("email") or ""),
+            "rol": str(payload.get("rol") or ""),
+            "debe_cambiar_password": bool(payload.get("debe_cambiar_password")),
+        },
+        "jti": str(payload.get("jti") or ""),
+    }
 
 
 @router.post("/recuperar")
@@ -156,8 +196,12 @@ def perfil(payload: dict = Depends(require_auth_cambio_password)):
 
 
 @router.put("/perfil")
-def actualizar(datos: PerfilEntrada, authorization: Optional[str] = Header(None)):
-    token = authorization.replace("Bearer ", "") if authorization else ""
+def actualizar(
+    datos: PerfilEntrada,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
+    token = resolver_token_crudo(request, authorization)
     resultado = actualizar_perfil(token, datos.dict())
     if "error" in resultado:
         raise HTTPException(status_code=400, detail=resultado["error"])
@@ -212,29 +256,44 @@ async def subir_foto_perfil(
 
 
 @router.put("/cambiar-password")
-def cambiar(datos: CambiarPasswordEntrada, authorization: Optional[str] = Header(None), request: Request = None):
-    token = authorization.replace("Bearer ", "") if authorization else ""
+def cambiar(
+    datos: CambiarPasswordEntrada,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+):
+    token = resolver_token_crudo(request, authorization)
     resultado = cambiar_password(token, datos.password_actual, datos.password_nueva)
     if "error" in resultado:
         raise HTTPException(status_code=400, detail=resultado["error"])
     try:
         from paquetes.auditoria.AuditoriaServicio import registrar
-        ip, ua = _meta_request(request) if request else ("", "")
+        ip, ua = _meta_request(request)
         vr = verificar_token(token, validar_sesion=False)
         email = str(vr.get("payload", {}).get("email") or "")
         registrar(email, "update", "autenticacion", "Cambio de contraseña", ip=ip, user_agent=ua)
     except Exception:
         pass
-    return resultado
+    return _respuesta_con_sesion(resultado)
 
 
 @router.get("/verificar")
-def verificar(authorization: Optional[str] = Header(None)):
-    token = authorization.replace("Bearer ", "") if authorization else ""
+def verificar(request: Request, authorization: Optional[str] = Header(None)):
+    token = resolver_token_crudo(request, authorization)
     resultado = verificar_token(token)
     if "error" in resultado:
         raise HTTPException(status_code=401, detail=resultado["error"])
-    return resultado
+    # No devolver el JWT; solo validez + claims públicos
+    p = resultado.get("payload") or {}
+    return {
+        "valido": True,
+        "usuario": {
+            "id": str(p.get("sub") or ""),
+            "email": str(p.get("email") or ""),
+            "nombre": str(p.get("nombre") or ""),
+            "rol": str(p.get("rol") or ""),
+            "debe_cambiar_password": bool(p.get("debe_cambiar_password")),
+        },
+    }
 
 
 @router.get("/mis-sesiones")
@@ -251,7 +310,7 @@ def mis_sesiones(payload: dict = Depends(require_auth_cambio_password)):
 
 @router.delete("/mis-sesiones/{id_sesion}")
 def revocar_mi_sesion(id_sesion: str, payload: dict = Depends(require_auth_cambio_password)):
-    """Revoca otra sesión propia. No permite cerrar la sesión actual (otro admin sí puede)."""
+    """Revoca otra sesión propia vigente. No permite cerrar la sesión actual."""
     from paquetes.autenticacion.SesionesServicio import pertenece_a_usuario, revocar
     uid = str(payload.get("sub", ""))
     email = str(payload.get("email") or "")
@@ -265,7 +324,9 @@ def revocar_mi_sesion(id_sesion: str, payload: dict = Depends(require_auth_cambi
         raise HTTPException(status_code=404, detail="Sesión no encontrada")
     r = revocar(id_sesion)
     if r.get("error"):
-        raise HTTPException(status_code=404, detail=r["error"])
+        # Caducada / ya revocada / no encontrada
+        status = 400 if "expir" in str(r["error"]).lower() or "revocada" in str(r["error"]).lower() else 404
+        raise HTTPException(status_code=status, detail=r["error"])
     return {**r, "era_actual": False}
 
 

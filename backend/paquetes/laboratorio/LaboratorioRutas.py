@@ -34,6 +34,10 @@ class ResultadoIn(BaseModel):
     fecha: str = ""
     estado: str = "registrado"
 
+@router.get("/resumen")
+def resumen(payload=Depends(require_modulo("laboratorio"))):
+    return S.resumen_operativo()
+
 @router.get("/pruebas")
 def list_pr(offset: int = 0, limit: int = 50, q: str = "", payload=Depends(require_modulo("laboratorio"))):
     return S.pruebas.listar(offset, limit, q=q, q_campos=["codigo", "nombre"], incluir_inactivos=True)

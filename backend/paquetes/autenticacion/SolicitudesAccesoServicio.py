@@ -8,7 +8,7 @@ from paquetes.usuarios.UsuariosServicio import _extraer as extraer_usuarios, cre
 
 BUCKET_APP = "diabcare-app"
 ARCHIVO = "usuarios/solicitudes_acceso.parquet"
-ROLES_SOLICITUD = ["analista", "medico"]
+ROLES_SOLICITUD = ["medico", "enfermero", "farmaceutico", "analista"]
 ESTADOS = ["pendiente", "aprobada", "rechazada"]
 COLUMNAS = [
     "id", "nombre", "email", "password_hash", "rol_solicitado",
@@ -98,6 +98,18 @@ def crear_solicitud(nombre: str, email: str, rol_solicitado: str, motivo: str = 
         "revisado_en": "",
     }
     _cargar(pd.concat([df, pd.DataFrame([nuevo])], ignore_index=True))
+    try:
+        from paquetes.notificaciones.NotificacionesServicio import emitir_a_roles, etiqueta_rol
+        emitir_a_roles(
+            "Solicitud de acceso pendiente",
+            f"{nombre} ({email}) solicita rol {etiqueta_rol(rol_solicitado)}.",
+            "warning",
+            roles=["administrador"],
+            referencia_tipo="solicitud_acceso",
+            referencia_id=nuevo["id"],
+        )
+    except Exception:
+        pass
     return {
         "mensaje": "Solicitud enviada. Un administrador revisará tu acceso y te enviará las credenciales por correo.",
         "id": nuevo["id"],

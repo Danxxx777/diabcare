@@ -92,9 +92,14 @@ def reentrenar(usuario: str = "sistema") -> dict:
     except Exception:
         pass
     try:
-        from paquetes.notificaciones.NotificacionesServicio import crear as _notif
-        _notif("Modelo reentrenado",
-               f"El modelo se reentrenó con accuracy {entrada['accuracy']}.", "success")
+        from paquetes.notificaciones.NotificacionesServicio import emitir_a_roles
+        emitir_a_roles(
+            "Modelo ML reentrenado",
+            f"El modelo se reentrenó con accuracy {entrada['accuracy']}.",
+            "success",
+            roles=["analista", "administrador"],
+            referencia_tipo="modelo_ml",
+        )
     except Exception:
         pass
     return resultado

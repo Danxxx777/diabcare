@@ -27,7 +27,7 @@ Cumple el **Principio VI** de la constitución: cada CU-O es trazable en la cade
 | CU-O03 CRUD registros | OE4 | OT4.1 | OO5.2.1 | Operaciones Clínicas | P3 | Implementado |
 | CU-O04 Filtrar registros | OE4 | OT4.1 | OO5.2.1 | Operaciones Clínicas | P3 | Implementado |
 | CU-O05 Datos sintéticos | OE4 | OT4.1 | OO5.4.1 | Datos e Ingeniería | P4 | Implementado |
-| CU-O06 Pipeline ELT | OE4 | OT4.1 | OO5.3.1 | Datos e Ingeniería | P8 | Parcial (consulta + UI; DAG Airflow) |
+| CU-O06 Pipeline ELT | OE4 | OT4.1 | OO5.3.1 | Datos e Ingeniería | P8 | Implementado (DAGs E·T·L + benchmark SQL) |
 | CU-O07 Estadísticas clínicas | OE4 | OT4.2 | OO5.5.1 | Operaciones Clínicas | P5 | Implementado |
 | CU-O08 Predecir diabetes | OE4 | OT4.2 | OO5.6.1 | Operaciones Clínicas | P6 | Implementado |
 | CU-O09 Métricas ML | OE4 | OT4.2 | OO5.6.1 | Datos e Ingeniería | P14 | Implementado |
@@ -85,7 +85,7 @@ roles. → Implementado.
 
 **HU-O05 (P4)** — Generar datos sintéticos → Parquet MinIO. → Implementado.
 
-**HU-O06 (P8)** — Consultar/ejecutar pipeline ELT. → Parcial.
+**HU-O06 (P8)** — Consultar/ejecutar pipeline ELT. → Implementado.
 
 **HU-O07 (P5)** — Estadísticas clínicas (prevalencia, gráficas). → Implementado.
 
@@ -124,7 +124,7 @@ recuperación de contraseña por email. → Implementado (parcial; CU-O16 churn 
 |--------|----------------|
 | **Demo GA07** | CU-O01–O10 + P7, P11, P12, P14 |
 | **Implementado** | CU-O01–O10 + **CU-O17–CU-O20** + P7, P11, P12, P14 |
-| **Parcial** | CU-O06 (orquestación Airflow completa), CU-O14 (Swagger) |
+| **Parcial** | CU-O14 (Swagger) |
 | **Fuera GA07** | CU-O11, O12, O13, O15; churn CU-O16 (ML negocio); P9, P13, P15 |
 
 **Flujo de datos TA06 demostrable**:

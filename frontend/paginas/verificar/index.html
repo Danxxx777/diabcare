@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5A7F8C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DiabCare QR">
+<title>DiabCare · Verificar informe</title>
+<link rel="manifest" href="/estaticos/verificar-manifest.json">
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/estaticos/img/logo-icon.svg">
+<style>
+  :root {
+    --bg: #1E2A2E;
+    --sf: #253338;
+    --sf2: #2E3D42;
+    --ln: rgba(90, 127, 140, .28);
+    --tx: #E6E2DC;
+    --muted: #A8B4B8;
+    --ok: #6B9A7A;
+    --bad: #C46B6B;
+    --accent: #8FB4BE;
+    --accent2: #5A7F8C;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, rgba(90, 127, 140, .28), transparent 55%),
+      radial-gradient(900px 400px at 100% 0%, rgba(169, 141, 114, .12), transparent 50%),
+      var(--bg);
+    color: var(--tx);
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  }
+  .shell { max-width: 440px; margin: 0 auto; }
+  .brand {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+  }
+  .brand img { width: 40px; height: 40px; border-radius: 10px; }
+  .brand h1 { margin: 0; font-size: 1.15rem; letter-spacing: -.02em; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: .8rem; }
+  .card {
+    background: linear-gradient(180deg, var(--sf2), var(--sf));
+    border: 1px solid var(--ln);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  }
+  .card h2 { margin: 0 0 8px; font-size: .95rem; }
+  .hint { color: var(--muted); font-size: .82rem; line-height: 1.45; margin: 0 0 14px; }
+  label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: 6px; }
+  input {
+    width: 100%;
+    border: 1px solid var(--ln);
+    background: rgba(255,255,255,.03);
+    color: var(--tx);
+    border-radius: 12px;
+    padding: 14px 14px;
+    font-size: 1rem;
+    font-family: ui-monospace, Consolas, monospace;
+    letter-spacing: .04em;
+    outline: none;
+  }
+  input:focus { border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(14,116,144,.25); }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  button, .btn {
+    appearance: none; border: 0; cursor: pointer;
+    border-radius: 12px; padding: 13px 16px;
+    font-weight: 650; font-size: .95rem;
+    text-decoration: none; text-align: center;
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px; flex: 1;
+  }
+  .btn-primary { background: linear-gradient(135deg, #5A7F8C, #4A6D79); color: #fff; }
+  .btn-primary:active { transform: scale(.98); }
+  .btn-ghost {
+    background: transparent; color: var(--tx);
+    border: 1px solid var(--ln);
+  }
+  .estado {
+    display: none;
+    align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 12px;
+    margin-bottom: 12px; font-size: .9rem; font-weight: 600;
+  }
+  .estado.show { display: flex; }
+  .estado.ok { background: rgba(52,211,153,.12); color: var(--ok); border: 1px solid rgba(52,211,153,.3); }
+  .estado.bad { background: rgba(248,113,113,.12); color: var(--bad); border: 1px solid rgba(248,113,113,.3); }
+  .estado.loading { background: rgba(34,211,238,.1); color: var(--accent); border: 1px solid rgba(34,211,238,.25); }
+  .meta { display: none; }
+  .meta.show { display: block; }
+  .meta dl { margin: 0; display: grid; gap: 10px; }
+  .meta dt { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .meta dd { margin: 2px 0 0; font-size: .92rem; word-break: break-word; }
+  .actions { display: none; gap: 8px; margin-top: 14px; }
+  .actions.show { display: flex; flex-direction: column; }
+  .foot {
+    text-align: center; color: var(--muted); font-size: .75rem;
+    line-height: 1.4; margin-top: 18px;
+  }
+  .install {
+    display: none; margin-top: 10px; font-size: .78rem; color: var(--muted);
+    text-align: center; line-height: 1.4;
+  }
+  .install.show { display: block; }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="brand">
+      <img src="/estaticos/img/logo-icon.svg" alt="DiabCare">
+      <div>
+        <h1>Verificar informe</h1>
+        <p>Escanea el QR del PDF o ingresa el código</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Código de verificación</h2>
+      <p class="hint">El QR del pie del informe abre esta pantalla. También puedes escribir el código <strong>DC-…</strong> a mano.</p>
+      <label for="codigo">Código</label>
+      <input id="codigo" type="text" inputmode="text" autocomplete="off" autocapitalize="characters"
+             placeholder="DC-20260810-A1B2C3" spellcheck="false">
+      <div class="row">
+        <button type="button" class="btn-primary" id="btn-verificar">Verificar</button>
+      </div>
+    </div>
+
+    <div class="card" id="resultado">
+      <div class="estado loading" id="estado">Comprobando…</div>
+      <div class="meta" id="meta">
+        <dl>
+          <div><dt>Código</dt><dd id="m-codigo">—</dd></div>
+          <div><dt>Archivo</dt><dd id="m-nombre">—</dd></div>
+          <div><dt>Fecha</dt><dd id="m-fecha">—</dd></div>
+          <div><dt>Tipo</dt><dd id="m-tipo">—</dd></div>
+          <div><dt>Generado por</dt><dd id="m-usuario">—</dd></div>
+        </dl>
+        <div class="actions" id="acciones">
+          <a class="btn btn-primary" id="btn-ver" href="#" target="_blank" rel="noopener">Ver PDF</a>
+          <a class="btn btn-ghost" id="btn-descargar" href="#" download>Descargar PDF</a>
+        </div>
+      </div>
+      <p class="hint" id="vacio" style="margin:0">Ingresa un código para validar el documento.</p>
+    </div>
+
+    <p class="install" id="install-hint">
+      En el celular: menú del navegador → <strong>Añadir a pantalla de inicio</strong> para usarlo como app.
+    </p>
+    <p class="foot">DiabCare · verificación documental<br>Solo datos agregados · sin datos personales</p>
+  </div>
+
+<script>
+(function () {
+  const apiBase = (() => {
+    const { protocol, hostname, port, origin } = window.location;
+    if (port === '8000' || !port) return origin;
+    return `${protocol}//${hostname}:8000`;
+  })();
+
+  const $ = (id) => document.getElementById(id);
+  const estado = $('estado');
+  const meta = $('meta');
+  const vacio = $('vacio');
+  const acciones = $('acciones');
+  const input = $('codigo');
+
+  function codigoDesdeUrl() {
+    const q = new URLSearchParams(location.search);
+    let c = (q.get('c') || q.get('codigo') || '').trim();
+    if (!c && location.hash) {
+      const h = location.hash.replace(/^#/, '');
+      if (h.toUpperCase().startsWith('DC-')) c = h;
+    }
+    // Si llegó JSON viejo del QR anterior, extraer codigo
+    if (c.startsWith('{')) {
+      try {
+        const j = JSON.parse(c);
+        c = j.codigo || j.codigo_verificacion || '';
+      } catch (_) { /* ignore */ }
+    }
+    return (c || '').trim().toUpperCase();
+  }
+
+  function setEstado(tipo, texto) {
+    estado.className = 'estado show ' + tipo;
+    estado.textContent = texto;
+    vacio.style.display = 'none';
+  }
+
+  function fmtFecha(iso) {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      return d.toLocaleString('es-EC');
+    } catch {
+      return iso;
+    }
+  }
+
+  async function verificar(codigo) {
+    const cod = (codigo || '').trim().toUpperCase();
+    if (!cod) {
+      setEstado('bad', 'Escribe un código DC-…');
+      meta.classList.remove('show');
+      acciones.classList.remove('show');
+      return;
+    }
+    input.value = cod;
+    setEstado('loading', 'Comprobando…');
+    meta.classList.remove('show');
+    acciones.classList.remove('show');
+
+    try {
+      const r = await fetch(`${apiBase}/api/reportes/verificar/${encodeURIComponent(cod)}`);
+      const d = await r.json();
+      if (!r.ok || !d.valido) {
+        setEstado('bad', d.detalle || 'Código no válido');
+        return;
+      }
+      setEstado('ok', 'Documento verificado');
+      $('m-codigo').textContent = d.codigo || cod;
+      $('m-nombre').textContent = d.nombre || '—';
+      $('m-fecha').textContent = fmtFecha(d.fecha);
+      $('m-tipo').textContent = [d.tipo, d.departamento].filter(Boolean).join(' · ') || '—';
+      $('m-usuario').textContent = d.usuario || '—';
+      const pdfUrl = `${apiBase}/api/reportes/verificar/${encodeURIComponent(d.codigo || cod)}/pdf`;
+      $('btn-ver').href = pdfUrl;
+      $('btn-descargar').href = pdfUrl;
+      $('btn-descargar').setAttribute('download', d.nombre || `${cod}.pdf`);
+      meta.classList.add('show');
+      acciones.classList.add('show');
+    } catch (e) {
+      setEstado('bad', 'No se pudo conectar con DiabCare');
+    }
+  }
+
+  $('btn-verificar').addEventListener('click', () => verificar(input.value));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') verificar(input.value);
+  });
+
+  // Pista de “añadir a inicio” en móviles
+  const ua = navigator.userAgent || '';
+  if (/Android|iPhone|iPad|iPod/i.test(ua)) {
+    $('install-hint').classList.add('show');
+  }
+
+  const inicial = codigoDesdeUrl();
+  if (inicial) {
+    input.value = inicial;
+    verificar(inicial);
+  }
+})();
+</script>
+</body>
+</html>

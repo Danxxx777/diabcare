@@ -64,7 +64,14 @@ window.DiabCareCrud = {
   async mount(cfg) {
     const API = DiabCareNav.getApi();
     const token = localStorage.getItem('token');
-    const hdr = () => ({ Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' });
+    const hdr = () => {
+      const h = { 'Content-Type': 'application/json' };
+      const t = localStorage.getItem('token');
+      if (t && t !== 'sesion' && t !== 'null' && t !== 'undefined') {
+        h.Authorization = 'Bearer ' + t;
+      }
+      return h;
+    };
     // Reusar id preasignado por mountTabs (evita doble ++ que cancela el propio mount).
     const mountId = cfg.__mountId != null ? cfg.__mountId : (++DiabCareCrud._activeMount);
     let rows = [];
@@ -102,6 +109,7 @@ window.DiabCareCrud = {
         return await fetch(url, {
           headers: hdr(),
           cache: 'no-store',
+          credentials: 'include',
           signal: ctrl ? ctrl.signal : undefined,
         });
       } finally {
@@ -364,7 +372,7 @@ window.DiabCareCrud = {
               a += `<button type="button" class="btn btn-ghost btn-sm" data-edit="${id}">Editar</button>`;
             }
             if (!cfg.hideDelete && !cfg.readOnly) {
-              a += `<button type="button" class="btn btn-ghost btn-sm" data-del="${id}">Baja</button>`;
+              a += `<button type="button" class="btn btn-ghost btn-sm" data-del="${id}">Eliminar</button>`;
             }
             return a;
           },
@@ -386,7 +394,7 @@ window.DiabCareCrud = {
             h += `<button type="button" class="btn btn-ghost btn-sm" data-edit="${id}">Editar</button> `;
           }
           if (!cfg.hideDelete && !cfg.readOnly) {
-            h += `<button type="button" class="btn btn-ghost btn-sm" data-del="${id}">Baja</button>`;
+            h += `<button type="button" class="btn btn-ghost btn-sm" data-del="${id}">Eliminar</button>`;
           }
           h += '</td></tr>';
         });
@@ -493,20 +501,49 @@ window.DiabCareCrud = {
       }
       const url = id ? `${API}${cfg.itemUrl(id)}` : `${API}${cfg.createUrl || cfg.listUrl}`;
       const method = id ? 'PUT' : 'POST';
-      const r = await fetch(url, { method, headers: hdr(), body: JSON.stringify(body) });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) { toast(d.detail || d.error || 'Error', 'error'); return; }
-      toast(id ? 'Actualizado' : 'Creado');
-      cerrar();
-      cargar();
+      const btn = document.querySelector('#modal .btn-primary');
+      if (btn) { btn.disabled = true; btn.dataset._lbl = btn.textContent; btn.textContent = 'Guardando...'; }
+      try {
+        const r = await fetch(url, { method, headers: hdr(), body: JSON.stringify(body), credentials: 'include' });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          const detail = typeof d.detail === 'string' ? d.detail
+            : (Array.isArray(d.detail) ? d.detail.map(x => (x && x.msg) || x).join('; ') : '');
+          toast(detail || d.error || `Error al guardar (${r.status})`, 'error');
+          return;
+        }
+        cerrar();
+        toast(id ? 'Actualizado' : 'Creado');
+        if (typeof cfg.afterSave === 'function') {
+          try { cfg.afterSave(d, body); } catch (_) { /* ignore */ }
+        }
+        cargar();
+      } catch (_) {
+        toast('Error de conexión. ¿Backend / MinIO activos?', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = btn.dataset._lbl || 'Guardar';
+          delete btn.dataset._lbl;
+        }
+      }
     }
 
     async function eliminar(id) {
-      if (!confirm('¿Dar de baja lógica este registro?')) return;
-      const r = await fetch(`${API}${cfg.itemUrl(id)}`, { method: 'DELETE', headers: hdr() });
+      const ok = window.DiabCareAPI && DiabCareAPI.confirm
+        ? await DiabCareAPI.confirm({
+            title: 'Eliminar registro',
+            message: '¿Eliminar este registro? Esta acción no se puede deshacer.',
+            confirmLabel: 'Eliminar',
+            cancelLabel: 'Cancelar',
+            danger: true,
+          })
+        : window.confirm('¿Eliminar este registro?');
+      if (!ok) return;
+      const r = await fetch(`${API}${cfg.itemUrl(id)}`, { method: 'DELETE', headers: hdr(), credentials: 'include' });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { toast(d.detail || d.error || 'Error', 'error'); return; }
-      toast('Baja lógica registrada');
+      toast('Eliminado');
       cargar();
     }
 
@@ -515,7 +552,7 @@ window.DiabCareCrud = {
     window.guardarCrud = guardar;
     if (cfg.seedUrl) {
       window.seedModulo = async () => {
-        await fetch(`${API}${cfg.seedUrl}`, { method: 'POST', headers: hdr() });
+        await fetch(`${API}${cfg.seedUrl}`, { method: 'POST', headers: hdr(), credentials: 'include' });
         toast('Catálogo listo');
         await enriquecerTypeaheadLabels();
         if (sigueActivo()) cargar();
@@ -606,7 +643,13 @@ window.DiabCareCrud = {
       const search = document.getElementById('crud-live-search');
       if (search) search.value = '';
       const body = document.getElementById('tablaBody');
-      if (body) body.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando…</div>';
+      if (body) {
+        if (window.DiabCareSkeleton && DiabCareSkeleton.paintInto) {
+          DiabCareSkeleton.paintInto(body);
+        } else {
+          body.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando…</div>';
+        }
+      }
 
       if (fieldsHost) {
         fieldsHost.innerHTML = tab.fieldsHtml || DiabCareCrud._buildFieldsHtml(tab.fields, tab.lookups);

@@ -6,14 +6,16 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <title>DiabCare - Recetas</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -27,6 +29,23 @@
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nueva receta</button>
+      </div>
+    </div>
+    <div class="dash-row dash-3" style="margin-bottom:14px">
+      <div class="kpi-card cyan">
+        <div class="kpi-label">Recetas</div>
+        <div class="kpi-val cyan" id="k-rec-total">—</div>
+        <div class="kpi-sub">registradas</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Pendientes</div>
+        <div class="kpi-val amber" id="k-rec-pend">—</div>
+        <div class="kpi-sub">por dispensar</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Dispensadas</div>
+        <div class="kpi-val green" id="k-rec-disp">—</div>
+        <div class="kpi-sub">completadas en farmacia</div>
       </div>
     </div>
     <div class="tabla-card">
@@ -92,6 +111,25 @@ DiabCareCrud.mount({
     if (!b.fecha) b.fecha = new Date().toISOString().slice(0, 10);
   }
 });
+
+// Informe simple: recetas por estado
+(async function kpisRecetas() {
+  try {
+    const r = window.DiabCareAPI
+      ? await DiabCareAPI.json('/api/recetas?limit=1000', { skeleton: false, silent: true })
+      : await fetch(`${DiabCareNav.getApi()}/api/recetas?limit=1000`, {
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }, cache: 'no-store'
+        }).then(async (res) => ({ ok: res.ok, data: res.ok ? await res.json() : null }));
+    if (!r || !r.ok) return;
+    const d = r.data || {};
+    const filas = d.recetas || [];
+    const activas = filas.filter(x => !['anulada', 'anulado'].includes(String(x.estado || '').toLowerCase()));
+    const disp = activas.filter(x => String(x.estado || '').toLowerCase().startsWith('dispensad')).length;
+    document.getElementById('k-rec-total').textContent = activas.length;
+    document.getElementById('k-rec-pend').textContent = activas.length - disp;
+    document.getElementById('k-rec-disp').textContent = disp;
+  } catch (_) { /* sin datos */ }
+})();
 </script>
 </body>
 </html>

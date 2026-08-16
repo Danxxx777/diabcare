@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1E2A2E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DiabCare Pago">
+<title>DiabCare · Pagar consulta</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/estaticos/img/logo-icon.svg">
+<style>
+  :root {
+    --bg: #1E2A2E;
+    --sf: #253338;
+    --sf2: #2E3D42;
+    --ln: rgba(90, 127, 140, .28);
+    --tx: #E6E2DC;
+    --muted: #A8B4B8;
+    --ok: #6B9A7A;
+    --bad: #C46B6B;
+    --accent: #8FB4BE;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(1000px 480px at 8% -12%, rgba(90, 127, 140, .22), transparent 55%),
+      radial-gradient(700px 360px at 100% 0%, rgba(169, 141, 114, .12), transparent 48%),
+      var(--bg);
+    color: var(--tx);
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  }
+  .shell { max-width: 440px; margin: 0 auto; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .brand img { width: 40px; height: 40px; border-radius: 10px; }
+  .brand h1 { margin: 0; font-size: 1.15rem; letter-spacing: -.02em; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: .8rem; }
+  .card {
+    background: linear-gradient(180deg, var(--sf2), var(--sf));
+    border: 1px solid var(--ln);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  }
+  .monto {
+    font-size: 2rem; font-weight: 750; letter-spacing: -.03em;
+    color: var(--accent); margin: 4px 0 2px;
+  }
+  .concepto { font-size: 1rem; margin: 0 0 8px; }
+  .hint { color: var(--muted); font-size: .82rem; line-height: 1.45; margin: 0; }
+  .meta dl { margin: 12px 0 0; display: grid; gap: 10px; }
+  .meta dt { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .meta dd { margin: 2px 0 0; font-size: .92rem; }
+  button, .btn {
+    appearance: none; border: 0; cursor: pointer;
+    border-radius: 12px; padding: 13px 16px;
+    font-weight: 650; font-size: .95rem;
+    text-decoration: none; text-align: center;
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; margin-top: 14px;
+  }
+  .btn-primary { background: linear-gradient(135deg, #5A7F8C, #4A6D79); color: #fff; }
+  .btn-primary:active { transform: scale(.98); }
+  .btn-primary:disabled { opacity: .55; cursor: wait; }
+  .estado {
+    display: none; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 12px;
+    margin-bottom: 12px; font-size: .9rem; font-weight: 600;
+  }
+  .estado.show { display: flex; }
+  .estado.ok { background: rgba(52,211,153,.12); color: var(--ok); border: 1px solid rgba(52,211,153,.3); }
+  .estado.bad { background: rgba(248,113,113,.12); color: var(--bad); border: 1px solid rgba(248,113,113,.3); }
+  .estado.loading { background: rgba(0,229,255,.1); color: var(--accent); border: 1px solid rgba(0,229,255,.25); }
+  .foot { text-align: center; color: var(--muted); font-size: .75rem; line-height: 1.4; margin-top: 18px; }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="brand">
+      <img src="/estaticos/img/logo-icon.svg" alt="DiabCare">
+      <div>
+        <h1>Pagar consulta</h1>
+        <p>DiabCare Hospital</p>
+      </div>
+    </div>
+    <div class="estado" id="estado"></div>
+    <div class="card" id="card">
+      <p class="hint">Cargando cobro…</p>
+    </div>
+    <p class="foot">El cobro se confirma cuando Stripe marca el pago o cuando caja lo registra. No se asume el pago.</p>
+  </div>
+<script>
+(function () {
+  const params = new URLSearchParams(location.search);
+  const token = (params.get('t') || '').trim();
+  const estadoEl = document.getElementById('estado');
+  const card = document.getElementById('card');
+  let pollTimer = null;
+
+  function money(n) {
+    const v = Number(n);
+    return Number.isFinite(v) ? '$' + v.toFixed(2) : '—';
+  }
+  function showEstado(tipo, texto) {
+    estadoEl.className = 'estado show ' + tipo;
+    estadoEl.textContent = texto;
+  }
+  function pintar(d) {
+    if (d.pagado) {
+      showEstado('ok', 'Pago registrado');
+      card.innerHTML = `
+        <p class="concepto">${esc(d.concepto || 'Consulta')}</p>
+        <div class="monto">${money(d.monto)}</div>
+        <div class="meta"><dl>
+          <div><dt>Paciente</dt><dd>${esc(d.paciente || 'Paciente')}</dd></div>
+          <div><dt>Estado</dt><dd>Pagado</dd></div>
+        </dl></div>`;
+      return;
+    }
+    const stripe = !!d.stripe;
+    card.innerHTML = `
+      <p class="concepto">${esc(d.concepto || 'Consulta')}</p>
+      <div class="monto">${money(d.monto)}</div>
+      <div class="meta"><dl>
+        <div><dt>Paciente</dt><dd>${esc(d.paciente || 'Paciente')}</dd></div>
+        <div><dt>Estado</dt><dd>Pendiente</dd></div>
+      </dl></div>
+      ${stripe
+        ? '<button type="button" class="btn btn-primary" id="btn-pay">Pagar con tarjeta</button>'
+        : '<p class="hint" style="margin-top:14px">Pague en caja (efectivo, tarjeta o transferencia). Esta pantalla se actualiza sola cuando el cobro quede registrado.</p>'}
+      ${params.get('cancel') === '1' ? '<p class="hint" style="margin-top:10px">Pago cancelado en Stripe. Puede reintentar o pagar en caja.</p>' : ''}`;
+    const btn = document.getElementById('btn-pay');
+    if (btn) btn.onclick = checkout;
+  }
+  function esc(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+  async function cargar() {
+    if (!token) {
+      showEstado('bad', 'Enlace incompleto');
+      card.innerHTML = '<p class="hint">Falta el código de cobro. Escanee de nuevo el QR de caja.</p>';
+      return;
+    }
+    const r = await fetch('/api/pagos/publico/' + encodeURIComponent(token));
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      showEstado('bad', d.detail || d.error || 'Enlace no válido');
+      card.innerHTML = '<p class="hint">Pida un QR nuevo en caja.</p>';
+      return;
+    }
+    pintar(d);
+    if (!d.pagado && !pollTimer) {
+      pollTimer = setInterval(cargar, 3000);
+    }
+    if (d.pagado && pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+  async function checkout() {
+    const btn = document.getElementById('btn-pay');
+    if (btn) { btn.disabled = true; btn.textContent = 'Abriendo Stripe…'; }
+    showEstado('loading', 'Creando sesión de pago');
+    const r = await fetch('/api/pagos/publico/' + encodeURIComponent(token) + '/checkout', { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.url) {
+      showEstado('bad', d.detail || d.error || 'No se pudo abrir Stripe');
+      if (btn) { btn.disabled = false; btn.textContent = 'Pagar con tarjeta'; }
+      return;
+    }
+    location.href = d.url;
+  }
+  async function confirmarStripe() {
+    const sid = params.get('session_id');
+    if (params.get('ok') !== '1' || !sid) return;
+    showEstado('loading', 'Verificando pago…');
+    const r = await fetch('/api/pagos/publico/' + encodeURIComponent(token) + '/confirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sid }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      showEstado('bad', d.detail || d.error || 'No se pudo verificar el pago');
+    }
+  }
+  confirmarStripe().finally(cargar);
+})();
+</script>
+</body>
+</html>

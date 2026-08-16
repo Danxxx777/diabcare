@@ -8,13 +8,15 @@
 <title>DiabCare - Registros Clínicos</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
 </head>
-<body>
+<body class="dc-uv">
 
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 
@@ -178,6 +180,12 @@ async function cargar() {
     const paciente = document.getElementById('f-paciente').value.trim();
     const edadMin  = document.getElementById('f-edad-min').value;
     const edadMax  = document.getElementById('f-edad-max').value;
+    if (edadMin && Number(edadMin) < 0) { toast('La edad mínima no puede ser negativa.', 'error'); return; }
+    if (edadMax && Number(edadMax) < 0) { toast('La edad máxima no puede ser negativa.', 'error'); return; }
+    if (edadMin && edadMax && Number(edadMax) < Number(edadMin)) {
+      toast('La edad máxima no puede ser menor que la mínima.', 'error');
+      return;
+    }
     let url = `${API}/api/registros/?offset=${(pag-1)*LIMIT}&limit=${LIMIT}`;
     if (diabetes !== '') url += `&diabetes=${diabetes}`;
     if (genero)          url += `&gender=${encodeURIComponent(genero)}`;
@@ -279,6 +287,7 @@ function cerrarModal() { document.getElementById('modal-reg').style.display = 'n
 function editarReg(id) { abrirModal(_rowsCache.find(x => x.encounter_id === id)); }
 
 async function guardarRegistro() {
+  const btn = document.querySelector('#modal-reg .btn-primary');
   const id = document.getElementById('f-id').value;
   const idPaciente = document.getElementById('m-paciente').value.trim();
   if (!idPaciente) {
@@ -305,20 +314,31 @@ async function guardarRegistro() {
     blood_glucose_level: glc,
     diabetes: parseInt(document.getElementById('m-diabetes').value, 10),
     year: new Date().getFullYear(),
-    hypertension: 0, heart_disease: 0, smoking_history: 'Nunca',
+    hypertension: 0, heart_disease: 0, smoking_history: 'never',
   };
   const url = id ? `${API}/api/registros/${id}` : `${API}/api/registros/`;
   const method = id ? 'PUT' : 'POST';
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
   try {
     const r = await fetch(url, {
       method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
       body: JSON.stringify(body),
     });
-    const d = await r.json();
-    if (!r.ok || d.error) { toast(d.error || d.detail || 'Error', 'error'); return; }
+    const d = await r.json().catch(() => ({}));
+    const detail = typeof d.detail === 'string' ? d.detail
+      : (Array.isArray(d.detail) ? d.detail.map(x => x.msg || JSON.stringify(x)).join('; ') : '');
+    if (!r.ok || d.error) {
+      toast(d.error || detail || `Error al guardar (${r.status})`, 'error');
+      return;
+    }
+    cerrarModal();
     toast(id ? 'Consulta actualizada' : `Consulta guardada${d.paciente_nombre ? ' · ' + d.paciente_nombre : ''}`);
-    cerrarModal(); cargar(); cargarEstadisticas();
-  } catch { toast('Error de conexión', 'error'); }
+    cargar(); cargarEstadisticas();
+  } catch {
+    toast('Error de conexión. ¿Está el backend / MinIO activos?', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar consulta'; }
+  }
 }
 
 async function eliminarReg(id) {

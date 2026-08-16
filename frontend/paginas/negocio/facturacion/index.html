@@ -5,12 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare - Facturación</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
-<script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
+<script src="/estaticos/api.js?v=cobro-1"></script>
+<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
 <style>
 .caja-shell { width: 100%; max-width: none; box-sizing: border-box; }
 .content.caja-shell { padding: 16px 18px 20px; }
@@ -30,24 +32,24 @@
   background: none;
 }
 .caja-kicker {
-  font-size: 10px; text-transform: uppercase; letter-spacing: .14em;
-  color: var(--cyan); font-weight: 650; margin-bottom: 6px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .12em;
+  color: var(--accent2); font-weight: 700; margin-bottom: 6px;
 }
 .caja-brand .page-title { margin: 0 0 4px; }
 .caja-brand .page-sub { margin: 0; }
 .caja-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .analista-note {
-  font-size: 12px; color: var(--muted); margin: 0 0 10px;
+  font-size: 13px; color: var(--text2); font-weight: 600; margin: 0 0 10px;
 }
 .kpi-row { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
 @media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(2,1fr); } }
 .kpi-card { padding: 14px 16px; }
 .kpi-card .kpi-val { min-height: 28px; font-size: 24px; }
 .crud-tabs {
-  display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; padding:6px;
-  border:1px solid var(--border); border-radius:10px; background:rgba(0,0,0,.25);
+  display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; padding:8px;
+  border:1.5px solid var(--border2); border-radius:12px; background:rgba(255,255,255,.06);
 }
-.crud-tabs .btn { border-radius:8px; min-width:96px; }
+.crud-tabs .btn { border-radius:10px; min-width:108px; min-height:38px; }
 .tabla-card {
   border-radius: 12px;
   width: 100%;
@@ -63,8 +65,8 @@
 .badge-estado.emitida { background:rgba(251,191,36,.12); color:#fbbf24; border:1px solid rgba(251,191,36,.3); }
 .badge-estado.anulada { background:rgba(248,113,113,.12); color:#f87171; border:1px solid rgba(248,113,113,.3); }
 .pac-cell { display:flex; flex-direction:column; gap:2px; }
-.pac-cell strong { font-size:12px; font-weight:600; color:var(--text); }
-.pac-cell span { font-size:10px; font-family:var(--mono); color:var(--muted); }
+.pac-cell strong { font-size:13px; font-weight:700; color:var(--text); }
+.pac-cell span { font-size:11px; font-family:var(--mono); color:var(--text2); font-weight:650; }
 .pagos-lista { display:flex; flex-direction:column; gap:8px; max-height:280px; overflow:auto; }
 .pago-row {
   display:flex; justify-content:space-between; gap:12px;
@@ -77,7 +79,7 @@
 .empty-caja strong { color: var(--text); display:block; margin-bottom:6px; }
 </style>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -196,6 +198,31 @@ function cellPaciente(row) {
   return `<div class="pac-cell"><strong>${nom}</strong>${doc ? `<span>CI ${doc}</span>` : ''}</div>`;
 }
 
+async function abrirComprobanteFactura(idFactura) {
+  if (!idFactura) return;
+  const token = localStorage.getItem('token') || '';
+  try {
+    const r = await fetch(`${API}/api/facturas/${encodeURIComponent(idFactura)}/comprobante`, {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      const msg = d.detail || 'No se pudo abrir el comprobante';
+      if (window.DiabCareAPI && DiabCareAPI.toast) DiabCareAPI.toast(msg, 'error');
+      else alert(msg);
+      return;
+    }
+    const html = await r.text();
+    const w = window.open('', '_blank');
+    if (!w) { alert('Permite ventanas emergentes para ver la factura del cliente'); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  } catch (e) {
+    alert('Error de conexión al abrir el comprobante');
+  }
+}
+
 async function cargarKpis() {
   try {
     const ctrl = new AbortController();
@@ -288,37 +315,10 @@ DiabCareCrud.mountTabs({
         show: (row) => !row.consulta_pagada
           && !['cancelada', 'atendida', 'no_asistio'].includes(String(row.estado || '').toLowerCase()),
         async onClick(row, ctx) {
-          const ok = typeof DiabCareAPI !== 'undefined'
-            ? await DiabCareAPI.confirm({
-                title: 'Cobrar consulta',
-                message: `Cobrar consulta a ${row.paciente_nombre || 'paciente'}?`,
-                confirmLabel: 'Cobrar',
-              })
-            : confirm('¿Cobrar consulta ahora?');
-          if (!ok) return;
-          const r = await fetch(`${ctx.API}/api/citas/${row.id_cita}/cobrar-consulta`, {
-            method: 'POST',
-            headers: ctx.hdr(),
-            body: JSON.stringify({ metodo: 'efectivo' }),
-          });
-          const d = await r.json().catch(() => ({}));
-          if (!r.ok) {
-            const t = document.getElementById('toast');
-            document.getElementById('t-msg').textContent = d.detail || d.error || 'No se pudo cobrar';
-            document.getElementById('t-icon').textContent = '✗';
-            t.className = 'toast error show';
-            setTimeout(() => t.classList.remove('show'), 3200);
-            return;
-          }
-          const total = Number(d.total);
-          const t = document.getElementById('toast');
-          document.getElementById('t-msg').textContent = d.mensaje
-            || (Number.isFinite(total) ? `Consulta cobrada · $${total.toFixed(2)}` : 'Consulta cobrada');
-          document.getElementById('t-icon').textContent = '✓';
-          t.className = 'toast success show';
-          setTimeout(() => t.classList.remove('show'), 2800);
-          cargarKpis();
-          if (ctx.cargar) ctx.cargar();
+          const paid = typeof DiabCareAPI !== 'undefined' && DiabCareAPI.cobrarConsulta
+            ? await DiabCareAPI.cobrarConsulta(row.id_cita, { onPaid: () => { cargarKpis(); if (ctx.cargar) ctx.cargar(); } })
+            : false;
+          if (paid) return;
         },
       }],
       onLoaded(rows) {
@@ -372,7 +372,14 @@ DiabCareCrud.mountTabs({
           }
         }
       },
-      createTitle: 'Emitir factura'
+      createTitle: 'Emitir factura',
+      rowActions: [
+        {
+          id: 'comprobante',
+          label: 'Factura cliente',
+          onClick: (row) => abrirComprobanteFactura(row && row.id_factura),
+        },
+      ],
     },
     {
       id: 'seguros', label: 'Seguros', sub: 'Planes de cobertura',
@@ -475,13 +482,25 @@ DiabCareCrud.mountTabs({
             </div>`
           ).join('') +
           `<div class="pago-row"><span class="muted">Cobrado</span><strong class="money">${money(suma)}</strong></div>
-           <div class="pago-row"><span class="muted">Factura</span><strong class="money">${money(row.total)}</strong></div>`;
+           <div class="pago-row"><span class="muted">Factura</span><strong class="money">${money(row.total)}</strong></div>
+           <button type="button" class="btn btn-primary btn-sm" style="margin-top:12px;width:100%"
+             onclick="abrirComprobanteFactura('${row.id_factura}')">Imprimir factura del cliente</button>`;
         }
+      }, {
+        id: 'comprobante',
+        label: 'Factura cliente',
+        onClick: (row) => abrirComprobanteFactura(row && row.id_factura),
       }],
       createTitle: 'Registrar cobro',
       beforeSave(b) {
         if (!b.id_factura) return { error: 'Seleccione factura' };
         if (!(parseFloat(b.monto) > 0)) return { error: 'Ingrese un monto válido' };
+      },
+      afterSave(res, body) {
+        const fid = (body && body.id_factura) || (res && res.id_factura);
+        if (fid && confirm('¿Imprimir la factura / recibo para el cliente?')) {
+          abrirComprobanteFactura(fid);
+        }
       },
       onLoaded: () => cargarKpis()
     }

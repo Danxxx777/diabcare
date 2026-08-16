@@ -1,0 +1,25 @@
+{
+  "name": "DiabCare Verificar PDF",
+  "short_name": "DiabCare QR",
+  "description": "Verifica y abre informes PDF de DiabCare desde el celular",
+  "start_url": "/paginas/verificar/index.html",
+  "scope": "/paginas/verificar/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1220",
+  "theme_color": "#0e7490",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/estaticos/img/logo-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/estaticos/img/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    }
+  ]
+}

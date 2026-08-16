@@ -18,6 +18,7 @@ class UrgenciaIn(BaseModel):
     id_paciente: str
     triage: str = "III"
     motivo: str = ""
+    via_llegada: str = "propia"
     hora_llegada: str = ""
     desenlace: str = "en_espera"
     estado: str = "triage"
@@ -25,6 +26,10 @@ class UrgenciaIn(BaseModel):
 class AtenderIn(BaseModel):
     desenlace: str = "alta"
     motivo: Optional[str] = None
+
+@router.get("/resumen")
+def resumen(payload=Depends(require_modulo("urgencias"))):
+    return S.resumen_operativo()
 
 @router.get("")
 @router.get("/")

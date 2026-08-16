@@ -3,515 +3,450 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare - Estadísticas</title>
+<title>DiabCare - Análisis estadístico</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
-<script src="/estaticos/api.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-2"></script>
+<script src="/estaticos/api.js?v=contrast-1"></script>
+<script src="/estaticos/graficas.js?v=contrast-1"></script>
 <style>
-/* ── Grid layouts ── */
-.charts-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
-.charts-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
-.charts-grid-full { display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:14px; }
-
-/* ── KPI extra cards ── */
-.stats-grid-2 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
-.stat-card-sm { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 18px; }
-.stat-card-sm .stat-label { font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:6px; }
-.stat-card-sm .stat-value { font-size:20px; font-weight:700; font-family:'JetBrains Mono',monospace; }
-.stat-card-sm .stat-sub { font-size:10px; color:var(--muted); margin-top:3px; }
-
-/* ── Section divider ── */
-.section-label {
-  font-size:10px; text-transform:uppercase; letter-spacing:.1em;
-  color:var(--muted); margin:18px 0 10px;
-  display:flex; align-items:center; gap:10px;
+body.dc-uv .es-kpis {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px !important;
+  margin-bottom: 14px;
+  width: 100%;
 }
-.section-label::after { content:''; flex:1; height:1px; background:var(--border); }
-
-.chart-hint { font-size:10px; color:var(--muted); margin:-4px 0 10px; line-height:1.4; }
-.chart-wrap-tall { height:220px; }
-.chart-wrap-scatter { height:260px; }
+@media (max-width: 900px) {
+  body.dc-uv .es-kpis { grid-template-columns: 1fr 1fr; }
+}
+body.dc-uv .es-kpi {
+  display: flex !important;
+  flex-direction: column !important;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 92px !important;
+  padding: 14px 16px !important;
+  border-radius: 14px !important;
+  background: var(--uv-card, var(--card)) !important;
+  border: 1.5px solid var(--uv-line, var(--border)) !important;
+  gap: 4px;
+}
+body.dc-uv .es-kpi .lbl {
+  font-size: 12px; font-weight: 700; color: var(--text2);
+  order: 0 !important; margin: 0 !important; padding: 0 !important;
+}
+body.dc-uv .es-kpi .val {
+  font-size: 26px !important; font-weight: 800 !important;
+  font-variant-numeric: tabular-nums; color: var(--text) !important;
+  line-height: 1.15; order: 1 !important;
+}
+body.dc-uv .es-kpi .sub {
+  display: block !important; font-size: 12px; font-weight: 600;
+  color: var(--text2); order: 2 !important;
+}
+.es-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.es-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+@media (max-width: 980px) {
+  .es-grid-2, .es-grid-3 { grid-template-columns: 1fr; }
+}
+.es-card {
+  padding: 14px 16px;
+  min-height: 0;
+}
+.es-card h3 {
+  margin: 0 0 8px; font-size: 14px; font-weight: 700; color: var(--text);
+}
+.es-hint { font-size: 12px; color: var(--text2); margin: 0 0 10px; line-height: 1.4; }
+.es-chart { width: 100%; height: 220px; display: block; }
+.es-find {
+  margin-bottom: 14px; padding: 14px 16px;
+  border-left: 4px solid var(--accent);
+}
+.es-find ul { margin: 8px 0 0; padding-left: 18px; color: var(--text); font-size: 13px; line-height: 1.55; }
+.es-find li { margin: 4px 0; }
+.es-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.es-table th, .es-table td { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+.es-table th { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; }
+.es-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; }
+.es-bar-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; }
+.es-bar-row span.n { width: 88px; flex-shrink: 0; color: var(--text2); font-weight: 700; }
+.es-track { flex: 1; height: 10px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.es-track i { display: block; height: 100%; background: #8FB4BE; }
+.es-bar-row b { width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+.es-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.es-empty {
+  padding: 28px 16px; text-align: center; color: var(--text2);
+}
+.es-empty strong { display: block; color: var(--text); font-size: 16px; margin-bottom: 8px; }
+.section-label {
+  font-size: 12px; font-weight: 700; color: var(--text);
+  margin: 18px 0 10px; display: flex; align-items: center; gap: 10px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+html[data-tema="claro"] .es-track { background: rgba(47,61,66,.12); }
 </style>
 </head>
-<body>
-
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
-
 <div class="main">
   <div class="topbar">
-    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-crumb">Análisis</span><span class="tb-sep">/</span><span class="tb-page">Estadísticas</span>
-    <div class="tb-right"><div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div></div>
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span>
+    <span class="tb-crumb">Análisis</span><span class="tb-sep">/</span>
+    <span class="tb-page">Estadísticas</span>
   </div>
   <div class="content">
-    <div class="page-header">
+    <div class="page-header page-header--clinico">
       <div>
-        <div class="page-title">Estadísticas <span>clínicas</span></div>
-        <div class="page-sub">Análisis detallado del dataset de diabetes hospitalaria</div>
+        <div class="page-title">Análisis <span>estadístico</span></div>
+        <div class="page-sub">Cohorte del workpanel clínico (MinIO). Pensado para el analista: prevalencia, control, demografía y hallazgos.</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Actualizar</button>
-    </div>
-
-    <!-- KPI principales -->
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total registros</div><div class="stat-value blue" id="s-total"><div class="spinner"></div></div></div>
-      <div class="stat-card"><div class="stat-label">Con diabetes</div><div class="stat-value red" id="s-con"><div class="spinner"></div></div></div>
-      <div class="stat-card"><div class="stat-label">Sin diabetes</div><div class="stat-value green" id="s-sin"><div class="spinner"></div></div></div>
-      <div class="stat-card"><div class="stat-label">Prevalencia</div><div class="stat-value amber" id="s-prev"><div class="spinner"></div></div></div>
-    </div>
-
-    <!-- KPI clínicos secundarios -->
-    <div class="section-label">Indicadores clínicos promedio</div>
-    <div class="stats-grid-2">
-      <div class="stat-card-sm">
-        <div class="stat-label">BMI promedio</div>
-        <div style="display:flex;gap:16px;margin-top:4px;">
-          <div><div class="stat-value red" id="k-bmi-con" style="font-size:18px">-</div><div class="stat-sub">Con diabetes</div></div>
-          <div><div class="stat-value green" id="k-bmi-sin" style="font-size:18px">-</div><div class="stat-sub">Sin diabetes</div></div>
-        </div>
-      </div>
-      <div class="stat-card-sm">
-        <div class="stat-label">HbA1c promedio</div>
-        <div style="display:flex;gap:16px;margin-top:4px;">
-          <div><div class="stat-value red" id="k-hba-con" style="font-size:18px">-</div><div class="stat-sub">Con diabetes</div></div>
-          <div><div class="stat-value green" id="k-hba-sin" style="font-size:18px">-</div><div class="stat-sub">Sin diabetes</div></div>
-        </div>
-      </div>
-      <div class="stat-card-sm">
-        <div class="stat-label">Glucosa promedio (mg/dL)</div>
-        <div style="display:flex;gap:16px;margin-top:4px;">
-          <div><div class="stat-value red" id="k-glc-con" style="font-size:18px">-</div><div class="stat-sub">Con diabetes</div></div>
-          <div><div class="stat-value green" id="k-glc-sin" style="font-size:18px">-</div><div class="stat-sub">Sin diabetes</div></div>
-        </div>
+      <div class="es-actions">
+        <button class="btn btn-ghost btn-sm" type="button" id="btnCsv">Exportar CSV</button>
+        <a class="btn btn-ghost btn-sm" href="/paginas/clinico/analisis/diabetes/index.html">Calidad DM</a>
+        <a class="btn btn-ghost btn-sm" href="/paginas/clinico/analisis/informes/index.html">Panel</a>
+        <a class="btn btn-ghost btn-sm" href="/paginas/clinico/reportes/index.html">PDF</a>
+        <button class="btn btn-primary btn-sm" type="button" id="btnReload">Actualizar</button>
       </div>
     </div>
 
-    <!-- Panorama clínico -->
-    <div class="section-label">Panorama clínico</div>
-    <div class="charts-grid-2">
-      <div class="chart-card">
-        <div class="chart-title">Prevalencia global</div>
-        <div class="chart-hint">Proporción con y sin diagnóstico de diabetes en el dataset.</div>
-        <div class="chart-wrap"><canvas id="c-pie"></canvas></div>
+    <div class="es-kpis">
+      <div class="es-kpi"><div class="lbl">Registros</div><div class="val" id="k-total">…</div><div class="sub" id="k-total-h">workpanel</div></div>
+      <div class="es-kpi"><div class="lbl">Con diabetes</div><div class="val" id="k-con">…</div><div class="sub" id="k-con-h">casos DM+</div></div>
+      <div class="es-kpi"><div class="lbl">Sin diabetes</div><div class="val" id="k-sin">…</div><div class="sub">controles</div></div>
+      <div class="es-kpi"><div class="lbl">Prevalencia</div><div class="val" id="k-prev">…</div><div class="sub" id="k-prev-h">DM+ / total</div></div>
+    </div>
+
+    <div class="es-card es-find tabla-card" id="boxHallazgos">
+      <h3>Hallazgos para el analista</h3>
+      <p class="es-hint">Se calculan sobre el DWH. HbA1c promedio &gt; 7,5 % es alerta clínica (ADA).</p>
+      <ul id="listaHallazgos"><li>Cargando cohorte…</li></ul>
+    </div>
+
+    <div class="section-label">Control clínico (DM+ vs DM−)</div>
+    <div class="es-grid-3">
+      <div class="es-card tabla-card">
+        <h3>BMI</h3>
+        <p class="es-hint">Índice de masa corporal promedio.</p>
+        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-bmi-c" style="width:0;background:#C46B6B"></i></div><b id="v-bmi-c">—</b></div>
+        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-bmi-s" style="width:0;background:#6B9A7A"></i></div><b id="v-bmi-s">—</b></div>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">Perfil clínico comparativo</div>
-        <div class="chart-hint">Indicadores normalizados: valores altos = mayor carga clínica relativa.</div>
-        <div class="chart-wrap chart-wrap-tall"><canvas id="c-radar-clinico"></canvas></div>
+      <div class="es-card tabla-card">
+        <h3>HbA1c (%)</h3>
+        <p class="es-hint">Hemoglobina glicosilada. Meta &lt; 7 %.</p>
+        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-hba-c" style="width:0;background:#C46B6B"></i></div><b id="v-hba-c">—</b></div>
+        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-hba-s" style="width:0;background:#6B9A7A"></i></div><b id="v-hba-s">—</b></div>
+      </div>
+      <div class="es-card tabla-card">
+        <h3>Glucosa (mg/dL)</h3>
+        <p class="es-hint">Glucosa en sangre promedio.</p>
+        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-glc-c" style="width:0;background:#C46B6B"></i></div><b id="v-glc-c">—</b></div>
+        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-glc-s" style="width:0;background:#6B9A7A"></i></div><b id="v-glc-s">—</b></div>
       </div>
     </div>
 
-    <!-- Distribuciones clínicas -->
+    <div class="es-grid-2">
+      <div class="es-card tabla-card">
+        <h3>Prevalencia global</h3>
+        <p class="es-hint">Proporción de encuentros con diagnóstico de diabetes.</p>
+        <canvas class="es-chart" id="c-pie" height="200"></canvas>
+      </div>
+      <div class="es-card tabla-card">
+        <h3>Control HbA1c en DM+</h3>
+        <p class="es-hint">&lt;7 % controlado · 7–9 % subóptimo · ≥9 % descontrol.</p>
+        <canvas class="es-chart" id="c-ctrl" height="200"></canvas>
+      </div>
+    </div>
+
     <div class="section-label">Distribuciones clínicas</div>
-    <div class="charts-grid-3">
-      <div class="chart-card">
-        <div class="chart-title">Distribución BMI</div>
-        <div class="chart-hint">Histograma por rangos de índice de masa corporal.</div>
-        <div class="chart-wrap"><canvas id="c-hist-bmi"></canvas></div>
+    <div class="es-grid-3">
+      <div class="es-card tabla-card">
+        <h3>BMI</h3>
+        <canvas class="es-chart" id="c-bmi"></canvas>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">Distribución HbA1c</div>
-        <div class="chart-hint">Rangos clínicos de hemoglobina glicosilada (%).</div>
-        <div class="chart-wrap"><canvas id="c-hist-hba"></canvas></div>
+      <div class="es-card tabla-card">
+        <h3>HbA1c</h3>
+        <canvas class="es-chart" id="c-hba"></canvas>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">Distribución glucosa</div>
-        <div class="chart-hint">Niveles de glucosa en sangre (mg/dL) por rango.</div>
-        <div class="chart-wrap"><canvas id="c-hist-glc"></canvas></div>
+      <div class="es-card tabla-card">
+        <h3>Glucosa</h3>
+        <canvas class="es-chart" id="c-glc"></canvas>
       </div>
     </div>
 
-    <!-- Correlación -->
-    <div class="section-label">Correlación multivariada</div>
-    <div class="charts-grid-full">
-      <div class="chart-card">
-        <div class="chart-title">BMI vs HbA1c (muestra representativa)</div>
-        <div class="chart-hint">Cada punto es un paciente. La nube roja concentra mayor riesgo metabólico.</div>
-        <div class="chart-wrap chart-wrap-scatter"><canvas id="c-scatter"></canvas></div>
+    <div class="section-label">Demografía y factores de riesgo</div>
+    <div class="es-grid-2">
+      <div class="es-card tabla-card">
+        <h3>Prevalencia por edad</h3>
+        <canvas class="es-chart" id="c-edad"></canvas>
+        <div id="t-edad"></div>
+      </div>
+      <div class="es-card tabla-card">
+        <h3>Género y tabaquismo</h3>
+        <canvas class="es-chart" id="c-gen"></canvas>
+        <div id="t-tabaco"></div>
+      </div>
+    </div>
+    <div class="es-grid-2">
+      <div class="es-card tabla-card">
+        <h3>Raza / etnia</h3>
+        <canvas class="es-chart" id="c-raza"></canvas>
+      </div>
+      <div class="es-card tabla-card">
+        <h3>Comorbilidades (% afectados)</h3>
+        <canvas class="es-chart" id="c-comorb"></canvas>
+        <div id="t-comorb"></div>
       </div>
     </div>
 
-    <!-- Demografía -->
-    <div class="section-label">Demografía y prevalencia</div>
-    <div class="charts-grid-2">
-      <div class="chart-card">
-        <div class="chart-title">Prevalencia por edad</div>
-        <div class="chart-hint">Porcentaje con diabetes en cada grupo etario - la pendiente revela riesgo por edad.</div>
-        <div class="chart-wrap"><canvas id="c-edad"></canvas></div>
+    <div class="section-label">Tendencia y sedes</div>
+    <div class="es-grid-2">
+      <div class="es-card tabla-card">
+        <h3>Volumen y prevalencia por año</h3>
+        <canvas class="es-chart" id="c-year"></canvas>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">Prevalencia por género</div>
-        <div class="chart-hint">Área proporcional al % de diabetes en cada género.</div>
-        <div class="chart-wrap"><canvas id="c-genero"></canvas></div>
+      <div class="es-card tabla-card">
+        <h3>Top sedes (volumen)</h3>
+        <div id="t-sedes"><p class="es-hint">Sin desglose de sedes.</p></div>
       </div>
     </div>
-
-    <!-- Población y comorbilidades -->
-    <div class="section-label">Población y comorbilidades</div>
-    <div class="charts-grid-2">
-      <div class="chart-card">
-        <div class="chart-title">Prevalencia por raza / etnia</div>
-        <div class="chart-hint">Comparación relativa entre grupos étnicos (% con diabetes).</div>
-        <div class="chart-wrap chart-wrap-tall"><canvas id="c-raza"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Comorbilidades (% pacientes afectados)</div>
-        <div class="chart-hint">Hipertensión y cardiopatía en cohortes con y sin diabetes.</div>
-        <div class="chart-wrap chart-wrap-tall"><canvas id="c-comorb"></canvas></div>
-      </div>
-    </div>
-
-    <!-- Factores de riesgo -->
-    <div class="section-label">Factores de riesgo y geografía</div>
-    <div class="charts-grid-2">
-      <div class="chart-card">
-        <div class="chart-title">Tabaquismo y prevalencia</div>
-        <div class="chart-hint">% de diabetes según historial de tabaco - no volumen absoluto.</div>
-        <div class="chart-wrap"><canvas id="c-tabaco"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Ubicaciones: volumen vs prevalencia</div>
-        <div class="chart-hint">Eje X = pacientes; eje Y = % diabetes; tamaño = peso poblacional.</div>
-        <div class="chart-wrap chart-wrap-tall"><canvas id="c-ubicacion"></canvas></div>
-      </div>
-    </div>
-
-    <!-- Tendencia temporal -->
-    <div class="section-label">Tendencia temporal</div>
-    <div class="charts-grid-full">
-      <div class="chart-card">
-        <div class="chart-title">Registros por año y prevalencia</div>
-        <div class="chart-hint">Barras = volumen anual; línea ámbar = % de diabetes ese año (eje derecho).</div>
-        <div class="chart-wrap chart-wrap-tall"><canvas id="c-tendencia"></canvas></div>
-      </div>
-    </div>
-
   </div>
 </div>
-
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
-
 <script>
 DiabCareNav.init();
-DiabCareNav.guardRol(['administrador', 'medico', 'analista', 'farmaceutico']);
-const API = DiabCareNav.getApi();
-let charts  = {};
-const STATS_CACHE_KEY = 'diabcare_stats_v2';
+DiabCareNav.guardRol(['administrador', 'medico', 'analista']);
 
-function authHdr() {
-  const t = localStorage.getItem('token');
-  return t ? { Authorization: 'Bearer ' + t } : {};
+const GENERO = { Male: 'Masculino', Female: 'Femenino', Other: 'Otro', Masculino: 'Masculino', Femenino: 'Femenino', Otro: 'Otro' };
+const TABACO = { never: 'Nunca', current: 'Actual', 'not current': 'No actual', 'No Info': 'Sin info', nunca: 'Nunca', actual: 'Actual' };
+const RAZA = { race_AfricanAmerican: 'Afroamericano', race_Asian: 'Asiático', race_Caucasian: 'Caucásico', race_Hispanic: 'Hispano', race_Other: 'Otro' };
+
+let _stats = null;
+let _calidad = null;
+
+function nfmt(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '—';
+  return n.toLocaleString('es-EC');
+}
+function pct(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '—';
+  return n.toFixed(1) + '%';
+}
+function setTxt(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v;
+}
+function barW(id, val, max) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const m = max || 1;
+  el.style.width = Math.min(100, (Number(val) || 0) / m * 100) + '%';
+}
+function tabla(headers, rows) {
+  if (!rows.length) return '<p class="es-hint">Sin datos en este corte.</p>';
+  const th = headers.map(h => `<th>${h}</th>`).join('');
+  const body = rows.map(r => `<tr>${r.map((c, i) => `<td class="${i ? 'num' : ''}">${c}</td>`).join('')}</tr>`).join('');
+  return `<table class="es-table"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
-function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
-
-function initUser() {
-  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  if (u.nombre) {
-    document.getElementById('userName').textContent   = u.nombre;
-    document.getElementById('userRol').textContent    = u.rol || '';
-    document.getElementById('userAvatar').textContent = u.nombre[0].toUpperCase();
+function hallazgos(s, q) {
+  const out = [];
+  const total = Number(s.total || 0);
+  const con = Number(s.con_diabetes || 0);
+  if (!total) {
+    return ['No hay workpanel clínico en MinIO. El analista debe materializar el dataset (Datos → Dataset / Orquestador) y volver a entrar.'];
   }
-  const rol = u.rol || '';
-  const ACCESO = {
-    'administrador': ['analisis','registros','dataset','usuarios','prediccion','pipeline','modelo','reportes','auditoria','notificaciones','configuracion','benchmarking','integraciones'],
-    'medico':        ['analisis','registros','prediccion'],
-    'analista':      ['analisis','dataset','prediccion'],
-  };
-  const permitidos = ACCESO[rol] || [];
-  document.querySelectorAll('.nav-group').forEach(g => {
-    const label = g.querySelector('.nav-group-label');
-    if (!label) return;
-    const texto = label.textContent.toLowerCase();
-    const visible = permitidos.some(p => texto.includes(p === 'analisis' ? 'nál' : p === 'registros' ? 'egistro' : p === 'dataset' ? 'ataset' : p === 'usuarios' ? 'suario' : p === 'prediccion' ? 'redicci' : p === 'pipeline' ? 'ipeline' : p === 'modelo' ? 'odelo m' : p === 'reportes' ? 'eporte' : p === 'auditoria' ? 'uditor' : p === 'notificaciones' ? 'otificac' : p === 'configuracion' ? 'onfigur' : p === 'benchmarking' ? 'enchmark' : p === 'integraciones' ? 'ntegrac' : p));
-    if (!visible) g.style.display = 'none';
-  });
-}
-
-function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
-
-function aplicarRoles() {
-  const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-  const rol = u.rol || '';
-  const OCULTAR = {
-    'medico':   ['Dataset','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-    'analista': ['Registros clínicos','Usuarios','Pipeline ELT','Modelo ML','Reportes','Auditoría','Notificaciones','Configuración','Benchmarking','Integraciones'],
-  };
-  const ocultar = OCULTAR[rol] || [];
-  document.querySelectorAll('.nav-group').forEach(g => {
-    const label = g.querySelector('.nav-group-label');
-    if (!label) return;
-    const txt = label.textContent.trim();
-if (ocultar.some(o => txt.includes(o))) g.style.display = 'none';
-  });
-}
-
-const baseOpts = {
-  responsive: true, maintainAspectRatio: false,
-  plugins: {
-    legend: { labels: { color: '#666', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10 } },
-    tooltip: { backgroundColor: 'rgba(13,13,21,0.95)', titleColor: '#f0f0f0', bodyColor: '#888', borderColor: 'rgba(34,211,238,0.2)', borderWidth: 1 }
-  },
-  scales: {
-    x: { ticks: { color: '#444', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-    y: { ticks: { color: '#444', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+  const prev = total ? (con / total * 100) : 0;
+  out.push(`Cohorte de ${nfmt(total)} encuentros; ${nfmt(con)} con diabetes (${prev.toFixed(1)}%).`);
+  const p = s.promedios || {};
+  const hba = Number(p.hba1c && p.hba1c.con);
+  if (hba > 7.5) out.push(`Alerta: HbA1c promedio en DM+ es ${hba} % (> 7,5). Priorizar control glucémico.`);
+  else if (hba) out.push(`HbA1c promedio en DM+ = ${hba} % (umbral de alerta 7,5).`);
+  const ctrl = q && q.control_hba1c;
+  if (ctrl && ctrl.con_dato) {
+    out.push(`En DM+ con HbA1c medido: ${pct(ctrl.pct_controlado)} controlados (<7 %), ${pct(ctrl.pct_descontrol)} en descontrol (≥9 %).`);
   }
-};
-
-function mkChart(id, type, labels, datasets, extraOpts = {}) {
-  if (charts[id]) charts[id].destroy();
-  const merged = JSON.parse(JSON.stringify(baseOpts));
-  Object.assign(merged, extraOpts);
-  if (extraOpts.plugins) Object.assign(merged.plugins, extraOpts.plugins);
-  if (extraOpts.scales)  Object.assign(merged.scales,  extraOpts.scales);
-  const data = labels ? { labels, datasets } : { datasets };
-  charts[id] = new Chart(document.getElementById(id), { type, data, options: merged });
-}
-
-function normPct(val, max) { return Math.min(100, Math.round(val / max * 1000) / 10); }
-
-function mkHistogram(id, histData) {
-  if (!histData) return;
-  const labels = Object.keys(histData);
-  mkChart(id, 'line', labels, [
-    { label: 'Con diabetes', data: labels.map(l => histData[l].con), borderColor: 'rgba(248,113,113,0.9)', backgroundColor: 'rgba(248,113,113,0.22)', fill: true, tension: 0.35, pointRadius: 3, pointHoverRadius: 5 },
-    { label: 'Sin diabetes', data: labels.map(l => histData[l].sin), borderColor: 'rgba(74,222,128,0.9)', backgroundColor: 'rgba(74,222,128,0.12)', fill: true, tension: 0.35, pointRadius: 3, pointHoverRadius: 5 }
-  ], { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('es-ES')}` } } } });
-}
-
-function mkTendenciaCombo(id, tendencia) {
-  if (charts[id]) charts[id].destroy();
-  const labels = tendencia.map(t => t.year);
-  const totals = tendencia.map(t => t.total);
-  const prev = tendencia.map(t => t.prevalencia ?? (t.total ? Math.round(t.con_diabetes / t.total * 1000) / 10 : 0));
-  charts[id] = new Chart(document.getElementById(id), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { type: 'bar', label: 'Total registros', data: totals, backgroundColor: 'rgba(34,211,238,0.35)', borderColor: 'rgba(34,211,238,0.55)', borderWidth: 1, yAxisID: 'y' },
-        { type: 'line', label: 'Prevalencia diabetes (%)', data: prev, borderColor: 'rgba(251,191,36,0.95)', backgroundColor: 'rgba(251,191,36,0.08)', tension: 0.35, pointRadius: 4, fill: false, yAxisID: 'y1' }
-      ]
-    },
-    options: {
-      ...baseOpts,
-      scales: {
-        x: baseOpts.scales.x,
-        y: { ...baseOpts.scales.y, position: 'left', title: { display: true, text: 'Registros', color: '#555', font: { size: 9 } } },
-        y1: { position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { color: '#666', font: { size: 9 }, callback: v => v + '%' }, title: { display: true, text: 'Prevalencia', color: '#555', font: { size: 9 } } }
-      }
-    }
+  const edad = s.prevalencia_edad || {};
+  let topE = '', topV = -1;
+  Object.entries(edad).forEach(([k, v]) => {
+    if (Number(v) > topV) { topV = Number(v); topE = k; }
   });
+  if (topE) out.push(`Mayor prevalencia por edad: ${topE} (${pct(topV)}).`);
+  const cp = s.comorbilidades_prevalencia || {};
+  if (cp.hipertension) {
+    out.push(`Hipertensión en DM+: ${pct(cp.hipertension.con_diabetes)} vs ${pct(cp.hipertension.sin_diabetes)} en no diabéticos.`);
+  }
+  const rec = (q && q.recomendaciones) || [];
+  rec.slice(0, 2).forEach(t => out.push(t));
+  return out;
 }
 
-// Mapas de traducción
-const GENERO_ES  = { 'Male':'Masculino', 'Female':'Femenino', 'Other':'Otro',
-                     'Masculino':'Masculino', 'Femenino':'Femenino', 'Otro':'Otro' };
-const TABACO_ES  = { 'never':'Nunca', 'current':'Actual', 'not current':'No actual',
-                     'No Info':'Sin info', 'nunca':'Nunca', 'actual':'Actual',
-                     'no actual':'No actual', 'Sin información':'Sin info' };
-const RAZA_ES    = { 'race_AfricanAmerican':'Afroamericano', 'race_Asian':'Asiático',
-                     'race_Caucasian':'Caucásico', 'race_Hispanic':'Hispano', 'race_Other':'Otro' };
+function pintarPromedios(p) {
+  if (!p) return;
+  setTxt('v-bmi-c', p.bmi?.con ?? '—');
+  setTxt('v-bmi-s', p.bmi?.sin ?? '—');
+  setTxt('v-hba-c', p.hba1c?.con ?? '—');
+  setTxt('v-hba-s', p.hba1c?.sin ?? '—');
+  setTxt('v-glc-c', p.glucosa?.con ?? '—');
+  setTxt('v-glc-s', p.glucosa?.sin ?? '—');
+  barW('b-bmi-c', p.bmi?.con, 45);
+  barW('b-bmi-s', p.bmi?.sin, 45);
+  barW('b-hba-c', p.hba1c?.con, 12);
+  barW('b-hba-s', p.hba1c?.sin, 12);
+  barW('b-glc-c', p.glucosa?.con, 280);
+  barW('b-glc-s', p.glucosa?.sin, 280);
+}
 
-async function cargar() {
-  if (!localStorage.getItem('token')) { window.location.href = '/'; return; }
-  let desdeCache = false;
-  try {
-    const cached = sessionStorage.getItem(STATS_CACHE_KEY);
-    if (cached) {
-      const { data, ts } = JSON.parse(cached);
-      if (Date.now() - ts < 5 * 60 * 1000 && data?.total) {
-        renderEstadisticas(data);
-        desdeCache = true;
+function pintarHist(id, hist) {
+  if (!hist || !window.DiabCareGraf) return;
+  const labels = Object.keys(hist);
+  const con = labels.map(l => hist[l].con || 0);
+  const sin = labels.map(l => hist[l].sin || 0);
+  DiabCareGraf.bars(document.getElementById(id), labels, [con, sin], { colors: ['#C46B6B', '#6B9A7A'] });
+}
+
+function pintar(s, q) {
+  _stats = s;
+  _calidad = q;
+  const total = Number(s.total || 0);
+  const con = Number(s.con_diabetes || 0);
+  const sin = Number(s.sin_diabetes != null ? s.sin_diabetes : Math.max(0, total - con));
+  setTxt('k-total', nfmt(total));
+  setTxt('k-con', nfmt(con));
+  setTxt('k-sin', nfmt(sin));
+  setTxt('k-prev', total ? (con / total * 100).toFixed(1) + '%' : '0%');
+  setTxt('k-total-h', total ? 'encuentros workpanel' : 'sin parquet en stage/');
+  setTxt('k-con-h', total ? nfmt(con) + ' DM+' : 'genere dataset clínico');
+
+  const ul = document.getElementById('listaHallazgos');
+  ul.innerHTML = hallazgos(s, q).map(t => `<li>${t}</li>`).join('');
+
+  if (!total) {
+    ['c-pie','c-ctrl','c-bmi','c-hba','c-glc','c-edad','c-gen','c-raza','c-comorb','c-year'].forEach(id => {
+      const c = document.getElementById(id);
+      if (c && c.getContext) {
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, c.width, c.height);
       }
-    }
-  } catch {}
-
-  if (!desdeCache) {
-    ['s-total','s-con','s-sin','s-prev'].forEach(id => {
-      document.getElementById(id).textContent = '…';
     });
-  }
-  try {
-    const r = await fetch(`${API}/api/registros/estadisticas`, { headers: authHdr() });
-    if (r.status === 401) { window.location.href = '/'; return; }
-    if (r.status === 403) {
-      ['s-total','s-con','s-sin','s-prev'].forEach(id => {
-        document.getElementById(id).textContent = '-';
-      });
-      alert('Sin permiso para estadísticas. Cierre sesión y vuelva a entrar con su rol actualizado.');
-      return;
-    }
-    const d = await r.json();
-    try { sessionStorage.setItem(STATS_CACHE_KEY, JSON.stringify({ data: d, ts: Date.now() })); } catch {}
-    renderEstadisticas(d);
-  } catch(e) {
-    console.error(e);
-    ['s-total','s-con','s-sin','s-prev'].forEach(id => document.getElementById(id).textContent = '-');
-  }
-}
-
-function renderEstadisticas(d) {
-  if (!d.total) {
-    ['s-total','s-con','s-sin','s-prev'].forEach(id => document.getElementById(id).textContent = '0');
     return;
   }
-  document.getElementById('s-total').textContent = d.total.toLocaleString('es-ES');
-  document.getElementById('s-con').textContent   = d.con_diabetes.toLocaleString('es-ES');
-  document.getElementById('s-sin').textContent   = d.sin_diabetes.toLocaleString('es-ES');
-  document.getElementById('s-prev').textContent  = Math.round((d.con_diabetes / d.total) * 100) + '%';
 
-  if (d.promedios) {
-    const p = d.promedios;
-    document.getElementById('k-bmi-con').textContent = p.bmi.con;
-    document.getElementById('k-bmi-sin').textContent = p.bmi.sin;
-    document.getElementById('k-hba-con').textContent = p.hba1c.con;
-    document.getElementById('k-hba-sin').textContent = p.hba1c.sin;
-    document.getElementById('k-glc-con').textContent = p.glucosa.con;
-    document.getElementById('k-glc-sin').textContent = p.glucosa.sin;
+  pintarPromedios(s.promedios);
+  if (window.DiabCareGraf) {
+    DiabCareGraf.doughnut(document.getElementById('c-pie'), ['Sin diabetes', 'Con diabetes'], [sin, con], ['#6B9A7A', '#C46B6B']);
+    const h = (q && q.control_hba1c) || {};
+    if (h.con_dato) {
+      DiabCareGraf.doughnut(document.getElementById('c-ctrl'),
+        ['Control <7%', 'Subóptimo 7–9%', 'Descontrol ≥9%'],
+        [h.controlado_lt7 || 0, h.suboptimo_7_9 || 0, h.descontrol_gte9 || 0],
+        ['#6B9A7A', '#C4A06A', '#C46B6B']);
+    }
+    if (s.histogramas) {
+      pintarHist('c-bmi', s.histogramas.bmi);
+      pintarHist('c-hba', s.histogramas.hba1c);
+      pintarHist('c-glc', s.histogramas.glucosa);
+    }
+    const prevEdad = s.prevalencia_edad || {};
+    const eLab = Object.keys(prevEdad);
+    DiabCareGraf.line(document.getElementById('c-edad'), eLab, eLab.map(k => prevEdad[k]), '#C4A06A');
+    const gen = s.genero_detalle || {};
+    const gLab = Object.keys(gen).map(k => GENERO[k] || k);
+    const gVal = Object.values(gen).map(v => Number(v.prevalencia || 0));
+    DiabCareGraf.bars(document.getElementById('c-gen'), gLab, [gVal], { colors: ['#8FB4BE'] });
+    const raz = s.razas_prevalencia || s.razas || {};
+    const rLab = Object.keys(raz).map(k => RAZA[k] || k);
+    const rVal = Object.values(raz).map(v => Number(v.prevalencia != null ? v.prevalencia : 0));
+    DiabCareGraf.bars(document.getElementById('c-raza'), rLab, [rVal], { colors: ['#8FB4BE'] });
+    const cp = s.comorbilidades_prevalencia || {};
+    if (cp.hipertension) {
+      DiabCareGraf.bars(document.getElementById('c-comorb'),
+        ['HTA', 'Cardiopatía'],
+        [[cp.hipertension.con_diabetes || 0, cp.cardiopatia?.con_diabetes || 0],
+         [cp.hipertension.sin_diabetes || 0, cp.cardiopatia?.sin_diabetes || 0]],
+        { colors: ['#C46B6B', '#6B9A7A'] });
+    }
+    const tend = s.tendencia || [];
+    DiabCareGraf.bars(document.getElementById('c-year'),
+      tend.map(t => t.year),
+      [tend.map(t => t.total || 0)],
+      { colors: ['#8FB4BE'] });
   }
 
-  // Donut prevalencia global
-  mkChart('c-pie', 'doughnut',
-    ['Sin diabetes', 'Con diabetes'],
-    [{ data: [d.sin_diabetes, d.con_diabetes], backgroundColor: ['rgba(74,222,128,0.75)', 'rgba(248,113,113,0.75)'], borderWidth: 0 }],
-    { scales: {}, plugins: { legend: { position: 'bottom', labels: { color: '#666', font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10 } } } }
-  );
+  const edadRows = Object.entries(s.edad || {}).map(([k, v]) => {
+    const t = (v.con_diabetes || 0) + (v.sin_diabetes || 0);
+    const pr = t ? (v.con_diabetes / t * 100) : 0;
+    return [k, nfmt(t), nfmt(v.con_diabetes), pr.toFixed(1) + '%'];
+  });
+  document.getElementById('t-edad').innerHTML = tabla(['Grupo', 'N', 'DM+', 'Prev.'], edadRows);
 
-  // Radar perfil clínico
-  if (d.promedios) {
-    const p = d.promedios;
-    const cp = d.comorbilidades_prevalencia || {};
-    mkChart('c-radar-clinico', 'radar',
-      ['BMI', 'HbA1c', 'Glucosa', 'Hipertensión', 'Cardiopatía'],
-      [
-        { label: 'Con diabetes', data: [normPct(p.bmi.con, 42), normPct(p.hba1c.con, 10), normPct(p.glucosa.con, 260), cp.hipertension?.con_diabetes || 0, cp.cardiopatia?.con_diabetes || 0], borderColor: 'rgba(248,113,113,0.85)', backgroundColor: 'rgba(248,113,113,0.18)', pointRadius: 3 },
-        { label: 'Sin diabetes', data: [normPct(p.bmi.sin, 42), normPct(p.hba1c.sin, 10), normPct(p.glucosa.sin, 260), cp.hipertension?.sin_diabetes || 0, cp.cardiopatia?.sin_diabetes || 0], borderColor: 'rgba(74,222,128,0.85)', backgroundColor: 'rgba(74,222,128,0.1)', pointRadius: 3 }
-      ],
-      { scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 25 }, grid: { color: 'rgba(255,255,255,0.06)' }, pointLabels: { color: '#777', font: { size: 10 } } } } }
-    );
-  }
+  const tab = s.tabaquismo || {};
+  const tabRows = Object.entries(tab).map(([k, v]) => {
+    const t = (v.con_diabetes || 0) + (v.sin_diabetes || 0);
+    return [TABACO[k] || k, nfmt(t), pct(v.prevalencia)];
+  });
+  document.getElementById('t-tabaco').innerHTML = tabla(['Tabaco', 'N', 'Prev. DM'], tabRows);
 
-  // Histogramas clínicos
-  if (d.histogramas) {
-    mkHistogram('c-hist-bmi', d.histogramas.bmi);
-    mkHistogram('c-hist-hba', d.histogramas.hba1c);
-    mkHistogram('c-hist-glc', d.histogramas.glucosa);
-  }
+  const cp = s.comorbilidades_prevalencia || {};
+  document.getElementById('t-comorb').innerHTML = cp.hipertension
+    ? tabla(['Comorbilidad', 'En DM+', 'En DM−'], [
+        ['Hipertensión', pct(cp.hipertension.con_diabetes), pct(cp.hipertension.sin_diabetes)],
+        ['Cardiopatía', pct(cp.cardiopatia?.con_diabetes), pct(cp.cardiopatia?.sin_diabetes)],
+      ])
+    : '';
 
-  // Scatter BMI vs HbA1c
-  if (d.scatter_muestra?.length) {
-    const conPts = d.scatter_muestra.filter(p => p.diabetes === 1).map(p => ({ x: p.bmi, y: p.hba1c }));
-    const sinPts = d.scatter_muestra.filter(p => p.diabetes === 0).map(p => ({ x: p.bmi, y: p.hba1c }));
-    mkChart('c-scatter', 'scatter', null, [
-      { label: 'Con diabetes', data: conPts, backgroundColor: 'rgba(248,113,113,0.55)', borderColor: 'rgba(248,113,113,0.2)', pointRadius: 4, pointHoverRadius: 6 },
-      { label: 'Sin diabetes', data: sinPts, backgroundColor: 'rgba(74,222,128,0.45)', borderColor: 'rgba(74,222,128,0.15)', pointRadius: 3, pointHoverRadius: 5 }
-    ], {
-      scales: {
-        x: { ...baseOpts.scales.x, title: { display: true, text: 'BMI', color: '#555', font: { size: 9 } } },
-        y: { ...baseOpts.scales.y, title: { display: true, text: 'HbA1c (%)', color: '#555', font: { size: 9 } } }
-      },
-      plugins: { tooltip: { callbacks: { label: ctx => `BMI ${ctx.parsed.x}, HbA1c ${ctx.parsed.y}%` } } }
-    });
-  }
-
-  // Prevalencia por edad (línea)
-  const prevEdad = d.prevalencia_edad || (d.edad ? Object.fromEntries(Object.entries(d.edad).map(([k, v]) => [k, v.con_diabetes + v.sin_diabetes ? Math.round(v.con_diabetes / (v.con_diabetes + v.sin_diabetes) * 1000) / 10 : 0])) : null);
-  if (prevEdad) {
-    const eLabels = Object.keys(prevEdad);
-    mkChart('c-edad', 'line', eLabels,
-      [{ label: 'Prevalencia diabetes (%)', data: eLabels.map(l => prevEdad[l]), borderColor: 'rgba(251,191,36,0.9)', backgroundColor: 'rgba(251,191,36,0.12)', fill: true, tension: 0.4, pointRadius: 4 }],
-      { scales: { y: { ...baseOpts.scales.y, min: 0, max: 100, ticks: { ...baseOpts.scales.y.ticks, callback: v => v + '%' } } } }
-    );
-  }
-
-  // Prevalencia por género (polar)
-  const genDet = d.genero_detalle || (d.genero ? Object.fromEntries(Object.entries(d.genero).map(([k, total]) => [k, { total, prevalencia: 0 }])) : null);
-  if (genDet) {
-    const gLabels = Object.keys(genDet).map(k => GENERO_ES[k] || k);
-    const gPrev = Object.values(genDet).map(v => v.prevalencia ?? 0);
-    mkChart('c-genero', 'polarArea', gLabels,
-      [{ label: 'Prevalencia (%)', data: gPrev, backgroundColor: ['rgba(34,211,238,0.55)', 'rgba(139,92,246,0.55)', 'rgba(20,184,166,0.55)'] }],
-      { scales: { r: { ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.06)' } } }, plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed.r}%` } } } }
-    );
-  }
-
-  // Prevalencia por raza (radar)
-  const razasSrc = d.razas_prevalencia || d.razas;
-  if (razasSrc) {
-    const rLabels = Object.keys(razasSrc).map(k => RAZA_ES[k] || k);
-    const rPrev = Object.values(razasSrc).map(v => v.prevalencia ?? (v.con_diabetes + v.sin_diabetes ? Math.round(v.con_diabetes / (v.con_diabetes + v.sin_diabetes) * 1000) / 10 : 0));
-    mkChart('c-raza', 'radar', rLabels,
-      [{ label: 'Prevalencia diabetes (%)', data: rPrev, borderColor: 'rgba(34,211,238,0.85)', backgroundColor: 'rgba(34,211,238,0.15)', pointRadius: 4 }],
-      { scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.06)' }, pointLabels: { color: '#777', font: { size: 9 } } } } }
-    );
-  }
-
-  // Comorbilidades radar
-  if (d.comorbilidades_prevalencia) {
-    const cp = d.comorbilidades_prevalencia;
-    mkChart('c-comorb', 'radar',
-      ['Hipertensión', 'Cardiopatía'],
-      [
-        { label: 'Con diabetes', data: [cp.hipertension.con_diabetes, cp.cardiopatia.con_diabetes], borderColor: 'rgba(248,113,113,0.85)', backgroundColor: 'rgba(248,113,113,0.15)', pointRadius: 4 },
-        { label: 'Sin diabetes', data: [cp.hipertension.sin_diabetes, cp.cardiopatia.sin_diabetes], borderColor: 'rgba(74,222,128,0.85)', backgroundColor: 'rgba(74,222,128,0.1)', pointRadius: 4 }
-      ],
-      { scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.06)' }, pointLabels: { color: '#777', font: { size: 10 } } } } }
-    );
-  }
-
-  // Tabaquismo - prevalencia %
-  if (d.tabaquismo) {
-    const tLabels = Object.keys(d.tabaquismo).map(k => TABACO_ES[k] || k);
-    const tPrev = Object.values(d.tabaquismo).map(v => v.prevalencia ?? (v.con_diabetes + v.sin_diabetes ? Math.round(v.con_diabetes / (v.con_diabetes + v.sin_diabetes) * 1000) / 10 : 0));
-    mkChart('c-tabaco', 'line', tLabels,
-      [{ label: 'Prevalencia diabetes (%)', data: tPrev, borderColor: 'rgba(139,92,246,0.9)', backgroundColor: 'rgba(139,92,246,0.12)', fill: true, tension: 0.35, pointRadius: 4 }],
-      { scales: { y: { ...baseOpts.scales.y, min: 0, max: 100, ticks: { ...baseOpts.scales.y.ticks, callback: v => v + '%' } } } }
-    );
-  }
-
-  // Ubicaciones bubble
-  const ubicSrc = d.ubicaciones_prevalencia || (d.ubicaciones ? Object.fromEntries(Object.entries(d.ubicaciones).map(([k, total]) => [k, { total, prevalencia: 0 }])) : null);
-  if (ubicSrc) {
-    const bubbles = Object.entries(ubicSrc).map(([name, v]) => ({
-      x: v.total,
-      y: v.prevalencia ?? 0,
-      r: Math.max(6, Math.min(22, Math.sqrt(v.total) / 180))
-    }));
-    const ubicLabels = Object.keys(ubicSrc);
-    mkChart('c-ubicacion', 'bubble', null, [{
-      label: 'Ubicaciones',
-      data: bubbles,
-      backgroundColor: bubbles.map((_, i) => `hsla(${180 + i * 18}, 70%, 55%, 0.55)`),
-      borderColor: 'rgba(34,211,238,0.4)'
-    }], {
-      scales: {
-        x: { ...baseOpts.scales.x, title: { display: true, text: 'Pacientes', color: '#555', font: { size: 9 } } },
-        y: { ...baseOpts.scales.y, min: 0, max: 100, title: { display: true, text: 'Prevalencia (%)', color: '#555', font: { size: 9 } }, ticks: { callback: v => v + '%' } }
-      },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              const name = ubicLabels[ctx.dataIndex] || '';
-              return `${name}: ${ctx.parsed.x.toLocaleString('es-ES')} pac., ${ctx.parsed.y}% prev.`;
-            }
-          }
-        },
-        legend: { display: false }
-      }
-    });
-  }
-
-  // Tendencia combo
-  if (d.tendencia?.length) mkTendenciaCombo('c-tendencia', d.tendencia);
+  const ubic = s.ubicaciones_prevalencia || {};
+  const uRows = Object.entries(ubic).map(([k, v]) => [k, nfmt(v.total), pct(v.prevalencia)]);
+  document.getElementById('t-sedes').innerHTML = tabla(['Sede', 'Pacientes', 'Prev. DM'], uRows);
 }
 
+function exportCsv() {
+  const s = _stats;
+  if (!s || !s.total) {
+    DiabCareAPI.toast('No hay estadísticas para exportar', 'error');
+    return;
+  }
+  const lines = ['corte,clave,valor'];
+  lines.push(`resumen,total,${s.total}`);
+  lines.push(`resumen,con_diabetes,${s.con_diabetes}`);
+  lines.push(`resumen,sin_diabetes,${s.sin_diabetes}`);
+  Object.entries(s.prevalencia_edad || {}).forEach(([k, v]) => lines.push(`edad,${k},${v}`));
+  Object.entries(s.genero_detalle || {}).forEach(([k, v]) => lines.push(`genero,${k},${v.prevalencia}`));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'diabcare-estadisticas.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function cargar() {
+  setTxt('k-total', '…');
+  const [st, cal] = await Promise.all([
+    DiabCareAPI.json('/api/registros/estadisticas'),
+    DiabCareAPI.json('/api/registros/calidad-diabetes'),
+  ]);
+  if (st.status === 401 || cal.status === 401) return;
+  if (!st.ok) {
+    setTxt('k-total', '—');
+    document.getElementById('listaHallazgos').innerHTML =
+      '<li>No se pudieron leer las estadísticas del workpanel. Revise sesión y MinIO.</li>';
+    DiabCareAPI.toast('Error al cargar estadísticas', 'error');
+    return;
+  }
+  pintar(st.data || { total: 0 }, cal.ok ? cal.data : {});
+}
+
+document.getElementById('btnReload').addEventListener('click', cargar);
+document.getElementById('btnCsv').addEventListener('click', exportCsv);
+window.addEventListener('resize', () => { if (_stats) pintar(_stats, _calidad || {}); });
 cargar();
 </script>
 </body>

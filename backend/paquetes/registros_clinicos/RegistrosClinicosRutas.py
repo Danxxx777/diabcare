@@ -1,8 +1,9 @@
-﻿from fastapi import APIRouter, Query, Depends
+﻿from fastapi import APIRouter, Query, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
 from nucleo.utilidades.Dependencias import require_modulo, require_auth
+from nucleo.utilidades.Validaciones import rango_numeros_ok
 from paquetes.registros_clinicos.RegistrosClinicosServicio import (
     listar, obtener, crear, actualizar, eliminar, buscar,
     estadisticas as _estadisticas,
@@ -10,6 +11,18 @@ from paquetes.registros_clinicos.RegistrosClinicosServicio import (
 )
 
 router = APIRouter(prefix="/api/registros", tags=["Registros Clínicos"])
+
+
+def _filtros_edad(age_min, age_max) -> dict:
+    err = rango_numeros_ok(age_min, age_max, "edad")
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+    out = {}
+    if age_min is not None:
+        out["age_min"] = age_min
+    if age_max is not None:
+        out["age_max"] = age_max
+    return out
 
 
 def _usuario(payload: dict) -> str:
@@ -54,7 +67,7 @@ class ActualizarEntrada(BaseModel):
 
 
 @router.get("/estadisticas")
-def estadisticas(payload: dict = Depends(require_auth)):
+def estadisticas(payload: dict = Depends(require_modulo("analisis"))):
     return _estadisticas()
 
 
@@ -79,8 +92,8 @@ def buscar_registros(
     age_max: Optional[float] = None,
     payload: dict = Depends(require_modulo("registros")),
 ):
-    filtros = {"diabetes": diabetes, "gender": gender, "location": location,
-               "age_min": age_min, "age_max": age_max}
+    filtros = {"diabetes": diabetes, "gender": gender, "location": location}
+    filtros.update(_filtros_edad(age_min, age_max))
     _auditar(_usuario(payload), "read", f"Búsqueda avanzada: {filtros}")
     return buscar(filtros)
 
@@ -104,10 +117,7 @@ def listar_registros(
         filtros["gender"] = gender
     if location:
         filtros["location"] = location
-    if age_min is not None:
-        filtros["age_min"] = age_min
-    if age_max is not None:
-        filtros["age_max"] = age_max
+    filtros.update(_filtros_edad(age_min, age_max))
     if q:
         filtros["q"] = q.strip()
     if filtros:
@@ -123,9 +133,11 @@ def obtener_registro(encounter_id: int, payload: dict = Depends(require_modulo("
 
 @router.post("/")
 def crear_registro(datos: RegistroEntrada, payload: dict = Depends(require_modulo("registros"))):
+    from fastapi import HTTPException
     res = crear(datos.dict())
-    if "error" not in res:
-        _auditar(_usuario(payload), "create", f"Registro creado id={res.get('encounter_id')}")
+    if "error" in res:
+        raise HTTPException(status_code=400, detail=res["error"])
+    _auditar(_usuario(payload), "create", f"Registro creado id={res.get('encounter_id')}")
     return res
 
 
@@ -135,15 +147,19 @@ def actualizar_registro(
     datos: ActualizarEntrada,
     payload: dict = Depends(require_modulo("registros")),
 ):
+    from fastapi import HTTPException
     res = actualizar(encounter_id, datos.dict(exclude_none=True))
-    if "error" not in res:
-        _auditar(_usuario(payload), "update", f"Registro actualizado id={encounter_id}")
+    if "error" in res:
+        raise HTTPException(status_code=400, detail=res["error"])
+    _auditar(_usuario(payload), "update", f"Registro actualizado id={encounter_id}")
     return res
 
 
 @router.delete("/{encounter_id}")
 def eliminar_registro(encounter_id: int, payload: dict = Depends(require_modulo("registros"))):
+    from fastapi import HTTPException
     res = eliminar(encounter_id)
-    if "error" not in res:
-        _auditar(_usuario(payload), "delete", f"Registro eliminado id={encounter_id}")
+    if "error" in res:
+        raise HTTPException(status_code=400, detail=res["error"])
+    _auditar(_usuario(payload), "delete", f"Registro eliminado id={encounter_id}")
     return res

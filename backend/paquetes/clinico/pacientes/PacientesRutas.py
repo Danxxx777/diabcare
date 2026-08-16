@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Header
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Header, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional
 
-from nucleo.utilidades.Dependencias import require_modulo, _extraer_token, PERMISOS_MODULOS
+from nucleo.utilidades.Dependencias import require_modulo, auth_desde_request, PERMISOS_MODULOS
 from paquetes.clinico.pacientes.PacientesServicio import (
-    resumen, listar, obtener, crear, actualizar, desactivar,
+    resumen, listar, obtener, crear, actualizar, eliminar,
 )
 from paquetes.registros_clinicos.RegistrosClinicosServicio import listar_por_paciente
 
@@ -25,14 +25,12 @@ def _auditar(usuario: str, tipo: str, detalle: str):
 
 
 def _auth_foto(
+    request: Request,
     authorization: str = Header(None),
     token: str = Query(None),
 ) -> dict:
-    """JWT por cabecera Authorization o ?token= (necesario para <img src>)."""
-    raw = (authorization or "").replace("Bearer ", "").strip() or (token or "").strip()
-    if not raw:
-        raise HTTPException(status_code=401, detail="Token requerido")
-    payload = _extraer_token(raw)
+    """Cookie httpOnly, Authorization o ?token= (legacy para <img src>)."""
+    payload = auth_desde_request(request, authorization, token_query=token)
     roles = PERMISOS_MODULOS.get("pacientes", ["administrador"])
     if payload.get("rol") not in roles:
         raise HTTPException(status_code=403, detail="Sin acceso al módulo pacientes")
@@ -184,9 +182,9 @@ def editar_paciente(
 
 
 @router.delete("/{id_paciente}")
-def baja_paciente(id_paciente: str, payload: dict = Depends(require_modulo("pacientes"))):
-    res = desactivar(id_paciente)
+def eliminar_paciente(id_paciente: str, payload: dict = Depends(require_modulo("pacientes"))):
+    res = eliminar(id_paciente)
     if "error" in res:
         raise HTTPException(status_code=404, detail=res["error"])
-    _auditar(_usuario(payload), "delete", f"Paciente {id_paciente} desactivado")
+    _auditar(_usuario(payload), "delete", f"Paciente {id_paciente} eliminado")
     return res

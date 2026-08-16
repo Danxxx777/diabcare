@@ -91,16 +91,46 @@ def enriquecer(filas: list, *, estados: dict | None = None) -> list:
     return out
 
 
-def listar_ordenes(**kwargs) -> dict:
-    res = ordenes.listar(**kwargs)
-    res["ordenes"] = enriquecer(res.get("ordenes") or [], estados=ESTADOS_ORDEN)
+_CAMPOS_BUSQUEDA = (
+    "paciente_nombre", "paciente_label", "documento", "prueba_label",
+    "prueba_nombre", "estado", "estado_label", "valor", "unidad", "fecha",
+)
+
+
+def _filtrar_enriquecidos(rows: list, q: str) -> list:
+    ql = str(q or "").strip().lower()
+    if not ql:
+        return rows
+    tokens = [t for t in ql.replace(",", " ").split() if t]
+    out = []
+    for r in rows:
+        blob = " ".join(str(r.get(k) or "") for k in _CAMPOS_BUSQUEDA).lower()
+        if ql in blob or (tokens and all(t in blob for t in tokens)):
+            out.append(r)
+    return out
+
+
+def _listar_enriquecido(store, key: str, estados: dict, offset: int = 0, limit: int = 50, q: str = "", **kwargs) -> dict:
+    """Lista + enriquece; con q busca por nombre/cédula/prueba (no por UUID)."""
+    incluir = kwargs.get("incluir_inactivos", True)
+    qn = str(q or "").strip()
+    if qn:
+        res = store.listar(offset=0, limit=10**9, q="", incluir_inactivos=incluir)
+        rows = enriquecer(res.get(key) or [], estados=estados)
+        rows = _filtrar_enriquecidos(rows, qn)
+        total = len(rows)
+        return {"total": total, key: rows[offset: offset + limit]}
+    res = store.listar(offset=offset, limit=limit, q="", incluir_inactivos=incluir)
+    res[key] = enriquecer(res.get(key) or [], estados=estados)
     return res
+
+
+def listar_ordenes(**kwargs) -> dict:
+    return _listar_enriquecido(ordenes, "ordenes", ESTADOS_ORDEN, **kwargs)
 
 
 def listar_resultados(**kwargs) -> dict:
-    res = resultados.listar(**kwargs)
-    res["resultados"] = enriquecer(res.get("resultados") or [], estados=ESTADOS_RESULTADO)
-    return res
+    return _listar_enriquecido(resultados, "resultados", ESTADOS_RESULTADO, **kwargs)
 
 
 def cargar_resultado(id_orden: str, datos: dict) -> dict:
@@ -124,18 +154,42 @@ def cargar_resultado(id_orden: str, datos: dict) -> dict:
     })
     ordenes.actualizar(id_orden, {"estado": "completada"})
     try:
-        nombre = str(pr.get("nombre") or pr.get("codigo") or "").lower()
-        if "hba1c" in nombre or "glucosa" in nombre:
-            from paquetes.notificaciones.NotificacionesServicio import crear as notif_crear
-            pac = str(o.get("id_paciente") or "")
-            notif_crear({
-                "titulo": "Resultado lab clínico",
-                "mensaje": f"{nombre}: {valor} {unidad} (paciente {pac})",
-                "tipo": "info",
-            })
+        from paquetes.notificaciones.NotificacionesServicio import emitir_a_roles
+        nombre = str(pr.get("nombre") or pr.get("codigo") or "Prueba")
+        pac = str(o.get("id_paciente") or "")
+        emitir_a_roles(
+            "Resultado de laboratorio listo",
+            f"{nombre}: {valor} {unidad} (paciente {pac}). Revise en Laboratorio / expediente.",
+            "info",
+            roles=["medico"],
+            referencia_tipo="lab_orden",
+            referencia_id=str(id_orden),
+        )
     except Exception:
         pass
     return r
+
+
+def resumen_operativo() -> dict:
+    """Informe simple: órdenes pendientes vs completadas y resultados cargados."""
+    odf = ordenes.extraer(copiar=False)
+    rdf = resultados.extraer(copiar=False)
+    pdf_ = pruebas.extraer(copiar=False)
+    pend = comp = anul = 0
+    if not odf.empty and "estado" in odf.columns:
+        est = odf["estado"].astype(str).str.lower()
+        pend = int(est.eq("pendiente").sum())
+        comp = int(est.eq("completada").sum())
+        anul = int(est.isin(["anulada", "anulado"]).sum())
+    return {
+        "tipo": "informe_simple",
+        "ordenes_total": int(len(odf)),
+        "ordenes_pendientes": pend,
+        "ordenes_completadas": comp,
+        "ordenes_anuladas": anul,
+        "resultados_registrados": int(len(rdf)),
+        "pruebas_catalogo": int(len(pdf_)),
+    }
 
 
 def seed():

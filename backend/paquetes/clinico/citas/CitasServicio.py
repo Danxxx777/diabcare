@@ -1,8 +1,8 @@
-import io
 import uuid
 import pandas as pd
 from datetime import date, datetime
-from paquetes.configuracion.ConfiguracionClienteMinio import get_cliente
+from nucleo.utilidades.ParquetCache import leer, escribir
+from nucleo.utilidades.Validaciones import horario_consulta_ok
 
 BUCKET_APP = "diabcare-app"
 ARCHIVO = "operativo/citas.parquet"
@@ -20,25 +20,14 @@ ESTADO_LABEL = {
 }
 
 
-def _extraer() -> pd.DataFrame:
-    try:
-        c = get_cliente()
-        if not c.bucket_exists(BUCKET_APP):
-            c.make_bucket(BUCKET_APP)
-        obj = c.get_object(BUCKET_APP, ARCHIVO)
-        return pd.read_parquet(io.BytesIO(obj.read()))
-    except Exception:
-        return pd.DataFrame(columns=COLUMNAS)
+def _extraer(copiar: bool = True) -> pd.DataFrame:
+    df = leer(BUCKET_APP, ARCHIVO, COLUMNAS, copiar=copiar)
+    return df if not df.empty else pd.DataFrame(columns=COLUMNAS)
 
 
 def _cargar(df: pd.DataFrame):
-    c = get_cliente()
-    if not c.bucket_exists(BUCKET_APP):
-        c.make_bucket(BUCKET_APP)
-    buf = io.BytesIO()
-    df.to_parquet(buf, index=False)
-    buf.seek(0)
-    c.put_object(BUCKET_APP, ARCHIVO, buf, buf.getbuffer().nbytes)
+    cols = [c for c in COLUMNAS if c in df.columns]
+    escribir(BUCKET_APP, ARCHIVO, df[cols] if cols else df)
 
 
 def _enriquecer_paciente(datos: dict) -> dict:
@@ -62,15 +51,12 @@ def _ids_consulta_pagada(ids: set[str]) -> set[str]:
         return set()
     try:
         from paquetes.facturacion.FacturacionServicio import facturas
-        data = facturas.listar(offset=0, limit=10**9, incluir_inactivos=True)
-        out = set()
-        for f in data.get("facturas") or []:
-            if str(f.get("estado") or "").lower() != "pagada":
-                continue
-            enc = str(f.get("encounter_id") or "").strip()
-            if enc in ids:
-                out.add(enc)
-        return out
+        df = facturas.extraer()
+        if df.empty or "encounter_id" not in df.columns:
+            return set()
+        mask = df["estado"].astype(str).str.lower().eq("pagada") if "estado" in df.columns else True
+        enc = df.loc[mask, "encounter_id"].astype(str)
+        return set(enc[enc.isin(ids)].tolist())
     except Exception:
         return set()
 
@@ -109,21 +95,74 @@ def enriquecer_citas(filas: list) -> list:
     return out
 
 
+def _fecha_con_agenda(df: pd.DataFrame, fecha: str = "") -> str:
+    """Hoy, o el último día con citas (datos sintéticos no caen siempre en la fecha del sistema)."""
+    f = str(fecha or date.today().isoformat())[:10]
+    if df.empty or "fecha" not in df.columns:
+        return f
+    col = df["fecha"].astype(str)
+    if col.str.startswith(f).any():
+        return f
+    try:
+        return str(col.max())[:10]
+    except Exception:
+        return f
+
+
 def hoy() -> dict:
-    df = _extraer()
+    df = _extraer(copiar=False)
     if df.empty:
-        return {"total": 0, "citas": []}
-    h = date.today().isoformat()
+        return {"total": 0, "citas": [], "fecha": date.today().isoformat()}
+    h = _fecha_con_agenda(df)
     sub = df[df["fecha"].astype(str).str.startswith(h)]
-    sub = sub.sort_values("hora")
-    rows = enriquecer_citas(sub.fillna("").to_dict(orient="records"))
-    return {"total": len(rows), "citas": rows}
+    total = int(len(sub))
+    if not sub.empty and "hora" in sub.columns:
+        sub = sub.sort_values("hora")
+    rows = enriquecer_citas(sub.head(80).fillna("").to_dict(orient="records"))
+    return {"total": total, "citas": rows, "fecha": h}
+
+
+def resumen_operativo(fecha: str = "") -> dict:
+    """Informe simple: totales y desglose transaccional (equivalente SELECT/agregación ligera en origen)."""
+    df = _extraer(copiar=False)
+    if df.empty:
+        return {
+            "tipo": "informe_simple",
+            "fecha": fecha or date.today().isoformat(),
+            "total": 0,
+            "por_estado": {},
+            "cobro_pagado": 0,
+            "cobro_pendiente": 0,
+        }
+    f = _fecha_con_agenda(df, fecha)
+    sub = df[df["fecha"].astype(str).str.startswith(f)]
+    total = int(len(sub))
+    por_estado: dict[str, int] = {}
+    if total and "estado" in sub.columns:
+        por_estado = (
+            sub["estado"].fillna("—").astype(str).str.lower().value_counts().to_dict()
+        )
+        por_estado = {str(k): int(v) for k, v in por_estado.items()}
+    pagadas = 0
+    if "consulta_pagada" in sub.columns:
+        pagadas = int(sub["consulta_pagada"].fillna(False).astype(bool).sum())
+    elif "estado" in sub.columns:
+        est = sub["estado"].astype(str).str.lower()
+        pagadas = int(est.isin(["confirmada", "atendida", "pagada"]).sum())
+    return {
+        "tipo": "informe_simple",
+        "fecha": f,
+        "total": total,
+        "por_estado": por_estado,
+        "cobro_pagado": pagadas,
+        "cobro_pendiente": max(0, total - pagadas),
+    }
 
 
 def listar(offset: int = 0, limit: int = 50, fecha: str = "", estado: str = "", q: str = "") -> dict:
     from nucleo.utilidades.Busqueda import rankear_dataframe
 
-    df = _extraer()
+    df = _extraer(copiar=False)
     if df.empty:
         return {"total": 0, "citas": []}
     if fecha:
@@ -162,7 +201,7 @@ def listar_por_medico(
     nombre = _nombre_medico(id_usuario) or str(nombre_jwt or "").strip()
     if not nombre:
         return {"total": 0, "medico": "", "citas": []}
-    df = _extraer()
+    df = _extraer(copiar=False)
     if df.empty:
         return {"total": 0, "medico": nombre, "citas": []}
     nl = nombre.lower()
@@ -185,10 +224,11 @@ def listar_por_medico(
     }
 
 
-def cobrar_consulta(id_cita: str, metodo: str = "efectivo") -> dict:
+def cobrar_consulta(id_cita: str, metodo: str = "efectivo", referencia: str = "") -> dict:
     """
     RN-CIT-010: caja cobra la consulta (tarifa CONS-DM) antes de que el médico atienda.
-    Emite factura + pago completo y deja la cita en confirmada (lista para consulta).
+    metodo=qr → emite factura y devuelve enlace/QR (el paciente paga; no se marca cobrada hasta el pago).
+    efectivo | tarjeta | transferencia → registra el cobro ahora.
     """
     cita = obtener(id_cita)
     if cita.get("error"):
@@ -211,75 +251,156 @@ def cobrar_consulta(id_cita: str, metodo: str = "efectivo") -> dict:
     from paquetes.facturacion import FacturacionServicio as Fact
 
     Fact.seed_basico()
-    tarifas = Fact.tarifario.listar(offset=0, limit=200, incluir_inactivos=True).get("tarifas") or []
-    tarifa = next(
-        (t for t in tarifas if str(t.get("codigo") or "").upper() == "CONS-DM"),
-        None,
-    )
-    if not tarifa:
-        creada = Fact.tarifario.crear({
-            "codigo": "CONS-DM",
-            "descripcion": "Consulta endocrinología diabetes",
-            "precio": 35.0,
-            "activo": True,
-        })
-        if creada.get("error"):
-            return {"error": "No hay tarifa CONS-DM. Cargue el catálogo en Facturación."}
-        tarifa = creada.get("registro") or {
-            "codigo": "CONS-DM",
-            "descripcion": "Consulta endocrinología diabetes",
-            "precio": 35.0,
-        }
-    try:
-        precio = round(float(tarifa.get("precio") or 0), 2)
-    except (TypeError, ValueError):
-        precio = 0.0
-    if precio <= 0:
-        return {"error": "La tarifa CONS-DM no tiene precio válido"}
+    pend = Fact.factura_abierta_por_cita(id_cita)
+    if pend:
+        fid = pend.get("id_factura")
+        try:
+            total = round(float(pend.get("total") or 0), 2)
+        except (TypeError, ValueError):
+            total = 0.0
+        if total <= 0:
+            return {"error": "La factura abierta no tiene total válido"}
+        concepto = Fact.concepto_factura(str(fid))
+    else:
+        tarifas = Fact.tarifario.listar(offset=0, limit=200, incluir_inactivos=True).get("tarifas") or []
+        tarifa = next(
+            (t for t in tarifas if str(t.get("codigo") or "").upper() == "CONS-DM"),
+            None,
+        )
+        if not tarifa:
+            creada = Fact.tarifario.crear({
+                "codigo": "CONS-DM",
+                "descripcion": "Consulta endocrinología diabetes",
+                "precio": 35.0,
+                "activo": True,
+            })
+            if creada.get("error"):
+                return {"error": "No hay tarifa CONS-DM. Cargue el catálogo en Facturación."}
+            tarifa = creada.get("registro") or {
+                "codigo": "CONS-DM",
+                "descripcion": "Consulta endocrinología diabetes",
+                "precio": 35.0,
+            }
+        try:
+            precio = round(float(tarifa.get("precio") or 0), 2)
+        except (TypeError, ValueError):
+            precio = 0.0
+        if precio <= 0:
+            return {"error": "La tarifa CONS-DM no tiene precio válido"}
 
-    concepto = str(tarifa.get("descripcion") or "Consulta médica")
-    fac = Fact.crear_factura({
-        "encounter_id": str(id_cita),
-        "id_paciente": str(cita.get("id_paciente") or ""),
-        "subtotal": precio,
-        "descuento": 0,
-        "iva": round(precio * 0.15, 2),
-        "total": round(precio * 1.15, 2),
-        "estado": "emitida",
-        "fecha": str(cita.get("fecha") or date.today().isoformat())[:10],
-        "lineas": [{
+        concepto = str(tarifa.get("descripcion") or "Consulta médica")
+        fac = Fact.crear_factura({
+            "encounter_id": str(id_cita),
+            "id_paciente": str(cita.get("id_paciente") or ""),
+            "subtotal": precio,
+            "descuento": 0,
+            "iva": round(precio * 0.15, 2),
+            "total": round(precio * 1.15, 2),
+            "estado": "emitida",
+            "fecha": str(cita.get("fecha") or date.today().isoformat())[:10],
+            "lineas": [{
+                "concepto": concepto,
+                "cantidad": 1,
+                "precio_unitario": precio,
+            }],
+        })
+        if fac.get("error"):
+            return fac
+        fid = fac.get("id_factura")
+        reg = fac.get("registro") if isinstance(fac.get("registro"), dict) else {}
+        try:
+            total = round(float(reg.get("total") or fac.get("total") or (precio * 1.15)), 2)
+        except (TypeError, ValueError):
+            total = round(precio * 1.15, 2)
+
+    metodo_n = str(metodo or "efectivo").strip().lower()
+    if metodo_n in ("qr", "enlace", "digital"):
+        pac = str(cita.get("paciente_nombre") or cita.get("id_paciente") or "Paciente")
+        enlace = Fact.crear_enlace_pago(str(fid), id_cita=str(id_cita), concepto=concepto, paciente=pac)
+        if enlace.get("error"):
+            return enlace
+        return {
+            "mensaje": "Enlace de pago listo. El cobro se registra cuando el paciente pague o caja confirme otro método.",
+            "id_cita": id_cita,
+            "id_factura": fid,
+            "total": total,
+            "metodo": "qr",
+            "consulta_pagada": False,
+            "estado": est,
             "concepto": concepto,
-            "cantidad": 1,
-            "precio_unitario": precio,
-        }],
-    })
-    if fac.get("error"):
-        return fac
-    fid = fac.get("id_factura")
-    reg = fac.get("registro") if isinstance(fac.get("registro"), dict) else {}
-    try:
-        total = round(float(reg.get("total") or fac.get("total") or (precio * 1.15)), 2)
-    except (TypeError, ValueError):
-        total = round(precio * 1.15, 2)
+            **enlace,
+        }
 
     pago = Fact.crear_pago(str(fid), {
         "monto": total,
-        "metodo": str(metodo or "efectivo"),
+        "metodo": metodo_n if metodo_n in ("efectivo", "tarjeta", "transferencia") else "efectivo",
+        "referencia": str(referencia or ""),
         "fecha": date.today().isoformat(),
     })
     if pago.get("error"):
         return pago
 
     actualizar(id_cita, {"estado": "confirmada"})
+    try:
+        from paquetes.notificaciones.NotificacionesServicio import emitir_a_roles
+        pac = str(cita.get("paciente_nombre") or cita.get("id_paciente") or "Paciente")
+        hora = str(cita.get("hora") or "")
+        fecha = str(cita.get("fecha") or "")
+        emitir_a_roles(
+            "Consulta lista para atender",
+            f"{pac}: cita cobrada ({fecha} {hora}). El paciente ya puede pasar a consulta.",
+            "info",
+            roles=["medico"],
+            referencia_tipo="cita",
+            referencia_id=str(id_cita),
+        )
+    except Exception:
+        pass
     return {
         "mensaje": "Consulta cobrada — paciente listo para el médico",
         "id_cita": id_cita,
         "id_factura": fid,
         "total": total,
-        "metodo": metodo,
+        "metodo": metodo_n,
         "consulta_pagada": True,
         "estado": "confirmada",
         "concepto": concepto,
+    }
+
+
+def preview_cobro(id_cita: str) -> dict:
+    """Datos para el modal de caja (sin registrar pago)."""
+    cita = obtener(id_cita)
+    if cita.get("error"):
+        return cita
+    if consulta_pagada(id_cita):
+        return {
+            "id_cita": id_cita,
+            "consulta_pagada": True,
+            "mensaje": "Consulta ya cobrada",
+        }
+    from paquetes.facturacion import FacturacionServicio as Fact
+    from nucleo.utilidades.UrlPublica import alcance_url
+    Fact.seed_basico()
+    tarifas = Fact.tarifario.listar(offset=0, limit=200, incluir_inactivos=True).get("tarifas") or []
+    tarifa = next((t for t in tarifas if str(t.get("codigo") or "").upper() == "CONS-DM"), None)
+    precio = round(float((tarifa or {}).get("precio") or 35), 2)
+    iva = round(precio * 0.15, 2)
+    alcance = alcance_url()
+    return {
+        "id_cita": id_cita,
+        "consulta_pagada": False,
+        "concepto": str((tarifa or {}).get("descripcion") or "Consulta endocrinología diabetes"),
+        "precio": precio,
+        "iva": iva,
+        "total": round(precio + iva, 2),
+        "paciente": cita.get("paciente_nombre") or cita.get("id_paciente") or "Paciente",
+        "fecha": cita.get("fecha"),
+        "hora": cita.get("hora"),
+        "alcance": alcance["alcance"],
+        "internet": alcance["internet"],
+        "url_base": alcance["url"],
+        "stripe": Fact.stripe_disponible(),
     }
 
 
@@ -321,6 +442,11 @@ def crear(datos: dict) -> dict:
     datos = _enriquecer_paciente(dict(datos))
     if not datos.get("id_paciente"):
         return {"error": "id_paciente es obligatorio"}
+    fecha = str(datos.get("fecha") or date.today().isoformat())
+    hora = str(datos.get("hora") or "09:00")
+    err = horario_consulta_ok(fecha, hora)
+    if err:
+        return {"error": err}
     # Recepción solo agenda: el estado lo cambia el médico (o Cancelar).
     estado = "programada"
     now = datetime.utcnow().isoformat()
@@ -329,8 +455,8 @@ def crear(datos: dict) -> dict:
         "id_paciente": str(datos["id_paciente"]),
         "paciente_nombre": str(datos.get("paciente_nombre") or ""),
         "medico": str(datos.get("medico") or ""),
-        "fecha": str(datos.get("fecha") or date.today().isoformat()),
-        "hora": str(datos.get("hora") or "09:00"),
+        "fecha": fecha,
+        "hora": hora,
         "estado": estado,
         "motivo": str(datos.get("motivo") or "Control clínico"),
         "sede": str(datos.get("sede") or "Sede principal"),
@@ -350,6 +476,12 @@ def actualizar(id_cita: str, cambios: dict) -> dict:
     if not idx:
         return {"error": "Cita no encontrada"}
     cambios = _enriquecer_paciente(cambios) if cambios.get("id_paciente") else cambios
+    fecha = str(cambios.get("fecha") or df.at[idx[0], "fecha"] or "")
+    hora = str(cambios.get("hora") or df.at[idx[0], "hora"] or "")
+    if "fecha" in cambios or "hora" in cambios:
+        err = horario_consulta_ok(fecha, hora)
+        if err:
+            return {"error": err}
     for k, v in cambios.items():
         if k in COLUMNAS and k not in ("id_cita", "creado_en"):
             df.at[idx[0], k] = v

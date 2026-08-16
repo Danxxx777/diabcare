@@ -31,6 +31,10 @@ def listar(offset: int = 0, limit: int = 50, q: str = "", payload=Depends(requir
         incluir_inactivos=True,
     )
 
+@router.get("/resumen")
+def resumen(payload=Depends(require_modulo("comorbilidades"))):
+    return S.resumen_operativo()
+
 @router.get("/paciente/{id_paciente}")
 def por_paciente(id_paciente: str, payload=Depends(require_modulo("comorbilidades"))):
     res = S.comorbilidades.listar(limit=200, filtros={"id_paciente": id_paciente}, incluir_inactivos=True)

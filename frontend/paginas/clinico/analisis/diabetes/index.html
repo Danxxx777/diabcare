@@ -5,12 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare - Calidad diabetes</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
-<script src="/estaticos/api.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-2"></script>
+<script src="/estaticos/api.js?v=contrast-1"></script>
+<script src="/estaticos/graficas.js?v=contrast-1"></script>
 <style>
 .an-hero {
   display: grid;
@@ -18,9 +20,9 @@
   margin-bottom: 16px;
   padding: 18px 20px;
   border-radius: 14px;
-  border: 1px solid rgba(34, 211, 238, 0.2);
+  border: 1px solid rgba(0, 229, 255, 0.2);
   background:
-    radial-gradient(90% 120% at 0% 0%, rgba(34, 211, 238, 0.12), transparent 55%),
+    radial-gradient(90% 120% at 0% 0%, rgba(0, 229, 255, 0.12), transparent 55%),
     radial-gradient(70% 100% at 100% 0%, rgba(248, 113, 113, 0.08), transparent 50%),
     rgba(0, 0, 0, 0.22);
 }
@@ -41,7 +43,7 @@
 .an-tip {
   padding: 10px 12px;
   border-left: 3px solid var(--cyan);
-  background: rgba(34, 211, 238, 0.06);
+  background: rgba(0, 229, 255, 0.06);
   border-radius: 0 8px 8px 0;
   font-size: 12px;
   color: var(--text2);
@@ -76,7 +78,7 @@
 .an-table th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
 </style>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -89,14 +91,14 @@
     <div class="an-hero">
       <h1>Calidad clínica · diabetes</h1>
       <p>
-        Rol del analista: medir control glucémico, estratificar riesgo y orientar
-        dataset → pipeline → modelo → reportes. Sin editar expedientes ni atender consulta.
+        Medición de control glucémico, estratificación de riesgo y puente hacia
+        dataset, pipeline, modelo y reportes. Vista de análisis; sin editar expedientes.
       </p>
       <div class="an-actions">
         <a class="btn btn-primary btn-sm" href="/paginas/clinico/reportes/index.html">Reporte PDF</a>
         <a class="btn btn-ghost btn-sm" href="/paginas/clinico/prediccion/index.html">Probar predicción</a>
         <a class="btn btn-ghost btn-sm" href="/paginas/datos/modelo_ml/index.html">Modelo ML</a>
-        <a class="btn btn-ghost btn-sm" href="/paginas/datos/pipeline_elt/index.html">Pipeline ELT</a>
+        <a class="btn btn-ghost btn-sm" href="/paginas/datos/pipeline_elt/index.html">Orquestador</a>
         <a class="btn btn-ghost btn-sm" href="/paginas/clinico/analisis/estadisticas/index.html">Estadísticas</a>
       </div>
     </div>
@@ -181,14 +183,6 @@
 <script>
 DiabCareNav.init();
 DiabCareNav.guardRol(['administrador', 'analista', 'medico']);
-const API = DiabCareNav.getApi();
-let chartRiesgo = null;
-let chartEdad = null;
-
-function authHdr() {
-  const t = localStorage.getItem('token');
-  return t ? { Authorization: 'Bearer ' + t } : {};
-}
 
 function pct(n) {
   return (n == null || !Number.isFinite(Number(n))) ? '—' : `${Number(n).toFixed(1)}%`;
@@ -232,45 +226,17 @@ function pintar(d) {
   document.getElementById('c-obe').textContent = `${num(o.bmi_gte30)} · ${pct(o.pct_obesidad)}`;
   document.getElementById('c-bmi').textContent = o.promedio_bmi != null ? o.promedio_bmi : '—';
 
-  if (chartRiesgo) chartRiesgo.destroy();
-  chartRiesgo = new Chart(document.getElementById('c-riesgo'), {
-    type: 'doughnut',
-    data: {
-      labels: ['Alto', 'Medio', 'Controlado'],
-      datasets: [{
-        data: [r.alto || 0, r.medio || 0, r.controlado || 0],
-        backgroundColor: ['rgba(248,113,113,0.8)', 'rgba(251,191,36,0.8)', 'rgba(74,222,128,0.8)'],
-        borderWidth: 0,
-      }],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, cutout: '68%',
-      plugins: { legend: { display: false } },
-    },
-  });
-
-  const edades = d.descontrol_por_edad || [];
-  if (chartEdad) chartEdad.destroy();
-  chartEdad = new Chart(document.getElementById('c-edad'), {
-    type: 'bar',
-    data: {
-      labels: edades.map(e => e.grupo),
-      datasets: [{
-        label: '% descontrol',
-        data: edades.map(e => e.pct_descontrol),
-        backgroundColor: 'rgba(248,113,113,0.65)',
-        borderRadius: 4,
-      }],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: '#888', font: { size: 10 } }, grid: { display: false } },
-        y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true },
-      },
-    },
-  });
+  if (window.DiabCareGraf) {
+    DiabCareGraf.doughnut(document.getElementById('c-riesgo'),
+      ['Alto', 'Medio', 'Controlado'],
+      [r.alto || 0, r.medio || 0, r.controlado || 0],
+      ['#C46B6B', '#C4A06A', '#6B9A7A']);
+    const edades = d.descontrol_por_edad || [];
+    DiabCareGraf.bars(document.getElementById('c-edad'),
+      edades.map(e => e.grupo),
+      [edades.map(e => e.pct_descontrol)],
+      { colors: ['#C46B6B'] });
+  }
 
   const sedes = d.sedes_descontrol || [];
   const box = document.getElementById('sedes-box');
@@ -294,18 +260,17 @@ function pintar(d) {
 }
 
 async function cargar() {
-  try {
-    const r = await fetch(`${API}/api/registros/calidad-diabetes`, { headers: authHdr(), cache: 'no-store' });
-    if (r.status === 401) { window.location.href = '/'; return; }
-    if (r.status === 403) {
-      document.getElementById('tips-box').innerHTML = '<div class="an-tip">Sin permiso de análisis.</div>';
-      return;
-    }
-    const d = await r.json();
-    pintar(d);
-  } catch {
-    document.getElementById('tips-box').innerHTML = '<div class="an-tip">Error de conexión con el API.</div>';
+  const r = await DiabCareAPI.json('/api/registros/calidad-diabetes');
+  if (r.status === 401) return;
+  if (r.status === 403) {
+    document.getElementById('tips-box').innerHTML = '<div class="an-tip">Sin permiso de análisis.</div>';
+    return;
   }
+  if (!r.ok) {
+    document.getElementById('tips-box').innerHTML = '<div class="an-tip">Error de conexión con el API.</div>';
+    return;
+  }
+  pintar(r.data || {});
 }
 
 cargar();

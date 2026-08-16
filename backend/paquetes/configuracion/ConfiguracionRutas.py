@@ -1,6 +1,7 @@
 ﻿from fastapi import APIRouter, Depends, Body
 
 from nucleo.utilidades.Dependencias import require_modulo
+from nucleo.utilidades.UrlPublica import alcance_url
 from paquetes.configuracion.ConfiguracionServicio import (
     obtener_configuracion,
     guardar_configuracion,
@@ -22,12 +23,19 @@ def _usuario(payload: dict) -> str:
 
 @router.get("/")
 def obtener(payload: dict = Depends(require_modulo("configuracion"))):
-    return obtener_configuracion()
+    cfg = obtener_configuracion()
+    cfg["alcance_qr"] = alcance_url()
+    return cfg
 
 
 @router.post("/")
 def guardar(datos: dict, payload: dict = Depends(require_modulo("configuracion"))):
-    return guardar_configuracion(datos, _usuario(payload))
+    r = guardar_configuracion(datos, _usuario(payload))
+    cfg = r.get("configuracion") if isinstance(r, dict) else None
+    if isinstance(cfg, dict):
+        cfg["alcance_qr"] = alcance_url()
+        r["configuracion"] = cfg
+    return r
 
 
 @router.get("/email/estado")

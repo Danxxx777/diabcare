@@ -18,6 +18,9 @@ from paquetes.dataset.DatasetTraducciones import (
 )
 
 ARCHIVO_PRINCIPAL = f"{MINIO_STAGE_PATH}diabcare_registros.parquet"
+# Debe ordenar DESPUÉS del canónico (fusionar aplica keep=last por encounter_id).
+ARCHIVO_DELTA = f"{MINIO_STAGE_PATH}diabcare_registros_delta.parquet"
+ARCHIVO_META = f"{MINIO_STAGE_PATH}.crud_meta.json"
 STATS_SNAPSHOT = f"{MINIO_STAGE_PATH}.diabcare_estadisticas_v3.json"
 RAZAS = ["race_AfricanAmerican", "race_Asian", "race_Caucasian", "race_Hispanic", "race_Other"]
 EDAD_BINS = [0, 20, 30, 40, 50, 60, 70, 200]
@@ -175,42 +178,194 @@ def _extraer(force: bool = False) -> pd.DataFrame:
         df = fusionar_stage_dataframes(dfs)
         if "encounter_id" not in df.columns:
             df.insert(0, "encounter_id", range(1, len(df) + 1))
+        deletes = set(_leer_deletes())
+        if deletes and "encounter_id" in df.columns:
+            df = df[~pd.to_numeric(df["encounter_id"], errors="coerce").isin(deletes)].copy()
         _cache["df"] = df
         _cache["fp"] = fp
         _cache["stats"] = None
         _cache["stats_fp"] = None
         _cache["calidad"] = None
         _cache["calidad_fp"] = None
+        _sync_meta_max(df)
         return df
     except Exception as e:
         print(f"[ELT] Error extrayendo: {e}")
         return pd.DataFrame()
 
-def _cargar(df: pd.DataFrame):
+
+def _leer_meta() -> dict:
+    try:
+        obj = get_cliente().get_object(MINIO_BUCKET, ARCHIVO_META)
+        data = json.loads(obj.read())
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _guardar_meta(meta: dict) -> None:
+    try:
+        body = json.dumps(meta, ensure_ascii=False).encode("utf-8")
+        get_cliente().put_object(MINIO_BUCKET, ARCHIVO_META, io.BytesIO(body), len(body))
+    except Exception as e:
+        print(f"[ELT] Error meta CRUD: {e}")
+
+
+def _leer_deletes() -> list[int]:
+    raw = _leer_meta().get("deletes") or []
+    out = []
+    for x in raw:
+        try:
+            out.append(int(x))
+        except (TypeError, ValueError):
+            pass
+    return out
+
+
+def _sync_meta_max(df: pd.DataFrame) -> None:
+    if df is None or df.empty or "encounter_id" not in df.columns:
+        return
+    try:
+        mx = int(pd.to_numeric(df["encounter_id"], errors="coerce").max())
+    except Exception:
+        return
+    meta = _leer_meta()
+    if int(meta.get("max_encounter_id") or 0) >= mx:
+        return
+    meta["max_encounter_id"] = mx
+    meta.setdefault("deletes", meta.get("deletes") or [])
+    _guardar_meta(meta)
+
+
+def _alloc_encounter_id() -> int:
+    """Siguiente ID sin forzar lectura completa si hay caché o meta."""
+    df = _cache.get("df")
+    if df is not None and not df.empty and "encounter_id" in df.columns:
+        try:
+            return int(pd.to_numeric(df["encounter_id"], errors="coerce").max()) + 1
+        except Exception:
+            pass
+    meta = _leer_meta()
+    if meta.get("max_encounter_id"):
+        return int(meta["max_encounter_id"]) + 1
+    df = _extraer()
+    if df.empty or "encounter_id" not in df.columns:
+        return 1
+    return int(pd.to_numeric(df["encounter_id"], errors="coerce").max()) + 1
+
+
+def _leer_delta() -> pd.DataFrame:
+    try:
+        obj = get_cliente().get_object(MINIO_BUCKET, ARCHIVO_DELTA)
+        return pd.read_parquet(io.BytesIO(obj.read()))
+    except Exception:
+        return pd.DataFrame()
+
+
+def _escribir_delta(df: pd.DataFrame) -> bool:
+    try:
+        c = get_cliente()
+        if df is None or df.empty:
+            try:
+                c.remove_object(MINIO_BUCKET, ARCHIVO_DELTA)
+            except Exception:
+                pass
+            return True
+        if "encounter_id" in df.columns:
+            df = df.drop_duplicates(subset=["encounter_id"], keep="last")
+        buf = io.BytesIO()
+        df.to_parquet(buf, index=False)
+        buf.seek(0)
+        c.put_object(MINIO_BUCKET, ARCHIVO_DELTA, buf, buf.getbuffer().nbytes)
+        return True
+    except Exception as e:
+        print(f"[ELT] Error escribiendo delta: {e}")
+        return False
+
+
+def _upsert_delta_rows(rows: list[dict]) -> bool:
+    if not rows:
+        return True
+    delta = _leer_delta()
+    add = pd.DataFrame(rows)
+    delta = add if delta.empty else pd.concat([delta, add], ignore_index=True)
+    return _escribir_delta(delta)
+
+
+def _cache_aplicar_upsert(rows: list[dict]) -> None:
+    """Actualiza caché en memoria sin re-descargar MinIO."""
+    if not rows:
+        return
+    df = _cache.get("df")
+    if df is None:
+        # Evitar caché parcial (1 fila) que haría listar devolver total=1
+        _cache["fp"] = None
+        return
+    add = pd.DataFrame(rows)
+    if df.empty:
+        _cache["df"] = add.copy()
+    else:
+        ids = set(pd.to_numeric(add["encounter_id"], errors="coerce").dropna().astype("int64"))
+        if ids and "encounter_id" in df.columns:
+            mask = ~pd.to_numeric(df["encounter_id"], errors="coerce").isin(ids)
+            df = df.loc[mask]
+        _cache["df"] = pd.concat([df, add], ignore_index=True)
+    _cache["fp"] = _fingerprint()
+    _cache["stats"] = None
+    _cache["stats_fp"] = None
+    _cache["calidad"] = None
+    _cache["calidad_fp"] = None
+
+
+def _cache_aplicar_delete(encounter_id: int) -> None:
+    df = _cache.get("df")
+    if df is None:
+        _cache["fp"] = None
+        return
+    if df.empty or "encounter_id" not in df.columns:
+        return
+    eid = int(encounter_id)
+    _cache["df"] = df[pd.to_numeric(df["encounter_id"], errors="coerce") != eid].copy()
+    _cache["fp"] = _fingerprint()
+    _cache["stats"] = None
+    _cache["stats_fp"] = None
+
+
+def _cargar(df: pd.DataFrame, *, materializar: bool = False):
+    """Reescribe el canónico (compactación). No usar en el hot-path del CRUD."""
     try:
         c = get_cliente()
         buf = io.BytesIO()
         df.to_parquet(buf, index=False)
         buf.seek(0)
         c.put_object(MINIO_BUCKET, ARCHIVO_PRINCIPAL, buf, buf.getbuffer().nbytes)
-        _cache["df"] = df.copy()
+        # Tras compactar: solo queda el canónico (+ meta). Evita re-fusión duplicada.
+        for o in _listar_parquets():
+            if o.object_name != ARCHIVO_PRINCIPAL:
+                try:
+                    c.remove_object(MINIO_BUCKET, o.object_name)
+                except Exception:
+                    pass
+        meta = {"max_encounter_id": int(pd.to_numeric(df["encounter_id"], errors="coerce").max()) if not df.empty and "encounter_id" in df.columns else 0, "deletes": []}
+        _guardar_meta(meta)
+        _cache["df"] = df
         _cache["fp"] = _fingerprint()
         _cache["stats"] = None
         _cache["stats_fp"] = None
         _cache["calidad"] = None
         _cache["calidad_fp"] = None
-        try:
-            from paquetes.dataset.DatasetDwhServicio import materializar_dwh
-            materializar_dwh()
-        except Exception:
-            pass
-        try:
-            from paquetes.notificaciones.NotificacionesServicio import evaluar_alertas_clinicas
-            evaluar_alertas_clinicas()
-        except Exception:
-            pass
+        if materializar:
+            try:
+                import threading
+                from paquetes.dataset.DatasetDwhServicio import materializar_dwh
+                threading.Thread(target=materializar_dwh, daemon=True).start()
+            except Exception:
+                pass
+        return True
     except Exception as e:
         print(f"[ELT] Error cargando: {e}")
+        return False
+
 
 def _a_python(v):
     """Convierte escalares numpy/pandas a tipos Python JSON-seguros."""
@@ -293,6 +448,11 @@ def _serializar_registro(reg: dict) -> dict:
 
 def listar(limit: int = 50, offset: int = 0, filtros: dict = None) -> dict:
     df = _extraer()
+    busqueda_rankeada = bool(filtros and filtros.get("q"))
+    tiene_filtros = bool(filtros) and any(
+        filtros.get(k) not in (None, "")
+        for k in ("diabetes", "gender", "location", "age_min", "age_max", "q")
+    )
     if filtros:
         if filtros.get("diabetes") is not None:
             df = df[df["diabetes"] == filtros["diabetes"]]
@@ -311,7 +471,19 @@ def listar(limit: int = 50, offset: int = 0, filtros: dict = None) -> dict:
             ) if c in df.columns]
             df = rankear_dataframe(df, str(filtros["q"]), campos)
     total = len(df)
-    chunk = _traducir_df(df.iloc[offset:offset + limit]).copy()
+    # Hot path: sin filtros, tomar cola (IDs ascendentes) sin sort de 1.3M filas
+    if not busqueda_rankeada and not tiene_filtros and "encounter_id" in df.columns and total:
+        end = total - offset
+        start = max(0, end - limit)
+        if end <= 0:
+            chunk = df.iloc[0:0].copy()
+        else:
+            chunk = df.iloc[start:end].iloc[::-1].copy()
+    else:
+        if not busqueda_rankeada and "encounter_id" in df.columns and not df.empty:
+            df = df.sort_values("encounter_id", ascending=False, kind="mergesort")
+        chunk = df.iloc[offset:offset + limit].copy()
+    chunk = _traducir_df(chunk)
     # Redondeo en DataFrame antes de serializar (evita float64 sucio en JSON)
     if "age" in chunk.columns:
         chunk["age"] = pd.to_numeric(chunk["age"], errors="coerce").round(0)
@@ -353,18 +525,6 @@ def crear(datos: dict) -> dict:
     if not id_pac:
         return {"error": "Debe vincular un paciente del expediente (HCE) antes de guardar la consulta"}
     datos["id_paciente"] = id_pac
-    df = _extraer()
-    nuevo_id = int(df["encounter_id"].max()) + 1 if not df.empty else 1
-    datos["encounter_id"] = nuevo_id
-    datos["created_at"] = datetime.utcnow().isoformat()
-    datos.setdefault("year", datetime.utcnow().year)
-    if "age" in datos and datos["age"] not in (None, ""):
-        try:
-            datos["age"] = int(round(float(datos["age"])))
-        except (TypeError, ValueError):
-            pass
-    if datos.get("location"):
-        datos["location"] = str(datos["location"]).strip().title()
     try:
         from paquetes.clinico.pacientes.PacientesServicio import obtener as obtener_paciente
         p = obtener_paciente(id_pac)
@@ -376,14 +536,27 @@ def crear(datos: dict) -> dict:
         datos["paciente_nombre"] = p.get("nombre_completo", "")
     except Exception:
         return {"error": "No se pudo validar el paciente del expediente"}
-    nuevo_df = pd.concat([df, pd.DataFrame([datos])], ignore_index=True)
-    _cargar(nuevo_df)
-    invalidar_cache()
-    try:
-        from paquetes.dataset.DatasetDwhServicio import materializar_dwh
-        materializar_dwh()
-    except Exception:
-        pass
+
+    nuevo_id = _alloc_encounter_id()
+    datos["encounter_id"] = nuevo_id
+    datos["created_at"] = datetime.utcnow().isoformat()
+    datos.setdefault("year", datetime.utcnow().year)
+    if "age" in datos and datos["age"] not in (None, ""):
+        try:
+            datos["age"] = int(round(float(datos["age"])))
+        except (TypeError, ValueError):
+            pass
+    if datos.get("location"):
+        datos["location"] = str(datos["location"]).strip().title()
+
+    # Append-only: no reescribe los 1.3M del canónico
+    if not _upsert_delta_rows([datos]):
+        return {"error": "No se pudo guardar la consulta en almacenamiento (MinIO). Revisa que MinIO esté activo."}
+    meta = _leer_meta()
+    meta["max_encounter_id"] = max(int(meta.get("max_encounter_id") or 0), nuevo_id)
+    meta.setdefault("deletes", meta.get("deletes") or [])
+    _guardar_meta(meta)
+    _cache_aplicar_upsert([datos])
     return {"mensaje": "Registro creado", "encounter_id": nuevo_id, "paciente_nombre": datos.get("paciente_nombre", "")}
 
 
@@ -423,18 +596,35 @@ def actualizar(encounter_id: int, cambios: dict) -> dict:
                 cambios["paciente_nombre"] = p.get("nombre_completo", "")
         except Exception:
             pass
-    for k, v in cambios.items():
-        df.at[idx[0], k] = v
-    _cargar(df)
-    invalidar_cache()
+    fila = df.loc[idx[0]].to_dict()
+    fila.update(cambios)
+    fila["encounter_id"] = int(encounter_id)
+    if not _upsert_delta_rows([fila]):
+        return {"error": "No se pudo actualizar la consulta en almacenamiento (MinIO)."}
+    _cache_aplicar_upsert([fila])
     return {"mensaje": "Registro actualizado", "encounter_id": encounter_id}
 
 def eliminar(encounter_id: int) -> dict:
+    eid = int(encounter_id)
     df = _extraer()
-    nuevo_df = df[df["encounter_id"] != encounter_id]
-    if len(nuevo_df) == len(df):
+    if df.empty or "encounter_id" not in df.columns:
         return {"error": "Registro no encontrado"}
-    _cargar(nuevo_df)
+    if not (pd.to_numeric(df["encounter_id"], errors="coerce") == eid).any():
+        return {"error": "Registro no encontrado"}
+    meta = _leer_meta()
+    deletes = set(_leer_deletes())
+    deletes.add(eid)
+    meta["deletes"] = sorted(deletes)
+    if meta.get("max_encounter_id") is None and not df.empty:
+        meta["max_encounter_id"] = int(pd.to_numeric(df["encounter_id"], errors="coerce").max())
+    _guardar_meta(meta)
+    # Quitar del delta si estaba ahí (evita resucitar al fusionar)
+    delta = _leer_delta()
+    if not delta.empty and "encounter_id" in delta.columns:
+        delta2 = delta[pd.to_numeric(delta["encounter_id"], errors="coerce") != eid]
+        if len(delta2) != len(delta):
+            _escribir_delta(delta2)
+    _cache_aplicar_delete(eid)
     return {"mensaje": "Registro eliminado", "encounter_id": encounter_id}
 
 def _hist_bins(values, mask_con, mask_sin, bins, labels, hist: dict) -> None:

@@ -37,6 +37,38 @@ def _es_revocada(val) -> bool:
     return False
 
 
+def _parse_expira(val) -> float | None:
+    try:
+        raw = str(val or "").strip()
+        if not raw:
+            return None
+        return datetime.fromisoformat(raw).timestamp()
+    except Exception:
+        return None
+
+
+def _esta_expirada(row) -> bool:
+    try:
+        val = row.get("expira_en") if hasattr(row, "get") else row["expira_en"]
+    except Exception:
+        val = ""
+    exp = _parse_expira(val)
+    if exp is None:
+        return True
+    return exp < time.time()
+
+
+def _sesion_vigente(row) -> bool:
+    """No revocada y con expira_en en el futuro."""
+    try:
+        rev = row.get("revocada") if hasattr(row, "get") else row["revocada"]
+    except Exception:
+        rev = False
+    if _es_revocada(rev):
+        return False
+    return not _esta_expirada(row)
+
+
 def _flag_escritura(val) -> str:
     """Arrow string-safe: nunca escribir bool puro en Parquet tipado como str."""
     return "true" if _es_revocada(val) else "false"
@@ -71,6 +103,12 @@ def _reconstruir_indice(df: pd.DataFrame | None = None) -> None:
     global _idx_ts, _revocadas, _activas_exp
     if df is None:
         df = _extraer()
+    # Lectura vacia con sesiones ya conocidas = fallo transitorio (no expulsar usuarios).
+    if df.empty:
+        with _idx_lock:
+            if _activas_exp:
+                _idx_ts = time.monotonic()
+                return
     rev: set[str] = set()
     act: dict[str, float] = {}
     if not df.empty:
@@ -129,7 +167,7 @@ def crear_sesion(
 
     activas = df[
         (df["id_usuario"].astype(str) == str(id_usuario))
-        & (~df["revocada"].map(_es_revocada))
+        & df.apply(lambda r: _sesion_vigente(r), axis=1)
     ].sort_values("creado_en", ascending=True)
     if len(activas) > MAX_SESIONES:
         exceso = activas.iloc[: len(activas) - MAX_SESIONES]
@@ -155,6 +193,26 @@ def sesion_valida(jti: str) -> bool:
         if jti in _revocadas:
             return False
         exp = _activas_exp.get(jti)
+        if exp is not None:
+            if exp < time.time():
+                _revocadas.add(jti)
+                _activas_exp.pop(jti, None)
+                return False
+            return True
+    # Miss: forzar relectura desde MinIO (indice pudo quedarse corto).
+    try:
+        from nucleo.utilidades.ParquetCache import invalidar
+        invalidar(BUCKET_APP, ARCHIVO)
+    except Exception:
+        pass
+    global _idx_ts
+    with _idx_lock:
+        _idx_ts = 0.0
+    _reconstruir_indice()
+    with _idx_lock:
+        if jti in _revocadas:
+            return False
+        exp = _activas_exp.get(jti)
         if exp is None:
             return False
         if exp < time.time():
@@ -174,6 +232,18 @@ def revocar(jti: str) -> dict:
             _revocadas.add(str(jti))
             _activas_exp.pop(str(jti), None)
         return {"error": "Sesión no encontrada"}
+    row = df.loc[idx[0]]
+    if _es_revocada(row.get("revocada")):
+        return {"error": "La sesión ya estaba revocada"}
+    if _esta_expirada(row):
+        # Limpieza: marcar caducada para que no reaparezca
+        df.at[idx[0], "revocada"] = _flag_escritura(True)
+        df.at[idx[0], "revocada_en"] = datetime.utcnow().isoformat()
+        _cargar(df)
+        with _idx_lock:
+            _revocadas.add(str(jti))
+            _activas_exp.pop(str(jti), None)
+        return {"error": "La sesión ya expiró; no se puede revocar"}
     df.at[idx[0], "revocada"] = _flag_escritura(True)
     df.at[idx[0], "revocada_en"] = datetime.utcnow().isoformat()
     _cargar(df)
@@ -188,6 +258,7 @@ def revocar_todas_usuario(id_usuario: str, excepto: str | None = None, email: st
     if df.empty:
         return 0
     n = 0
+    dirty = False
     now = datetime.utcnow().isoformat()
     email_l = (email or "").strip().lower()
     for i, row in df.iterrows():
@@ -197,16 +268,26 @@ def revocar_todas_usuario(id_usuario: str, excepto: str | None = None, email: st
             continue
         if excepto and str(row.get("id_sesion")) == str(excepto):
             continue
-        if _es_revocada(row.get("revocada")):
+        if not _sesion_vigente(row):
+            # Caducadas: limpiar marca sin contarlas como revocadas “activas”
+            if (not _es_revocada(row.get("revocada"))) and _esta_expirada(row):
+                df.at[i, "revocada"] = _flag_escritura(True)
+                df.at[i, "revocada_en"] = now
+                dirty = True
+                with _idx_lock:
+                    sid = str(row.get("id_sesion"))
+                    _revocadas.add(sid)
+                    _activas_exp.pop(sid, None)
             continue
         df.at[i, "revocada"] = _flag_escritura(True)
         df.at[i, "revocada_en"] = now
+        dirty = True
         n += 1
         with _idx_lock:
             sid = str(row.get("id_sesion"))
             _revocadas.add(sid)
             _activas_exp.pop(sid, None)
-    if n:
+    if dirty:
         _cargar(df)
     return n
 
@@ -214,11 +295,14 @@ def revocar_todas_usuario(id_usuario: str, excepto: str | None = None, email: st
 def _normalizar_fila_sesion(row: dict) -> dict:
     out = dict(row)
     out["revocada"] = _es_revocada(out.get("revocada"))
+    exp_ts = _parse_expira(out.get("expira_en"))
+    out["expirada"] = bool(exp_ts is None or exp_ts < time.time())
+    out["activa"] = (not out["revocada"]) and (not out["expirada"])
     return out
 
 
-def listar_usuario(id_usuario: str, email: str | None = None) -> list:
-    """Lista sesiones del usuario por id y, si se indica, también por email (migración admin)."""
+def listar_usuario(id_usuario: str, email: str | None = None, solo_activas: bool = True) -> list:
+    """Lista sesiones del usuario. Por defecto solo vigentes (no revocadas ni caducadas)."""
     df = _extraer()
     if df.empty:
         return []
@@ -226,6 +310,23 @@ def listar_usuario(id_usuario: str, email: str | None = None) -> list:
     if email:
         mask = mask | (df["email"].astype(str).str.lower() == str(email).strip().lower())
     sub = df[mask].copy()
+    # Marcar caducadas en disco para que no reaparezcan
+    dirty = False
+    now = datetime.utcnow().isoformat()
+    for i, row in sub.iterrows():
+        if (not _es_revocada(row.get("revocada"))) and _esta_expirada(row):
+            df.at[i, "revocada"] = _flag_escritura(True)
+            df.at[i, "revocada_en"] = now
+            dirty = True
+            with _idx_lock:
+                sid = str(row.get("id_sesion"))
+                _revocadas.add(sid)
+                _activas_exp.pop(sid, None)
+    if dirty:
+        _cargar(df)
+        sub = df[mask].copy()
+    if solo_activas:
+        sub = sub[sub.apply(lambda r: _sesion_vigente(r), axis=1)]
     sub = sub.sort_values("creado_en", ascending=False)
     return [_normalizar_fila_sesion(r) for r in sub.fillna("").to_dict(orient="records")]
 
@@ -250,7 +351,7 @@ def listar_todas(skip: int = 0, limit: int = 50, solo_activas: bool = True) -> d
     if df.empty:
         return {"total": 0, "sesiones": []}
     if solo_activas:
-        df = df[~df["revocada"].map(_es_revocada)]
+        df = df[df.apply(lambda r: _sesion_vigente(r), axis=1)]
     df = df.sort_values("creado_en", ascending=False)
     total = int(len(df))
     pagina = df.iloc[skip: skip + limit]

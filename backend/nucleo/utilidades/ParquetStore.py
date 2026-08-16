@@ -38,8 +38,8 @@ class ParquetStore:
         self.modo_borrado = modo_borrado
         self.valor_anulado = valor_anulado
 
-    def extraer(self) -> pd.DataFrame:
-        return leer(BUCKET_APP, self.archivo, self.columnas)
+    def extraer(self, copiar: bool = True) -> pd.DataFrame:
+        return leer(BUCKET_APP, self.archivo, self.columnas, copiar=copiar)
 
     def cargar(self, df: pd.DataFrame) -> None:
         for col in self.columnas:
@@ -58,7 +58,7 @@ class ParquetStore:
         incluir_inactivos: bool = False,
         orden: Optional[str] = None,
     ) -> dict:
-        df = self.extraer()
+        df = self.extraer(copiar=False)
         if df.empty:
             return {"total": 0, self.coleccion: []}
         if not incluir_inactivos:
@@ -85,7 +85,7 @@ class ParquetStore:
         return {"total": total, self.coleccion: chunk.fillna("").to_dict(orient="records")}
 
     def obtener(self, id_valor: str) -> dict:
-        df = self.extraer()
+        df = self.extraer(copiar=False)
         fila = df[df[self.id_campo].astype(str) == str(id_valor)]
         if fila.empty:
             return {"error": f"{self.coleccion[:-1] if self.coleccion.endswith('s') else self.coleccion} no encontrado"}
@@ -109,11 +109,11 @@ class ParquetStore:
             row.setdefault("activo", True)
         if self.modo_borrado == "estado" and "estado" in self.columnas:
             row.setdefault("estado", "activo" if "activo" in (row.get("estado"), None) or True else row.get("estado", "registrado"))
-        # normalize types
         for k in self.columnas:
             row.setdefault(k, "" if k != "activo" else True)
-        df = self.extraer()
-        self.cargar(pd.concat([df, pd.DataFrame([{k: row.get(k, "") for k in self.columnas}])], ignore_index=True))
+        df = self.extraer(copiar=True)
+        nueva = pd.DataFrame([{k: row.get(k, "") for k in self.columnas}])
+        self.cargar(pd.concat([df, nueva], ignore_index=True) if not df.empty else nueva)
         return {"mensaje": "creado", self.id_campo: row[self.id_campo], "registro": {k: row.get(k) for k in self.columnas}}
 
     def actualizar(self, id_valor: str, cambios: dict) -> dict:

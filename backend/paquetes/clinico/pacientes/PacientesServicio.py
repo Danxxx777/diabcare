@@ -11,8 +11,8 @@ COLUMNAS = [
 ]
 
 
-def _extraer() -> pd.DataFrame:
-    return leer(BUCKET_APP, ARCHIVO, COLUMNAS)
+def _extraer(copiar: bool = True) -> pd.DataFrame:
+    return leer(BUCKET_APP, ARCHIVO, COLUMNAS, copiar=copiar)
 
 
 def _cargar(df: pd.DataFrame):
@@ -51,7 +51,7 @@ def _fila_a_dict(row, fotos: set[str] | None = None) -> dict:
 
 
 def resumen() -> dict:
-    df = _extraer()
+    df = _extraer(copiar=False)
     if df.empty:
         return {"total": 0, "activos": 0, "inactivos": 0}
     if "estado" not in df.columns:
@@ -63,7 +63,7 @@ def resumen() -> dict:
 def listar(offset: int = 0, limit: int = 50, q: str = "", estado: str = "") -> dict:
     from nucleo.utilidades.Busqueda import rankear_dataframe
 
-    df = _extraer()
+    df = _extraer(copiar=False)
     if df.empty:
         return {"total": 0, "pacientes": []}
     if estado:
@@ -140,3 +140,15 @@ def actualizar(id_paciente: str, cambios: dict) -> dict:
 
 def desactivar(id_paciente: str) -> dict:
     return actualizar(id_paciente, {"estado": "inactivo"})
+
+
+def eliminar(id_paciente: str) -> dict:
+    """Eliminación física (CRUD)."""
+    df = _extraer()
+    if df.empty:
+        return {"error": "Paciente no encontrado"}
+    mask = df["id_paciente"].astype(str) == str(id_paciente)
+    if not mask.any():
+        return {"error": "Paciente no encontrado"}
+    _cargar(df.loc[~mask].reset_index(drop=True))
+    return {"mensaje": "Paciente eliminado", "id_paciente": id_paciente}

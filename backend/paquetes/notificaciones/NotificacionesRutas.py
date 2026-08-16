@@ -7,8 +7,10 @@ from paquetes.notificaciones.NotificacionesServicio import (
     marcar_todas_leidas,
     estadisticas,
     evaluar_alertas_clinicas,
-    crear,
     emitir,
+    emitir_a_roles,
+    etiqueta_rol,
+    ROLES_VALIDOS,
 )
 
 router = APIRouter(prefix="/api/notificaciones", tags=["Notificaciones"])
@@ -63,19 +65,41 @@ def leer_todas(payload: dict = Depends(require_modulo("notificaciones"))):
     )
 
 
+@router.get("/roles")
+def roles_destino(payload: dict = Depends(require_modulo("notificaciones"))):
+    """Catálogo de roles con etiqueta capitalizada (para UI)."""
+    return {
+        "roles": [{"id": r, "label": etiqueta_rol(r)} for r in ROLES_VALIDOS],
+    }
+
+
 @router.post("/")
 def crear_manual(
     datos: dict,
     payload: dict = Depends(require_modulo("notificaciones")),
 ):
     if payload.get("rol") != "administrador":
-        raise HTTPException(status_code=403, detail="Solo administrador puede crear notificaciones manuales")
+        raise HTTPException(status_code=403, detail="Solo Administrador puede crear notificaciones manuales")
+    canal = datos.get("canal") or ("ambos" if datos.get("enviar_email") else "in_app")
+    roles = datos.get("roles") or datos.get("rol")
+    if roles:
+        return {
+            "mensaje": "Notificaciones emitidas por rol",
+            "creadas": emitir_a_roles(
+                datos.get("titulo", "Aviso"),
+                datos.get("mensaje", ""),
+                datos.get("tipo", "info"),
+                roles=roles,
+                canal=canal,
+                destino_email=datos.get("destino_email"),
+            ),
+        }
     return emitir(
         datos.get("titulo", "Aviso"),
         datos.get("mensaje", ""),
         datos.get("tipo", "info"),
-        destinatario_tipo=datos.get("destinatario_tipo", "todos"),
-        destinatario=datos.get("destinatario", ""),
-        canal=datos.get("canal") or ("ambos" if datos.get("enviar_email") else "in_app"),
+        destinatario_tipo=datos.get("destinatario_tipo") or "rol",
+        destinatario=datos.get("destinatario") or "administrador",
+        canal=canal,
         destino_email=datos.get("destino_email"),
     )

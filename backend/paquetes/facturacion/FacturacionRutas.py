@@ -8,9 +8,13 @@ router = APIRouter(prefix="/api", tags=["P16 Facturación"])
 
 def _u(p): return p.get("correo") or p.get("email") or p.get("sub") or "sistema"
 def _ok(r):
-    if r.get("error"): raise HTTPException(400, r["error"]); return r
+    if r.get("error"):
+        raise HTTPException(400, detail=r["error"])
+    return r
 def _nf(r):
-    if r.get("error"): raise HTTPException(404, r["error"]); return r
+    if r.get("error"):
+        raise HTTPException(404, detail=r["error"])
+    return r
 
 class FacturaIn(BaseModel):
     encounter_id: Optional[str] = None
@@ -30,6 +34,7 @@ class PagoIn(BaseModel):
     metodo: str = "efectivo"
     fecha: str = ""
     estado: str = "registrado"
+    referencia: str = ""
 
 class CatalogoIn(BaseModel):
     nombre: Optional[str] = None
@@ -124,10 +129,49 @@ def del_factura(id_factura: str, payload=Depends(require_escritura("facturacion"
 def pagos_factura(id_factura: str, payload=Depends(require_modulo("facturacion"))):
     return S.listar_pagos_factura(id_factura)
 
+@router.get("/facturas/{id_factura}/comprobante")
+def comprobante_factura(
+    id_factura: str,
+    formato: str = Query("html"),
+    payload=Depends(require_modulo("facturacion")),
+):
+    """Factura/recibo imprimible para el cliente (consulta o farmacia)."""
+    data = S.obtener_comprobante(id_factura)
+    if data.get("error"):
+        raise HTTPException(404, data["error"])
+    if str(formato or "html").lower() == "json":
+        return data
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(S.html_comprobante(data))
+
 @router.post("/facturas/{id_factura}/pagos")
 def crear_pago(id_factura: str, d: PagoIn, payload=Depends(require_escritura("facturacion"))):
     r = _ok(S.crear_pago(id_factura, d.dict()))
     S.pagos.auditar(_u(payload), "create", f"Pago factura {id_factura}", "facturacion"); return r
+
+@router.get("/pagos/publico/{token}")
+def pago_publico(token: str):
+    r = S.publico_pago(token)
+    if r.get("error"):
+        raise HTTPException(404, detail=r["error"])
+    return r
+
+@router.post("/pagos/publico/{token}/checkout")
+def pago_publico_checkout(token: str):
+    r = S.iniciar_checkout_stripe(token)
+    if r.get("error"):
+        raise HTTPException(400, detail=r["error"])
+    return r
+
+class StripeConfirmIn(BaseModel):
+    session_id: str = ""
+
+@router.post("/pagos/publico/{token}/confirmar")
+def pago_publico_confirmar(token: str, d: StripeConfirmIn):
+    r = S.confirmar_checkout_stripe(token, d.session_id)
+    if r.get("error"):
+        raise HTTPException(400, detail=r["error"])
+    return r
 
 @router.get("/pagos/{id_pago}")
 def obtener_pago(id_pago: str, payload=Depends(require_modulo("facturacion"))):

@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare - Pacientes</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <style>
 .paciente-thumb-btn {
   padding: 0;
@@ -114,10 +115,11 @@
 .expediente-seccion { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin: 12px 0 8px; }
 </style>
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -224,9 +226,9 @@ function authHdr(extra = {}) {
 }
 
 function urlFoto(id) {
-  const t = encodeURIComponent(localStorage.getItem('token') || '');
-  const v = _fotoBust[id] ? `&v=${_fotoBust[id]}` : '';
-  return `${API}/api/pacientes/${id}/foto?token=${t}${v}`;
+  // Misma origen: la cookie httpOnly autentica; no poner token en la URL (filtración/historial).
+  const v = _fotoBust[id] ? `?v=${_fotoBust[id]}` : '';
+  return `${API}/api/pacientes/${id}/foto${v}`;
 }
 
 function srcFotoPaciente(p) {
@@ -266,7 +268,7 @@ function renderTabla() {
       `<button type="button" class="btn btn-primary btn-sm" data-exp="${id}">Expediente</button>` +
       `<button type="button" class="btn btn-ghost btn-sm" data-edit="${id}">Editar</button>` +
       `<button type="button" class="btn btn-ghost btn-sm" data-pred="${id}">Predicción</button>` +
-      `<button type="button" class="btn btn-ghost btn-sm" data-del="${id}">Baja</button>`,
+      `<button type="button" class="btn btn-ghost btn-sm" data-del="${id}">Eliminar</button>`,
   });
   body.querySelectorAll('[data-exp]').forEach(btn => {
     btn.onclick = () => verExpediente(btn.getAttribute('data-exp'));
@@ -278,7 +280,7 @@ function renderTabla() {
     btn.onclick = () => irPrediccion(btn.getAttribute('data-pred'));
   });
   body.querySelectorAll('[data-del]').forEach(btn => {
-    btn.onclick = () => baja(btn.getAttribute('data-del'));
+    btn.onclick = () => eliminarPaciente(btn.getAttribute('data-del'));
   });
   pintarPager();
 }
@@ -569,11 +571,19 @@ function irPrediccion(id) {
   window.location.href = '/paginas/clinico/prediccion/index.html';
 }
 
-async function baja(id) {
-  if (!confirm('¿Desactivar este paciente?')) return;
+async function eliminarPaciente(id) {
+  const ok = await DiabCareAPI.confirm({
+    title: 'Eliminar paciente',
+    message: '¿Eliminar este paciente del expediente? Esta acción no se puede deshacer.',
+    confirmLabel: 'Eliminar',
+    cancelLabel: 'Cancelar',
+    danger: true,
+  });
+  if (!ok) return;
   const r = await fetch(`${API}/api/pacientes/${id}`, { method: 'DELETE', headers: authHdr() });
-  if (!r.ok) { toast('No se pudo desactivar', 'error'); return; }
-  toast('Paciente desactivado');
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(d.detail || d.error || 'No se pudo eliminar', 'error'); return; }
+  toast('Paciente eliminado');
   cargar();
 }
 

@@ -1,13 +1,19 @@
 ﻿from datetime import datetime, timedelta
 from typing import Optional
 import jwt
-import hashlib
 import secrets
 import string
 
-SECRETO = "diabcare-secret-2026"
-ALGORITMO = "HS256"
-EXPIRACION_HORAS = 4
+from nucleo.utilidades.PasswordHash import hash_password, verificar_password, necesita_rehash
+from paquetes.configuracion.ConfiguracionAjustes import (
+    JWT_SECRET,
+    JWT_ALGORITMO,
+    JWT_EXPIRACION_HORAS,
+)
+
+SECRETO = JWT_SECRET
+ALGORITMO = JWT_ALGORITMO
+EXPIRACION_HORAS = JWT_EXPIRACION_HORAS
 
 ROLES_VALIDOS = ["administrador", "medico", "enfermero", "farmaceutico", "analista"]
 
@@ -15,7 +21,8 @@ _codigos_reset = {}
 
 
 def _hash(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    """API interna: bcrypt (antes era SHA-256)."""
+    return hash_password(password)
 
 
 def generar_password_temporal(longitud: int = 12) -> str:
@@ -43,7 +50,12 @@ def iniciar_sesion(
 
     usuario = verificar_credenciales(email, password)
     if not usuario:
-        if email == "admin@diabcare.com" and password == "Admin2026*":
+        from paquetes.configuracion.ConfiguracionAjustes import ALLOW_BOOTSTRAP_ADMIN
+        if (
+            ALLOW_BOOTSTRAP_ADMIN
+            and email == "admin@diabcare.com"
+            and password == "Admin2026*"
+        ):
             from paquetes.usuarios.UsuariosServicio import asegurar_admin
             asegurar_admin(password)
             usuario = verificar_credenciales(email, password)
@@ -68,6 +80,8 @@ def iniciar_sesion(
         "exp": datetime.utcnow() + timedelta(hours=EXPIRACION_HORAS),
     }
     token = jwt.encode(payload, SECRETO, algorithm=ALGORITMO)
+    if isinstance(token, bytes):
+        token = token.decode("utf-8")
     tiene_foto = False
     try:
         from paquetes.clinico.pacientes.FotosEntidadServicio import obtener_principal
@@ -77,6 +91,7 @@ def iniciar_sesion(
     return {
         "token": token,
         "tipo": "bearer",
+        "expira_en": EXPIRACION_HORAS * 3600,
         "usuario": {
             "id": str(usuario["id"]),
             "nombre": usuario["nombre"],
@@ -123,17 +138,17 @@ def cambiar_password(token: str, password_actual: str, password_nueva: str) -> d
     if len(password_nueva or "") < 8:
         return {"error": "La nueva contraseña debe tener al menos 8 caracteres"}
     email = resultado["payload"]["email"]
-    from paquetes.usuarios.UsuariosServicio import _extraer, _cargar, _hash as uh, _valor_escritura
+    from paquetes.usuarios.UsuariosServicio import _extraer, _cargar, _valor_escritura
     df = _extraer()
     idx = df.index[df["email"] == email].tolist()
     if not idx:
         return {"error": "Usuario no encontrado"}
-    if df.at[idx[0], "password_hash"] != _hash(password_actual):
+    stored = str(df.at[idx[0], "password_hash"] or "")
+    if not verificar_password(password_actual, stored):
         return {"error": "Contraseña actual incorrecta"}
-    df.at[idx[0], "password_hash"] = _hash(password_nueva)
+    df.at[idx[0], "password_hash"] = hash_password(password_nueva)
     df.at[idx[0], "debe_cambiar_password"] = _valor_escritura("debe_cambiar_password", False)
     _cargar(df)
-    # Re-emitir token sin flag
     from paquetes.autenticacion.SesionesServicio import crear_sesion, revocar
     old_jti = resultado["payload"].get("jti")
     if old_jti:
@@ -150,9 +165,12 @@ def cambiar_password(token: str, password_actual: str, password_nueva: str) -> d
         "exp": datetime.utcnow() + timedelta(hours=EXPIRACION_HORAS),
     }
     token_nuevo = jwt.encode(payload, SECRETO, algorithm=ALGORITMO)
+    if isinstance(token_nuevo, bytes):
+        token_nuevo = token_nuevo.decode("utf-8")
     return {
         "mensaje": "Contraseña actualizada",
         "token": token_nuevo,
+        "expira_en": EXPIRACION_HORAS * 3600,
         "usuario": {
             "id": uid,
             "nombre": payload["nombre"],
@@ -201,12 +219,14 @@ def resetear_password(email: str, codigo: str, password_nueva: str) -> dict:
         return {"error": "Código expirado"}
     if datos["codigo"] != codigo:
         return {"error": "Código incorrecto"}
+    if len(password_nueva or "") < 8:
+        return {"error": "La nueva contraseña debe tener al menos 8 caracteres"}
     del _codigos_reset[email]
     from paquetes.usuarios.UsuariosServicio import _extraer, _cargar, _valor_escritura
     df = _extraer()
     idx = df.index[df["email"] == email].tolist()
     if idx:
-        df.at[idx[0], "password_hash"] = _hash(password_nueva)
+        df.at[idx[0], "password_hash"] = hash_password(password_nueva)
         df.at[idx[0], "debe_cambiar_password"] = _valor_escritura("debe_cambiar_password", False)
         _cargar(df)
     return {"mensaje": "Contraseña restablecida"}

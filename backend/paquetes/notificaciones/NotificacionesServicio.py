@@ -1,6 +1,19 @@
 """
-NotificacionesServicio — P10 Notificaciones dirigidas (in-app + email).
-Pacientes: canal email (sin portal en esta fase).
+NotificacionesServicio - P10 Notificaciones dirigidas por rol (in-app + email).
+
+Cada aviso va a uno o más roles. La bandeja del usuario solo muestra lo de su rol
+(+ avisos personales; historial paciente_email solo Administrador).
+
+Matriz operativa (quién actúa → quién recibe):
+  Recepción/Caja cobra cita     → Médico
+  Admisiones registra ingreso   → Médico, Enfermero
+  Laboratorio carga resultado   → Médico
+  Médico emite receta           → Farmacéutico
+  Farmacia stock bajo           → Farmacéutico, Administrador
+  Factura emitida               → Administrador
+  Solicitud de acceso           → Administrador
+  Alertas HbA1c / glucosa       → Médico
+  Modelo ML / reporte / dataset → Analista, Administrador
 """
 
 from __future__ import annotations
@@ -23,6 +36,40 @@ COLUMNAS = [
 UMBRAL_HBA1C = 7.5
 UMBRAL_GLUCOSA = 180
 TIPOS_EMAIL = {"warning", "error", "critico", "critical", "alerta"}
+
+ROLES_VALIDOS = ("administrador", "medico", "enfermero", "farmaceutico", "analista")
+
+# Etiquetas con mayúscula inicial (UI / mensajes)
+ETIQUETA_ROL = {
+    "administrador": "Administrador",
+    "medico": "Médico",
+    "enfermero": "Enfermero",
+    "farmaceutico": "Farmacéutico",
+    "analista": "Analista",
+}
+
+
+def etiqueta_rol(rol: str) -> str:
+    key = str(rol or "").strip().lower()
+    return ETIQUETA_ROL.get(key) or (key[:1].upper() + key[1:] if key else "")
+
+
+def _normalizar_roles(roles) -> list[str]:
+    if roles is None:
+        return []
+    if isinstance(roles, str):
+        parts = [p.strip().lower() for p in roles.replace(";", ",").split(",")]
+    else:
+        parts = [str(p).strip().lower() for p in roles]
+    out = []
+    for p in parts:
+        if p in ROLES_VALIDOS and p not in out:
+            out.append(p)
+    return out
+
+
+def _roles_en_destinatario(dest: str) -> list[str]:
+    return _normalizar_roles(dest)
 
 
 def _extraer() -> pd.DataFrame:
@@ -85,7 +132,7 @@ def enviar_correo_usuario(
 
     texto, html = render_plantilla(
         plantilla,
-        titulo=asunto.replace("DiabCare — ", "").strip() or "Aviso",
+        titulo=asunto.replace("DiabCare - ", "").strip() or "Aviso",
         mensaje=cuerpo,
         cuerpo=cuerpo,
         **ctx,
@@ -170,39 +217,106 @@ def emitir(
     return fila
 
 
-def crear(
+def emitir_a_roles(
     titulo: str,
     mensaje: str,
     tipo: str = "info",
+    roles: list[str] | str | None = None,
+    *,
+    canal: str = "in_app",
+    referencia_tipo: str = "",
+    referencia_id: str = "",
+    destino_email: str | None = None,
+) -> list[dict]:
+    """Crea una notificación in-app por cada rol destino."""
+    lista = _normalizar_roles(roles)
+    if not lista:
+        return []
+    out = []
+    for rol in lista:
+        out.append(emitir(
+            titulo,
+            mensaje,
+            tipo,
+            destinatario_tipo="rol",
+            destinatario=rol,
+            canal=canal,
+            referencia_tipo=referencia_tipo,
+            referencia_id=referencia_id,
+            destino_email=destino_email,
+        ))
+    return out
+
+
+def crear(
+    titulo,
+    mensaje: str = "",
+    tipo: str = "info",
     enviar_email: bool | None = None,
     destino_email: str | None = None,
-) -> dict:
-    """Compat: notificación global in-app (+ email umbral)."""
+    roles=None,
+    rol: str | None = None,
+) -> dict | list:
+    """
+    Compat: si `titulo` es dict (llamadas antiguas), lee campos de ahí.
+    Preferir `roles=[...]` - ya no se usa destinatario 'todos' por defecto.
+    """
+    if isinstance(titulo, dict):
+        d = titulo
+        return crear(
+            d.get("titulo", "Aviso"),
+            d.get("mensaje", ""),
+            d.get("tipo", "info"),
+            enviar_email=d.get("enviar_email"),
+            destino_email=d.get("destino_email"),
+            roles=d.get("roles") or d.get("rol"),
+        )
+
     tipo = (tipo or "info").lower()
     if enviar_email is None:
         enviar_email = tipo in TIPOS_EMAIL
     canal = "ambos" if enviar_email else "in_app"
-    return emitir(
-        titulo, mensaje, tipo,
-        destinatario_tipo="todos",
-        destinatario="",
-        canal=canal,
-        destino_email=destino_email,
+    dest_roles = _normalizar_roles(roles if roles is not None else rol)
+    if not dest_roles:
+        # Sin rol explícito: solo Administrador (evita broadcast a todos)
+        dest_roles = ["administrador"]
+    filas = emitir_a_roles(
+        str(titulo), str(mensaje or ""), tipo,
+        roles=dest_roles, canal=canal, destino_email=destino_email,
     )
+    return filas[0] if len(filas) == 1 else filas
 
 
 def _visible_para(row, user_id: str, rol: str, es_admin: bool) -> bool:
     tipo_d = str(row.get("destinatario_tipo") or "todos").lower()
     dest = str(row.get("destinatario") or "")
+    rol_u = str(rol or "").lower()
     if tipo_d == "paciente_email":
-        return es_admin  # historial solo admin
+        return es_admin  # historial solo Administrador
     if tipo_d == "todos" or tipo_d == "":
         return True
     if tipo_d == "rol":
-        return dest.lower() == str(rol).lower() or es_admin
+        return rol_u in _roles_en_destinatario(dest)
     if tipo_d == "usuario":
-        return dest == str(user_id) or es_admin
-    return es_admin
+        return dest == str(user_id)
+    return False
+
+
+def _enriquecer_fila(n: dict) -> dict:
+    tipo_d = str(n.get("destinatario_tipo") or "")
+    dest = str(n.get("destinatario") or "")
+    if tipo_d == "rol":
+        labels = [etiqueta_rol(r) for r in _roles_en_destinatario(dest)]
+        n["destinatario_label"] = ", ".join(labels) if labels else etiqueta_rol(dest)
+    elif tipo_d == "todos":
+        n["destinatario_label"] = "Todos"
+    elif tipo_d == "paciente_email":
+        n["destinatario_label"] = "Paciente"
+    elif tipo_d == "usuario":
+        n["destinatario_label"] = "Usuario"
+    else:
+        n["destinatario_label"] = dest or "-"
+    return n
 
 
 def listar(
@@ -217,15 +331,17 @@ def listar(
     if df.empty:
         return {"total": 0, "no_leidas": 0, "notificaciones": []}
 
-    es_admin = rol == "administrador"
+    es_admin = str(rol).lower() == "administrador"
+    rol_u = str(rol or "").lower()
     if user_id or rol:
-        # Vectorizado aproximado (más rápido que apply fila a fila)
         tipo_d = df.get("destinatario_tipo", pd.Series([""] * len(df))).astype(str).str.lower()
         dest = df.get("destinatario", pd.Series([""] * len(df))).astype(str)
+        # Solo el propio rol (sin filtrar “todo lo del admin”)
+        rol_match = dest.map(lambda d: rol_u in _roles_en_destinatario(d))
         mask = (
             tipo_d.isin(["todos", ""])
-            | ((tipo_d == "rol") & ((dest.str.lower() == str(rol).lower()) | es_admin))
-            | ((tipo_d == "usuario") & ((dest == str(user_id)) | es_admin))
+            | ((tipo_d == "rol") & rol_match)
+            | ((tipo_d == "usuario") & (dest == str(user_id)))
             | ((tipo_d == "paciente_email") & es_admin)
         )
         df = df[mask]
@@ -236,10 +352,13 @@ def listar(
     total = int(len(df))
     no_leidas = int((df["leida"] != True).sum()) if "leida" in df.columns else 0  # noqa: E712
     pagina = df.iloc[skip: skip + limit]
+    notifs = [_enriquecer_fila(r) for r in pagina.fillna("").to_dict(orient="records")]
     return {
         "total": total,
         "no_leidas": no_leidas,
-        "notificaciones": pagina.fillna("").to_dict(orient="records"),
+        "notificaciones": notifs,
+        "rol": rol_u,
+        "rol_label": etiqueta_rol(rol_u),
     }
 
 
@@ -249,7 +368,7 @@ def marcar_leida(notif_id: str, user_id: str = "", rol: str = "") -> dict:
     if not idx:
         return {"error": "Notificación no encontrada"}
     row = df.loc[idx[0]]
-    if user_id and not _visible_para(row, user_id, rol, rol == "administrador"):
+    if user_id and not _visible_para(row, user_id, rol, str(rol).lower() == "administrador"):
         return {"error": "Notificación no encontrada"}
     df.at[idx[0], "leida"] = True
     _cargar(df)
@@ -260,7 +379,7 @@ def marcar_todas_leidas(user_id: str = "", rol: str = "") -> dict:
     df = _extraer()
     if df.empty:
         return {"mensaje": "Sin notificaciones"}
-    es_admin = rol == "administrador"
+    es_admin = str(rol).lower() == "administrador"
     for i, row in df.iterrows():
         if _visible_para(row, user_id, rol, es_admin):
             df.at[i, "leida"] = True
@@ -319,7 +438,7 @@ def evaluar_alertas_clinicas() -> dict:
         email_pac = str(row.get("email") or row.get("paciente_email") or "").strip()
 
         if hba1c > UMBRAL_HBA1C:
-            titulo = f"Alerta HbA1c — encuentro {eid}"
+            titulo = f"Alerta HbA1c - encuentro {eid}"
             if not _ya_existe_titulo_reciente(titulo):
                 emitir(
                     titulo,
@@ -333,7 +452,7 @@ def evaluar_alertas_clinicas() -> dict:
                 )
                 if email_pac:
                     emitir(
-                        "DiabCare — Resultado de seguimiento",
+                        "DiabCare - Resultado de seguimiento",
                         f"Hola {paciente}, su HbA1c ({hba1c:.1f}%) requiere seguimiento. Contacte a su médico.",
                         "info",
                         destinatario_tipo="paciente_email",
@@ -344,7 +463,7 @@ def evaluar_alertas_clinicas() -> dict:
                 nuevas += 1
 
         if glucosa > UMBRAL_GLUCOSA:
-            titulo = f"Alerta glucosa — encuentro {eid}"
+            titulo = f"Alerta glucosa - encuentro {eid}"
             if not _ya_existe_titulo_reciente(titulo):
                 emitir(
                     titulo,

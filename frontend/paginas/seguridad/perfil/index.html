@@ -6,11 +6,13 @@
 <title>DiabCare - Mi perfil</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
-<script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
-<script src="/estaticos/api.js"></script>
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
+<script src="/estaticos/iconos.js?v=20260808e"></script>
+<script src="/estaticos/i18n.js?v=20260808e"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
+<script src="/estaticos/api.js?v=20260808p"></script>
 <style>
 .perfil-layout {
   display: grid;
@@ -37,8 +39,8 @@
   width: 112px;
   height: 112px;
   border-radius: 50%;
-  background: rgba(34,211,238,0.12);
-  border: 2px solid rgba(34,211,238,0.35);
+  background: rgba(0, 229, 255, 0.12);
+  border: 2px solid rgba(0, 229, 255, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -61,7 +63,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid rgba(34,211,238,0.4);
+  border: 1px solid rgba(0, 229, 255, 0.4);
   background: var(--bg3);
   color: var(--cyan);
   cursor: pointer;
@@ -70,7 +72,7 @@
   align-items: center;
   justify-content: center;
 }
-.perfil-foto-btn:hover { background: rgba(34,211,238,0.15); }
+.perfil-foto-btn:hover { background: rgba(0, 229, 255, 0.15); }
 .perfil-card h2 { font-size: 16px; margin: 0 0 4px; color: var(--text); }
 .perfil-card .email { font-size: 11px; color: var(--text3); font-family: var(--mono); margin: 0 0 8px; word-break: break-all; }
 .perfil-rol {
@@ -80,9 +82,9 @@
   letter-spacing: 0.06em;
   padding: 3px 8px;
   border-radius: 4px;
-  background: rgba(34,211,238,0.1);
+  background: rgba(0, 229, 255, 0.1);
   color: var(--cyan);
-  border: 1px solid rgba(34,211,238,0.2);
+  border: 1px solid rgba(0, 229, 255, 0.2);
 }
 .perfil-bio-preview {
   margin-top: 12px;
@@ -105,9 +107,71 @@ textarea.fi { min-height: 88px; resize: vertical; font-family: inherit; }
 .toggle::after { content: ''; position: absolute; width: 14px; height: 14px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: left .2s; }
 .toggle.on::after { left: 19px; }
 .config-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
+
+.acerca-hero {
+  margin-bottom: 18px;
+  padding: 22px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 229, 255, 0.28);
+  background:
+    linear-gradient(135deg, rgba(0, 229, 255, 0.14), rgba(0, 229, 255, 0.06) 45%, rgba(255,255,255,0.03));
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 12px 36px rgba(0,0,0,0.18), 0 0 40px rgba(0, 229, 255, 0.08);
+}
+.acerca-hero-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.acerca-hero-top .config-title {
+  font-size: 16px;
+  margin: 0;
+  color: var(--text);
+}
+.acerca-hero-top .config-sub { margin: 0; }
+.acerca-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 720px) { .acerca-grid { grid-template-columns: 1fr; } }
+.acerca-card {
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  background: rgba(8, 12, 28, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.acerca-card h3 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  font-family: var(--mono);
+}
+.acerca-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text2);
+}
+html[data-tema="claro"] .acerca-hero {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(255,255,255,0.72));
+  border-color: rgba(14, 165, 233, 0.28);
+}
+html[data-tema="claro"] .acerca-card {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(14, 165, 233, 0.22);
+}
 </style>
 </head>
-<body>
+<body class="dc-uv">
 
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 
@@ -124,6 +188,25 @@ textarea.fi { min-height: 88px; resize: vertical; font-family: inherit; }
       </div>
       <button class="btn btn-primary" onclick="guardarPerfil()">Guardar cambios</button>
     </div>
+
+    <section class="acerca-hero" id="acerca-diabcare" aria-labelledby="acerca-titulo">
+      <div class="acerca-hero-top">
+        <div>
+          <div class="config-title" id="acerca-titulo" data-i18n="acerca_titulo">Acerca de DiabCare</div>
+          <div class="config-sub" data-i18n="acerca_sub">Identidad de la plataforma (misión y visión)</div>
+        </div>
+      </div>
+      <div class="acerca-grid">
+        <article class="acerca-card">
+          <h3 data-i18n="mision_titulo">Misión</h3>
+          <p data-i18n="mision_texto">Unificar la operación de una clínica especializada en diabetes - recepción, consulta, laboratorio, farmacia, facturación y seguimiento - con analítica táctica, data warehouse e inteligencia artificial, para que cada rol del equipo actúe a tiempo y mejore el control del paciente.</p>
+        </article>
+        <article class="acerca-card">
+          <h3 data-i18n="vision_titulo">Visión</h3>
+          <p data-i18n="vision_texto">Ser la plataforma hospitalaria-analítica de referencia en diabetes: un SaaS que conecta cuidado continuo, datos confiables y predicción clínica, escalable a redes de salud en la región y partners internacionales.</p>
+        </article>
+      </div>
+    </section>
 
     <div class="perfil-layout">
       <div class="perfil-card">
@@ -187,7 +270,7 @@ textarea.fi { min-height: 88px; resize: vertical; font-family: inherit; }
               <label class="fl">Notificaciones por correo</label>
               <div class="config-row" style="padding-top:8px;">
                 <div class="config-row-sub" style="font-size:11px;color:var(--text3)">Alertas y avisos del sistema</div>
-                <div class="toggle on" id="t-notif-email" onclick="this.classList.toggle('on')"></div>
+                <div class="toggle on" id="t-notif-email"></div>
               </div>
             </div>
           </div>
@@ -219,6 +302,7 @@ textarea.fi { min-height: 88px; resize: vertical; font-family: inherit; }
           </div>
           <div id="sesionesBody"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
         </div>
+
       </div>
     </div>
   </div>
@@ -229,7 +313,6 @@ textarea.fi { min-height: 88px; resize: vertical; font-family: inherit; }
 <script>
 DiabCareNav.init();
 const API = DiabCareNav.getApi();
-let token = localStorage.getItem('token');
 let fotoBust = Date.now();
 const forzar = new URLSearchParams(location.search).get('forzar') === '1'
   || (JSON.parse(localStorage.getItem('usuario') || '{}').debe_cambiar_password === true);
@@ -247,39 +330,57 @@ function toast(msg, type = 'success') {
 }
 
 function authHdr(json = true) {
-  const h = { Authorization: 'Bearer ' + token };
+  // Sesión vía cookie httpOnly (no JWT en JS).
+  const h = {};
   if (json) h['Content-Type'] = 'application/json';
   return h;
 }
 
+function apiFetch(path, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  return fetch(path.startsWith('http') ? path : `${API}${path}`, {
+    ...opts,
+    headers,
+    credentials: 'include',
+    cache: opts.cache || 'no-store',
+  });
+}
+
 function urlFoto() {
-  return `${API}/api/auth/perfil/foto?t=${fotoBust}`;
+  // Relativa: cookie de sesión siempre en el mismo origen
+  return `/api/auth/perfil/foto?t=${fotoBust}`;
 }
 
 function pintarAvatar(u) {
   const box = document.getElementById('p-avatar');
+  if (!box) return;
   const nombre = u.nombre || 'Usuario';
-  if (u.tiene_foto) {
-    box.innerHTML = '';
-    const img = document.createElement('img');
-    img.alt = nombre;
-    fetch(urlFoto(), { headers: { Authorization: 'Bearer ' + token } })
-      .then(r => r.ok ? r.blob() : Promise.reject())
-      .then(b => {
-        img.src = URL.createObjectURL(b);
-        box.appendChild(img);
-      })
-      .catch(() => { box.textContent = nombre[0].toUpperCase(); });
-  } else {
-    box.textContent = nombre[0].toUpperCase();
+  const letra = (nombre[0] || 'U').toUpperCase();
+  if (u.tiene_foto === false) {
+    box.textContent = letra;
+    return;
   }
+  // Misma técnica que el topbar: <img> + cookie (sin blob)
+  box.innerHTML = '';
+  box.textContent = letra;
+  const img = document.createElement('img');
+  img.alt = nombre;
+  img.src = urlFoto();
+  img.decoding = 'async';
+  img.onload = () => {
+    box.innerHTML = '';
+    box.appendChild(img);
+  };
+  img.onerror = () => { box.textContent = letra; };
 }
 
 function pintarPerfil(u) {
   const nombre = u.nombre || 'Usuario';
   document.getElementById('p-nombre-display').textContent = nombre;
   document.getElementById('p-email-display').textContent = u.email || '-';
-  document.getElementById('p-rol-display').textContent = u.rol || '-';
+  document.getElementById('p-rol-display').textContent =
+    (typeof DiabCareNav !== 'undefined' && DiabCareNav.etiquetaRol)
+      ? DiabCareNav.etiquetaRol(u.rol) : (u.rol || '-');
   document.getElementById('p-nombre').value = nombre;
   document.getElementById('p-email').value = u.email || '';
   document.getElementById('p-telefono').value = u.telefono || '';
@@ -287,7 +388,8 @@ function pintarPerfil(u) {
   document.getElementById('p-bio').value = u.bio || '';
   document.getElementById('p-bio-preview').textContent = u.bio || '';
   document.getElementById('p-idioma').value = u.idioma || 'es';
-  document.getElementById('t-notif-email').classList.toggle('on', u.notif_email !== false);
+  if (window.DiabCareNav) DiabCareNav.holoPoner('t-notif-email', u.notif_email !== false);
+  else document.getElementById('t-notif-email').classList.toggle('on', u.notif_email !== false);
   pintarAvatar(u);
   if (u.debe_cambiar_password || forzar) {
     document.getElementById('bannerForzar').style.display = 'block';
@@ -298,19 +400,29 @@ function actualizarLocal(u) {
   const prev = JSON.parse(localStorage.getItem('usuario') || '{}');
   const merged = { ...prev, ...u };
   localStorage.setItem('usuario', JSON.stringify(merged));
-  DiabCareNav.initUser();
+  if (window.DiabCareNav && DiabCareNav.marcarSesion) DiabCareNav.marcarSesion(merged);
+  if (window.DiabCareNav && DiabCareNav.initUser) DiabCareNav.initUser();
 }
 
 async function cargarPerfil() {
-  if (!token) { window.location.href = '/'; return; }
+  // Pintar cache local primero (evita formulario vacío si hay latencia)
   try {
-    const r = await fetch(`${API}/api/auth/perfil`, { headers: authHdr() });
-    if (r.status === 401) { window.location.href = '/'; return; }
+    const cached = JSON.parse(localStorage.getItem('usuario') || sessionStorage.getItem('usuario') || '{}');
+    if (cached && cached.nombre) pintarPerfil(cached);
+  } catch (_) { /* ignore */ }
+
+  try {
+    const r = await apiFetch('/api/auth/perfil', { headers: authHdr(false) });
+    if (r.status === 401) {
+      window.location.href = '/';
+      return;
+    }
     const u = await r.json();
-    if (u.detail) { toast(u.detail, 'error'); return; }
+    if (u.detail) { toast(typeof u.detail === 'string' ? u.detail : 'No se pudo cargar el perfil', 'error'); return; }
     pintarPerfil(u);
     actualizarLocal(u);
-  } catch {
+  } catch (err) {
+    console.warn('cargarPerfil', err);
     const u = JSON.parse(localStorage.getItem('usuario') || '{}');
     if (u.nombre) pintarPerfil(u);
   }
@@ -328,9 +440,8 @@ async function subirFoto(input) {
   const fd = new FormData();
   fd.append('archivo', file);
   try {
-    const r = await fetch(`${API}/api/auth/perfil/foto`, {
+    const r = await apiFetch('/api/auth/perfil/foto', {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + token },
       body: fd,
     });
     const d = await r.json().catch(() => ({}));
@@ -348,8 +459,9 @@ async function subirFoto(input) {
     if (d.id_usuario) u.id = d.id_usuario;
     actualizarLocal(u);
     pintarAvatar(u);
-    if (typeof DiabCareNav !== 'undefined' && DiabCareNav.pintarAvatarSidebar) {
-      DiabCareNav.pintarAvatarSidebar(u);
+    if (typeof DiabCareNav !== 'undefined') {
+      if (DiabCareNav.pintarAvatarSidebar) DiabCareNav.pintarAvatarSidebar(u);
+      if (DiabCareNav.pintarAvatarTopbar) DiabCareNav.pintarAvatarTopbar(u);
     }
     toast('Foto guardada');
   } catch {
@@ -361,27 +473,37 @@ async function subirFoto(input) {
 async function cargarSesiones() {
   const box = document.getElementById('sesionesBody');
   try {
-    const r = await fetch(`${API}/api/auth/mis-sesiones`, { headers: authHdr() });
+    const r = await apiFetch('/api/auth/mis-sesiones', { headers: authHdr(false) });
     if (r.status === 401) {
       DiabCareNav.irLogin();
       return;
     }
     const d = await r.json();
     const jtiActual = d.jti_actual || '';
-    const sesiones = (d.sesiones || []).filter(s => !s.revocada);
+    const ahora = Date.now();
+    const sesiones = (d.sesiones || []).filter(s => {
+      if (s.revocada || s.expirada || s.activa === false) return false;
+      if (s.expira_en) {
+        const t = Date.parse(String(s.expira_en));
+        if (Number.isFinite(t) && t < ahora) return false;
+      }
+      return true;
+    });
     if (!sesiones.length) {
       box.innerHTML = '<div style="font-size:12px;color:var(--text3)">Sin sesiones activas</div>';
       return;
     }
-    let h = '<table style="width:100%;font-size:12px"><thead><tr><th>Creada</th><th>IP</th><th>Estado</th><th></th></tr></thead><tbody>';
+    let h = '<table style="width:100%;font-size:12px"><thead><tr><th>Creada</th><th>Expira</th><th>IP</th><th>Estado</th><th></th></tr></thead><tbody>';
     sesiones.forEach(s => {
       const fecha = (s.creado_en || '').replace('T', ' ').slice(0, 19);
+      const expira = (s.expira_en || '').replace('T', ' ').slice(0, 19);
       const actual = jtiActual && String(s.id_sesion) === String(jtiActual);
       const accion = actual
         ? '<span style="font-size:11px;color:var(--text3)">Solo otro admin</span>'
         : `<button class="btn btn-ghost btn-sm" onclick="revocarSesion('${s.id_sesion}')">Revocar</button>`;
       h += `<tr>
         <td class="mono">${fecha || '-'}</td>
+        <td class="mono">${expira || '-'}</td>
         <td>${s.ip || '-'}</td>
         <td>${actual ? '<span style="color:var(--cyan)">Esta sesión</span>' : 'Activa'}</td>
         <td>${accion}</td>
@@ -395,9 +517,9 @@ async function cargarSesiones() {
 }
 
 async function revocarSesion(id) {
-  const r = await fetch(`${API}/api/auth/mis-sesiones/${encodeURIComponent(id)}`, {
+  const r = await apiFetch(`/api/auth/mis-sesiones/${encodeURIComponent(id)}`, {
     method: 'DELETE',
-    headers: authHdr(),
+    headers: authHdr(false),
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) {
@@ -418,9 +540,9 @@ async function cerrarOtrasSesiones() {
       })
     : confirm('¿Cerrar las demás sesiones y mantener esta?');
   if (!ok) return;
-  const r = await fetch(`${API}/api/auth/mis-sesiones/cerrar-todas`, {
+  const r = await apiFetch('/api/auth/mis-sesiones/cerrar-todas', {
     method: 'POST',
-    headers: authHdr(),
+    headers: authHdr(false),
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) {
@@ -440,10 +562,12 @@ async function guardarPerfil() {
     cargo: document.getElementById('p-cargo').value.trim(),
     bio: document.getElementById('p-bio').value.trim(),
     idioma: document.getElementById('p-idioma').value,
-    notif_email: document.getElementById('t-notif-email').classList.contains('on'),
+    notif_email: window.DiabCareNav
+      ? DiabCareNav.holoEstaOn('t-notif-email')
+      : document.getElementById('t-notif-email').classList.contains('on'),
   };
   try {
-    const r = await fetch(`${API}/api/auth/perfil`, {
+    const r = await apiFetch('/api/auth/perfil', {
       method: 'PUT',
       headers: authHdr(),
       body: JSON.stringify(body),
@@ -459,6 +583,10 @@ async function guardarPerfil() {
     if (d.usuario) {
       pintarPerfil({ ...d.usuario, tiene_foto: d.usuario.tiene_foto ?? JSON.parse(localStorage.getItem('usuario') || '{}').tiene_foto });
       actualizarLocal(d.usuario);
+    } else {
+      // respuesta plana del servicio
+      pintarPerfil({ ...body, email: document.getElementById('p-email').value, rol: JSON.parse(localStorage.getItem('usuario') || '{}').rol });
+      actualizarLocal({ ...body });
     }
     toast('Perfil guardado en el servidor');
   } catch {
@@ -470,7 +598,7 @@ async function cambiarPassword() {
   const password_actual = document.getElementById('p-pass-actual').value;
   const password_nueva = document.getElementById('p-pass-nueva').value;
   if (!password_actual || !password_nueva) {
-    toast('Completa contraseña actual y nueva', 'error');
+    toast('Completa ambas contraseñas', 'error');
     return;
   }
   if (password_nueva.length < 8) {
@@ -478,16 +606,18 @@ async function cambiarPassword() {
     return;
   }
   try {
-    const r = await fetch(`${API}/api/auth/cambiar-password`, {
+    const r = await apiFetch('/api/auth/cambiar-password', {
       method: 'PUT',
       headers: authHdr(),
       body: JSON.stringify({ password_actual, password_nueva }),
     });
     const d = await r.json();
     if (!r.ok) { toast(d.detail || 'Error al cambiar contraseña', 'error'); return; }
-    if (d.token) {
-      token = d.token;
-      localStorage.setItem('token', d.token);
+    localStorage.removeItem('token');
+    if (window.DiabCareNav && DiabCareNav.marcarSesion) {
+      DiabCareNav.marcarSesion(d.usuario || null);
+    } else {
+      sessionStorage.setItem('dc_sesion_ok', '1');
     }
     if (d.usuario) actualizarLocal(d.usuario);
     else {
@@ -502,7 +632,7 @@ async function cambiarPassword() {
     if (forzar) {
       setTimeout(() => {
         window.location.href = DiabCareNav.homeParaRol(
-          (JSON.parse(localStorage.getItem('usuario') || '{}').rol) || 'analista'
+          (d.usuario && d.usuario.rol) || JSON.parse(localStorage.getItem('usuario') || '{}').rol
         );
       }, 900);
     } else {

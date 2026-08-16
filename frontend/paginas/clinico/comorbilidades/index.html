@@ -5,14 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare - Comorbilidades</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -26,6 +28,23 @@
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Registrar complicación</button>
+      </div>
+    </div>
+    <div class="dash-row dash-3" style="margin-bottom:14px">
+      <div class="kpi-card red">
+        <div class="kpi-label">Complicaciones</div>
+        <div class="kpi-val red" id="k-com-total">—</div>
+        <div class="kpi-sub">activas registradas</div>
+      </div>
+      <div class="kpi-card cyan">
+        <div class="kpi-label">Pacientes afectados</div>
+        <div class="kpi-val cyan" id="k-com-pac">—</div>
+        <div class="kpi-sub">con al menos una complicación</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Más frecuente</div>
+        <div class="kpi-val amber" id="k-com-tipo" style="font-size:20px">—</div>
+        <div class="kpi-sub">tipo predominante</div>
       </div>
     </div>
     <div class="tabla-card">
@@ -66,6 +85,21 @@
 <script>
 DiabCareNav.init();
 DiabCareNav.guardRol(['administrador', 'medico']);
+
+// Informe simple: complicaciones por tipo y pacientes afectados
+(async function kpisComorbilidades() {
+  try {
+    const r = await fetch(`${DiabCareNav.getApi()}/api/comorbilidades/resumen`, {
+      headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }, cache: 'no-store'
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('k-com-total').textContent = d.total ?? '—';
+    document.getElementById('k-com-pac').textContent = d.pacientes_afectados ?? '—';
+    document.getElementById('k-com-tipo').textContent = d.tipo_mas_frecuente || 'Sin registros';
+  } catch (_) { /* sin datos */ }
+})();
+
 DiabCareCrud.mount({
   listUrl: '/api/comorbilidades/', listKey: 'comorbilidades', idField: 'id_comorbilidad',
   itemUrl: id => '/api/comorbilidades/' + id, createUrl: '/api/comorbilidades/',
@@ -96,9 +130,19 @@ DiabCareCrud.mount({
   ],
   fields: [
     { key: 'id_paciente', required: true, label: 'paciente' },
-    { key: 'tipo' },
-    { key: 'fecha_deteccion', required: true, label: 'fecha' },
-    { key: 'notas' },
+    {
+      key: 'tipo', required: true, labelUi: 'Complicación',
+      type: 'select',
+      options: [
+        { value: 'cardiovascular', label: 'Cardiovascular' },
+        { value: 'nefropatia', label: 'Nefropatía' },
+        { value: 'neuropatia', label: 'Neuropatía' },
+        { value: 'pie_diabetico', label: 'Pie diabético' },
+        { value: 'retinopatia', label: 'Retinopatía' },
+      ],
+    },
+    { key: 'fecha_deteccion', required: true, type: 'date', labelUi: 'Fecha detección' },
+    { key: 'notas', labelUi: 'Notas', full: true },
   ],
 });
 </script>

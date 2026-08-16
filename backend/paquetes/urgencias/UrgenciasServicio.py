@@ -33,7 +33,7 @@ def _now():
 
 urgencias = ParquetStore(
     "negocio/hechos_emergencia.parquet",
-    ["id_urgencia", "id_paciente", "triage", "motivo", "id_enfermero", "id_medico",
+    ["id_urgencia", "id_paciente", "triage", "motivo", "via_llegada", "id_enfermero", "id_medico",
      "hora_llegada", "hora_atencion", "desenlace", "estado", "creado_en", "actualizado_en"],
     "id_urgencia", "urgencias", modo_borrado="estado",
 )
@@ -72,16 +72,36 @@ def enriquecer(filas: list) -> list:
 
 
 def listar_enriquecido(**kwargs) -> dict:
+    q = str(kwargs.pop("q", "") or "").strip()
+    offset = int(kwargs.get("offset") or 0)
+    limit = int(kwargs.get("limit") or 50)
+    if q:
+        kwargs = {**kwargs, "offset": 0, "limit": 10**9, "q": ""}
+        res = urgencias.listar(**kwargs)
+        rows = enriquecer(res.get("urgencias") or [])
+        ql = q.lower()
+        tokens = [t for t in ql.replace(",", " ").split() if t]
+        campos = ("paciente_nombre", "documento", "motivo", "triage", "triage_label", "estado", "estado_label", "via_llegada")
+        filtradas = []
+        for r in rows:
+            blob = " ".join(str(r.get(k) or "") for k in campos).lower()
+            if ql in blob or (tokens and all(t in blob for t in tokens)):
+                filtradas.append(r)
+        return {"total": len(filtradas), "urgencias": filtradas[offset: offset + limit]}
     res = urgencias.listar(**kwargs)
     res["urgencias"] = enriquecer(res.get("urgencias") or [])
     return res
 
 
 def crear_triage(datos: dict, id_enfermero: str) -> dict:
+    via = str(datos.get("via_llegada") or "propia").lower()
+    if via not in ("propia", "ambulancia", "referido"):
+        via = "propia"
     return urgencias.crear({
         "id_paciente": str(datos.get("id_paciente") or ""),
         "triage": str(datos.get("triage") or "III").upper(),
         "motivo": str(datos.get("motivo") or ""),
+        "via_llegada": via,
         "id_enfermero": id_enfermero,
         "id_medico": "",
         "hora_llegada": str(datos.get("hora_llegada") or _now()),
@@ -105,3 +125,51 @@ def atender(id_urgencia: str, id_medico: str, datos: dict | None = None) -> dict
         "desenlace": desenlace,
     }
     return urgencias.actualizar(id_urgencia, cambios)
+
+
+def resumen_operativo() -> dict:
+    """Informe simple: cola de urgencias por estado y triage."""
+    df = urgencias.extraer(copiar=False)
+    if df.empty:
+        return {
+            "tipo": "informe_simple",
+            "total": 0,
+            "por_estado": {},
+            "por_triage": {},
+            "en_atencion_o_espera": 0,
+            "atendidas": 0,
+            "cola": [],
+        }
+    est = df["estado"].fillna("—").astype(str).str.lower() if "estado" in df.columns else None
+    por_estado = {str(k): int(v) for k, v in est.value_counts().items()} if est is not None else {}
+    por_triage = {}
+    if "triage" in df.columns:
+        por_triage = {
+            str(k).upper(): int(v)
+            for k, v in df["triage"].fillna("—").astype(str).str.upper().value_counts().items()
+        }
+    en_triage = por_estado.get("triage", 0) + por_estado.get("en_espera", 0)
+    activos = {"triage", "en_espera", "registrado"}
+    cola_df = df
+    if est is not None:
+        cola_df = df[est.isin(activos)]
+    if not cola_df.empty and "triage" in cola_df.columns:
+        orden_t = {"I": 0, "II": 1, "III": 2, "IV": 3, "V": 4}
+        cola_df = cola_df.assign(
+            _t=cola_df["triage"].astype(str).str.upper().map(lambda x: orden_t.get(x, 9))
+        )
+        sort_cols = ["_t"]
+        if "hora_llegada" in cola_df.columns:
+            sort_cols.append("hora_llegada")
+        cola_df = cola_df.sort_values(sort_cols).drop(columns=["_t"], errors="ignore")
+    cola_rows = cola_df.head(8).fillna("").to_dict(orient="records")
+    return {
+        "tipo": "informe_simple",
+        "total": int(len(df)),
+        "por_estado": por_estado,
+        "por_triage": por_triage,
+        "en_atencion_o_espera": en_triage + por_estado.get("registrado", 0),
+        "atendidas": por_estado.get("atendida", 0),
+        "cola": enriquecer(cola_rows),
+    }
+

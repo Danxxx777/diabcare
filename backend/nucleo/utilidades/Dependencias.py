@@ -1,4 +1,8 @@
-from fastapi import Header, HTTPException
+from typing import Optional
+
+from fastapi import Header, HTTPException, Request
+
+from paquetes.autenticacion.AuthCookies import COOKIE_SESION
 from paquetes.autenticacion.AutenticacionServicio import verificar_token
 
 ROLES_VALIDOS = ["administrador", "medico", "enfermero", "farmaceutico", "analista"]
@@ -53,10 +57,45 @@ PERMISOS_ESCRITURA = {
     "rrhh": ["administrador"],
     "farmacia_caja": ["administrador", "farmaceutico"],
 }
-def _extraer_token(authorization: str, *, permitir_cambio_obligatorio: bool = False) -> dict:
-    if not authorization:
+
+_MARCAS_INVALIDAS = frozenset({"", "null", "undefined", "sesion", "cookie", "none"})
+
+
+def _limpiar_token(valor: Optional[str]) -> str:
+    t = (valor or "").replace("Bearer ", "").strip()
+    if t.lower() in _MARCAS_INVALIDAS:
+        return ""
+    return t
+
+
+def resolver_token_crudo(
+    request: Optional[Request] = None,
+    authorization: Optional[str] = None,
+    token_query: Optional[str] = None,
+) -> str:
+    """Prioridad: Authorization Bearer real → ?token= → cookie httpOnly."""
+    t = _limpiar_token(authorization)
+    if t:
+        return t
+    t = _limpiar_token(token_query)
+    if t:
+        return t
+    if request is not None:
+        t = _limpiar_token(request.cookies.get(COOKIE_SESION))
+        if t:
+            return t
+    return ""
+
+
+def _extraer_token(
+    authorization_or_token: str,
+    *,
+    permitir_cambio_obligatorio: bool = False,
+) -> dict:
+    """Valida un JWT ya resuelto (string crudo o 'Bearer …')."""
+    token = _limpiar_token(authorization_or_token)
+    if not token:
         raise HTTPException(status_code=401, detail="Token requerido")
-    token = authorization.replace("Bearer ", "").strip()
     resultado = verificar_token(token)
     if "error" in resultado:
         raise HTTPException(status_code=401, detail=resultado["error"])
@@ -69,31 +108,57 @@ def _extraer_token(authorization: str, *, permitir_cambio_obligatorio: bool = Fa
     return payload
 
 
-def require_auth(authorization: str = Header(None)) -> dict:
-    return _extraer_token(authorization)
+def auth_desde_request(
+    request: Request,
+    authorization: Optional[str] = None,
+    *,
+    permitir_cambio_obligatorio: bool = False,
+    token_query: Optional[str] = None,
+) -> dict:
+    token = resolver_token_crudo(request, authorization, token_query)
+    return _extraer_token(token, permitir_cambio_obligatorio=permitir_cambio_obligatorio)
 
 
-def require_auth_cambio_password(authorization: str = Header(None)) -> dict:
+def require_auth(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+) -> dict:
+    return auth_desde_request(request, authorization)
+
+
+def require_auth_cambio_password(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+) -> dict:
     """Permite acceso aunque deba_cambiar_password esté activo."""
-    return _extraer_token(authorization, permitir_cambio_obligatorio=True)
+    return auth_desde_request(request, authorization, permitir_cambio_obligatorio=True)
 
 
-def require_admin(authorization: str = Header(None)) -> dict:
-    payload = _extraer_token(authorization)
+def require_admin(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+) -> dict:
+    payload = auth_desde_request(request, authorization)
     if payload.get("rol") != "administrador":
         raise HTTPException(status_code=403, detail="Acceso restringido a administradores")
     return payload
 
 
-def require_medico(authorization: str = Header(None)) -> dict:
-    payload = _extraer_token(authorization)
+def require_medico(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+) -> dict:
+    payload = auth_desde_request(request, authorization)
     if payload.get("rol") not in ["administrador", "medico"]:
         raise HTTPException(status_code=403, detail="Acceso restringido a médicos")
     return payload
 
 
-def require_analista(authorization: str = Header(None)) -> dict:
-    payload = _extraer_token(authorization)
+def require_analista(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+) -> dict:
+    payload = auth_desde_request(request, authorization)
     if payload.get("rol") not in ["administrador", "analista"]:
         raise HTTPException(status_code=403, detail="Acceso restringido a analistas")
     return payload
@@ -104,8 +169,11 @@ def require_partner_key(x_api_key: str = Header(None, alias="X-API-Key")) -> dic
 
 
 def require_modulo(modulo: str):
-    def _check(authorization: str = Header(None)) -> dict:
-        payload = _extraer_token(authorization)
+    def _check(
+        request: Request,
+        authorization: Optional[str] = Header(None),
+    ) -> dict:
+        payload = auth_desde_request(request, authorization)
         roles_permitidos = PERMISOS_MODULOS.get(modulo, ["administrador"])
         if payload.get("rol") not in roles_permitidos:
             raise HTTPException(
@@ -118,8 +186,11 @@ def require_modulo(modulo: str):
 
 def require_escritura(clave: str):
     """Mutaciones: usa PERMISOS_ESCRITURA (más restrictivo que la lectura del módulo)."""
-    def _check(authorization: str = Header(None)) -> dict:
-        payload = _extraer_token(authorization)
+    def _check(
+        request: Request,
+        authorization: Optional[str] = Header(None),
+    ) -> dict:
+        payload = auth_desde_request(request, authorization)
         roles = PERMISOS_ESCRITURA.get(clave, ["administrador"])
         if payload.get("rol") not in roles:
             raise HTTPException(

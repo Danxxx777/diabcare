@@ -5,12 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare - Laboratorio</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
 <style>
 .crud-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
 #modalResultado .res-meta {
@@ -21,7 +23,7 @@
 #modalResultado .res-meta b { color: var(--text); }
 </style>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -37,6 +39,11 @@
         <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
         <button class="btn btn-primary btn-sm" id="btnNuevo" onclick="abrirModal()">+ Nueva orden</button>
       </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Órdenes pendientes</div><div class="stat-value amber" id="st-pend">-</div></div>
+      <div class="stat-card"><div class="stat-label">Completadas</div><div class="stat-value green" id="st-comp">-</div></div>
+      <div class="stat-card"><div class="stat-label">Resultados</div><div class="stat-value blue" id="st-res">-</div></div>
     </div>
     <div class="crud-tabs" id="crudTabs"></div>
     <div class="tabla-card">
@@ -146,9 +153,21 @@ async function guardarResultado() {
     (_resCtx || { toast: () => {} }).toast('Resultado registrado');
     cerrarModalResultado();
     if (_resCtx && _resCtx.cargar) _resCtx.cargar();
+    cargarResumenLab();
   } finally {
     btn.disabled = false;
   }
+}
+
+async function cargarResumenLab() {
+  const API = DiabCareNav.getApi();
+  const token = localStorage.getItem('token');
+  const r = await fetch(`${API}/api/laboratorio/resumen`, { headers: { Authorization: 'Bearer '+token } });
+  if (!r.ok) return;
+  const j = await r.json();
+  document.getElementById('st-pend').textContent = j.ordenes_pendientes ?? 0;
+  document.getElementById('st-comp').textContent = j.ordenes_completadas ?? 0;
+  document.getElementById('st-res').textContent = j.resultados_registrados ?? 0;
 }
 
 const tabs = [
@@ -179,7 +198,8 @@ const tabs = [
       label: 'Cargar resultado',
       show: row => String(row.estado || '').toLowerCase() === 'pendiente',
       onClick(row, ctx) { abrirModalResultado(row, ctx); }
-    }] : []
+    }] : [],
+    onLoaded: () => cargarResumenLab(),
   },
   {
     id: 'resultados', label: 'Resultados', sub: 'Valores ya registrados',
@@ -226,6 +246,7 @@ const tabs = [
 ];
 
 DiabCareCrud.mountTabs({ tabs });
+cargarResumenLab();
 </script>
 </body>
 </html>

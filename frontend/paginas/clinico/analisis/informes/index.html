@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare - Panel</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/i18n.js?v=20260810a"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
+<script src="/estaticos/api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.charts-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-3); margin-bottom:var(--sp-3); }
+.simple-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:var(--sp-3); margin-bottom:var(--sp-3); }
+
+.section-label {
+  font-size:11px; letter-spacing:-0.01em; font-weight:700;
+  color:var(--tx-strong); margin:var(--sp-4) 0 var(--sp-2);
+  display:flex; align-items:center; gap:var(--sp-2);
+}
+.section-label::after { content:''; flex:1; height:1px; background:var(--ln-base); }
+.section-tag {
+  font-size:9px; font-family:var(--mono); padding:2px var(--sp-2);
+  border-radius:var(--r-pill); border:1px solid currentColor;
+  letter-spacing:.02em; font-weight:600;
+}
+/* Marcan de qué capa viene el dato: es estado del sistema, no interacción. */
+.section-tag.op  { color:var(--st-ok-fg); }
+.section-tag.elt { color:var(--st-warning-fg); }
+.section-tag.wp  { color:var(--st-info-fg); }
+.section-tag.agg { color:var(--ia-base); }
+
+.agg-strip {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:0;
+  border:1px solid var(--ln-base);
+  border-radius:var(--r-md);
+  margin-bottom:var(--sp-3);
+  overflow:hidden;
+  background:var(--sf-raised);
+}
+.agg-cell {
+  padding:var(--sp-3) var(--sp-4);
+  border-right:1px solid var(--ln-subtle);
+  min-width:0;
+}
+.agg-cell:last-child { border-right:0; }
+.agg-cell .lbl {
+  font-size:10px; font-family:var(--mono); letter-spacing:.04em;
+  text-transform:uppercase; color:var(--tx-muted); margin-bottom:6px;
+}
+.agg-cell .val {
+  font-family:var(--mono); font-size:20px; font-weight:600;
+  color:var(--tx-strong); letter-spacing:-.02em; line-height:1.1;
+}
+.agg-cell .hint { font-size:11px; color:var(--tx-faint); margin-top:4px; }
+
+.chart-hint { font-size:10px; color:var(--tx-muted); margin:-4px 0 var(--sp-2); line-height:1.4; }
+.chart-wrap-tall { height:220px; }
+
+.rep-card {
+  background:var(--sf-raised);
+  border:1px solid var(--ln-base);
+  border-radius:var(--r-md);
+  padding:var(--sp-3) var(--sp-4);
+  display:flex; flex-direction:column;
+  box-shadow:var(--el-1);
+  transition:border-color var(--mo-fast) var(--mo-ease),
+             box-shadow var(--mo-fast) var(--mo-ease);
+}
+.rep-card:hover { border-color:var(--ln-strong); box-shadow:var(--el-2); }
+.rep-title { font-size:11px; color:var(--tx-base); font-weight:700; margin-bottom:var(--sp-2); }
+.rep-rows { display:flex; flex-direction:column; gap:var(--sp-1); flex:1; }
+.rep-row { display:flex; justify-content:space-between; font-size:11px; color:var(--tx-muted); gap:var(--sp-2); }
+.rep-row b { font-family:var(--mono); color:var(--tx-strong); font-weight:600; }
+/* Único elemento accionable de la tarjeta → único que lleva el acento. */
+.rep-link { margin-top:var(--sp-2); font-size:11px; color:var(--ia-base); text-decoration:none; font-weight:600; }
+.rep-link:hover { color:var(--ia-hover); text-decoration:underline; }
+
+.tbl-wrap { max-height:260px; overflow:auto; }
+.tbl-wrap th {
+  position:sticky; top:0; background:var(--sf-overlay); text-align:left;
+  font-size:9px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--tx-muted); padding:var(--sp-1) var(--sp-2);
+  border-bottom:1px solid var(--ln-base);
+}
+.tbl-wrap td { padding:var(--sp-1) var(--sp-2); font-size:11px; border-bottom:1px solid var(--ln-subtle); color:var(--tx-strong); }
+.tbl-wrap td.num { font-family:var(--mono); text-align:right; }
+.tbl-wrap th.num { text-align:right; }
+/* Semántica de negocio/clínica, nunca decoración. */
+.td-green { color:var(--st-ok-fg) !important; }
+.td-amber { color:var(--st-warning-fg) !important; }
+.td-red   { color:var(--st-critical-fg) !important; }
+</style>
+</head>
+<body class="dc-uv">
+
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Panel</span>
+    <div class="tb-right">
+      <button class="btn btn-ghost btn-sm" onclick="cargar()" style="margin-right:8px" data-i18n="pa_actualizar">Actualizar</button>
+      <div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label" data-i18n="pa_minio">MinIO conectado</span></div>
+    </div>
+  </div>
+
+  <div class="content dash-shell">
+    <div class="page-header dash-welcome">
+      <div>
+        <div class="page-title">Panel <span>DiabCare</span></div>
+        <div class="page-sub" id="inf-sub" data-i18n="pa_sub">Operativo completo · Táctico completo · Estratégico AGG.</div>
+      </div>
+      <div class="dash-welcome-actions">
+        <a href="/paginas/clinico/reportes/index.html" class="btn btn-primary btn-sm" data-i18n="pa_exportar">Exportar PDF</a>
+      </div>
+    </div>
+
+    <div class="section-label" id="sec-agg">
+      <span data-i18n="pa_estrategico">Estratégico AGG</span>
+      <span class="section-tag agg" data-i18n="pa_tag_agg">agregados</span>
+    </div>
+    <div class="agg-strip" id="row-agg">
+      <div class="agg-cell">
+        <div class="lbl" data-i18n="pa_a_facturado">Facturado</div>
+        <div class="val" id="a-facturado">-</div>
+        <div class="hint" data-i18n="pa_a_facturado_h">Total facturas</div>
+      </div>
+      <div class="agg-cell">
+        <div class="lbl" data-i18n="pa_a_margen">Margen farmacia</div>
+        <div class="val" id="a-margen">-</div>
+        <div class="hint" data-i18n="pa_a_margen_h">margen bruto</div>
+      </div>
+      <div class="agg-cell">
+        <div class="lbl" data-i18n="pa_a_espera">Espera urgencias</div>
+        <div class="val" id="a-espera">-</div>
+        <div class="hint" data-i18n="pa_a_espera_h">min promedio</div>
+      </div>
+      <div class="agg-cell">
+        <div class="lbl" data-i18n="pa_a_prod">Productividad</div>
+        <div class="val" id="a-prod">-</div>
+        <div class="hint" data-i18n="pa_a_prod_h">consultas del periodo</div>
+      </div>
+      <div class="agg-cell">
+        <div class="lbl" data-i18n="pa_a_lab">Lab pendiente</div>
+        <div class="val" id="a-lab">-</div>
+        <div class="hint" id="a-lab-hint">-</div>
+      </div>
+    </div>
+
+    <!-- Workpanel KPIs -->
+    <div class="section-label">
+      <span data-i18n="pa_workpanel">Workpanel</span>
+    </div>
+    <div class="dash-row dash-4" id="row-kpis" style="margin-bottom:8px">
+      <div class="kpi-card featured">
+        <div class="kpi-label" data-i18n="pa_k_total">Total registros</div>
+        <div class="kpi-val" id="k-total">-</div>
+        <div class="kpi-sub" data-i18n="pa_k_total_sub">Dataset clínico</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label" data-i18n="pa_k_con">Con diabetes</div>
+        <div class="kpi-val red" id="k-con">-</div>
+        <div class="kpi-sub" id="k-con-pct">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label" data-i18n="pa_k_sin">Sin diabetes</div>
+        <div class="kpi-val green" id="k-sin">-</div>
+        <div class="kpi-sub" id="k-sin-pct">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label" data-i18n="pa_k_prev">Prevalencia</div>
+        <div class="kpi-val amber" id="k-prev">-</div>
+        <div class="kpi-sub" data-i18n="pa_k_prev_sub">Tasa de diabetes</div>
+      </div>
+    </div>
+
+    <!-- Indicadores del dia -->
+    <div class="section-label" id="sec-simples">
+      <span data-i18n="pa_simples">Informes simples</span>
+    </div>
+    <div class="simple-grid">
+
+      <div class="rep-card" id="card-citas">
+        <div class="rep-title" data-i18n="pa_c_citas">Agenda de citas (hoy)</div>
+        <div class="rep-rows">
+          <div class="rep-row"><span data-i18n="pa_r_turnos">Turnos del día</span><b id="s-citas-total">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_cobradas">Consultas cobradas</span><b id="s-citas-pagadas" class="td-green">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_cobro_pend">Cobro pendiente</span><b id="s-citas-pend" class="td-amber">-</b></div>
+        </div>
+        <a class="rep-link" href="/paginas/clinico/agenda/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
+      </div>
+
+      <div class="rep-card" id="card-urg">
+        <div class="rep-title" data-i18n="pa_c_urg">Urgencias</div>
+        <div class="rep-rows">
+          <div class="rep-row"><span data-i18n="pa_r_casos">Casos registrados</span><b id="s-urg-total">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_triage">En triage / espera</span><b id="s-urg-espera" class="td-amber">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_atendidas">Atendidas</span><b id="s-urg-atend" class="td-green">-</b></div>
+        </div>
+        <a class="rep-link" href="/paginas/clinico/urgencias/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
+      </div>
+
+      <div class="rep-card" id="card-lab">
+        <div class="rep-title" data-i18n="pa_c_lab">Laboratorio</div>
+        <div class="rep-rows">
+          <div class="rep-row"><span data-i18n="pa_r_ord_pend">Órdenes pendientes</span><b id="s-lab-pend" class="td-amber">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_ord_comp">Órdenes completadas</span><b id="s-lab-comp" class="td-green">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_resultados">Resultados registrados</span><b id="s-lab-res">-</b></div>
+        </div>
+        <a class="rep-link" href="/paginas/clinico/laboratorio/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
+      </div>
+
+      <div class="rep-card" id="card-caja">
+        <div class="rep-title" data-i18n="pa_c_caja">Caja y facturación</div>
+        <div class="rep-rows">
+          <div class="rep-row"><span data-i18n="pa_r_fact_vig">Facturas vigentes</span><b id="s-fac-total">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_pagadas">Pagadas</span><b id="s-fac-pagadas" class="td-green">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_monto_pend">Monto pendiente</span><b id="s-fac-pend" class="td-amber">-</b></div>
+        </div>
+        <a class="rep-link" href="/paginas/negocio/facturacion/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
+      </div>
+
+      <div class="rep-card" id="card-pac">
+        <div class="rep-title" data-i18n="pa_c_pac">Padrón de pacientes</div>
+        <div class="rep-rows">
+          <div class="rep-row"><span data-i18n="pa_r_registrados">Registrados</span><b id="s-pac-total">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_activos">Activos</span><b id="s-pac-act" class="td-green">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_inactivos">Inactivos</span><b id="s-pac-inact" class="td-amber">-</b></div>
+        </div>
+        <a class="rep-link" href="/paginas/clinico/pacientes/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
+      </div>
+
+      <div class="rep-card" id="card-adm">
+        <div class="rep-title" data-i18n="pa_c_adm">Admisiones</div>
+        <div class="rep-rows">
+          <div class="rep-row"><span data-i18n="pa_r_registradas">Registradas</span><b id="s-adm-total">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_hosp">Hospitalizados</span><b id="s-adm-act" class="td-amber">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_altas">Altas</span><b id="s-adm-altas" class="td-green">-</b></div>
+        </div>
+        <a class="rep-link" href="/paginas/clinico/admisiones/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
+      </div>
+
+      <div class="rep-card" id="card-farm">
+        <div class="rep-title" data-i18n="pa_c_farm">Farmacia</div>
+        <div class="rep-rows">
+          <div class="rep-row"><span data-i18n="pa_r_rx_disp">Recetas por dispensar</span><b id="s-farm-pend" class="td-amber">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_stock">Stock bajo mínimo</span><b id="s-farm-stock" class="td-red">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_vendido">Total vendido</span><b id="s-farm-ventas" class="td-green">-</b></div>
+        </div>
+        <a class="rep-link" href="/paginas/negocio/farmacia/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
+      </div>
+
+      <div class="rep-card" id="card-rrhh">
+        <div class="rep-title" data-i18n="pa_c_rrhh">RRHH y costeo</div>
+        <div class="rep-rows">
+          <div class="rep-row"><span data-i18n="pa_r_personal">Personal costeado</span><b id="s-rh-personal">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_consultas_per">Consultas del periodo</span><b id="s-rh-consultas">-</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_ingreso_gen">Ingreso generado</span><b id="s-rh-ingreso" class="td-green">-</b></div>
+        </div>
+        <a class="rep-link" href="/paginas/negocio/rrhh/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
+      </div>
+
+      <div class="rep-card" id="card-com">
+        <div class="rep-title">Comorbilidades</div>
+        <div class="rep-rows">
+          <div class="rep-row"><span>Activas</span><b id="s-com-total">-</b></div>
+          <div class="rep-row"><span>Pacientes afectados</span><b id="s-com-pac" class="td-amber">-</b></div>
+          <div class="rep-row"><span>Tipo más frecuente</span><b id="s-com-tipo" class="td-green">-</b></div>
+        </div>
+        <a class="rep-link" href="/paginas/clinico/comorbilidades/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
+      </div>
+
+      <div class="rep-card" id="card-fac">
+        <div class="rep-title" data-i18n="pa_c_fac">Factura / recibo al cliente</div>
+        <div class="rep-rows">
+          <div class="rep-row"><span data-i18n="pa_r_cons_farm">Consulta o farmacia</span><b class="td-green" data-i18n="pa_r_imprimible">imprimible</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_tipo">Tipo</span><b data-i18n="pa_r_inf_simple">Informe simple</b></div>
+          <div class="rep-row"><span data-i18n="pa_r_donde">Dónde</span><b data-i18n="pa_r_caja_farm">Caja / Farmacia</b></div>
+        </div>
+        <a class="rep-link" href="/paginas/negocio/facturacion/index.html" data-i18n="pa_abrir_caja">Abrir caja →</a>
+      </div>
+
+    </div>
+
+    <!-- Tendencias (admin / analista / farma segun datos) -->
+    <div id="bloque-tendencias">
+    <div class="section-label" id="sec-complejos">
+      <span data-i18n="pa_complejos">Informes compuestos</span>
+    </div>
+
+    <div class="charts-grid-2">
+      <div class="chart-card" id="wrap-ingresos">
+        <div class="chart-title" data-i18n="pa_g_ingresos">Ingresos por dia</div>
+        <div class="chart-hint" data-i18n="pa_g_ingresos_h">Total facturado y cantidad de facturas por dia.</div>
+        <div class="chart-wrap chart-wrap-tall"><canvas id="c-ingresos"></canvas></div>
+      </div>
+      <div class="chart-card" id="wrap-topmeds">
+        <div class="chart-title" data-i18n="pa_g_topmeds">Medicamentos mas dispensados</div>
+        <div class="chart-hint" data-i18n="pa_g_topmeds_h">Ranking de dispensaciones en farmacia.</div>
+        <div class="chart-wrap chart-wrap-tall"><canvas id="c-topmeds"></canvas></div>
+      </div>
+    </div>
+
+    <div class="charts-grid-2">
+      <div class="chart-card" id="wrap-prod">
+        <div class="chart-title" data-i18n="pa_g_prod">Productividad medica</div>
+        <div class="chart-hint" data-i18n="pa_g_prod_h">Consultas, procedimientos e ingreso por profesional.</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th data-i18n="pa_t_profesional">Profesional</th><th data-i18n="pa_t_periodo">Periodo</th><th class="num" data-i18n="pa_t_consultas">Consultas</th><th class="num" data-i18n="pa_t_proced">Proced.</th><th class="num" data-i18n="pa_t_ingreso">Ingreso $</th></tr></thead>
+            <tbody id="t-prod"><tr><td colspan="5" style="color:var(--tx-muted)" data-i18n="pa_cargando">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="chart-card" id="wrap-margen">
+        <div class="chart-title" data-i18n="pa_g_margen">Margen de farmacia</div>
+        <div class="chart-hint" data-i18n="pa_g_margen_h">Ingreso, costo y margen por medicamento.</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th data-i18n="pa_t_medicamento">Medicamento</th><th data-i18n="pa_t_periodo">Periodo</th><th class="num" data-i18n="pa_t_ingreso">Ingreso $</th><th class="num" data-i18n="pa_t_costo">Costo $</th><th class="num" data-i18n="pa_t_margen">Margen $</th></tr></thead>
+            <tbody id="t-margen"><tr><td colspan="5" style="color:var(--tx-muted)" data-i18n="pa_cargando">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-grid-2">
+      <div class="chart-card" id="wrap-costo">
+        <div class="chart-title" data-i18n="pa_g_costo">Costo vs facturado</div>
+        <div class="chart-hint" data-i18n="pa_g_costo_h">Comparacion por servicio hospitalario.</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th data-i18n="pa_t_servicio">Servicio</th><th data-i18n="pa_t_periodo">Periodo</th><th class="num" data-i18n="pa_t_costo">Costo $</th><th class="num" data-i18n="pa_t_facturado">Facturado $</th><th class="num" data-i18n="pa_t_margen">Margen $</th></tr></thead>
+            <tbody id="t-costo"><tr><td colspan="5" style="color:var(--tx-muted)" data-i18n="pa_cargando">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="chart-card" id="wrap-espera">
+        <div class="chart-title" data-i18n="pa_g_espera">Espera en urgencias</div>
+        <div class="chart-hint" data-i18n="pa_g_espera_h">Minutos promedio de espera y volumen de casos.</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th data-i18n="pa_t_periodo">Periodo</th><th class="num" data-i18n="pa_t_espera_prom">Espera promedio (min)</th><th class="num" data-i18n="pa_t_urgencias">Urgencias</th></tr></thead>
+            <tbody id="t-espera"><tr><td colspan="3" style="color:var(--tx-muted)" data-i18n="pa_cargando">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico', 'analista', 'farmaceutico']);
+(function aplicarSubRol() {
+  const rol = String((JSON.parse(localStorage.getItem('usuario') || '{}').rol || '')).toLowerCase();
+  const mapa = {
+    administrador: 'pa_sub_admin',
+    medico: 'pa_sub_medico',
+    enfermero: 'pa_sub_enfermero',
+    farmaceutico: 'pa_sub_farm',
+    analista: 'pa_sub_analista',
+  };
+  const key = mapa[rol] || 'pa_sub';
+  const el = document.getElementById('inf-sub');
+  if (el && window.DiabCareI18n) {
+    el.removeAttribute('data-i18n');
+    el.textContent = DiabCareI18n.t(key);
+  }
+})();
+const API = DiabCareNav.getApi();
+let charts = {};
+
+function authHdr() {
+  const t = localStorage.getItem('token');
+  return t ? { Authorization: 'Bearer ' + t } : {};
+}
+
+async function getJson(path) {
+  try {
+    const r = await fetch(API + path, { headers: authHdr() });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+function set(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function money(v) { return '$' + Number(v || 0).toLocaleString('es-EC', { maximumFractionDigits: 2 }); }
+function esc(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+// Chart.js pinta en <canvas>: el CSS no lo alcanza. Antes tenía los colores
+// literales (y encima del cian anterior), así que en tema claro los ejes
+// quedaban invisibles. Ahora lee los mismos tokens que el resto.
+const tk = (n, f) => DiabCareNav.token(n, f);
+
+function baseOpts() {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: tk('--tx-base', '#c4c9d8'), font: { size: 10, family: 'IBM Plex Mono' }, boxWidth: 10 } },
+      tooltip: {
+        backgroundColor: tk('--modal-bg', '#1c2029'),
+        titleColor: tk('--tx-strong', '#f4f6fb'),
+        bodyColor: tk('--tx-base', '#c4c9d8'),
+        borderColor: tk('--ln-strong', 'rgba(255,255,255,0.16)'),
+        borderWidth: 1
+      }
+    },
+    scales: {
+      x: { ticks: { color: tk('--tx-muted', '#8b92a8'), font: { size: 9 } }, grid: { color: tk('--ln-subtle', 'rgba(255,255,255,0.06)') } },
+      y: { ticks: { color: tk('--tx-muted', '#8b92a8'), font: { size: 9 } }, grid: { color: tk('--ln-subtle', 'rgba(255,255,255,0.06)') } }
+    }
+  };
+}
+
+// Se recuerda cada gráfico para poder repintarlo al cambiar de tema.
+const chartSpecs = {};
+
+function mkChart(id, type, labels, datasets, extraOpts = {}) {
+  chartSpecs[id] = { type, labels, datasets, extraOpts };
+  if (charts[id]) charts[id].destroy();
+  const merged = baseOpts();
+  Object.assign(merged, extraOpts);
+  if (extraOpts.plugins) Object.assign(merged.plugins, extraOpts.plugins);
+  if (extraOpts.scales)  Object.assign(merged.scales,  extraOpts.scales);
+  const el = document.getElementById(id);
+  if (!el) return;
+  charts[id] = new Chart(el, { type, data: { labels, datasets }, options: merged });
+}
+
+function repintarGraficos() {
+  Object.entries(chartSpecs).forEach(([id, s]) => {
+    mkChart(id, s.type, s.labels, s.datasets, s.extraOpts);
+  });
+}
+window.addEventListener('diabcare:tema', repintarGraficos);
+// Las etiquetas de serie y de eje viven en el JS, no en el DOM: cambiar de
+// idioma exige reconstruir los gráficos, no solo re-traducir la página.
+window.addEventListener('diabcare:idioma', () => {
+  // Solo reetiqueta UI; no vuelve a martillar MinIO/API.
+  if (window.DiabCareI18n) DiabCareI18n.aplicarPagina();
+});
+
+// ── Informes simples (listados del día) ──
+// Espejo de los permisos de lectura del backend (Dependencias.py)
+const _rolInf = String((JSON.parse(localStorage.getItem('usuario') || '{}').rol || '')).toLowerCase();
+const _PUEDE = {
+  administrador: ['citas', 'urgencias', 'laboratorio', 'facturacion',
+                  'pacientes', 'admisiones', 'farmacia', 'rrhh', 'comorbilidades'],
+  medico:        ['mis_citas', 'urgencias', 'laboratorio', 'pacientes', 'comorbilidades'],
+  farmaceutico:  ['citas', 'urgencias', 'facturacion', 'pacientes', 'admisiones', 'farmacia'],
+  analista:      ['facturacion', 'rrhh'],
+};
+
+async function cargarSimples() {
+  const puede = _PUEDE[_rolInf] || _PUEDE.administrador;
+  // Null-safe a propósito: 'card-com' no existe en el HTML y la versión
+  // anterior lanzaba TypeError aquí, abortando cargarSimples() entera —
+  // ninguna tarjeta de informes simples llegaba a cargar.
+  const mostrar = (id, ok) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = ok ? '' : 'none';
+  };
+  mostrar('card-citas', puede.includes('citas') || puede.includes('mis_citas'));
+  mostrar('card-urg',  puede.includes('urgencias'));
+  mostrar('card-lab',  puede.includes('laboratorio'));
+  mostrar('card-caja', puede.includes('facturacion'));
+  mostrar('card-pac',  puede.includes('pacientes'));
+  mostrar('card-adm',  puede.includes('admisiones'));
+  mostrar('card-farm', puede.includes('farmacia'));
+  mostrar('card-rrhh', puede.includes('rrhh'));
+  mostrar('card-com',  puede.includes('comorbilidades'));
+  const cardFac = document.getElementById('card-fac');
+  if (cardFac) {
+    cardFac.style.display = (puede.includes('facturacion') || puede.includes('farmacia')
+      || _rolInf === 'administrador' || _rolInf === 'farmaceutico') ? '' : 'none';
+  }
+
+  const tareas = [];
+
+  if (puede.includes('mis_citas') && !puede.includes('citas')) {
+    // Médico: su propia agenda, no la global
+    const card = document.getElementById('card-citas');
+    card.querySelector('.rep-title').textContent = DiabCareI18n.t('pa_c_citas_mias');
+    card.querySelector('.rep-link').href = '/paginas/clinico/mis_citas/index.html';
+    card.querySelector('.rep-rows').innerHTML = `
+      <div class="rep-row"><span data-i18n="pa_r_turnos">Turnos del día</span><b id="s-citas-total">-</b></div>
+      <div class="rep-row"><span data-i18n="pa_r_atendidas">Atendidas</span><b id="s-citas-pagadas" class="td-green">-</b></div>
+      <div class="rep-row"><span data-i18n="pa_r_pendientes">Pendientes</span><b id="s-citas-pend" class="td-amber">-</b></div>`;
+    // Este bloque se inyecta después de aplicarPagina(), así que hay que
+    // volver a traducir o las filas nuevas se quedan en español.
+    if (window.DiabCareI18n) DiabCareI18n.aplicarPagina();
+    const hoy = new Date().toISOString().slice(0, 10);
+    tareas.push(getJson(`/api/mis-citas/?fecha=${hoy}&limit=200`).then(d => {
+      if (!d) return;
+      const citas = d.citas || [];
+      const atendidas = citas.filter(c => String(c.estado) === 'atendida').length;
+      set('s-citas-total', d.total ?? 0);
+      set('s-citas-pagadas', atendidas);
+      set('s-citas-pend', Math.max(0, (d.total ?? 0) - atendidas));
+    }));
+  } else if (puede.includes('citas')) {
+    tareas.push(getJson('/api/citas/resumen').then(citas => {
+      if (!citas) return;
+      set('s-citas-total', citas.total ?? 0);
+      set('s-citas-pagadas', citas.cobro_pagado ?? 0);
+      set('s-citas-pend', citas.cobro_pendiente ?? 0);
+    }));
+  }
+
+  if (puede.includes('urgencias')) {
+    tareas.push(getJson('/api/urgencias/resumen').then(urg => {
+      if (!urg) return;
+      set('s-urg-total', urg.total ?? 0);
+      set('s-urg-espera', urg.en_atencion_o_espera ?? 0);
+      set('s-urg-atend', urg.atendidas ?? 0);
+    }));
+  }
+
+  if (puede.includes('laboratorio')) {
+    tareas.push(getJson('/api/laboratorio/resumen').then(lab => {
+      if (!lab) return;
+      set('s-lab-pend', lab.ordenes_pendientes ?? 0);
+      set('s-lab-comp', lab.ordenes_completadas ?? 0);
+      set('s-lab-res', lab.resultados_registrados ?? 0);
+    }));
+  }
+
+  if (puede.includes('facturacion')) {
+    tareas.push(getJson('/api/facturacion/resumen').then(caja => {
+      if (!caja) return;
+      set('s-fac-total', caja.total_facturas ?? 0);
+      set('s-fac-pagadas', caja.pagadas ?? 0);
+      set('s-fac-pend', money(caja.monto_pendiente));
+    }));
+  }
+
+  if (puede.includes('pacientes')) {
+    tareas.push(getJson('/api/pacientes/resumen').then(p => {
+      if (!p) return;
+      set('s-pac-total', p.total ?? 0);
+      set('s-pac-act', p.activos ?? 0);
+      set('s-pac-inact', p.inactivos ?? 0);
+    }));
+  }
+
+  if (puede.includes('admisiones')) {
+    tareas.push(getJson('/api/admisiones/resumen').then(a => {
+      if (!a) return;
+      set('s-adm-total', a.total ?? 0);
+      set('s-adm-act', a.activas ?? 0);
+      set('s-adm-altas', a.altas ?? 0);
+    }));
+  }
+
+  if (puede.includes('farmacia')) {
+    tareas.push(getJson('/api/farmacia/resumen').then(f => {
+      if (!f) return;
+      set('s-farm-pend', f.recetas_pendientes ?? 0);
+      set('s-farm-stock', f.stock_bajo ?? 0);
+      set('s-farm-ventas', money(f.ventas_total));
+    }));
+  }
+
+  if (puede.includes('rrhh')) {
+    tareas.push(getJson('/api/rrhh/resumen').then(rh => {
+      if (!rh) return;
+      set('s-rh-personal', rh.personal_costeado ?? 0);
+      set('s-rh-consultas', rh.consultas_periodo ?? 0);
+      set('s-rh-ingreso', money(rh.ingreso_generado));
+    }));
+  }
+
+  if (puede.includes('comorbilidades')) {
+    tareas.push(getJson('/api/comorbilidades/resumen').then(c => {
+      if (!c) return;
+      set('s-com-total', c.total ?? 0);
+      set('s-com-pac', c.pacientes_afectados ?? 0);
+      set('s-com-tipo', c.tipo_mas_frecuente || 'Sin datos');
+    }));
+  }
+
+  await Promise.all(tareas);
+}
+
+// ── Informes complejos: agregados ELT de la capa columnar ──
+function fila(tds) { return '<tr>' + tds.join('') + '</tr>'; }
+function vacio(colspan) { return `<tr><td colspan="${colspan}" style="color:var(--muted)">Sin datos: genera datos hospitalarios desde el módulo Dataset.</td></tr>`; }
+
+async function cargarComplejos() {
+  const d = await getJson('/api/dataset/informes/complejos');
+  if (!d) return;
+
+  // Ingresos por día (línea)
+  const ing = d.ingresos_por_dia || [];
+  if (ing.length) {
+    mkChart('c-ingresos', 'line', ing.map(x => x.fecha), [{
+      label: DiabCareI18n.t('pa_ds_facturado'),
+      data: ing.map(x => x.total),
+      borderColor: tk('--dv-1', '#6ef0ff'), backgroundColor: tk('--dv-1-soft', 'rgba(0, 229, 255, 0.18)'),
+      fill: true, tension: 0.35, pointRadius: 3,
+    }]);
+  }
+
+  // Top medicamentos (barras)
+  const top = d.medicamentos_top || [];
+  if (top.length) {
+    mkChart('c-topmeds', 'bar', top.map(x => x.nombre), [{
+      label: DiabCareI18n.t('pa_ds_dispensaciones'),
+      data: top.map(x => x.total_dispensaciones),
+      backgroundColor: tk('--dv-2-soft', 'rgba(167,139,250,0.18)'), borderColor: tk('--dv-2', '#a78bfa'), borderWidth: 1,
+    }], { indexAxis: 'y', plugins: { legend: { display: false } } });
+  }
+
+  // Productividad médica
+  const prod = d.productividad_medica || [];
+  document.getElementById('t-prod').innerHTML = prod.length ? prod.map(r => fila([
+    `<td>${esc(String(r.id_personal || '').slice(0, 8))}</td>`,
+    `<td>${esc(r.periodo)}</td>`,
+    `<td class="num">${r.num_consultas}</td>`,
+    `<td class="num">${r.num_procedimientos}</td>`,
+    `<td class="num td-green">${money(r.ingreso_generado)}</td>`,
+  ])).join('') : vacio(5);
+
+  // Margen farmacia
+  const mar = d.margen_farmacia || [];
+  document.getElementById('t-margen').innerHTML = mar.length ? mar.map(r => fila([
+    `<td>${esc(r.medicamento)}</td>`,
+    `<td>${esc(r.periodo)}</td>`,
+    `<td class="num">${money(r.ingreso_total)}</td>`,
+    `<td class="num">${money(r.costo_total)}</td>`,
+    `<td class="num ${r.margen >= 0 ? 'td-green' : 'td-red'}">${money(r.margen)}</td>`,
+  ])).join('') : vacio(5);
+
+  // Costo por servicio
+  const cos = d.costo_servicio || [];
+  document.getElementById('t-costo').innerHTML = cos.length ? cos.map(r => fila([
+    `<td>${esc(r.servicio)}</td>`,
+    `<td>${esc(r.periodo)}</td>`,
+    `<td class="num">${money(r.costo_total)}</td>`,
+    `<td class="num">${money(r.facturado_total)}</td>`,
+    `<td class="num ${r.margen >= 0 ? 'td-green' : 'td-red'}">${money(r.margen)}</td>`,
+  ])).join('') : vacio(5);
+
+  // Espera urgencias
+  const esp = d.espera_urgencias || [];
+  document.getElementById('t-espera').innerHTML = esp.length ? esp.map(r => fila([
+    `<td>${esc(r.periodo)}</td>`,
+    `<td class="num td-amber">${r.espera_promedio_min}</td>`,
+    `<td class="num">${r.total_urgencias}</td>`,
+  ])).join('') : vacio(3);
+}
+
+async function cargarWorkpanel() {
+  const s = await getJson('/api/registros/estadisticas');
+  if (!s) return;
+  const total = Number(s.total || 0);
+  const con = Number(s.con_diabetes || 0);
+  const sin = Number(s.sin_diabetes != null ? s.sin_diabetes : Math.max(0, total - con));
+  const prev = total > 0 ? ((con / total) * 100) : 0;
+  set('k-total', total.toLocaleString('es-EC'));
+  set('k-con', con.toLocaleString('es-EC'));
+  set('k-sin', sin.toLocaleString('es-EC'));
+  set('k-prev', prev.toFixed(1) + '%');
+  set('k-con-pct', total ? ((con / total) * 100).toFixed(1) + '% del total' : '-');
+  set('k-sin-pct', total ? ((sin / total) * 100).toFixed(1) + '% del total' : '-');
+}
+
+async function cargarEstrategico() {
+  const d = await getJson('/api/dataset/negocio/kpis');
+  if (!d) return;
+  set('a-facturado', money(d.facturado_total));
+  set('a-margen', money(d.margen_farmacia));
+  set('a-espera', (Number(d.espera_promedio_min) || 0).toFixed(1) + '′');
+  set('a-prod', Number(d.productividad_consultas || 0).toLocaleString('es-EC'));
+  set('a-lab', Number(d.ordenes_lab_pendientes || 0).toLocaleString('es-EC'));
+  const totLab = Number(d.ordenes_lab || 0);
+  set('a-lab-hint', totLab
+    ? `${totLab.toLocaleString('es-EC')} órdenes`
+    : (DiabCareI18n ? DiabCareI18n.t('pa_a_lab_h') : 'órdenes lab'));
+}
+
+function cargar() {
+  // Pinta primero AGG + Workpanel; simples/compuestos en paralelo después.
+  Promise.all([cargarEstrategico(), cargarWorkpanel()]).finally(() => {
+    cargarSimples();
+    cargarComplejos();
+  });
+}
+cargar();
+</script>
+</body>
+</html>

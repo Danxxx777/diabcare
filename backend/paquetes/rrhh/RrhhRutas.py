@@ -129,6 +129,10 @@ def costeo(payload=Depends(require_modulo("rrhh"))):
 def prod(payload=Depends(require_modulo("rrhh"))):
     return S.productividad_resumen()
 
+@router.get("/resumen")
+def resumen(payload=Depends(require_modulo("rrhh"))):
+    return S.resumen_operativo()
+
 @router.post("/seed")
 def seed(payload=Depends(require_escritura("rrhh"))):
     S.seed(); return {"mensaje": "seed rrhh ok"}

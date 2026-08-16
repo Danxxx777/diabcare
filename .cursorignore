@@ -18,3 +18,5 @@ logs/
 documentacion/
 *.docx
 *.pdf
+_tmp*
+**/_tmp*

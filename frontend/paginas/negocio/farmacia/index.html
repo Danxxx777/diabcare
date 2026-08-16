@@ -5,12 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare - Farmacia</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
 <style>
 .negocio-shell { width: 100%; max-width: none; }
 .content.negocio-shell { padding-left: 18px; padding-right: 18px; }
@@ -28,7 +30,7 @@
 .money { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 </style>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -55,14 +57,14 @@
         <div class="kpi-sub">en catálogo</div>
       </div>
       <div class="kpi-card amber">
-        <div class="kpi-label">Lotes</div>
-        <div class="kpi-val amber" id="k-lotes">—</div>
-        <div class="kpi-sub">inventario</div>
+        <div class="kpi-label">Stock bajo</div>
+        <div class="kpi-val amber" id="k-stock">—</div>
+        <div class="kpi-sub">bajo el mínimo</div>
       </div>
       <div class="kpi-card green">
         <div class="kpi-label">Ventas</div>
         <div class="kpi-val green" id="k-ventas">—</div>
-        <div class="kpi-sub">registradas</div>
+        <div class="kpi-sub" id="k-ventas-sub">registradas</div>
       </div>
       <div class="kpi-card" id="kpi-rx" style="cursor:pointer" title="Ver recetas pendientes del médico">
         <div class="kpi-label">Rx pendientes</div>
@@ -108,18 +110,43 @@ async function kpi(url, key) {
 }
 
 async function cargarKpisFarm() {
-  const [meds, lotes, ventas, rx] = await Promise.all([
-    kpi('/api/medicamentos?limit=1', 'medicamentos'),
-    kpi('/api/farmacia/inventario?limit=1', 'lotes'),
-    kpi('/api/farmacia/ventas?limit=1', 'ventas'),
-    kpi('/api/farmacia/recetas?limit=1&estado=emitida', 'recetas'),
-  ]);
+  const meds = await kpi('/api/medicamentos?limit=1', 'medicamentos');
   document.getElementById('k-meds').textContent = meds;
-  document.getElementById('k-lotes').textContent = lotes;
-  document.getElementById('k-ventas').textContent = ventas;
-  document.getElementById('k-rx').textContent = rx;
+  try {
+    const r = await fetch(`${API}/api/farmacia/resumen`, { headers: hdr(), cache: 'no-store' });
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('k-stock').textContent = d.stock_bajo ?? '—';
+    document.getElementById('k-ventas').textContent = d.ventas ?? '—';
+    document.getElementById('k-ventas-sub').textContent =
+      '$' + Number(d.ventas_total || 0).toLocaleString('es-EC', { minimumFractionDigits: 2 }) + ' facturado';
+    document.getElementById('k-rx').textContent = d.recetas_pendientes ?? '—';
+  } catch (_) { /* sin datos */ }
 }
 cargarKpisFarm();
+
+async function abrirComprobanteVenta(idVenta, idFactura) {
+  const token = localStorage.getItem('token') || '';
+  const url = idFactura
+    ? `${API}/api/facturas/${encodeURIComponent(idFactura)}/comprobante`
+    : `${API}/api/farmacia/ventas/${encodeURIComponent(idVenta)}/comprobante`;
+  try {
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      alert(d.detail || 'No se pudo abrir el comprobante del cliente');
+      return;
+    }
+    const html = await r.text();
+    const w = window.open('', '_blank');
+    if (!w) { alert('Permite ventanas emergentes para imprimir el recibo'); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  } catch (_) {
+    alert('Error de conexión al abrir el comprobante');
+  }
+}
 
 const medLookup = {
   field: 'id_medicamento', url: '/api/medicamentos?limit=500', listKey: 'medicamentos',
@@ -382,7 +409,22 @@ DiabCareCrud.mountTabs({
         b.emitir_factura = true;
         delete b.id_medicamento; delete b.cantidad; delete b.precio_unitario;
       },
-      createTitle: 'Registrar venta'
+      createTitle: 'Registrar venta',
+      rowActions: [
+        {
+          id: 'comprobante',
+          label: 'Recibo cliente',
+          show: (row) => !!(row && (row.id_factura || row.id_venta)),
+          onClick: (row) => abrirComprobanteVenta(row.id_venta, row.id_factura),
+        },
+      ],
+      afterSave(res) {
+        const fid = res && res.id_factura;
+        const vid = res && res.id_venta;
+        if ((fid || vid) && confirm('¿Imprimir el recibo para el cliente?')) {
+          abrirComprobanteVenta(vid, fid);
+        }
+      },
     },
     {
       id: 'kardex', label: 'Kardex', sub: 'Kardex',

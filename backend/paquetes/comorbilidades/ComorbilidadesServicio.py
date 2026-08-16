@@ -54,9 +54,61 @@ def enriquecer(filas: list) -> list:
 
 
 def listar_enriquecido(**kwargs) -> dict:
+    q = str(kwargs.pop("q", "") or "").strip()
+    offset = int(kwargs.get("offset") or 0)
+    limit = int(kwargs.get("limit") or 50)
+    q_campos = kwargs.pop("q_campos", None)  # no aplica sobre columnas crudas
+    if q:
+        kwargs = {**kwargs, "offset": 0, "limit": 10**9, "q": ""}
+        res = comorbilidades.listar(**kwargs)
+        rows = enriquecer(res.get("comorbilidades") or [])
+        ql = q.lower()
+        tokens = [t for t in ql.replace(",", " ").split() if t]
+        campos = ("paciente_nombre", "documento", "tipo", "tipo_label", "estado", "estado_label", "notas", "fecha_deteccion")
+        filtradas = []
+        for r in rows:
+            blob = " ".join(str(r.get(k) or "") for k in campos).lower()
+            if ql in blob or (tokens and all(t in blob for t in tokens)):
+                filtradas.append(r)
+        return {"total": len(filtradas), "comorbilidades": filtradas[offset: offset + limit]}
     res = comorbilidades.listar(**kwargs)
     res["comorbilidades"] = enriquecer(res.get("comorbilidades") or [])
     return res
+
+
+def resumen_operativo() -> dict:
+    """Informe simple: complicaciones registradas por tipo y pacientes afectados."""
+    df = comorbilidades.extraer(copiar=False)
+    if df.empty:
+        return {
+            "tipo": "informe_simple",
+            "total": 0,
+            "pacientes_afectados": 0,
+            "por_tipo": {},
+            "tipo_mas_frecuente": "",
+        }
+    work = df
+    if "estado" in df.columns:
+        est = df["estado"].astype(str).str.lower()
+        work = df[~est.isin(["anulada", "anulado"])]
+    por_tipo: dict[str, int] = {}
+    if not work.empty and "tipo" in work.columns:
+        por_tipo = {
+            str(k).lower(): int(v)
+            for k, v in work["tipo"].fillna("otro").astype(str).str.lower().value_counts().items()
+        }
+    n_pac = 0
+    if not work.empty and "id_paciente" in work.columns:
+        ids = work["id_paciente"].astype(str).str.strip()
+        n_pac = int(ids[~ids.isin(["", "nan", "None"])].nunique())
+    mas_frecuente = max(por_tipo, key=por_tipo.get) if por_tipo else ""
+    return {
+        "tipo": "informe_simple",
+        "total": int(len(work)),
+        "pacientes_afectados": n_pac,
+        "por_tipo": por_tipo,
+        "tipo_mas_frecuente": TIPOS_LABEL.get(mas_frecuente, mas_frecuente),
+    }
 
 
 def crear(datos: dict) -> dict:

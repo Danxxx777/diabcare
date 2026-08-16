@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "graphify": {
+      "command": "C:\\Users\\USER\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+      "args": [
+        "-m",
+        "graphify.serve",
+        "D:\\6to Software\\Construcción de Software\\diabcare\\graphify-out\\graph.json"
+      ],
+      "type": "stdio"
+    }
+  }
+}

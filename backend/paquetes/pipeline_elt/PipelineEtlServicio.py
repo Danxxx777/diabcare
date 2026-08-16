@@ -27,6 +27,10 @@ from paquetes.configuracion.ConfiguracionAjustes import (
     POCKETBASE_EMAIL,
     POCKETBASE_PASSWORD,
     POCKETBASE_COLLECTION,
+    AIRFLOW_URL,
+    AIRFLOW_USER,
+    AIRFLOW_PASSWORD,
+    AIRFLOW_DAG_ID,
 )
 from paquetes.dataset.DatasetTraducciones import normalizar_genero, normalizar_tabaco
 
@@ -99,8 +103,174 @@ def _conectividad() -> dict:
     return {
         "minio": "conectado" if verificar_conexion() else "sin conexión",
         "pocketbase": "conectado" if _probar_http(f"{POCKETBASE_URL}/api/health") else "sin conexión",
-        "airflow": "conectado" if _probar_http("http://localhost:8080/health") else "sin conexión",
+        "airflow": "conectado" if _probar_http(f"{AIRFLOW_URL.rstrip('/')}/health") else "sin conexión",
     }
+
+
+def estado_publico() -> dict:
+    """Ping liviano para el DAG (sin JWT)."""
+    conn = _conectividad()
+    return {
+        "ok": conn["minio"] == "conectado",
+        "servicio": "diabcare-pipeline",
+        "conectividad": conn,
+    }
+
+
+def _airflow_auth_header() -> str:
+    import base64
+    raw = f"{AIRFLOW_USER}:{AIRFLOW_PASSWORD}".encode("utf-8")
+    return "Basic " + base64.b64encode(raw).decode("ascii")
+
+
+def _duracion_airflow_seg(inicio, fin) -> float | None:
+    if not inicio or not fin:
+        return None
+    try:
+        from datetime import datetime
+        def _p(s: str):
+            s = str(s).replace("Z", "+00:00")
+            return datetime.fromisoformat(s)
+        return round((_p(fin) - _p(inicio)).total_seconds(), 1)
+    except Exception:
+        return None
+
+
+def estado_airflow(dag_id: str | None = None) -> dict:
+    """Consulta REST de Airflow (uno o todos los DAGs de la hoja de ruta)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from paquetes.configuracion.ConfiguracionAjustes import AIRFLOW_DAGS
+
+    base = AIRFLOW_URL.rstrip("/")
+    dag_principal = dag_id or AIRFLOW_DAG_ID
+    out = {
+        "conectado": False,
+        "url": base,
+        "dag_id": dag_principal,
+        "dag_activo": None,
+        "ultima_corrida": None,
+        "detalle": None,
+        "dags": [],
+    }
+    if not _probar_http(f"{base}/health"):
+        out["detalle"] = "Airflow no responde en /health. Levante: docker compose -f docker-compose.airflow.yml up -d"
+        out["dags"] = list(AIRFLOW_DAGS)
+        return out
+    out["conectado"] = True
+    auth = _airflow_auth_header()
+
+    def _info_dag(cfg: dict) -> dict:
+        did = cfg["dag_id"]
+        item = {
+            **cfg,
+            "activo": None,
+            "ultima_corrida": None,
+            "duracion_seg": None,
+        }
+        try:
+            req = urllib.request.Request(
+                f"{base}/api/v1/dags/{did}",
+                headers={"Accept": "application/json", "Authorization": auth},
+            )
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                dag = json.loads(resp.read().decode("utf-8"))
+            item["activo"] = not bool(dag.get("is_paused"))
+            item["schedule_airflow"] = dag.get("schedule_interval") or cfg.get("schedule")
+        except Exception as e:
+            item["error"] = str(e)[:120]
+        try:
+            req = urllib.request.Request(
+                f"{base}/api/v1/dags/{did}/dagRuns?limit=1&order_by=-start_date",
+                headers={"Accept": "application/json", "Authorization": auth},
+            )
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                runs = json.loads(resp.read().decode("utf-8"))
+            items = runs.get("dag_runs") or []
+            if items:
+                r0 = items[0]
+                dur = _duracion_airflow_seg(r0.get("start_date"), r0.get("end_date"))
+                item["ultima_corrida"] = {
+                    "estado": r0.get("state"),
+                    "inicio": r0.get("start_date"),
+                    "fin": r0.get("end_date"),
+                    "run_id": r0.get("dag_run_id"),
+                    "duracion_seg": dur,
+                }
+                item["duracion_seg"] = dur
+        except Exception:
+            pass
+        return item
+
+    with ThreadPoolExecutor(max_workers=min(4, max(1, len(AIRFLOW_DAGS)))) as pool:
+        futuros = [pool.submit(_info_dag, cfg) for cfg in AIRFLOW_DAGS]
+        for fut in as_completed(futuros):
+            try:
+                item = fut.result()
+            except Exception as e:
+                item = {"dag_id": "?", "error": str(e)[:120]}
+            out["dags"].append(item)
+            if item.get("dag_id") == dag_principal:
+                out["dag_activo"] = item.get("activo")
+                out["ultima_corrida"] = item.get("ultima_corrida")
+                out["detalle"] = item.get("descripcion")
+
+    # Orden estable según AIRFLOW_DAGS
+    orden = {c["dag_id"]: i for i, c in enumerate(AIRFLOW_DAGS)}
+    out["dags"].sort(key=lambda d: orden.get(d.get("dag_id"), 99))
+
+    if out["detalle"] is None:
+        out["detalle"] = "DAGs registrados"
+    return out
+
+
+def disparar_airflow(historico: bool = False, dag_id: str | None = None) -> dict:
+    """Crea un dagRun en Airflow (orquestación real)."""
+    from paquetes.configuracion.ConfiguracionAjustes import AIRFLOW_DAGS
+
+    target = dag_id or (AIRFLOW_DAG_ID if not historico else "diabcare_elt_historico")
+    ids = {d["dag_id"] for d in AIRFLOW_DAGS}
+    if target not in ids:
+        return {"ok": False, "error": f"DAG no configurado: {target}"}
+
+    af = estado_airflow(target)
+    if not af.get("conectado"):
+        return {"ok": False, "error": af.get("detalle") or "Airflow no disponible", "airflow": af}
+    base = AIRFLOW_URL.rstrip("/")
+    body = {
+        "conf": {
+            "historico": bool(historico) or target == "diabcare_elt_historico",
+            "origen": "diabcare-ui",
+        },
+        "note": f"Disparado desde DiabCare ({target})",
+    }
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(
+        f"{base}/api/v1/dags/{target}/dagRuns",
+        data=data,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": _airflow_auth_header(),
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            run = json.loads(resp.read().decode("utf-8"))
+        return {
+            "ok": True,
+            "mensaje": f"DAG {target} disparado en Airflow",
+            "dag_id": target,
+            "dag_run_id": run.get("dag_run_id"),
+            "estado": run.get("state"),
+            "airflow_url": f"{base}/dags/{target}/grid",
+            "airflow": af,
+        }
+    except urllib.error.HTTPError as e:
+        detalle = e.read().decode("utf-8", errors="replace")[:300]
+        return {"ok": False, "error": f"Airflow HTTP {e.code}: {detalle}", "airflow": af}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "airflow": af}
 
 
 def _leer_sync_state() -> dict:
@@ -192,10 +362,39 @@ def obtener_estado() -> dict:
                 "ultima": sync.get("ultima_sincronizacion"),
                 "registros_acumulados": sync.get("registros_acumulados", 0),
                 "inicializado": bool(sync.get("inicializado")),
+                "estrategia": "incremental (no borra stage; rematerializa DWH)",
             },
+            "ultima_corrida_elt": _ultima_corrida_segura(),
+            "benchmark_sql": _benchmark_resumen(),
+            "dags_configurados": listar_dags_configurados(),
         }
     except Exception as e:
         return {"estado": "error", "detalle": str(e), "conectividad": _conectividad()}
+
+
+def _ultima_corrida_segura() -> dict:
+    try:
+        from paquetes.pipeline_elt.PipelineEtlPasos import leer_ultima_corrida
+        return leer_ultima_corrida() or {}
+    except Exception:
+        return {}
+
+
+def _benchmark_resumen() -> dict:
+    try:
+        from paquetes.pipeline_elt.PipelineEtlPasos import leer_benchmark_ultimo
+        b = leer_benchmark_ultimo() or {}
+        if not b:
+            return {}
+        return {
+            "ok": b.get("ok"),
+            "ejecutado_en": b.get("ejecutado_en"),
+            "registros": b.get("registros"),
+            "tiempos_ms": b.get("tiempos_ms"),
+            "comparacion": b.get("comparacion"),
+        }
+    except Exception:
+        return {}
 
 
 def _autenticar_pocketbase() -> str | None:
@@ -455,91 +654,20 @@ def _paso_materializar_dwh() -> dict:
 
 
 def ejecutar_elt(usuario: str = "sistema", historico: bool = False) -> dict:
-    inicio = time.perf_counter()
-    pasos: list[dict] = []
+    """Delega en pasos E·T·L (carpeta etl/ + PipelineEtlPasos)."""
     conn = _conectividad()
-
     if conn["minio"] != "conectado":
-        return {"ok": False, "error": "MinIO no disponible.", "pasos": pasos, "conectividad": conn}
+        return {"ok": False, "error": "MinIO no disponible.", "pasos": [], "conectividad": conn}
     if conn["pocketbase"] != "conectado":
         return {"ok": False, "error": f"PocketBase no disponible en {POCKETBASE_URL}.",
-                "pasos": pasos, "conectividad": conn}
+                "pasos": [], "conectividad": conn}
 
-    sync = _leer_sync_state()
-    if not sync.get("inicializado") and not historico:
-        return _inicializar_sync()
+    from paquetes.pipeline_elt.PipelineEtlPasos import ejecutar_pasos_completos
+    out = ejecutar_pasos_completos(usuario, historico=historico)
+    out["conectividad"] = conn
+    return out
 
-    desde = _parse_pb_dt(sync.get("ultima_sincronizacion"))
 
-    try:
-        token = _autenticar_pocketbase()
-        crudo, det_ext = _extraer_pocketbase(token, desde, historico)
-
-        if crudo.empty:
-            almacen = _estado_almacen()
-            pasos.append({"paso": 1, "nombre": "Extracción PocketBase", "estado": "ok", "detalle": det_ext})
-            pasos.append({"paso": 2, "nombre": "Carga MinIO (Parquet)", "estado": "ok",
-                          "detalle": "Omitido — sin datos nuevos en PocketBase"})
-            dwh_paso = _paso_materializar_dwh()
-            dwh_paso["paso"] = 3
-            pasos.append(dwh_paso)
-            pasos.append({"paso": 4, "nombre": "Consumo FastAPI", "estado": "ok", "detalle": almacen})
-            return {
-                "ok": True,
-                "mensaje": _mensaje_sin_pocketbase(),
-                "registros": 0,
-                "pasos": pasos,
-                "conectividad": conn,
-                "informativo": True,
-            }
-
-        pasos.append({"paso": 1, "nombre": "Extracción PocketBase", "estado": "ok", "detalle": det_ext})
-        limpio, det_trans = _transformar(crudo)
-        pasos.append({"paso": 2, "nombre": "Transformación pandas", "estado": "ok", "detalle": det_trans})
-
-        archivo, det_carga = _cargar_minio(limpio)
-        pasos.append({"paso": 3, "nombre": "Carga MinIO (Parquet)", "estado": "ok", "detalle": det_carga})
-
-        dwh_paso = _paso_materializar_dwh()
-        dwh_paso["paso"] = 4
-        pasos.append(dwh_paso)
-
-        det_api = _verificar_consumo(len(limpio))
-        pasos.append({"paso": 5, "nombre": "Consumo FastAPI", "estado": "ok", "detalle": det_api})
-
-        ahora = datetime.now(timezone.utc)
-        if "updated" in crudo.columns:
-            max_upd = crudo["updated"].apply(_parse_pb_dt).dropna()
-            if not max_upd.empty:
-                ahora = max(max_upd)
-
-        acum = int(sync.get("registros_acumulados") or 0) + len(limpio)
-        _guardar_sync_state({
-            "ultima_sincronizacion": ahora.isoformat(),
-            "inicializado": True,
-            "registros_acumulados": acum,
-        })
-
-    except Exception as e:
-        paso = len(pasos) + 1
-        pasos.append({"paso": paso, "nombre": "Pipeline ELT", "estado": "error", "detalle": str(e)})
-        return {"ok": False, "error": str(e), "pasos": pasos, "conectividad": conn}
-
-    duracion = round(time.perf_counter() - inicio, 1)
-    registros = len(limpio)
-
-    try:
-        from paquetes.auditoria.AuditoriaServicio import registrar
-        registrar(usuario, "execute", "pipeline_elt", f"Sync incremental — {registros} reg. → {archivo}")
-    except Exception:
-        pass
-
-    return {
-        "ok": True,
-        "mensaje": f"Sincronizados {registros:,} registros desde PocketBase".replace(",", "."),
-        "archivo": archivo,
-        "registros": registros,
-        "duracion_seg": duracion,
-        "pasos": pasos,
-        "conectividad": conn,
-    }
+def listar_dags_configurados() -> list[dict]:
+    from paquetes.configuracion.ConfiguracionAjustes import AIRFLOW_DAGS
+    return list(AIRFLOW_DAGS)

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -6,16 +6,18 @@
 <title>DiabCare - Usuarios</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
 <style>
 .u-tabla-wrap { background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
 .u-tabla-top  { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
 .u-search     { background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--text); padding:8px 12px; border-radius:7px; font-size:12px; font-family:var(--mono); outline:none; width:240px; transition:border-color .2s; }
-.u-search:focus { border-color:rgba(34,211,238,0.5); }
+.u-search:focus { border-color:rgba(0, 229, 255, 0.5); }
 .u-info       { font-size:11px; color:var(--muted); font-family:var(--mono); margin-left:auto; }
 table { width:100%; border-collapse:collapse; font-size:12px; }
 thead th { background:rgba(255,255,255,0.02); color:var(--muted); font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; padding:10px 16px; text-align:left; border-bottom:1px solid var(--border); }
@@ -28,7 +30,7 @@ tbody td { padding:12px 16px; color:var(--text2); }
 .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:10px; font-family:var(--mono); font-weight:500; }
 .badge-admin    { background:rgba(139,92,246,0.12); color:rgba(167,139,250,0.9); border:1px solid rgba(139,92,246,0.25); }
 .badge-medico   { background:rgba(74,222,128,0.1);  color:rgba(74,222,128,0.85);  border:1px solid rgba(74,222,128,0.25); }
-.badge-analista { background:rgba(34,211,238,0.1);  color:rgba(103,232,249,0.9);  border:1px solid rgba(34,211,238,0.25); }
+.badge-analista { background:rgba(0, 229, 255, 0.1);  color:rgba(110, 240, 255, 0.9);  border:1px solid rgba(0, 229, 255, 0.25); }
 .badge-enfermero { background:rgba(251,191,36,0.1); color:rgba(252,211,77,0.95); border:1px solid rgba(251,191,36,0.3); }
 .badge-farmaceutico { background:rgba(52,211,153,0.1); color:rgba(110,231,183,0.95); border:1px solid rgba(52,211,153,0.3); }
 .badge-activo   { background:rgba(74,222,128,0.08); color:rgba(74,222,128,0.8);   border:1px solid rgba(74,222,128,0.2); }
@@ -43,24 +45,25 @@ tbody td { padding:12px 16px; color:var(--text2); }
 .badge-pendiente { background:rgba(251,191,36,0.1); color:rgba(251,191,36,0.9); border:1px solid rgba(251,191,36,0.25); }
 .solicitudes-wrap { margin-bottom:18px; }
 .u-avatar { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; }
-.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:100; display:none; align-items:center; justify-content:center; }
+.modal-overlay { position:fixed; inset:0; background:rgba(2,4,12,0.92)!important; z-index:1000; display:none; align-items:center; justify-content:center; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
 .modal-overlay.show { display:flex; }
-.modal { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:28px; width:440px; max-width:95vw; }
-.modal-title { font-size:16px; font-weight:700; margin-bottom:20px; }
-.modal-title span { color:rgba(34,211,238,0.9); }
+.modal { background:var(--modal-bg,#1c2029)!important; border:1px solid var(--border); border-radius:8px; padding:28px; width:440px; max-width:95vw; box-shadow:none; backdrop-filter:none!important; }
+.modal-title { font-size:16px; font-weight:700; margin-bottom:20px; color:var(--text); }
+.modal-title span { color:var(--accent,#5A7F8C); text-shadow:none; }
 .fg { margin-bottom:14px; }
 .fl { display:block; font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:6px; }
-.fi, .fs { width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--text); padding:9px 12px; border-radius:7px; font-size:13px; font-family:inherit; outline:none; transition:border-color .2s; box-sizing:border-box; }
-.fi:focus, .fs:focus { border-color:rgba(34,211,238,0.5); background-color:rgba(34,211,238,0.06); }
+.fi, .fs { width:100%; background:var(--modal-field,#111318); border:1px solid var(--border); color:var(--text); padding:9px 12px; border-radius:7px; font-size:13px; font-family:inherit; outline:none; transition:border-color .2s; box-sizing:border-box; }
+.fi:focus, .fs:focus { border-color:var(--accent,#5A7F8C); background-color:var(--modal-field,#111318); box-shadow:0 0 0 3px rgba(90, 127, 140, .18); }
 .fs { cursor:pointer; }
 .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
 .btn-cancel { background:transparent; border:1px solid var(--border); color:var(--text2); padding:9px 16px; border-radius:7px; font-size:12px; cursor:pointer; transition:border-color .15s; }
 .btn-cancel:hover { border-color:var(--muted); }
-.modal-overlay { backdrop-filter:blur(4px); }
-.modal { background:#13131f !important; }
+html[data-tema="claro"] .modal { background:#ffffff !important; border-color:rgba(40,70,110,0.16); color:#0f172a; }
+html[data-tema="claro"] .modal-overlay { background:rgba(15,23,42,0.62)!important; }
+html[data-tema="claro"] .fi, html[data-tema="claro"] .fs { background:#f8fafc; color:#0f172a; border-color:rgba(40,70,110,0.16); }
 </style>
 </head>
-<body>
+<body class="dc-uv">
 
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 
@@ -72,7 +75,7 @@ tbody td { padding:12px 16px; color:var(--text2); }
   <div class="content">
     <div class="page-header">
       <div>
-        <div class="page-title">Gestión de <span>usuarios</span></div>
+        <div class="page-title">Gestin de <span>usuarios</span></div>
         <div class="page-sub">Administra usuarios, roles y accesos del sistema</div>
       </div>
       <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nuevo usuario</button>
@@ -88,7 +91,7 @@ tbody td { padding:12px 16px; color:var(--text2); }
     <div class="u-tabla-wrap solicitudes-wrap">
       <div class="u-tabla-top">
         <strong style="font-size:13px;color:var(--text)">Solicitudes de acceso pendientes</strong>
-        <button class="btn btn-ghost btn-sm" onclick="cargarSolicitudes()">↺ Recargar</button>
+        <button class="btn btn-ghost btn-sm" onclick="cargarSolicitudes()">? Recargar</button>
         <span class="u-info" id="sol-info">-</span>
       </div>
       <div id="solicitudesBody">
@@ -99,7 +102,7 @@ tbody td { padding:12px 16px; color:var(--text2); }
     <div class="u-tabla-wrap" style="margin-bottom:18px;">
       <div class="u-tabla-top">
         <strong style="font-size:13px;color:var(--text)">Sesiones activas</strong>
-        <button class="btn btn-ghost btn-sm" onclick="cargarSesionesAdmin()">↺ Recargar</button>
+        <button class="btn btn-ghost btn-sm" onclick="cargarSesionesAdmin()">? Recargar</button>
         <span class="u-info" id="ses-info">-</span>
       </div>
       <div id="sesionesAdminBody">
@@ -109,8 +112,8 @@ tbody td { padding:12px 16px; color:var(--text2); }
 
     <div class="u-tabla-wrap">
       <div class="u-tabla-top">
-        <input class="u-search" id="busqueda" type="search" autocomplete="off" placeholder="Escribe nombre, email o rol…">
-        <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Recargar</button>
+        <input class="u-search" id="busqueda" type="search" autocomplete="off" placeholder="Escribe nombre, email o rol">
+        <button class="btn btn-ghost btn-sm" onclick="cargar()">? Recargar</button>
         <span class="u-info" id="u-info">-</span>
       </div>
       <div id="tablaBody">
@@ -126,14 +129,14 @@ tbody td { padding:12px 16px; color:var(--text2); }
     <div id="camposCrear">
       <div class="fg"><label class="fl">Nombre completo</label><input class="fi" id="f-nombre" autocomplete="off" placeholder="ej. Byron Loor"></div>
       <div class="fg"><label class="fl">Email</label><input class="fi" id="f-email" type="email" autocomplete="off" placeholder="usuario@diabcare.com"></div>
-      <div class="fg"><label class="fl">Contraseña</label><input class="fi" id="f-pass" type="password" autocomplete="new-password" placeholder="••••••••"></div>
+      <div class="fg"><label class="fl">Contrasea</label><input class="fi" id="f-pass" type="password" autocomplete="new-password" placeholder=""></div>
     </div>
     <div class="fg">
       <label class="fl">Rol</label>
       <select class="fs" id="f-rol">
-        <option value="medico">Médico</option>
+        <option value="medico">Mdico</option>
         <option value="enfermero">Enfermero</option>
-        <option value="farmaceutico">Farmacéutico (admin. clínica)</option>
+        <option value="farmaceutico">Farmacutico (admin. clnica)</option>
         <option value="analista">Analista</option>
         <option value="administrador">Admin de sistema (app)</option>
       </select>
@@ -152,14 +155,14 @@ tbody td { padding:12px 16px; color:var(--text2); }
     <div class="fg">
       <label class="fl">Rol a asignar</label>
       <select class="fs" id="aprobar-rol">
-        <option value="medico">Médico</option>
+        <option value="medico">Mdico</option>
         <option value="enfermero">Enfermero</option>
-        <option value="farmaceutico">Farmacéutico (admin. clínica)</option>
+        <option value="farmaceutico">Farmacutico (admin. clnica)</option>
         <option value="analista">Analista</option>
         <option value="administrador">Admin de sistema (app)</option>
       </select>
     </div>
-    <p style="font-size:11px;color:var(--muted);margin:0 0 8px">Se generará una contraseña temporal y se enviará por correo (o se mostrará aquí si el correo está desactivado).</p>
+    <p style="font-size:11px;color:var(--muted);margin:0 0 8px">Se generar una contrasea temporal y se enviar por correo (o se mostrar aqu si el correo est desactivado).</p>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="cerrarAprobar()">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="btnConfirmarAprobar" onclick="confirmarAprobar()">Aprobar y enviar credenciales</button>
@@ -167,7 +170,7 @@ tbody td { padding:12px 16px; color:var(--text2); }
   </div>
 </div>
 
-<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+<div class="toast" id="toast"><span id="t-icon">?</span><span id="t-msg"></span></div>
 
 <script>
 DiabCareNav.init();
@@ -178,7 +181,7 @@ let usuarios = [];
 let solicitudes = [];
 let modoEdicion = null;
 
-const COLORES = ['rgba(34,211,238,0.7)','rgba(139,92,246,0.7)','rgba(20,184,166,0.7)','rgba(251,191,36,0.7)','rgba(248,113,113,0.7)'];
+const COLORES = ['rgba(0, 229, 255, 0.7)','rgba(139,92,246,0.7)','rgba(20,184,166,0.7)','rgba(251,191,36,0.7)','rgba(248,113,113,0.7)'];
 
 function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
 
@@ -197,7 +200,7 @@ function cerrarSesion() { localStorage.clear(); window.location.href = '/'; }
 function toast(msg, type = 'success') {
   const t = document.getElementById('toast');
   document.getElementById('t-msg').textContent  = msg;
-  document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
+  document.getElementById('t-icon').textContent = type === 'success' ? '?' : '?';
   t.className = `toast ${type} show`;
   setTimeout(() => t.classList.remove('show'), 3000);
 }
@@ -268,7 +271,7 @@ async function cargarSolicitudes() {
     solicitudes = await r.json();
     renderSolicitudes(solicitudes);
   } catch {
-    document.getElementById('solicitudesBody').innerHTML = '<div class="loading">Error de conexión</div>';
+    document.getElementById('solicitudesBody').innerHTML = '<div class="loading">Error de conexin</div>';
   }
 }
 
@@ -306,7 +309,7 @@ async function aprobarSolicitud(id, rol, nombre) {
   const rolesOk = ['medico', 'enfermero', 'farmaceutico', 'analista', 'administrador'];
   const rolIni = rolesOk.includes((rol || '').toLowerCase()) ? (rol || '').toLowerCase() : 'farmaceutico';
   document.getElementById('aprobarSub').textContent =
-    `Confirmar acceso para ${nombre}. Se creará la cuenta y se enviarán las credenciales temporales.`;
+    `Confirmar acceso para ${nombre}. Se crear la cuenta y se enviarn las credenciales temporales.`;
   document.getElementById('aprobar-rol').value = rolIni;
   document.getElementById('modalAprobar').classList.add('show');
 }
@@ -322,7 +325,7 @@ async function confirmarAprobar() {
   const rolFinal = document.getElementById('aprobar-rol').value;
   const btn = document.getElementById('btnConfirmarAprobar');
   btn.disabled = true;
-  btn.textContent = 'Aprobando…';
+  btn.textContent = 'Aprobando';
   try {
     const r = await fetch(`${API}/api/usuarios/solicitudes/${id}/aprobar`, {
       method: 'POST',
@@ -338,14 +341,14 @@ async function confirmarAprobar() {
     }
     let msg = d.mensaje || `Acceso aprobado para ${nombre}`;
     if (d.email_error) {
-      msg += ` · Error correo: ${d.email_error}`;
+      msg += `  Error correo: ${d.email_error}`;
     }
     if (d.password_temp_dev) {
-      msg += ` · Clave temporal: ${d.password_temp_dev}`;
+      msg += `  Clave temporal: ${d.password_temp_dev}`;
     }
     toast(msg, d.email_enviado ? 'success' : 'error');
   } catch {
-    toast('Error de conexión', 'error');
+    toast('Error de conexin', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Aprobar y enviar credenciales';
@@ -355,7 +358,7 @@ async function confirmarAprobar() {
 async function rechazarSolicitud(id, nombre) {
   const ok = await DiabCareAPI.confirm({
     title: 'Rechazar solicitud',
-    message: `¿Rechazar la solicitud de acceso de ${nombre}?`,
+    message: `Rechazar la solicitud de acceso de ${nombre}?`,
     confirmLabel: 'Rechazar',
     cancelLabel: 'Cancelar',
     danger: true,
@@ -380,7 +383,7 @@ async function cargar() {
     renderTabla(usuarios);
     actualizarKPI(usuarios);
   } catch {
-    document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
+    document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexin</div>';
   }
 }
 
@@ -448,7 +451,7 @@ async function guardar() {
 async function desactivar(id, nombre) {
   const ok = await DiabCareAPI.confirm({
     title: 'Desactivar usuario',
-    message: `¿Desactivar a ${nombre}? No podrá iniciar sesión.`,
+    message: `Desactivar a ${nombre}? No podr iniciar sesin.`,
     confirmLabel: 'Desactivar',
     cancelLabel: 'Cancelar',
     danger: true,
@@ -488,7 +491,7 @@ async function cargarSesionesAdmin() {
     h += '</tbody></table>';
     box.innerHTML = h;
   } catch {
-    box.innerHTML = '<div class="loading">Error de conexión</div>';
+    box.innerHTML = '<div class="loading">Error de conexin</div>';
   }
 }
 
@@ -498,7 +501,7 @@ async function revocarSesionAdmin(id) {
     headers: { 'Authorization': 'Bearer ' + token }
   });
   const d = await r.json();
-  toast(r.ok ? 'Sesión revocada' : (d.detail || 'Error'), r.ok ? 'success' : 'error');
+  toast(r.ok ? 'Sesin revocada' : (d.detail || 'Error'), r.ok ? 'success' : 'error');
   cargarSesionesAdmin();
 }
 

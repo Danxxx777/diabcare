@@ -5,13 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare - Admisiones</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
+<script src="/estaticos/api.js?v=uv-11"></script>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -51,11 +53,17 @@
         <div id="m-paciente-res" class="pac-suggest" hidden></div>
         <div id="m-paciente-chip" class="pac-chip" style="display:none"></div>
       </label>
-      <label>Tipo<select id="m-tipo">
-        <option value="ambulatoria">Ambulatoria</option>
-        <option value="urgencia">Urgencia</option>
+      <label>Tipo de atención<select id="m-tipo">
+        <option value="ambulatoria">Consulta ambulatoria (consultorio)</option>
+        <option value="urgencia">Urgencias</option>
         <option value="hospitalizacion">Hospitalización</option>
       </select></label>
+      <label>Vía de llegada<select id="m-via">
+        <option value="propia">Por sus propios medios</option>
+        <option value="ambulancia">Ambulancia</option>
+        <option value="referido">Referido de otro centro</option>
+      </select></label>
+      <p class="span-full field-hint" id="m-flujo-hint">Ambulatoria es consulta de consultorio. Si llega en ambulancia, se atiende por Urgencias.</p>
       <label>Estado<select id="m-estado">
         <option value="activa">Activa</option>
         <option value="programada">Programada</option>
@@ -81,7 +89,6 @@
 DiabCareNav.init();
 DiabCareNav.guardRol(['administrador', 'farmaceutico', 'enfermero']);
 const API = DiabCareNav.getApi();
-const token = localStorage.getItem('token');
 let pag = 1;
 let _totalRows = 0;
 const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 12;
@@ -89,6 +96,10 @@ let _rows = [], _medicos = [];
 let _pacTA = null;
 
 function toast(msg, type='success') {
+  if (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.toast) {
+    DiabCareAPI.toast(msg, type);
+    return;
+  }
   const t = document.getElementById('toast');
   document.getElementById('t-msg').textContent = msg;
   document.getElementById('t-icon').textContent = type === 'success' ? '✓' : '✗';
@@ -96,13 +107,27 @@ function toast(msg, type='success') {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+function authHeaders(extra = {}) {
+  // Cookie httpOnly; no confiar en Bearer "sesion"
+  return { ...extra };
+}
+
+async function apiFetch(path, opts = {}) {
+  const url = path.startsWith('http') ? path : `${API}${path}`;
+  const headers = new Headers(authHeaders(opts.headers || {}));
+  if (opts.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  return fetch(url, { ...opts, headers, credentials: 'include', cache: opts.cache || 'no-store' });
+}
+
 async function cargarMedicos() {
-  const r = await fetch(`${API}/api/usuarios/medicos`, { headers: { Authorization: 'Bearer '+token } });
+  const r = await apiFetch('/api/usuarios/medicos');
   if (r.ok) _medicos = (await r.json()).medicos || [];
 }
 
 async function cargarResumen() {
-  const r = await fetch(`${API}/api/admisiones/resumen`, { headers: { Authorization: 'Bearer '+token } });
+  const r = await apiFetch('/api/admisiones/resumen');
   if (!r.ok) return;
   const d = await r.json();
   document.getElementById('st-total').textContent = d.total ?? 0;
@@ -115,8 +140,7 @@ async function cargar() {
   const rel = DiabCareAPI.listUrlWithPage('/api/admisiones/', {
     page: pag, pageSize: LIMIT, q,
   });
-  const url = `${API}${rel}`;
-  const r = await fetch(url, { headers: { Authorization: 'Bearer '+token }, cache: 'no-store' });
+  const r = await apiFetch(rel);
   if (r.status === 401) { window.location.href = '/'; return; }
   const data = await r.json();
   _rows = data.admisiones || [];
@@ -139,17 +163,23 @@ async function cargar() {
       { key: 'paciente_nombre', label: 'Paciente', title: true },
       { key: 'estado', label: 'Estado', badge: true, render: a =>
         (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(a.estado) : a.estado) || '—' },
-      { key: 'tipo', label: 'Tipo', render: a =>
-        (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(a.tipo) : a.tipo) || '—' },
+      { key: 'tipo', label: 'Atención', render: a =>
+        ({ ambulatoria: 'Consulta ambulatoria', urgencia: 'Urgencias', hospitalizacion: 'Hospitalización' }[a.tipo] || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(a.tipo) : a.tipo) || '—') },
+      { key: 'via_llegada', label: 'Llegada', render: a =>
+        ({ propia: 'Por sus medios', ambulancia: 'Ambulancia', referido: 'Referido' }[a.via_llegada] || '—') },
       { key: 'servicio', label: 'Servicio' },
       { key: 'fecha_ingreso', label: 'Ingreso' },
       { key: 'medico_nombre', label: 'Médico' },
     ],
     actionsHtml: (_a, id) =>
-      `<button type="button" class="btn btn-ghost btn-sm" data-edit="${id}">Editar</button>`,
+      `<button type="button" class="btn btn-ghost btn-sm" data-edit="${String(id).replace(/"/g, '&quot;')}">Editar</button>`,
   });
   body.querySelectorAll('[data-edit]').forEach(btn => {
-    btn.onclick = () => editar(btn.getAttribute('data-edit'));
+    btn.onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      editar(btn.getAttribute('data-edit'));
+    };
   });
   DiabCareAPI.renderPager(document.getElementById('dataPager'), {
     page: pag, pageSize: LIMIT, total: _totalRows,
@@ -171,11 +201,12 @@ function llenarMedicos(selected) {
 async function abrirModal(a) {
   document.getElementById('modal').style.display = 'flex';
   document.getElementById('modal-titulo').textContent = a ? 'Editar admisión' : 'Nueva admisión';
-  document.getElementById('f-id').value = a?.id_admision || '';
+  document.getElementById('f-id').value = a?.id_admision ? String(a.id_admision) : '';
   if (!_pacTA) _pacTA = DiabCareAPI.mountPacienteTypeahead({ field: 'paciente' });
-  if (a?.id_paciente) await _pacTA.setPaciente(a.id_paciente, a.paciente_nombre || '');
+  if (a?.id_paciente) await _pacTA.setPaciente(String(a.id_paciente), a.paciente_nombre || '');
   else _pacTA.clear();
   document.getElementById('m-tipo').value = a?.tipo || 'ambulatoria';
+  document.getElementById('m-via').value = a?.via_llegada || 'propia';
   document.getElementById('m-estado').value = a?.estado || 'activa';
   document.getElementById('m-servicio').value = a?.servicio || 'Medicina interna';
   llenarMedicos(a?.medico_nombre || '');
@@ -187,15 +218,44 @@ async function abrirModal(a) {
     document.getElementById('m-ingreso').value = new Date().toISOString().slice(0, 10);
   }
   if (!a?.id_paciente) setTimeout(() => document.getElementById('m-paciente-q').focus(), 50);
+  actualizarFlujoHint();
+}
+function actualizarFlujoHint() {
+  const hint = document.getElementById('m-flujo-hint');
+  const via = document.getElementById('m-via')?.value;
+  const tipo = document.getElementById('m-tipo');
+  if (!hint || !tipo) return;
+  if (via === 'ambulancia') {
+    if (tipo.value === 'ambulatoria') tipo.value = 'urgencia';
+    hint.textContent = 'Llegada en ambulancia: se atiende por Urgencias (aunque el caso sea grave). La vía y el tipo de atención no se excluyen: ambulancia + urgencias es el flujo correcto.';
+  } else if (via === 'propia' && tipo.value === 'urgencia') {
+    hint.textContent = 'Puede llegar por sus medios y aun así atenderse en Urgencias.';
+  } else {
+    hint.textContent = 'Ambulatoria = consulta de consultorio. Urgencias = atención no programada. Hospitalización = ingreso a cama.';
+  }
 }
 function cerrarModal() { document.getElementById('modal').style.display = 'none'; }
-function editar(id) { abrirModal(_rows.find(x => x.id_admision === id)); }
+
+function encontrarAdmision(id) {
+  const sid = String(id || '');
+  return _rows.find(x => String(x.id_admision || '') === sid);
+}
+
+async function editar(id) {
+  const a = encontrarAdmision(id);
+  if (!a) {
+    toast('No se pudo abrir esa admisión. Recarga la lista.', 'error');
+    return;
+  }
+  await abrirModal(a);
+}
 
 async function guardar() {
-  const id = document.getElementById('f-id').value;
+  const id = document.getElementById('f-id').value.trim();
   const body = {
     id_paciente: document.getElementById('m-paciente').value.trim(),
     tipo: document.getElementById('m-tipo').value,
+    via_llegada: document.getElementById('m-via').value,
     estado: document.getElementById('m-estado').value,
     servicio: document.getElementById('m-servicio').value.trim(),
     medico_nombre: document.getElementById('m-medico').value.trim(),
@@ -206,22 +266,27 @@ async function guardar() {
   };
   if (!body.id_paciente) { toast('Busque y seleccione un paciente por cédula', 'error'); return; }
   if (!body.medico_nombre) { toast('Seleccione un médico', 'error'); return; }
-  const url = id ? `${API}/api/admisiones/${id}` : `${API}/api/admisiones/`;
-  const r = await fetch(url, {
+  const errF = DiabCareAPI.rangoFechasOk(body.fecha_ingreso, body.fecha_egreso);
+  if (errF) { toast(errF, 'error'); return; }
+  const url = id ? `/api/admisiones/${encodeURIComponent(id)}` : '/api/admisiones/';
+  const r = await apiFetch(url, {
     method: id ? 'PUT' : 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+token },
     body: JSON.stringify(body),
   });
-  const d = await r.json();
-  if (!r.ok) { toast(d.detail || d.error || 'Error', 'error'); return; }
+  let d = {};
+  try { d = await r.json(); } catch (_) { /* ignore */ }
+  if (!r.ok) { toast(d.detail || d.error || 'Error al guardar', 'error'); return; }
   toast(id ? 'Admisión actualizada' : 'Admisión registrada');
   cerrarModal();
-  cargarResumen();
-  cargar();
+  await cargarResumen();
+  await cargar();
 }
 
 cargarMedicos().then(() => {
   DiabCareAPI.bindLiveSearch({ input: document.getElementById('f-q'), onSearch: () => { pag = 1; return cargar(); } });
+  DiabCareAPI.ligarRangoFechas('m-ingreso', 'm-egreso');
+  document.getElementById('m-via')?.addEventListener('change', actualizarFlujoHint);
+  document.getElementById('m-tipo')?.addEventListener('change', actualizarFlujoHint);
   cargarResumen();
   cargar();
 });

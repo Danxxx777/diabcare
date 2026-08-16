@@ -123,16 +123,21 @@ function homeParaRol(rol) {
   return HOME_DEFAULT;
 }
 
-function redirigirSiSesionActiva() {
+async function redirigirSiSesionActiva() {
   try {
     if (sessionStorage.getItem("logout") === "1") return false;
-    const t = localStorage.getItem("token");
-    if (!t) return false;
-    const parts = t.split(".");
-    if (parts.length < 2) return false;
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-    if (payload.exp && Date.now() >= payload.exp * 1000 - 3000) return false;
-    const u = JSON.parse(localStorage.getItem("usuario") || "{}");
+    const res = await fetch(API_BASE + "/api/auth/sesion", {
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data.ok || !data.autenticado) return false;
+    const u = data.usuario || {};
+    sessionStorage.setItem("dc_sesion_ok", "1");
+    sessionStorage.setItem("usuario", JSON.stringify(u));
+    localStorage.removeItem("token");
+    localStorage.setItem("usuario", JSON.stringify(u));
     if (u.debe_cambiar_password) {
       window.location.replace("/paginas/seguridad/perfil/index.html?forzar=1");
       return true;
@@ -177,13 +182,13 @@ function aplicarTemaLogin(tema) {
   const tma = tema === "claro" ? "claro" : "oscuro";
   document.documentElement.setAttribute("data-tema", tma);
   localStorage.setItem("diabcare_tema", tma);
-  const lab = $("#tema-lab");
-  if (lab) lab.textContent = tma === "oscuro" ? (localStorage.getItem("diabcare_idioma") === "en" ? "Dark" : "Oscuro") : (localStorage.getItem("diabcare_idioma") === "en" ? "Light" : "Claro");
-  const btn = $("#btn-tema");
-  if (btn) {
-    const title = tma === "oscuro" ? t("tb_tema_claro", "Cambiar a modo claro") : t("tb_tema_oscuro", "Cambiar a modo oscuro");
-    btn.title = title;
-    btn.setAttribute("aria-label", title);
+  const title = tma === "oscuro" ? t("tb_tema_claro", "Cambiar a modo claro") : t("tb_tema_oscuro", "Cambiar a modo oscuro");
+  const wrap = $("#btn-tema");
+  if (wrap) wrap.title = title;
+  const inp = wrap && wrap.querySelector ? wrap.querySelector(".dc-holo-input") : $("#holo-btn-tema");
+  if (inp) {
+    inp.checked = tma === "claro";
+    inp.setAttribute("aria-label", title);
   }
 }
 
@@ -204,7 +209,27 @@ function setIdiomaLogin(cod) {
 }
 
 function wirePrefs() {
-  $("#btn-tema")?.addEventListener("click", toggleTemaLogin);
+  if (window.DiabCareNav && typeof DiabCareNav.montarHolos === "function") {
+    const btn = $("#btn-tema");
+    if (btn && btn.classList.contains("toggle")) {
+      const en = localStorage.getItem("diabcare_idioma") === "en";
+      btn.classList.toggle("on", document.documentElement.getAttribute("data-tema") === "claro");
+      DiabCareNav.montarHolos();
+      const wrap = $("#btn-tema");
+      const off = wrap && wrap.querySelector(".dc-holo-txt.off");
+      const on = wrap && wrap.querySelector(".dc-holo-txt.on");
+      if (off) off.textContent = en ? "DK" : "OS";
+      if (on) on.textContent = en ? "LT" : "CL";
+    }
+  }
+  const holo = document.querySelector("#btn-tema .dc-holo-input") || $("#holo-btn-tema");
+  if (holo) {
+    holo.addEventListener("change", (e) => {
+      aplicarTemaLogin(e.target.checked ? "claro" : "oscuro");
+    });
+  } else {
+    $("#btn-tema")?.addEventListener("click", toggleTemaLogin);
+  }
   const btnIdi = $("#btn-idioma");
   const menu = $("#menu-idioma");
   btnIdi?.addEventListener("click", (e) => {
@@ -360,9 +385,15 @@ formLogin.addEventListener("submit", async (e) => {
       password: pass.value,
     });
 
-    if (!data.token) throw new Error("Respuesta de login incompleta.");
+    if (!data.usuario && !data.sesion_cookie) {
+      throw new Error("Respuesta de login incompleta.");
+    }
 
-    localStorage.setItem("token", data.token);
+    // El JWT queda solo en cookie httpOnly; JS no lo guarda.
+    localStorage.removeItem("token");
+    sessionStorage.setItem("dc_sesion_ok", "1");
+    sessionStorage.setItem("dc_entry_splash", "1");
+    sessionStorage.setItem("usuario", JSON.stringify(data.usuario || {}));
     localStorage.setItem("usuario", JSON.stringify(data.usuario || {}));
 
     if (data.usuario && data.usuario.debe_cambiar_password) {
@@ -517,11 +548,13 @@ formSol.addEventListener("submit", async (e) => {
 });
 
 /* ---------- arranque ---------- */
-function init() {
+async function init() {
   wirePrefs();
 
   if (sessionStorage.getItem("logout") === "1") {
     sessionStorage.removeItem("logout");
+    sessionStorage.removeItem("dc_sesion_ok");
+    sessionStorage.removeItem("usuario");
     const temaKeep = localStorage.getItem("diabcare_tema");
     const idiKeep = localStorage.getItem("diabcare_idioma");
     localStorage.clear();
@@ -533,7 +566,7 @@ function init() {
   aplicarTemaLogin(guardado === "claro" ? "claro" : "oscuro");
   aplicarI18nLogin();
 
-  if (redirigirSiSesionActiva()) return;
+  if (await redirigirSiSesionActiva()) return;
 
   const sesionMsg = sessionStorage.getItem("sesion_msg");
   if (sesionMsg) {
@@ -544,7 +577,5 @@ function init() {
   email?.focus();
 }
 
-window.addEventListener("DOMContentLoaded", init);
-window.addEventListener("pageshow", () => {
-  redirigirSiSesionActiva();
-});
+window.addEventListener("DOMContentLoaded", () => { init(); });
+window.addEventListener("pageshow", () => { redirigirSiSesionActiva(); });

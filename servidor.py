@@ -8,6 +8,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.join(ROOT, "backend")
 os.chdir(BACKEND)
 sys.path.insert(0, BACKEND)
+sys.path.insert(0, ROOT)  # carpeta etl/ de exhibición
 
 if __name__ == "__main__":
     runpy.run_path(os.path.join(BACKEND, "Principal.py"), run_name="__main__")

@@ -1,0 +1,10 @@
+﻿Backup del diseno anterior a glassmorfismo
+Fecha: 2026-08-01
+Archivos: estilos.css, dashboard.css
+
+Como restaurar (PowerShell desde la raiz del repo):
+
+Copy-Item frontend\estaticos\_backup_diseno_pre_glass\estilos.css frontend\estaticos\estilos.css -Force
+Copy-Item frontend\estaticos\_backup_diseno_pre_glass\dashboard.css frontend\estaticos\dashboard.css -Force
+
+Luego Ctrl+F5 en el navegador.

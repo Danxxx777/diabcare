@@ -159,6 +159,13 @@ def negocio_kpis(payload: dict = Depends(require_modulo("analisis"))):
     from paquetes.dataset.DatasetKpisServicio import resumen_kpis
     return resumen_kpis()
 
+
+@router.get("/informes/complejos")
+def informes_complejos_ep(payload: dict = Depends(require_modulo("analisis"))):
+    """Informes compuestos: agregados ELT de la capa columnar (negocio/agg_*)."""
+    from paquetes.dataset.DatasetKpisServicio import informes_complejos
+    return informes_complejos()
+
 # ── DWH ──
 @router.post("/dwh/reconstruir")
 def reconstruir_dwh(payload: dict = Depends(require_modulo("dataset"))):
@@ -273,28 +280,16 @@ def dim_tiempo(skip: int = 0, limit: int = 50, authorization: Optional[str] = He
 @router.get("/estadisticas")
 def estadisticas_dataset(authorization: Optional[str] = Header(None)):
     try:
-        import pyarrow.parquet as pq
-        c = get_cliente()
-        objetos = list(c.list_objects(MINIO_BUCKET, prefix="stage/", recursive=True))
-        parquets = [o for o in objetos if o.object_name.endswith('.parquet')]
-        if not parquets:
-            return {"total": 0, "con_diabetes": 0, "sin_diabetes": 0, "columnas": []}
-        total = 0
-        for o in parquets:
-            obj = c.get_object(MINIO_BUCKET, o.object_name)
-            pf = pq.ParquetFile(io.BytesIO(obj.read()))
-            total += pf.metadata.num_rows
-        # Columnas y diabetes del más reciente
-        ultimo = sorted(parquets, key=lambda o: o.last_modified, reverse=True)[0]
-        obj = c.get_object(MINIO_BUCKET, ultimo.object_name)
-        df = pd.read_parquet(io.BytesIO(obj.read()))
-        col = next((c for c in ["diabetes", "Diabetes"] if c in df.columns), None)
-        con = int(df[col].sum()) if col else 0
+        from paquetes.registros_clinicos.RegistrosClinicosServicio import estadisticas as est_reg
+        s = est_reg() or {}
+        total = int(s.get("total") or 0)
+        con = int(s.get("con_diabetes") or 0)
+        sin = int(s.get("sin_diabetes") if s.get("sin_diabetes") is not None else max(0, total - con))
         return {
             "total": total,
             "con_diabetes": con,
-            "sin_diabetes": total - con,
-            "columnas": list(df.columns)
+            "sin_diabetes": sin,
+            "columnas": ["diabetes", "bmi", "hbA1c_level", "blood_glucose_level", "age", "gender"],
         }
     except Exception:
         return {"total": 0, "con_diabetes": 0, "sin_diabetes": 0, "columnas": []}

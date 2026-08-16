@@ -3,13 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare - Pipeline ELT</title>
+<title>DiabCare - Orquestador ELT</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js?v=20260809a"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
 <style>
 .pipe-flow {
@@ -26,11 +28,11 @@
   display:flex; align-items:center; justify-content:center;
   flex-shrink:0; color: var(--cyan);
 }
-.pipe-icon.blue   { background:rgba(34,211,238,0.15); color: var(--cyan); }
+.pipe-icon.blue   { background:rgba(0, 229, 255, 0.15); color: var(--cyan); }
 .pipe-icon.green  { background:rgba(74,222,128,0.12); color: var(--green); }
 .pipe-icon.amber  { background:rgba(251,191,36,0.12); color: var(--amber); }
 .pipe-icon.purple { background:rgba(167,139,250,0.12); color: #a78bfa; }
-.pipe-icon.teal   { background:rgba(34,211,238,0.1); color: #2dd4bf; }
+.pipe-icon.teal   { background:rgba(0, 229, 255, 0.1); color: #2dd4bf; }
 .pipe-arrow {
   display:flex; align-items:center; color:var(--muted,var(--text3));
   padding:0 8px; flex-shrink:0; margin-bottom:16px;
@@ -47,7 +49,7 @@
 .status-label { font-size:9px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted,var(--text3)); margin-bottom:8px; }
 .status-val   { font-size:20px; font-weight:700; font-family:var(--mono); color:var(--text); }
 .status-val.green { color:rgba(74,222,128,0.9); }
-.status-val.blue  { color:rgba(34,211,238,0.9); }
+.status-val.blue  { color:rgba(0, 229, 255, 0.9); }
 .status-val.amber { color:rgba(251,191,36,0.9); }
 
 .archivos-tabla { background:var(--bg2); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
@@ -56,10 +58,10 @@
 
 .step-row { display:flex; align-items:flex-start; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
 .step-row:last-child { border-bottom:none; }
-.step-num  { width:24px; height:24px; border-radius:50%; background:rgba(34,211,238,0.15); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:rgba(34,211,238,0.9); flex-shrink:0; margin-top:2px; }
+.step-num  { width:24px; height:24px; border-radius:50%; background:rgba(0, 229, 255, 0.15); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:rgba(0, 229, 255, 0.9); flex-shrink:0; margin-top:2px; }
 .step-title { font-size:12px; font-weight:600; color:var(--text); margin-bottom:3px; }
 .step-desc  { font-size:11px; color:var(--muted,var(--text3)); line-height:1.5; }
-.step-tech  { font-size:10px; font-family:var(--mono); color:rgba(34,211,238,0.7); margin-top:4px; }
+.step-tech  { font-size:10px; font-family:var(--mono); color:rgba(0, 229, 255, 0.7); margin-top:4px; }
 
 .step-status { font-size:11px; font-family:var(--mono); margin-top:6px; font-weight:600; }
 .step-status.pending  { color:var(--muted,var(--text3)); }
@@ -71,28 +73,136 @@
 .step-num.done    { background:rgba(74,222,128,0.2); color:rgba(74,222,128,0.9); }
 .step-num.error   { background:rgba(248,113,113,0.2); color:rgba(248,113,113,0.9); }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+.orch-embed {
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg2);
+}
+.orch-embed-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.orch-embed-bar strong { font-size: 12px; color: var(--text); }
+.orch-embed-bar span { font-size: 11px; color: var(--muted, var(--text3)); }
+.orch-embed-frame-wrap {
+  position: relative;
+  height: min(62vh, 640px);
+  background: #0a0c12;
+}
+.orch-embed-frame-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: #111;
+}
+.orch-embed-hint {
+  font-size: 11px;
+  color: var(--text3);
+  padding: 0 14px 12px;
+  line-height: 1.4;
+}
 </style>
 </head>
-<body>
+<body class="dc-uv">
 
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 
 <div class="main">
   <div class="topbar">
-    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Pipeline ELT</span>
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Orquestador</span>
     <div class="tb-right">
       <button class="btn btn-ghost btn-sm" onclick="cargar()" style="margin-right:8px">↺ Actualizar</button>
-      <button class="btn btn-primary btn-sm" onclick="ejecutarPipeline(false)" id="btnPipeline" style="margin-right:8px">↻ Sincronizar ELT (PocketBase)</button>
       <div class="tb-online"><div class="tb-online-dot"></div><span class="tb-online-label">MinIO conectado</span></div>
     </div>
   </div>
   <div class="content">
     <div class="page-header">
       <div>
-        <div class="page-title">Pipeline <span>ELT</span></div>
-        <div class="page-sub">Estado del almacén MinIO (stage/)</div>
+        <div class="page-title">Orquestador <span>ELT</span></div>
+        <div class="page-sub">Apache Airflow · DAGs E→L→T (ELT) · incremental · benchmark SQL vs Parquet</div>
       </div>
     </div>
+
+    <div class="panel" style="margin-bottom:14px;padding:18px 20px">
+      <div class="panel-title" style="margin-bottom:10px">Hoja de ruta Airflow (DAGs)</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.45;max-width:78ch">
+        Elija qué DAG ejecutar y revise el schedule. Estrategia:
+        <strong>incremental</strong> (añade Parquet; no vacía MinIO). Histórico solo relee PocketBase.
+        Arranque: <code>arrancar-airflow.ps1</code>.
+      </p>
+      <div id="dags-list" style="display:grid;gap:10px;margin-bottom:14px">
+        <div class="loading"><div class="spinner"></div>Cargando DAGs…</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <select id="dagSelect" class="form-control" style="max-width:280px;font-size:12px">
+          <option value="diabcare_elt">diabcare_elt (horario)</option>
+          <option value="diabcare_elt_historico">diabcare_elt_historico (domingo)</option>
+          <option value="diabcare_benchmark_sql">diabcare_benchmark_sql (diario)</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="dispararAirflow()" id="btnAirflow">▶ Ejecutar DAG elegido</button>
+        <button class="btn btn-ghost btn-sm" onclick="ejecutarPipeline(false)" id="btnPipeline">↻ Sync directo (sin Airflow)</button>
+        <button class="btn btn-ghost btn-sm" onclick="correrBenchmark()" id="btnBench">⏱ Benchmark SQL vs Parquet</button>
+      </div>
+    </div>
+
+    <div class="status-grid" style="margin-bottom:14px;grid-template-columns:repeat(4,1fr)">
+      <div class="status-card">
+        <div class="status-label">Duración última ELT</div>
+        <div class="status-val" id="s-dur-elt" style="font-size:18px">-</div>
+        <div class="pipe-sub" id="s-dur-elt-sub" style="margin-top:6px;text-align:left">API FastAPI</div>
+      </div>
+      <div class="status-card">
+        <div class="status-label">Duración Airflow (DAG)</div>
+        <div class="status-val" id="s-dur-af" style="font-size:18px">-</div>
+        <div class="pipe-sub" id="s-dur-af-sub" style="margin-top:6px;text-align:left">Última corrida</div>
+      </div>
+      <div class="status-card">
+        <div class="status-label">SQL tradicional</div>
+        <div class="status-val amber" id="s-sql-ms" style="font-size:18px">-</div>
+        <div class="pipe-sub" style="margin-top:6px;text-align:left">ms (carga+SELECT)</div>
+      </div>
+      <div class="status-card">
+        <div class="status-label">Columnar Parquet</div>
+        <div class="status-val green" id="s-pq-ms" style="font-size:18px">-</div>
+        <div class="pipe-sub" id="s-bench-cmp" style="margin-top:6px;text-align:left">vs SQL</div>
+      </div>
+    </div>
+
+    <div class="panel" id="bench-panel" style="margin-bottom:14px;padding:16px 18px;display:none">
+      <div class="panel-title" style="margin-bottom:8px">Resultado benchmark (clase: BDR/SQL vs columnar)</div>
+      <pre id="bench-out" style="font-size:11px;font-family:var(--mono);white-space:pre-wrap;margin:0;color:var(--text2);max-height:220px;overflow:auto"></pre>
+    </div>
+
+    <div class="orch-embed" id="orch-airflow-embed">
+      <div class="orch-embed-bar">
+        <strong>Airflow · vista DAG</strong>
+        <span id="orch-embed-status">Cargando vista…</span>
+        <button type="button" class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="recargarAirflowEmbed()">↺ Recargar vista</button>
+      </div>
+      <div class="orch-embed-frame-wrap">
+        <iframe
+          id="airflow-embed"
+          title="Apache Airflow embebido"
+          src="http://localhost:8080/dags/diabcare_elt/grid"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+        ></iframe>
+      </div>
+      <p class="orch-embed-hint">
+        Login iframe: <code>admin</code> / <code>admin</code>.
+        Tras cambiar DAGs, reinicie: <code>docker compose -f docker-compose.airflow.yml restart</code>.
+      </p>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;padding:18px 20px;display:none" id="legacy-orch-control"></div>
 
     <div class="pipe-flow">
       <div class="pipe-node">
@@ -105,7 +215,7 @@
       <div class="pipe-node">
         <div class="pipe-icon amber" data-icon="configuracion" data-icon-size="22"></div>
         <div class="pipe-label">Apache Airflow</div>
-        <div class="pipe-sub">Orquestador ELT</div>
+        <div class="pipe-sub" id="pipe-airflow-sub">Orquestador ELT</div>
         <div class="pipe-sub">localhost:8080</div>
       </div>
       <div class="pipe-arrow" data-icon="chevron" data-icon-size="14"></div>
@@ -161,8 +271,8 @@
           <div class="step-row" id="step-row-1">
             <div class="step-num" id="step-num-1">1</div>
             <div style="flex:1">
-              <div class="step-title">Extracción - PocketBase</div>
-              <div class="step-desc">Solo registros con <code>updated</code> posterior a la última sincronización (incremental).</div>
+              <div class="step-title">E — Extracción (PocketBase)</div>
+              <div class="step-desc">Solo registros con <code>updated</code> posterior a la última sync (incremental).</div>
               <div class="step-tech">GET /api/collections/diabetes_dataset/records</div>
               <div class="step-status pending" id="step-status-1">- En espera</div>
             </div>
@@ -170,28 +280,37 @@
           <div class="step-row" id="step-row-2">
             <div class="step-num" id="step-num-2">2</div>
             <div style="flex:1">
-              <div class="step-title">Transformación - pandas</div>
-              <div class="step-desc">Normalización de columnas, tipos numéricos, género/tabaquismo y descarte de filas inválidas.</div>
-              <div class="step-tech">pd.DataFrame → dropna → astype → reset_index</div>
+              <div class="step-title">L — Carga (MinIO landing/)</div>
+              <div class="step-desc">Datos <strong>crudos</strong> al almacén: <code>diabetes-data/landing/</code> (antes de transformar).</div>
+              <div class="step-tech">raw.parquet → minio.put_object(landing/)</div>
               <div class="step-status pending" id="step-status-2">- En espera</div>
             </div>
           </div>
           <div class="step-row" id="step-row-3">
             <div class="step-num" id="step-num-3">3</div>
             <div style="flex:1">
-              <div class="step-title">Carga - MinIO (Parquet)</div>
-              <div class="step-desc">Serialización Parquet y subida a <code>diabetes-data/stage/pocketbase_elt_*.parquet</code>.</div>
-              <div class="step-tech">df.to_parquet() → minio.put_object()</div>
+              <div class="step-title">T — Transformación (stage + DWH)</div>
+              <div class="step-desc">Normalización pandas en el almacén → <code>stage/</code> limpio + hechos/dimensiones/agg_*.</div>
+              <div class="step-tech">transformar → stage/pocketbase_elt_*.parquet → materializar_dwh()</div>
               <div class="step-status pending" id="step-status-3">- En espera</div>
             </div>
           </div>
           <div class="step-row" id="step-row-4">
             <div class="step-num" id="step-num-4">4</div>
             <div style="flex:1">
-              <div class="step-title">Consumo - FastAPI</div>
-              <div class="step-desc">Invalidación de caché y verificación de lectura vía API de registros/estadísticas.</div>
-              <div class="step-tech">GET /api/registros/estadisticas → DataFrame</div>
+              <div class="step-title">T — Hecho-Dimensión</div>
+              <div class="step-desc">Parte de la transformación: tablas para informes compuestos y KPIs.</div>
+              <div class="step-tech">hechos/ · dimensiones/ · agregados/</div>
               <div class="step-status pending" id="step-status-4">- En espera</div>
+            </div>
+          </div>
+          <div class="step-row" id="step-row-5">
+            <div class="step-num" id="step-num-5">5</div>
+            <div style="flex:1">
+              <div class="step-title">Consumo — FastAPI / dashboards</div>
+              <div class="step-desc">Invalidación de caché; dashboards leen stage/DWH (no el landing crudo).</div>
+              <div class="step-tech">GET /api/registros/estadisticas · /api/dataset/kpis</div>
+              <div class="step-status pending" id="step-status-5">- En espera</div>
             </div>
           </div>
         </div>
@@ -300,20 +419,146 @@ async function ejecutarPipeline(historico = false) {
       return;
     }
 
-    toast(d.mensaje || 'Sincronización completada', 'success');
+    toast((d.mensaje || 'Sincronización completada') + (d.duracion_seg != null ? ` (${d.duracion_seg}s)` : ''), 'success');
     cargar();
   } catch (e) {
     toast('Error de conexión con el backend', 'error');
     resetSteps();
   } finally {
-    btn.textContent = '↻ Sincronizar ELT (PocketBase)';
+    btn.textContent = '↻ Sync directo (sin Airflow)';
     btn.disabled = false;
   }
 }
 
+async function dispararAirflow() {
+  const btn = document.getElementById('btnAirflow');
+  const dagId = document.getElementById('dagSelect')?.value || 'diabcare_elt';
+  btn.disabled = true;
+  btn.textContent = 'Disparando…';
+  try {
+    const r = await fetch(`${API}/api/pipeline/airflow/disparar`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        historico: dagId === 'diabcare_elt_historico',
+        dag_id: dagId,
+      }),
+      credentials: 'include',
+    });
+    const d = await r.json();
+    if (!r.ok || d.ok === false) {
+      toast(d.error || d.detail || 'No se pudo disparar Airflow', 'error');
+      return;
+    }
+    toast(d.mensaje || 'DAG disparado', 'success');
+    recargarAirflowEmbed(dagId);
+    const box = document.getElementById('orch-airflow-embed');
+    if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(cargar, 2500);
+  } catch {
+    toast('Error al contactar Airflow', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ Ejecutar DAG elegido';
+  }
+}
+
+function recargarAirflowEmbed(dagId) {
+  const iframe = document.getElementById('airflow-embed');
+  const st = document.getElementById('orch-embed-status');
+  if (!iframe) return;
+  const id = dagId || document.getElementById('dagSelect')?.value || 'diabcare_elt';
+  iframe.src = `http://localhost:8080/dags/${id}/grid?t=${Date.now()}`;
+  if (st) st.textContent = `${id} · ${new Date().toLocaleTimeString('es-ES')}`;
+}
+
+async function correrBenchmark() {
+  const btn = document.getElementById('btnBench');
+  btn.disabled = true;
+  btn.textContent = 'Midiendo…';
+  try {
+    const r = await fetch(`${API}/api/pipeline/benchmark-sql`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ max_filas: 200000 }),
+      credentials: 'include',
+    });
+    const d = await r.json();
+    if (!r.ok || d.ok === false) {
+      toast(d.error || d.detail || 'Benchmark falló', 'error');
+      return;
+    }
+    pintarBenchmark(d);
+    toast(`Benchmark OK · SQL ${d.tiempos_ms?.sql_total} ms vs Parquet ${d.tiempos_ms?.columnar_pandas} ms`, 'success');
+  } catch {
+    toast('Error de conexión en benchmark', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⏱ Benchmark SQL vs Parquet';
+  }
+}
+
+function pintarBenchmark(d) {
+  const t = d.tiempos_ms || {};
+  const cmp = d.comparacion || {};
+  const elSql = document.getElementById('s-sql-ms');
+  const elPq = document.getElementById('s-pq-ms');
+  const elCmp = document.getElementById('s-bench-cmp');
+  if (elSql) elSql.textContent = (t.sql_total != null) ? `${t.sql_total} ms` : '-';
+  if (elPq) elPq.textContent = (t.columnar_pandas != null) ? `${t.columnar_pandas} ms` : '-';
+  if (elCmp) {
+    elCmp.textContent = cmp.factor_sql_vs_columnar
+      ? `SQL ×${cmp.factor_sql_vs_columnar} vs columnar · gana ${cmp.ganador}`
+      : (cmp.leccion || 'vs SQL');
+  }
+  const panel = document.getElementById('bench-panel');
+  const out = document.getElementById('bench-out');
+  if (panel && out) {
+    panel.style.display = 'block';
+    out.textContent = [
+      `Registros: ${d.registros} · ${d.motor_sql} vs ${d.motor_columnar}`,
+      `SQL carga tabla: ${t.sql_carga_tabla} ms · consultas: ${t.sql_consultas} ms · total: ${t.sql_total} ms`,
+      `Columnar pandas: ${t.columnar_pandas} ms`,
+      `Diferencia: ${cmp.diferencia_ms} ms · ganador: ${cmp.ganador}`,
+      '',
+      cmp.leccion || '',
+      '',
+      'KPI SQL: ' + JSON.stringify(d.resultado_sql?.kpi || {}, null, 0),
+    ].join('\n');
+  }
+}
+
+function pintarDags(dags, conectado) {
+  const box = document.getElementById('dags-list');
+  if (!box) return;
+  if (!dags || !dags.length) {
+    box.innerHTML = '<div style="font-size:12px;color:var(--text3)">Sin DAGs configurados</div>';
+    return;
+  }
+  box.innerHTML = dags.map(g => {
+    const run = g.ultima_corrida || {};
+    const act = g.activo === false ? '⏸' : (conectado ? '✓' : '·');
+    const dur = run.duracion_seg != null ? `${run.duracion_seg}s` : (g.duracion_seg != null ? `${g.duracion_seg}s` : '—');
+    return `<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg2)">
+      <div style="font-size:16px;margin-top:2px">${act}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;font-family:var(--mono)">${g.dag_id}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${g.descripcion || ''}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--mono)">
+          schedule: ${g.schedule_airflow || g.schedule || '-'} · modo: ${g.modo || '-'} · última: ${run.estado || 'sin corridas'} · ${dur}
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('dagSelect').value='${g.dag_id}';recargarAirflowEmbed('${g.dag_id}')">Ver</button>
+    </div>`;
+  }).join('');
+}
+
 async function cargar() {
   try {
-    const r = await fetch(`${API}/api/pipeline/estado`, { headers: { Authorization: 'Bearer ' + token } });
+    const r = await fetch(`${API}/api/pipeline/estado`, {
+      headers: { Authorization: 'Bearer ' + token },
+      credentials: 'include',
+    });
     if (r.status === 401) { window.location.href = '/'; return; }
     if (r.status === 403) { toast('Sin permiso para Pipeline ELT', 'error'); return; }
     const d = await r.json();
@@ -322,6 +567,32 @@ async function cargar() {
     const minOk = conn.minio === 'conectado';
     document.getElementById('s-min').textContent = minOk ? '✓ Conectado' : '✗ Sin conexión';
     document.getElementById('s-min').className = 'status-val ' + (minOk ? 'green' : 'amber');
+
+    const af = d.airflow || {};
+    pintarDags(af.dags || d.dags_configurados || [], !!af.conectado);
+
+    const uc = d.ultima_corrida_elt || {};
+    const elDur = document.getElementById('s-dur-elt');
+    const elDurSub = document.getElementById('s-dur-elt-sub');
+    if (elDur) elDur.textContent = uc.duracion_seg != null ? `${uc.duracion_seg} s` : '-';
+    if (elDurSub) {
+      const t = uc.tiempos || {};
+      elDurSub.textContent = t.extraer_seg != null
+        ? `E ${t.extraer_seg}s · L ${t.cargar_seg}s · T ${t.transformar_seg}s`
+        : (uc.mensaje ? String(uc.mensaje).slice(0, 48) : 'API FastAPI');
+    }
+
+    const runAf = af.ultima_corrida || {};
+    const elAf = document.getElementById('s-dur-af');
+    const elAfSub = document.getElementById('s-dur-af-sub');
+    if (elAf) elAf.textContent = runAf.duracion_seg != null ? `${runAf.duracion_seg} s` : (runAf.estado || '-');
+    if (elAfSub) elAfSub.textContent = runAf.inicio
+      ? `${af.dag_id || 'DAG'} · ${String(runAf.inicio).slice(0, 19).replace('T', ' ')}`
+      : 'Última corrida';
+
+    if (d.benchmark_sql && d.benchmark_sql.tiempos_ms) {
+      pintarBenchmark(d.benchmark_sql);
+    }
 
     const regs = d.total_registros ?? 0;
     document.getElementById('s-registros').textContent = regs.toLocaleString('es-ES');
@@ -333,7 +604,7 @@ async function cargar() {
     const syncTxt = sync.ultima
       ? `ELT: ${sync.registros_acumulados || 0} reg. · últ. sync ${sync.ultima.slice(0, 19).replace('T', ' ')}`
       : 'ELT: sin sincronizar';
-    document.getElementById('a-count').textContent    =
+    document.getElementById('a-count').textContent =
       `${gen} generador · ${elt} ELT · ${syncTxt}`;
 
     if (!d.archivos || d.archivos.length === 0) {
@@ -342,7 +613,7 @@ async function cargar() {
     }
 
     const origenBadge = o => {
-      if (o === 'generador') return '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(34,211,238,0.12);color:var(--cyan)">GEN</span>';
+      if (o === 'generador') return '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(0, 229, 255, 0.12);color:var(--cyan)">GEN</span>';
       if (o === 'elt') return '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(167,139,250,0.12);color:#a78bfa">ELT</span>';
       return '';
     };

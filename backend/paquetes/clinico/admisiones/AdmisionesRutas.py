@@ -32,6 +32,7 @@ class AdmisionEntrada(BaseModel):
     motivo: str = ""
     fecha_ingreso: str = ""
     fecha_egreso: str = ""
+    via_llegada: str = "propia"
     notas: str = ""
 
 
@@ -47,6 +48,7 @@ class AdmisionActualizar(BaseModel):
     motivo: Optional[str] = None
     fecha_ingreso: Optional[str] = None
     fecha_egreso: Optional[str] = None
+    via_llegada: Optional[str] = None
     notas: Optional[str] = None
 
 

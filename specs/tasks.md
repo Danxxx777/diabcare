@@ -2,7 +2,7 @@
 
 ## Overview
 
-Este plan cubre DiabCare Analytics v2.0 y la ampliación **DiabCare Hospital** (P16–P20, comorbilidades, flujo E2E, calidad diabetes, mis citas/cobro). Documentación táctica TA11 (PostgreSQL BDR + MinIO columnar) vive en el entregable Word/PDF académico; estos MD reflejan trazabilidad en código.
+Este plan cubre DiabCare Analytics v2.0 y la ampliación **DiabCare Hospital** (P16–P20, comorbilidades, flujo E2E, calidad diabetes, mis citas/cobro). Documentación táctica TA11 (BDR vs columnar en Word/PDF) es aparte; **este repo no incluye PostgreSQL**. Runtime = MinIO/Parquet.
 
 Las tareas T1–T10 (núcleo analytics) y T16–T20 (hospital) están completadas en lo esencial. T11–T15 del núcleo histórico se actualizan abajo según implementación real (reportes fpdf2, auditoría Parquet, etc.).
 
@@ -305,7 +305,7 @@ Las tareas T1–T10 (núcleo analytics) y T16–T20 (hospital) están completada
 | 2026-06 | pyarrow.ParquetFile.metadata.num_rows | Lee solo el footer del parquet sin deserializar datos — conteo instantáneo |
 | 2026-06 | `txt.includes(o)` para roles en sidebar | Evita problemas de encoding con tildes en nombres de módulos |
 | 2026-06 | `setTimeout(aplicarRoles, 50)` | Evita flash del sidebar incorrecto al cargar la página |
-| 2026-07 | PostgreSQL como BDR en docs TA11; MinIO columnar | Alineación enunciado Tarea 11 (informe simple vs compuesto) |
+| 2026-07 | TA11: PostgreSQL solo en entregable; operativo en Parquet | No afirmar BDR SQL en runtime |
 | 2026-07 | Reportes con fpdf2 (no reportlab) | Dependencia ya en requirements.txt |
 
 ---
@@ -355,7 +355,7 @@ Las tareas T1–T10 del núcleo analytics siguen completadas. Reportes/auditorí
 
 ### ⏳ Tarea 21: Análisis táctico TA11 (documentación)
 
-- [x] 21.1 Tabla departamental: objetivos | informe simple (PostgreSQL/BDR) | informe compuesto (MinIO).
+- [x] 21.1 Tabla TA11: informe simple (BDR en Word) vs compuesto (MinIO); demo en Parquet operativo.
 - [x] 21.2 Catálogo de informes demostrables en app + guía de demo.
 - [x] 21.3 CU-O04-B UML Mis citas; especificación Word/PDF fuera del repo.
 - [ ] 21.4 Migración técnica BDR a PostgreSQL en runtime (opcional post-entrega).

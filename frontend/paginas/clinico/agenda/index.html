@@ -5,13 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare - Agenda</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
+<script src="/estaticos/api.js?v=cobro-1"></script>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -29,12 +31,14 @@
       </div>
     </div>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Turnos hoy</div><div class="stat-value blue" id="st-hoy">-</div></div>
+      <div class="stat-card"><div class="stat-label">Turnos (día)</div><div class="stat-value blue" id="st-hoy">-</div></div>
+      <div class="stat-card"><div class="stat-label">Cobro pendiente</div><div class="stat-value amber" id="st-cobro">-</div></div>
+      <div class="stat-card"><div class="stat-label">Consultas cobradas</div><div class="stat-value green" id="st-pagado">-</div></div>
     </div>
     <div class="tabla-card">
       <div class="tabla-top">
         <input class="search" id="f-q" type="search" autocomplete="off" placeholder="Paciente, médico o motivo referido…">
-        <input class="search" id="f-fecha" type="date" onchange="pag=1;cargar()">
+        <input class="search" id="f-fecha" type="date" onchange="pag=1;cargarHoy();cargar()">
         <select class="search" id="f-estado" onchange="pag=1;cargar()">
           <option value="">Todos los estados</option>
           <option value="programada">Programada</option>
@@ -64,7 +68,8 @@
         <select id="m-medico" required></select>
       </label>
       <label>Fecha<input id="m-fecha" type="date"></label>
-      <label>Hora<input id="m-hora" type="time" value="09:00"></label>
+      <label>Hora<input id="m-hora" type="time" value="09:00" min="07:00" max="18:59" step="300"></label>
+      <p class="span-full field-hint">Consulta programada: lunes a sábado, 07:00–19:00. Fuera de horario o domingo: registre en Urgencias.</p>
       <label class="span-full">Qué refiere el paciente (aprox.)
         <input id="m-motivo" placeholder="Ej. control glucosa, dolor de pie, mareos…">
       </label>
@@ -104,8 +109,14 @@ async function cargarMedicos() {
 }
 
 async function cargarHoy() {
-  const r = await fetch(`${API}/api/citas/hoy`, { headers: { Authorization: 'Bearer '+token } });
-  if (r.ok) document.getElementById('st-hoy').textContent = (await r.json()).total ?? 0;
+  const fecha = document.getElementById('f-fecha').value || '';
+  const qs = fecha ? `?fecha=${encodeURIComponent(fecha)}` : '';
+  const r = await fetch(`${API}/api/citas/resumen${qs}`, { headers: { Authorization: 'Bearer '+token } });
+  if (!r.ok) return;
+  const j = await r.json();
+  document.getElementById('st-hoy').textContent = j.total ?? 0;
+  document.getElementById('st-cobro').textContent = j.cobro_pendiente ?? 0;
+  document.getElementById('st-pagado').textContent = j.cobro_pagado ?? 0;
 }
 
 async function cargar() {
@@ -180,28 +191,15 @@ async function cargar() {
 }
 
 async function cobrarConsulta(id) {
-  const ok = typeof DiabCareAPI !== 'undefined'
-    ? await DiabCareAPI.confirm({
-        title: 'Cobrar consulta',
-        message: '¿Cobrar la consulta ahora?',
-        confirmLabel: 'Cobrar',
-      })
-    : confirm('¿Cobrar consulta ahora?');
-  if (!ok) return;
-  const r = await fetch(`${API}/api/citas/${id}/cobrar-consulta`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+token },
-    body: JSON.stringify({ metodo: 'efectivo' }),
-  });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    toast(d.detail || d.error || 'No se pudo cobrar', 'error');
+  if (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.cobrarConsulta) {
+    const paid = await DiabCareAPI.cobrarConsulta(id);
+    if (paid) {
+      cargarHoy();
+      cargar();
+    }
     return;
   }
-  const total = Number(d.total);
-  toast(d.mensaje || (Number.isFinite(total) ? `Consulta cobrada · $${total.toFixed(2)}` : 'Consulta cobrada'));
-  cargarHoy();
-  cargar();
+  toast('No se pudo abrir el cobro', 'error');
 }
 
 function llenarMedicos(selected) {
@@ -253,6 +251,8 @@ async function guardar() {
   if (!id) body.estado = 'programada';
   if (!body.id_paciente) { toast('Busque y seleccione un paciente por cédula', 'error'); return; }
   if (!body.medico) { toast('Seleccione un médico', 'error'); return; }
+  const errH = DiabCareAPI.enHorarioConsulta(body.fecha, body.hora);
+  if (errH) { toast(errH, 'error'); return; }
   const url = id ? `${API}/api/citas/${id}` : `${API}/api/citas/`;
   const r = await fetch(url, {
     method: id ? 'PUT' : 'POST',

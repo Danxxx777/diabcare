@@ -1,6 +1,7 @@
 /**
  * DiabCare Hospital - navegación por departamentos y roles.
  * Matriz de acceso por rol (admin = supervisión total).
+ * Auth: cookie httpOnly (JWT no se guarda en localStorage).
  */
 (function _temaAlCargar() {
   try {
@@ -8,6 +9,784 @@
     document.documentElement.setAttribute('data-tema', t === 'claro' ? 'claro' : 'oscuro');
     const idi = localStorage.getItem('diabcare_idioma') || 'es';
     document.documentElement.setAttribute('lang', idi === 'en' ? 'en' : 'es');
+  } catch (_) { /* ignore */ }
+})();
+
+/** Motion clínico (ECG / pulso) + pantallas de carga — siempre fresco */
+(function _inyectarAnimaciones() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('dc-animaciones-css')) return;
+  if (document.querySelector('link[href*="animaciones.css"]')) return;
+  const link = document.createElement('link');
+  link.id = 'dc-animaciones-css';
+  link.rel = 'stylesheet';
+  link.href = '/estaticos/animaciones.css?v=contrast-1';
+  (document.head || document.documentElement).appendChild(link);
+})();
+
+/** Interruptor clínico (tema + on/off) — pulso tipo SpO2, no holograma */
+(function _inyectarHoloCss() {
+  if (typeof document === 'undefined') return;
+  let link = document.getElementById('dc-holo-css');
+  if (!link) {
+    link = document.createElement('link');
+    link.id = 'dc-holo-css';
+    link.rel = 'stylesheet';
+    (document.head || document.documentElement).appendChild(link);
+  }
+  link.href = '/estaticos/holo-toggle.css?v=contrast-1';
+})();
+
+/** Chasis Uiverse (dock + cristal) — último CSS para ganar a lo anterior */
+(function _inyectarUiverse() {
+  if (typeof document === 'undefined') return;
+  document.documentElement.classList.add('dc-uv-html');
+  const onBody = () => {
+    if (!document.body || document.body.classList.contains('dc-auth')) return;
+    document.body.classList.add('dc-uv');
+  };
+  onBody();
+  document.addEventListener('DOMContentLoaded', onBody);
+  let link = document.getElementById('dc-uiverse-css');
+  if (!link) {
+    const existing = document.querySelector('link[href*="uiverse-app.css"]');
+    if (existing) {
+      existing.id = 'dc-uiverse-css';
+      return;
+    }
+    link = document.createElement('link');
+    link.id = 'dc-uiverse-css';
+    link.rel = 'stylesheet';
+    (document.head || document.documentElement).appendChild(link);
+  }
+  link.href = '/estaticos/uiverse-app.css?v=contrast-1';
+})();
+
+/** Pantalla de carga — fantasma del chasis (mismas radios que la app) */
+(function _pantallaCarga() {
+  let depth = 0;
+  let hideTimer = null;
+  let shownAt = 0;
+  const MIN_MS = 480;
+
+  const RUTAS_MODULO = [
+    [/\/laboratorio\//i, 'Laboratorio'],
+    [/\/pacientes\//i, 'Pacientes'],
+    [/\/admisiones\//i, 'Admisiones'],
+    [/\/comorbilidades\//i, 'Comorbilidades'],
+    [/\/urgencias\//i, 'Urgencias'],
+    [/\/agenda\//i, 'Agenda'],
+    [/\/mis_citas\//i, 'Mis citas'],
+    [/\/registros_clinicos\//i, 'Consultas'],
+    [/\/analisis\/diabetes\//i, 'Calidad DM'],
+    [/\/analisis\/estadisticas\//i, 'Estadísticas'],
+    [/\/analisis\/informes\//i, 'Panel'],
+    [/\/prediccion\//i, 'Predicción'],
+    [/\/reportes\//i, 'Reportes'],
+    [/\/dataset\//i, 'Dataset'],
+    [/\/pipeline_elt\//i, 'Orquestador'],
+    [/\/modelo_ml\//i, 'Modelo ML'],
+    [/\/farmacia\//i, 'Farmacia'],
+    [/\/facturacion\//i, 'Facturación'],
+    [/\/recetas\//i, 'Recetas'],
+    [/\/rrhh\//i, 'RRHH'],
+    [/\/usuarios\//i, 'Usuarios'],
+    [/\/perfil\//i, 'Perfil'],
+    [/\/configuracion\//i, 'Configuración'],
+    [/\/auditoria\//i, 'Auditoría'],
+    [/\/notificaciones\//i, 'Notificaciones'],
+    [/\/inicio\//i, 'Inicio'],
+  ];
+
+  function nombreModulo(path) {
+    const p = path || (location.pathname || '');
+    try {
+      const tb = document.querySelector('.tb-page');
+      const label = tb && String(tb.textContent || '').trim();
+      if (label) return label;
+    } catch (_) { /* ignore */ }
+    for (const [re, name] of RUTAS_MODULO) {
+      if (re.test(p)) return name;
+    }
+    return 'DiabCare';
+  }
+
+  function ensure() {
+    let el = document.getElementById('dc-loading-screen');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'dc-loading-screen';
+    el.hidden = true;
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    const row = () => `<div class="dc-sk-row" aria-hidden="true">
+        <div class="dc-sk-bone dc-sk-ico"></div>
+        <div class="dc-sk-row-lines">
+          <div class="dc-sk-bone dc-sk-title"></div>
+          <div class="dc-sk-bone dc-sk-value"></div>
+        </div>
+        <div class="dc-sk-bone dc-sk-badge"></div>
+      </div>`;
+    const stat = () => `<div class="dc-sk-stat" aria-hidden="true">
+        <div class="dc-sk-bone dc-sk-label"></div>
+        <div class="dc-sk-bone dc-sk-stat-val"></div>
+      </div>`;
+    el.innerHTML = `
+      <div class="dc-sk-shell">
+        <div class="dc-sk-topbar" aria-hidden="true">
+          <div class="dc-sk-bone" style="width:28%;height:12px"></div>
+          <div class="dc-sk-bone dc-sk-ico dc-sk-ico--sm" style="margin-left:auto"></div>
+          <div class="dc-sk-bone dc-sk-ico dc-sk-ico--sm"></div>
+        </div>
+        <header class="dc-sk-mast">
+          <div class="dc-sk-bone dc-sk-ico dc-sk-ico--hero"></div>
+          <div class="dc-sk-mast-copy">
+            <p class="dc-loading-title" id="dc-loading-title">Cargando</p>
+            <p class="dc-loading-sub" id="dc-loading-sub">Preparando módulo…</p>
+          </div>
+        </header>
+        <div class="dc-sk-stats">${stat()}${stat()}${stat()}${stat()}</div>
+        <div class="dc-sk-cols">
+          <section class="dc-sk-panel">
+            <div class="dc-sk-panel-head">
+              <div class="dc-sk-bone dc-sk-title" style="width:42%"></div>
+              <div class="dc-sk-bone dc-sk-badge"></div>
+            </div>
+            ${row()}${row()}${row()}${row()}
+          </section>
+          <section class="dc-sk-panel">
+            <div class="dc-sk-panel-head">
+              <div class="dc-sk-bone dc-sk-title" style="width:36%"></div>
+              <div class="dc-sk-bone dc-sk-badge"></div>
+            </div>
+            ${row()}${row()}${row()}
+          </section>
+        </div>
+      </div>`;
+    (document.body || document.documentElement).appendChild(el);
+    return el;
+  }
+
+  function mostrar(msg, sub) {
+    const el = ensure();
+    const mod = nombreModulo();
+    const t = document.getElementById('dc-loading-title');
+    const s = document.getElementById('dc-loading-sub');
+    if (t) {
+      t.textContent = msg || ('Cargando ' + mod);
+    }
+    if (s) s.textContent = sub || (mod + ' · consultando datos…');
+    clearTimeout(hideTimer);
+    depth += 1;
+    if (el.hidden) shownAt = Date.now();
+    el.hidden = false;
+  }
+
+  function ocultar(force) {
+    if (force) depth = 0;
+    else depth = Math.max(0, depth - 1);
+    if (depth > 0) return;
+    const el = document.getElementById('dc-loading-screen');
+    if (!el) return;
+    const wait = Math.max(0, MIN_MS - (Date.now() - shownAt));
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      if (depth === 0) el.hidden = true;
+    }, wait + 120);
+  }
+
+  window.DiabCareLoading = { mostrar, ocultar, ensure, nombreModulo };
+
+  // Overlay del chasis SOLO al entrar tras login (no al cambiar de módulo)
+  function splash() {
+    const path = (location.pathname || '');
+    const enLogin = path === '/' || path === '/index.html' || path.includes('/seguridad/autenticacion');
+    if (enLogin) {
+      try { document.body.classList.add('dc-auth'); } catch (_) { /* ignore */ }
+      return;
+    }
+    let show = false;
+    try {
+      show = sessionStorage.getItem('dc_entry_splash') === '1';
+      if (show) sessionStorage.removeItem('dc_entry_splash');
+    } catch (_) { /* ignore */ }
+    if (!show) return;
+    mostrar('Bienvenido a DiabCare', 'Entrando a la plataforma…');
+    setTimeout(() => ocultar(true), 1100);
+  }
+  if (document.body) splash();
+  else document.addEventListener('DOMContentLoaded', splash);
+})();
+
+/** Skeleton con las mismas formas del chasis (cards 18px, stats 16px, filas 12px) */
+(function _skeletonCargas() {
+  const MIN_MS = 700;
+  let _fetchDepth = 0;
+
+  function tileHtml(i) {
+    const delay = (i % 8) * 0.08;
+    return `<article class="data-tile dc-sk-card" style="animation-delay:${delay}s" aria-hidden="true">
+      <div class="data-tile-head">
+        <div class="data-tile-avatar dc-sk-bone"></div>
+        <div class="data-tile-head-text">
+          <div class="dc-sk-bone dc-sk-title"></div>
+          <div class="dc-sk-bone data-tile-badge dc-sk-badge"></div>
+        </div>
+      </div>
+      <dl class="data-tile-meta">
+        <div><div class="dc-sk-bone dc-sk-label"></div><div class="dc-sk-bone dc-sk-value"></div></div>
+        <div><div class="dc-sk-bone dc-sk-label"></div><div class="dc-sk-bone dc-sk-value"></div></div>
+        <div><div class="dc-sk-bone dc-sk-label"></div><div class="dc-sk-bone dc-sk-value"></div></div>
+      </dl>
+      <div class="data-tile-actions">
+        <div class="dc-sk-bone dc-sk-btn"></div>
+        <div class="dc-sk-bone dc-sk-btn"></div>
+      </div>
+    </article>`;
+  }
+
+  function htmlCards(n) {
+    n = n || 8;
+    let tiles = '';
+    for (let i = 0; i < n; i++) tiles += tileHtml(i);
+    return `<div class="data-grid dc-sk-grid" role="status" aria-busy="true" aria-label="Cargando">${tiles}</div>`;
+  }
+
+  function htmlList(n) {
+    n = n || 4;
+    let rows = '';
+    for (let i = 0; i < n; i++) {
+      rows += `<div class="dc-sk-row" style="animation-delay:${i * 0.1}s" aria-hidden="true">
+        <div class="dc-sk-bone dc-sk-ico dc-sk-ico--sm"></div>
+        <div class="dc-sk-row-lines">
+          <div class="dc-sk-bone dc-sk-title"></div>
+          <div class="dc-sk-bone dc-sk-value"></div>
+        </div>
+        <div class="dc-sk-bone dc-sk-badge"></div>
+      </div>`;
+    }
+    return `<div class="dc-sk-list" role="status" aria-busy="true" aria-label="Cargando">${rows}</div>`;
+  }
+
+  function htmlStats(n) {
+    n = n || 3;
+    let cards = '';
+    for (let i = 0; i < n; i++) {
+      cards += `<div class="kpi-card dc-sk-stat" style="animation-delay:${i * 0.1}s" aria-hidden="true">
+        <div class="dc-sk-bone dc-sk-label"></div>
+        <div class="dc-sk-bone dc-sk-stat-val"></div>
+        <div class="dc-sk-bone dc-sk-value" style="width:40%;margin-top:10px"></div>
+      </div>`;
+    }
+    return cards;
+  }
+
+  function htmlKpis(n) {
+    return htmlStats(n || 4);
+  }
+
+  function htmlPanel() {
+    return `<div class="dc-sk-panel" role="status" aria-busy="true" aria-label="Cargando">
+      <div class="dc-sk-panel-head">
+        <div class="dc-sk-bone dc-sk-title" style="width:40%"></div>
+        <div class="dc-sk-bone dc-sk-badge"></div>
+      </div>
+      <div class="dc-sk-bone dc-sk-chart"></div>
+      <div class="dc-sk-row"><div class="dc-sk-bone dc-sk-value" style="width:70%"></div><div class="dc-sk-bone dc-sk-badge"></div></div>
+      <div class="dc-sk-row"><div class="dc-sk-bone dc-sk-value" style="width:55%"></div><div class="dc-sk-bone dc-sk-badge"></div></div>
+      <div class="dc-sk-row"><div class="dc-sk-bone dc-sk-value" style="width:62%"></div><div class="dc-sk-bone dc-sk-badge"></div></div>
+    </div>`;
+  }
+
+  const CSS = `
+@keyframes dc-sk-pulse{0%,100%{opacity:1}50%{opacity:.72}}
+@keyframes dc-sk-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.loading.dc-loading-skeleton{
+  display:block!important;width:100%!important;max-width:none!important;margin:0!important;
+  padding:0!important;background:transparent!important;border:none!important;box-shadow:none!important;
+  min-height:0!important;clip-path:none!important}
+.loading.dc-loading-skeleton .spinner,.loading.dc-loading-skeleton .loading-dots{display:none!important}
+.dash-row>.dc-sk-slot,.stats-grid>.dc-sk-slot,.stats-grid-compact>.dc-sk-slot,
+.kpi-row>.dc-sk-slot,.metricas-grid>.dc-sk-slot,.uv-stats>.dc-sk-slot{display:contents!important}
+.dc-sk-pulse-el{animation:dc-sk-pulse 1.6s ease-in-out infinite}
+`;
+
+  function ensureCss() {
+    let s = document.getElementById('dc-skeleton-css');
+    if (!s) {
+      s = document.createElement('style');
+      s.id = 'dc-skeleton-css';
+      (document.head || document.documentElement).appendChild(s);
+    }
+    s.textContent = CSS;
+  }
+
+  function esTextoCarga(raw) {
+    const t = String(raw || '').trim();
+    if (!t) return true;
+    if (/sin |error|no se pudo|sin coincidencias|sin url|sin archivos|sin sedes|sin recom/i.test(t)
+        && !/cargando|buscando/i.test(t)) return false;
+    return /cargando|buscando|preparando|seleccione|consultando/i.test(t);
+  }
+
+  function inferVariant(host) {
+    if (!host) return 'cards';
+    const id = String(host.id || '').toLowerCase();
+    if (id === 'tablabody' || id.includes('tabla') || (host.closest && host.closest('.tabla-wrap'))) return 'cards';
+    if (id === 'dwhnav' || id.includes('archivo') || id.includes('list') || id.includes('notif') || id.includes('audit')) return 'list';
+    if (id.includes('sede') || id.includes('tip') || id.includes('recomend')) return 'panel';
+    if (host.classList && host.classList.contains('panel')) return 'panel';
+    if (host.classList && (host.classList.contains('stats-grid') || host.classList.contains('stat-card'))) return 'stats';
+    if (host.classList && host.classList.contains('dash-row')) return 'kpis';
+    if (host.querySelector && host.querySelector('.data-grid, .data-tile')) return 'cards';
+    return 'list';
+  }
+
+  function markup(variant, host) {
+    if (variant === 'cards') {
+      const w = (host && host.clientWidth) || (typeof window !== 'undefined' ? window.innerWidth : 1200);
+      const n = w > 1400 ? 8 : w > 900 ? 6 : 4;
+      return htmlCards(n);
+    }
+    if (variant === 'stats') {
+      const n = (host && host.querySelectorAll && host.querySelectorAll('.stat-card').length) || 3;
+      return htmlStats(Math.max(3, n));
+    }
+    if (variant === 'kpis') return htmlKpis(4);
+    if (variant === 'panel') return htmlPanel();
+    return htmlList(5);
+  }
+
+  function paintExtras() {
+    document.querySelectorAll(
+      '.dash-row > .kpi-card, .stats-grid .stat-card, .kpi-val, .status-card, .status-val'
+    ).forEach((el) => el.classList.add('dc-sk-pulse-el'));
+  }
+
+  function clearExtras() {
+    document.querySelectorAll('.dc-sk-pulse-el').forEach((el) => el.classList.remove('dc-sk-pulse-el'));
+    document.querySelectorAll('.dash-row > .kpi-card.dc-sk-stat, .stats-grid > .dc-sk-stat, .uv-stats > .dc-sk-stat').forEach((el) => el.remove());
+    document.querySelectorAll('[data-dc-sk-hide="1"]').forEach((el) => {
+      el.style.display = '';
+      delete el.dataset.dcSkHide;
+    });
+    document.querySelectorAll('.dc-sk-slot').forEach((el) => el.remove());
+    document.querySelectorAll('[data-dc-skeleton="1"]').forEach((el) => {
+      // Restaura listado si el skeleton lo tapó (Ver/Descargar PDF, etc.)
+      if (el._dcSkHtml != null) {
+        const sigueSkeleton = !!(el.querySelector && el.querySelector('.dc-sk-bone, .dc-sk-grid, .dc-sk-tr, .dc-sk-list'));
+        if (sigueSkeleton) el.innerHTML = el._dcSkHtml;
+        delete el._dcSkHtml;
+      }
+      el.removeAttribute('aria-busy');
+      el.classList.remove('dc-loading-skeleton', 'loading');
+      delete el.dataset.dcSkeleton;
+      delete el.dataset.dcSkVariant;
+    });
+  }
+
+  function cuerpoLista(host) {
+    if (!host) return null;
+    const id = String(host.id || '').toLowerCase();
+    if (id === 'tablabody' || id === 'tbody' || (host.tagName && host.tagName.toLowerCase() === 'tbody')) {
+      return host;
+    }
+    if (host.querySelector) {
+      return host.querySelector('#tablaBody, #tbody')
+        || (host.classList && host.classList.contains('tabla-wrap') ? host.querySelector('tbody') : null);
+    }
+    return null;
+  }
+
+  function htmlTableRows(n, cols) {
+    const c = Math.max(1, cols || 5);
+    let rows = '';
+    for (let i = 0; i < n; i += 1) {
+      let cells = '';
+      for (let j = 0; j < c; j += 1) {
+        const w = 52 + ((i + j) % 4) * 11;
+        cells += `<td><div class="dc-sk-bone" style="height:11px;width:${w}%;margin:10px 6px"></div></td>`;
+      }
+      rows += `<tr class="dc-sk-tr" aria-hidden="true" style="animation-delay:${i * 0.08}s">${cells}</tr>`;
+    }
+    return rows;
+  }
+
+  function tieneListadoReal(el) {
+    if (!el || !el.querySelector) return false;
+    if (el.querySelector('.dc-sk-bone, .dc-sk-grid, .dc-sk-tr, .dc-sk-card, .dc-sk-list')) return false;
+    return !!(el.querySelector('.data-tile, .data-grid > .data-tile, table tbody tr'));
+  }
+
+  function paintTablaCuerpo(tb) {
+    if (!tb) return null;
+    if (tieneListadoReal(tb)) return tb;
+    ensureCss();
+    // Guarda el HTML real para restaurarlo al terminar el fetch (p. ej. Ver PDF)
+    if (tb._dcSkHtml == null) tb._dcSkHtml = tb.innerHTML;
+    const table = tb.closest && tb.closest('table');
+    const cols = table ? table.querySelectorAll('thead th').length : 5;
+    tb.classList.add('dc-loading-skeleton');
+    tb.dataset.dcSkeleton = '1';
+    tb.dataset.dcSkVariant = tb.tagName && tb.tagName.toLowerCase() === 'tbody' ? 'rows' : 'cards';
+    tb.setAttribute('aria-busy', 'true');
+    tb.setAttribute('aria-label', 'Cargando');
+    if (tb.tagName && tb.tagName.toLowerCase() === 'tbody') {
+      tb.innerHTML = htmlTableRows(6, cols || 5);
+    } else {
+      tb.innerHTML = markup('cards', tb);
+    }
+    tb._dcSkAt = Date.now();
+    paintExtras();
+    return tb;
+  }
+
+  function paint(el, variant) {
+    if (!el || !el.setAttribute) return;
+    ensureCss();
+    const v = variant || inferVariant(el);
+    el.classList.add('loading', 'dc-loading-skeleton');
+    el.dataset.dcSkeleton = '1';
+    el.dataset.dcSkVariant = v;
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-busy', 'true');
+    el.setAttribute('aria-label', 'Cargando');
+    el.innerHTML = markup(v, el);
+    el._dcSkAt = Date.now();
+  }
+
+  /** Oculta hijos (salvo keepSel) y pone un slot skeleton encima — no rompe IDs al terminar. */
+  function paintKeepChildren(host, html, keepSel) {
+    if (!host) return null;
+    ensureCss();
+    if (host.querySelector(':scope > .dc-sk-slot')) {
+      host._dcSkAt = Date.now();
+      return host;
+    }
+    const keep = keepSel ? host.querySelector(keepSel) : null;
+    Array.from(host.children).forEach((ch) => {
+      if (keep && ch === keep) return;
+      if (ch.classList && ch.classList.contains('dc-sk-slot')) {
+        ch.remove();
+        return;
+      }
+      ch.dataset.dcSkHide = '1';
+      ch.style.display = 'none';
+    });
+    const slot = document.createElement('div');
+    slot.className = 'dc-sk-slot loading dc-loading-skeleton';
+    slot.dataset.dcSkeleton = '1';
+    slot.setAttribute('role', 'status');
+    slot.setAttribute('aria-busy', 'true');
+    slot.setAttribute('aria-label', 'Cargando');
+    slot.innerHTML = html;
+    slot._dcSkAt = Date.now();
+    host.appendChild(slot);
+    host._dcSkAt = Date.now();
+    return host;
+  }
+
+  function paintPanelKeepTitle(host) {
+    return paintKeepChildren(host, htmlPanel(), ':scope > .panel-title');
+  }
+
+  function esHostKpi(host) {
+    if (!host || !host.classList) return false;
+    return host.classList.contains('dash-row')
+      || host.classList.contains('stats-grid')
+      || host.classList.contains('stats-grid-compact')
+      || host.classList.contains('kpi-row')
+      || host.classList.contains('metricas-grid')
+      || host.id === 'kpisCaja'
+      || host.id === 'statsTop'
+      || host.id === 'row-kpis';
+  }
+
+  function paintInto(host) {
+    if (!host) return null;
+    // Escritorio de inicio: nunca vaciar ni tapar
+    if (host.id === 'home-grid' || (host.classList && host.classList.contains('dc-home'))) return null;
+    if (host.closest && host.closest('.dc-home')) return null;
+    if (host.querySelector && host.querySelector('.dc-home')) return null;
+    if (tieneListadoReal(host)) return host;
+    ensureCss();
+    // Nunca vaciar el card/wrap entero: ir al cuerpo de lista (#tablaBody / #tbody)
+    if (host.classList && (host.classList.contains('tabla-card') || host.classList.contains('tabla-wrap'))) {
+      const tb = cuerpoLista(host);
+      if (tb) return paintTablaCuerpo(tb);
+    }
+    if (host.id === 'tablaBody' || host.id === 'tbody' || (host.tagName && host.tagName.toLowerCase() === 'tbody')) {
+      return paintTablaCuerpo(host);
+    }
+    if (esHostKpi(host)) {
+      const cards = host.querySelectorAll(':scope > .kpi-card, :scope > .stat-card, :scope > .uv-stat');
+      if (cards.length) {
+        cards.forEach((el) => el.classList.add('dc-sk-pulse-el'));
+        host._dcSkAt = Date.now();
+        return host;
+      }
+      const n = Math.max(3, host.children.length || 4);
+      host.insertAdjacentHTML('beforeend', htmlKpis(n));
+      host.dataset.dcSkeleton = '1';
+      host._dcSkAt = Date.now();
+      return host;
+    }
+    if (host.classList && host.classList.contains('panel')) {
+      // Si el panel ya tiene tabla, skeleton solo en el cuerpo — no ocultar todo el panel
+      const tb = cuerpoLista(host);
+      if (tb) return paintTablaCuerpo(tb);
+      paintPanelKeepTitle(host);
+      paintExtras();
+      return host;
+    }
+    if (host.classList && (host.classList.contains('pred-card') || host.classList.contains('pipe-card'))) {
+      paintKeepChildren(host, htmlPanel());
+      paintExtras();
+      return host;
+    }
+    const variant = inferVariant(host);
+    if (variant === 'cards' || host.id === 'tablaBody' || (host.classList && host.classList.contains('tabla-wrap'))) {
+      const target = cuerpoLista(host) || host;
+      return paintTablaCuerpo(target);
+    }
+    // Contenedores de lista / nav / archivos / bandejas
+    if (
+      host.id === 'dwhNav' || host.id === 'archivos-list' || host.id === 'archivosList'
+      || host.id === 'lista' || host.id === 'factoresList'
+      || /list|notif|audit|consult|archivo/i.test(host.id || '')
+    ) {
+      host.classList.add('dc-loading-skeleton');
+      host.dataset.dcSkeleton = '1';
+      host.innerHTML = markup('list', host);
+      host._dcSkAt = Date.now();
+      paintExtras();
+      return host;
+    }
+    if (host.id === 'sedes-box' || host.id === 'tips-box' || host.id === 'metricasBox' || host.id === 'predResultado') {
+      host.classList.add('dc-loading-skeleton');
+      host.dataset.dcSkeleton = '1';
+      host.innerHTML = markup('panel', host);
+      host._dcSkAt = Date.now();
+      paintExtras();
+      return host;
+    }
+    let box = host.classList && host.classList.contains('loading') ? host : null;
+    if (!box && host.querySelector) box = host.querySelector(':scope > .loading');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'loading dc-loading-skeleton';
+      host.innerHTML = '';
+      host.appendChild(box);
+    }
+    paint(box, variant === 'cards' ? 'list' : variant);
+    paintExtras();
+    return box;
+  }
+
+  function enrich(root) {
+    ensureCss();
+    (root || document).querySelectorAll('.loading').forEach((el) => {
+      if (el.dataset.dcSkeleton === '1') return;
+      if (el.classList.contains('dc-sk-slot')) return;
+      el.querySelectorAll('.spinner, .loading-dots').forEach((n) => n.remove());
+      const raw = String(el.textContent || '').trim();
+      if (!esTextoCarga(raw)) return;
+      const host = el.parentElement && el.parentElement.id === 'tablaBody' ? el.parentElement : el;
+      if (host.id === 'tablaBody') paintInto(host);
+      else paint(el, inferVariant(el.parentElement || el));
+    });
+  }
+
+  async function waitFrom(el, minMs) {
+    const t0 = (el && el._dcSkAt) || Date.now();
+    const w = Math.max(0, (minMs == null ? MIN_MS : minMs) - (Date.now() - t0));
+    if (w) await new Promise((r) => setTimeout(r, w));
+  }
+
+  function targetsParaFetch() {
+    const out = [];
+    const add = (el) => {
+      if (!el || out.indexOf(el) >= 0) return;
+      if (el.closest && el.closest('aside.sidebar, .sidebar, .modal, .modal-overlay, #dc-loading-screen, .tb-notif-panel, #tb-notif-lista')) return;
+      out.push(el);
+    };
+
+    add(document.getElementById('tablaBody'));
+    add(document.getElementById('tbody'));
+    document.querySelectorAll('.tabla-wrap').forEach((w) => add(cuerpoLista(w) || w));
+
+    [
+      'sedes-box', 'tips-box', 'archivos-list', 'archivosList', 'dwhNav', 'exp-consultas',
+      'notifList', 'auditBody', 'metricasBox', 'predResultado', 'lista', 'factoresList',
+      'statsTop', 'kpisCaja', 'row-kpis', 'solicitudesBody', 'sesionesAdminBody', 'sesionesBody',
+    ].forEach((id) => add(document.getElementById(id)));
+
+    document.querySelectorAll(
+      '[id$="Body"], [id$="-box"], [id$="-list"], [id$="List"], [id$="-nav"], [id$="Nav"]'
+    ).forEach(add);
+
+    document.querySelectorAll(
+      '.dash-row, .stats-grid, .stats-grid-compact, .kpi-row, .metricas-grid'
+    ).forEach(add);
+
+    document.querySelectorAll('.panel').forEach((p) => {
+      // Evita tapar paneles de formulario/preview; solo listas/tablas
+      if (p.classList.contains('panel-preview') || p.classList.contains('panel-form')) return;
+      if (p.querySelector('#tablaBody, #tbody, .tabla-wrap, .data-grid, .loading')) add(p);
+    });
+
+    document.querySelectorAll('.pred-card, .pipe-card').forEach(add);
+
+    document.querySelectorAll('.loading').forEach((el) => {
+      if (el.closest && el.closest('#tablaBody')) return add(document.getElementById('tablaBody'));
+      if (el.closest && el.closest('.tb-notif-panel, #tb-notif-lista')) return;
+      if (esTextoCarga(el.textContent) || el.dataset.dcSkeleton === '1') add(el);
+    });
+
+    return out;
+  }
+
+  function debeSkeletonFetch(url, opts) {
+    const method = String((opts && opts.method) || 'GET').toUpperCase();
+    if (method !== 'GET' && method !== 'POST') return false;
+    if (method === 'POST' && !/\/api\/(pipeline|dataset|prediccion|modelo)/i.test(url)) return false;
+    if (!/\/api\//i.test(url)) return false;
+    if (/\/api\/auth\//i.test(url)) return false;
+    if (/\/api\/health\b/i.test(url)) return false;
+    if (/suggest|typeahead|autocomplete|\/foto/i.test(url)) return false;
+    if (/[?&]q=/i.test(url) && /\/api\/(pacientes|medicamentos|usuarios)\//i.test(url)) return false;
+    if (opts && (opts.silent || opts.dcSilent || opts.skeleton === false)) return false;
+    // Escritorio / inicio: no tapar las acciones del día
+    if (/\/paginas\/inicio\//i.test(location.pathname || '')) return false;
+    if (document.querySelector('.dc-home')) return false;
+    // Badge / panel del topbar (no son carga de módulo)
+    if (/\/api\/notificaciones\//i.test(url) && !/\/paginas\/seguridad\/notificaciones\//i.test(location.pathname || '')) {
+      return false;
+    }
+    // Ver/Descargar un PDF concreto: no tapar el historial
+    // Lista = /api/reportes/  |  Archivo = /api/reportes/nombre.pdf
+    if (/\/api\/reportes\/[^/?#]+/i.test(url)
+        && !/\/api\/reportes\/(verificar|historial|vaciar-historial)\b/i.test(url)) {
+      return false;
+    }
+    // Vista previa / blob de verificación pública
+    if (/\/api\/reportes\/verificar\/[^/]+\/pdf/i.test(url)) return false;
+    return !!document.querySelector('.main .content, #diabcare-sidebar, .sidebar');
+  }
+
+  function paintAllForFetch() {
+    ensureCss();
+    // Nunca skeleton sobre el escritorio
+    if (document.querySelector('.dc-home') || /\/paginas\/inicio\//i.test(location.pathname || '')) return;
+    const hosts = targetsParaFetch();
+    if (!hosts.length) {
+      const fallback = document.querySelector(
+        '.tabla-card .tabla-wrap, .tabla-card, .content .panel, .content .dash-row'
+      );
+      if (fallback && !fallback.closest('.dc-home')) hosts.push(fallback);
+    }
+    const seen = new Set();
+    let painted = 0;
+    hosts.forEach((h) => {
+      if (!h || seen.has(h)) return;
+      if (h.closest && h.closest('.dc-home')) return;
+      seen.add(h);
+      try {
+        paintInto(h);
+        painted += 1;
+      } catch (_) { /* ignore */ }
+    });
+    // Sin fallback a .main .content: destruía el escritorio y otras páginas
+    paintExtras();
+  }
+
+  function beginFetchSkeleton() {
+    _fetchDepth += 1;
+    if (_fetchDepth === 1) paintAllForFetch();
+    return Date.now();
+  }
+
+  async function endFetchSkeleton(skAt, minMs) {
+    const wait = Math.max(0, (minMs == null ? MIN_MS : minMs) - (Date.now() - (skAt || Date.now())));
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    _fetchDepth = Math.max(0, _fetchDepth - 1);
+    if (_fetchDepth === 0) {
+      try { clearExtras(); } catch (_) { /* ignore */ }
+    }
+  }
+
+  window.DiabCareSkeleton = {
+    paint, paintInto,     paintAllForFetch, enrich, waitFrom, MIN_MS, clearExtras,
+    debeSkeletonFetch, targetsParaFetch, inferVariant,
+    cuerpoLista, paintTablaCuerpo,
+    beginFetchSkeleton, endFetchSkeleton,
+    htmlCards, htmlList, htmlStats, htmlKpis, htmlPanel,
+  };
+  window.DiabCareEnrichLoading = enrich;
+
+  function boot() {
+    ensureCss();
+    enrich();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+  try {
+    let moTimer = null;
+    const mo = new MutationObserver(() => {
+      if (moTimer) return;
+      moTimer = setTimeout(() => {
+        moTimer = null;
+        enrich();
+      }, 50);
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+  } catch (_) { /* ignore */ }
+})();
+
+/** Compat: páginas viejas leen localStorage.token; nunca devolvemos el JWT real. */
+(function _authLocalStorageShim() {
+  if (typeof window === 'undefined' || window.__dcAuthShim) return;
+  window.__dcAuthShim = true;
+  try {
+    const ls = window.localStorage;
+    const _get = ls.getItem.bind(ls);
+    const _set = ls.setItem.bind(ls);
+    const _remove = ls.removeItem.bind(ls);
+    const _clear = ls.clear.bind(ls);
+    const legacy = _get('token');
+    if (legacy && legacy !== 'sesion' && String(legacy).includes('.')) {
+      try { _remove('token'); } catch (_) { /* ignore */ }
+    }
+    ls.getItem = function (key) {
+      if (key === 'token') {
+        try {
+          if (sessionStorage.getItem('dc_sesion_ok') === '1') return 'sesion';
+        } catch (_) { /* ignore */ }
+        return null;
+      }
+      return _get(key);
+    };
+    ls.setItem = function (key, value) {
+      if (key === 'token') {
+        try {
+          if (value) sessionStorage.setItem('dc_sesion_ok', '1');
+          else sessionStorage.removeItem('dc_sesion_ok');
+        } catch (_) { /* ignore */ }
+        try { _remove('token'); } catch (_) { /* ignore */ }
+        return;
+      }
+      return _set(key, value);
+    };
+    ls.removeItem = function (key) {
+      if (key === 'token') {
+        try { sessionStorage.removeItem('dc_sesion_ok'); } catch (_) { /* ignore */ }
+      }
+      return _remove(key);
+    };
+    ls.clear = function () {
+      try { sessionStorage.removeItem('dc_sesion_ok'); } catch (_) { /* ignore */ }
+      return _clear();
+    };
   } catch (_) { /* ignore */ }
 })();
 
@@ -21,13 +800,69 @@ window.DiabCareNav = {
   },
   get API() { return this.getApi(); },
 
-  /** Home por rol cuando no hay permiso en la página actual */
+  /** Entrada: escritorio por rol (no un módulo suelto). */
   HOME_POR_ROL: {
-    administrador: '/paginas/clinico/analisis/informes/index.html',
-    medico: '/paginas/clinico/analisis/informes/index.html',
-    enfermero: '/paginas/clinico/analisis/informes/index.html',
-    farmaceutico: '/paginas/clinico/analisis/informes/index.html',
-    analista: '/paginas/clinico/analisis/informes/index.html',
+    administrador: '/paginas/inicio/index.html',
+    medico: '/paginas/inicio/index.html',
+    enfermero: '/paginas/inicio/index.html',
+    farmaceutico: '/paginas/inicio/index.html',
+    analista: '/paginas/inicio/index.html',
+  },
+
+  /** Icono del rail por categoría */
+  ICONO_AREA: {
+    clinico: 'estetoscopio',
+    farmacia_rx: 'farmacia',
+    negocio: 'facturacion',
+    analisis: 'analisis',
+    datos: 'laboratorio',
+    gobierno: 'configuracion',
+    seguridad: 'lock',
+  },
+
+  /**
+   * Escritorio por rol: pocas acciones grandes del día.
+   * href + labelKey + icon (DiabCareIcons) + modulo (para filtrar ACCESO).
+   */
+  ESCRITORIO_POR_ROL: {
+    administrador: [
+      { modulo: 'analisis', href: '/paginas/clinico/analisis/informes/index.html', labelKey: 'home_panel', icon: 'panel', hintKey: 'home_panel_h' },
+      { modulo: 'pacientes', href: '/paginas/clinico/pacientes/index.html', labelKey: 'home_pacientes', icon: 'pacientes', hintKey: 'home_pacientes_h' },
+      { modulo: 'citas', href: '/paginas/clinico/agenda/index.html', labelKey: 'home_agenda', icon: 'citas', hintKey: 'home_agenda_h' },
+      { modulo: 'farmacia', href: '/paginas/negocio/farmacia/index.html', labelKey: 'home_farmacia', icon: 'farmacia', hintKey: 'home_farmacia_h' },
+      { modulo: 'facturacion', href: '/paginas/negocio/facturacion/index.html', labelKey: 'home_caja', icon: 'facturacion', hintKey: 'home_caja_h' },
+      { modulo: 'reportes', href: '/paginas/clinico/reportes/index.html', labelKey: 'home_pdf', icon: 'pdf', hintKey: 'home_pdf_h' },
+    ],
+    medico: [
+      { modulo: 'mis_citas', href: '/paginas/clinico/mis_citas/index.html', labelKey: 'home_mis_citas', icon: 'mis_citas', hintKey: 'home_mis_citas_h' },
+      { modulo: 'pacientes', href: '/paginas/clinico/pacientes/index.html', labelKey: 'home_pacientes', icon: 'pacientes', hintKey: 'home_pacientes_h' },
+      { modulo: 'registros', href: '/paginas/clinico/registros_clinicos/index.html', labelKey: 'home_consulta', icon: 'registros', hintKey: 'home_consulta_h' },
+      { modulo: 'laboratorio', href: '/paginas/clinico/laboratorio/index.html', labelKey: 'home_lab', icon: 'laboratorio', hintKey: 'home_lab_h' },
+      { modulo: 'recetas', href: '/paginas/negocio/recetas/index.html', labelKey: 'home_recetas', icon: 'recetas', hintKey: 'home_recetas_h' },
+      { modulo: 'prediccion', href: '/paginas/clinico/prediccion/index.html', labelKey: 'home_riesgo', icon: 'prediccion', hintKey: 'home_riesgo_h' },
+    ],
+    enfermero: [
+      { modulo: 'pacientes', href: '/paginas/clinico/pacientes/index.html', labelKey: 'home_pacientes', icon: 'pacientes', hintKey: 'home_pacientes_h' },
+      { modulo: 'admisiones', href: '/paginas/clinico/admisiones/index.html', labelKey: 'home_admision', icon: 'admisiones', hintKey: 'home_admision_h' },
+      { modulo: 'citas', href: '/paginas/clinico/agenda/index.html', labelKey: 'home_agenda', icon: 'citas', hintKey: 'home_agenda_h' },
+      { modulo: 'urgencias', href: '/paginas/clinico/urgencias/index.html', labelKey: 'home_urgencias', icon: 'urgencias', hintKey: 'home_urgencias_h' },
+      { modulo: 'laboratorio', href: '/paginas/clinico/laboratorio/index.html', labelKey: 'home_lab', icon: 'laboratorio', hintKey: 'home_lab_h' },
+    ],
+    farmaceutico: [
+      { modulo: 'farmacia', href: '/paginas/negocio/farmacia/index.html', labelKey: 'home_dispensar', icon: 'farmacia', hintKey: 'home_dispensar_h' },
+      { modulo: 'facturacion', href: '/paginas/negocio/facturacion/index.html', labelKey: 'home_caja', icon: 'facturacion', hintKey: 'home_caja_h' },
+      { modulo: 'pacientes', href: '/paginas/clinico/pacientes/index.html', labelKey: 'home_pacientes', icon: 'pacientes', hintKey: 'home_pacientes_h' },
+      { modulo: 'analisis', href: '/paginas/clinico/analisis/informes/index.html', labelKey: 'home_panel', icon: 'panel', hintKey: 'home_panel_h' },
+    ],
+    analista: [
+      { modulo: 'analisis', href: '/paginas/clinico/analisis/informes/index.html', labelKey: 'home_panel', icon: 'panel', hintKey: 'home_panel_h' },
+      { modulo: 'analisis', href: '/paginas/clinico/analisis/estadisticas/index.html', labelKey: 'estadisticas', icon: 'stats', hintKey: 'sub_estadisticas' },
+      { modulo: 'analisis', href: '/paginas/clinico/analisis/diabetes/index.html', labelKey: 'calidad_dm', icon: 'analisis', hintKey: 'sub_calidad' },
+      { modulo: 'dataset', href: '/paginas/datos/dataset/generador.html', labelKey: 'home_dataset', icon: 'dataset', hintKey: 'home_dataset_h' },
+      { modulo: 'pipeline', href: '/paginas/datos/pipeline_elt/index.html', labelKey: 'home_elt', icon: 'pipeline', hintKey: 'home_elt_h' },
+      { modulo: 'modelo', href: '/paginas/datos/modelo_ml/index.html', labelKey: 'home_modelo', icon: 'modelo', hintKey: 'home_modelo_h' },
+      { modulo: 'reportes', href: '/paginas/clinico/reportes/index.html', labelKey: 'home_pdf', icon: 'pdf', hintKey: 'home_pdf_h' },
+    ],
   },
 
   MODULOS_NAVEGABLES: [
@@ -42,22 +877,29 @@ window.DiabCareNav = {
   MODULOS_PROXIMO: [],
 
   /**
-   * Menú por FUNCIÓN (alineado a MODULOS_POR_CATEGORIA del backend).
-   * - Clínico = operación del día (no estadísticas).
-   * - Análisis = panel, informes, predicción, PDF (aunque vivan bajo /clinico/).
-   * - Negocio / Farmacia / Datos / Gobierno / Seguridad = su área.
-   * Ítems en orden alfabético (etiqueta ES). Visibilidad real = ACCESO[rol].
+   * Menú por FUNCIÓN, en orden de flujo hospitalario (no alfabético).
+   * Atención → farmacia/caja → lectura → datos → gobierno.
+   * Visibilidad real = ACCESO[rol].
    */
   CATEGORIAS: [
     {
       id: 'clinico',
       labelKey: 'cat_clinico',
       items: [
+        { modulo: 'pacientes', labelKey: 'pacientes', subs: [
+          { href: '/paginas/clinico/pacientes/index.html', labelKey: 'sub_expedientes' },
+        ]},
         { modulo: 'admisiones', labelKey: 'admisiones', subs: [
           { href: '/paginas/clinico/admisiones/index.html', labelKey: 'sub_ingresos' },
         ]},
-        { modulo: 'comorbilidades', labelKey: 'comorbilidades', subs: [
-          { href: '/paginas/clinico/comorbilidades/index.html', labelKey: 'sub_complicaciones' },
+        { modulo: 'citas', labelKey: 'citas', subs: [
+          { href: '/paginas/clinico/agenda/index.html', labelKey: 'sub_agenda' },
+        ]},
+        { modulo: 'mis_citas', labelKey: 'mis_citas', subs: [
+          { href: '/paginas/clinico/mis_citas/index.html', labelKey: 'sub_turnos' },
+        ]},
+        { modulo: 'urgencias', labelKey: 'urgencias', subs: [
+          { href: '/paginas/clinico/urgencias/index.html', labelKey: 'sub_triage' },
         ]},
         { modulo: 'registros', labelKey: 'registros', subs: [
           { href: '/paginas/clinico/registros_clinicos/index.html', labelKey: 'sub_registro' },
@@ -65,17 +907,32 @@ window.DiabCareNav = {
         { modulo: 'laboratorio', labelKey: 'laboratorio', subs: [
           { href: '/paginas/clinico/laboratorio/index.html', labelKey: 'sub_ordenes' },
         ]},
-        { modulo: 'mis_citas', labelKey: 'mis_citas', subs: [
-          { href: '/paginas/clinico/mis_citas/index.html', labelKey: 'sub_turnos' },
+        { modulo: 'comorbilidades', labelKey: 'comorbilidades', subs: [
+          { href: '/paginas/clinico/comorbilidades/index.html', labelKey: 'sub_complicaciones' },
         ]},
-        { modulo: 'pacientes', labelKey: 'pacientes', subs: [
-          { href: '/paginas/clinico/pacientes/index.html', labelKey: 'sub_expedientes' },
+        { modulo: 'recetas', labelKey: 'recetas', subs: [
+          { href: '/paginas/negocio/recetas/index.html', labelKey: 'sub_prescripciones' },
         ]},
-        { modulo: 'citas', labelKey: 'citas', subs: [
-          { href: '/paginas/clinico/agenda/index.html', labelKey: 'sub_agenda' },
+      ],
+    },
+    {
+      id: 'farmacia_rx',
+      labelKey: 'cat_farmacia_rx',
+      items: [
+        { modulo: 'farmacia', labelKey: 'farmacia', subs: [
+          { href: '/paginas/negocio/farmacia/index.html', labelKey: 'sub_inventario' },
         ]},
-        { modulo: 'urgencias', labelKey: 'urgencias', subs: [
-          { href: '/paginas/clinico/urgencias/index.html', labelKey: 'sub_triage' },
+      ],
+    },
+    {
+      id: 'negocio',
+      labelKey: 'cat_negocio',
+      items: [
+        { modulo: 'facturacion', labelKey: 'facturacion', subs: [
+          { href: '/paginas/negocio/facturacion/index.html', labelKey: 'sub_facturacion' },
+        ]},
+        { modulo: 'rrhh', labelKey: 'rrhh', subs: [
+          { href: '/paginas/negocio/rrhh/index.html', labelKey: 'sub_costeo' },
         ]},
       ],
     },
@@ -83,11 +940,14 @@ window.DiabCareNav = {
       id: 'analisis',
       labelKey: 'cat_analisis',
       items: [
-        { modulo: 'analisis', icon: 'analisis', labelKey: 'calidad_dm', subs: [
-          { href: '/paginas/clinico/analisis/diabetes/index.html', labelKey: 'sub_calidad', roles: ['administrador', 'medico', 'analista'] },
-        ]},
         { modulo: 'analisis', icon: 'panel', labelKey: 'panel', subs: [
           { href: '/paginas/clinico/analisis/informes/index.html', labelKey: 'sub_panel' },
+        ]},
+        { modulo: 'analisis', icon: 'stats', labelKey: 'estadisticas', subs: [
+          { href: '/paginas/clinico/analisis/estadisticas/index.html', labelKey: 'sub_estadisticas' },
+        ]},
+        { modulo: 'analisis', icon: 'analisis', labelKey: 'calidad_dm', subs: [
+          { href: '/paginas/clinico/analisis/diabetes/index.html', labelKey: 'sub_calidad', roles: ['administrador', 'medico', 'analista'] },
         ]},
         { modulo: 'prediccion', labelKey: 'prediccion', subs: [
           { href: '/paginas/clinico/prediccion/index.html', labelKey: 'sub_inferencia' },
@@ -105,23 +965,11 @@ window.DiabCareNav = {
           { href: '/paginas/datos/dataset/generador.html', labelKey: 'sub_generador' },
           { href: '/paginas/datos/dataset/index.html', labelKey: 'sub_hechos' },
         ]},
-        { modulo: 'modelo', labelKey: 'modelo', subs: [
-          { href: '/paginas/datos/modelo_ml/index.html', labelKey: 'sub_entrenamiento' },
-        ]},
         { modulo: 'pipeline', labelKey: 'pipeline', subs: [
           { href: '/paginas/datos/pipeline_elt/index.html', labelKey: 'sub_estado' },
         ]},
-      ],
-    },
-    {
-      id: 'farmacia_rx',
-      labelKey: 'cat_farmacia_rx',
-      items: [
-        { modulo: 'farmacia', labelKey: 'farmacia', subs: [
-          { href: '/paginas/negocio/farmacia/index.html', labelKey: 'sub_inventario' },
-        ]},
-        { modulo: 'recetas', labelKey: 'recetas', subs: [
-          { href: '/paginas/negocio/recetas/index.html', labelKey: 'sub_prescripciones' },
+        { modulo: 'modelo', labelKey: 'modelo', subs: [
+          { href: '/paginas/datos/modelo_ml/index.html', labelKey: 'sub_entrenamiento' },
         ]},
       ],
     },
@@ -133,19 +981,9 @@ window.DiabCareNav = {
           { href: '/paginas/gobierno/auditoria/index.html', labelKey: 'sub_eventos' },
         ]},
         { modulo: 'configuracion', labelKey: 'configuracion', subs: [
-          { href: '/paginas/gobierno/configuracion/index.html', labelKey: 'sub_ajustes' },
-        ]},
-      ],
-    },
-    {
-      id: 'negocio',
-      labelKey: 'cat_negocio',
-      items: [
-        { modulo: 'facturacion', labelKey: 'facturacion', subs: [
-          { href: '/paginas/negocio/facturacion/index.html', labelKey: 'sub_facturacion' },
-        ]},
-        { modulo: 'rrhh', labelKey: 'rrhh', subs: [
-          { href: '/paginas/negocio/rrhh/index.html', labelKey: 'sub_costeo' },
+          { href: '/paginas/gobierno/configuracion/index.html#sistema', labelKey: 'sub_sistema' },
+          { href: '/paginas/gobierno/configuracion/index.html#correo', labelKey: 'sub_correo' },
+          { href: '/paginas/gobierno/configuracion/index.html#minio', labelKey: 'sub_minio' },
         ]},
       ],
     },
@@ -278,6 +1116,20 @@ window.DiabCareNav = {
     return null;
   },
 
+  _mismoPath(href, activeHref) {
+    const a = String(activeHref || '').split('#')[0];
+    const d = String(href || '').split('#')[0];
+    return a === d || a.endsWith(d) || d.endsWith(a);
+  },
+
+  _mismoEnlace(href, activeHref) {
+    if (!this._mismoPath(href, activeHref)) return false;
+    const aHash = String(activeHref || '').split('#')[1] || '';
+    const dHash = String(href || '').split('#')[1] || '';
+    if (!dHash) return true;
+    return aHash === dHash;
+  },
+
   /** Filtra subenlaces con restricción opcional `roles: [...]` según el rol actual */
   _subsVisibles(subs) {
     const rol = String((JSON.parse(localStorage.getItem('usuario') || '{}').rol || '')).toLowerCase();
@@ -294,16 +1146,16 @@ window.DiabCareNav = {
 
     if (subs.length === 1) {
       const sub = subs[0];
-      const active = activeHref === sub.href || activeHref.endsWith(sub.href);
+      const active = this._mismoEnlace(sub.href, activeHref);
       const badge = proximo ? '<span class="nav-badge">próximo</span>' : '';
-      return `<a class="nav-group-link${active ? ' active' : ''}${proximo ? ' nav-link-proximo' : ''}" href="${sub.href}" data-modulo="${item.modulo}" title="${title}"${proximo ? ' data-proximo="1"' : ''}>
+      const h = String(sub.href).replace(/'/g, "\\'");
+      return `<a class="nav-group-link${active ? ' active' : ''}${proximo ? ' nav-link-proximo' : ''}" href="${sub.href}" data-modulo="${item.modulo}" title="${title}"${proximo ? ' data-proximo="1"' : ''} onclick="return DiabCareNav.irModulo(event,'${h}')">
         <span class="nav-group-icon">${DiabCareIcons.nav(item.icon || item.modulo)}</span>
         <span class="nav-group-label">${label}</span>${badge}
       </a>`;
     }
 
-    const isActiveGroup = subs.some(s =>
-      activeHref.startsWith(s.href.replace(/\.html$/, '')));
+    const isActiveGroup = subs.some(s => this._mismoPath(s.href, activeHref));
     const primary = subs[0].href;
     let html = `<div class="nav-group${proximo ? ' nav-group-proximo' : ''}" data-modulo="${item.modulo}"${proximo ? ' data-proximo="1"' : ''}>`;
     html += `<div class="nav-group-header${isActiveGroup ? ' open' : ''}" onclick="DiabCareNav.toggleModulo(this)" title="${title}" data-primary-href="${primary}">`;
@@ -313,8 +1165,9 @@ window.DiabCareNav = {
     html += `<span class="nav-chevron">${DiabCareIcons.svg('chevron', 12)}</span></div>`;
     html += `<div class="nav-sub${isActiveGroup ? ' open' : ''}">`;
     for (const sub of subs) {
-      const active = activeHref === sub.href || activeHref.endsWith(sub.href);
-      html += `<a class="nav-sub-item${active ? ' active' : ''}" href="${sub.href}">`;
+      const active = this._mismoEnlace(sub.href, activeHref);
+      const h = String(sub.href).replace(/'/g, "\\'");
+      html += `<a class="nav-sub-item${active ? ' active' : ''}" href="${sub.href}" onclick="return DiabCareNav.irModulo(event,'${h}')">`;
       html += `<div class="nav-dot"></div><span class="nav-sub-label">${this._txt(sub)}</span></a>`;
     }
     html += '</div></div>';
@@ -323,81 +1176,644 @@ window.DiabCareNav = {
 
 
   init(activeHref) {
-    const href = activeHref || window.location.pathname;
-    const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const href = activeHref || ((window.location.pathname || '') + (window.location.hash || ''));
+    let u = {};
+    try { u = JSON.parse(localStorage.getItem('usuario') || '{}') || {}; } catch (_) { u = {}; }
     const enAuth = href.includes('/seguridad/autenticacion') || href === '/' || href === '/index.html';
     const enPerfil = href.includes('/seguridad/perfil');
     if (u.debe_cambiar_password && !enAuth && !enPerfil) {
       window.location.href = '/paginas/seguridad/perfil/index.html?forzar=1';
       return;
     }
+    this._asegurarClicsPanel();
+    try { document.body.classList.add('dc-uv'); } catch (_) { /* ignore */ }
+    this._sincronizarAreaConRuta(href);
     this.render(href);
-    this.initUser();
     this.aplicarRoles();
     this.aplicarEstadoColapsado();
+    this._bindDockHover();
+    // Topbar primero: así #tb-user-avatar existe cuando initUser pinta la foto
     this.montarTopbarAcciones();
+    this.montarHolos();
+    this.initUser();
     if (window.DiabCareI18n) DiabCareI18n.aplicarPagina();
+    this.pintarArteModulo();
     if (typeof DiabCareAPI !== 'undefined') {
       DiabCareAPI.actualizarEstadoTopbar();
     }
   },
 
+  /** Ilustración clínica junto al título del módulo. */
+  pintarArteModulo() {
+    try {
+      if (/\/paginas\/inicio\//i.test(window.location.pathname)) return;
+      if (document.querySelector('.mod-clinico')) return;
+      if (!window.DiabCareIcons) return;
+      const title = document.querySelector('.page-title');
+      if (!title) return;
+      const mod = this._moduloDesdeRuta(window.location.pathname);
+      if (!mod) return;
+      const art = document.createElement('div');
+      art.className = 'mod-clinico';
+      art.setAttribute('aria-hidden', 'true');
+      art.innerHTML = DiabCareIcons.ilustracion(mod);
+      const header = title.closest('.page-header');
+      if (header) {
+        header.classList.add('page-header--clinico');
+        header.insertBefore(art, header.firstChild);
+        return;
+      }
+      const wrap = document.createElement('div');
+      wrap.className = 'page-header page-header--clinico';
+      title.parentNode.insertBefore(wrap, title);
+      wrap.appendChild(art);
+      wrap.appendChild(title);
+      const sub = wrap.nextElementSibling;
+      if (sub && sub.classList && sub.classList.contains('page-sub')) wrap.appendChild(sub);
+    } catch (_) { /* ignore */ }
+  },
+
+  /** Markup del interruptor clínico (pulso SpO2). */
+  holoHtml(opts) {
+    const o = opts || {};
+    const id = String(o.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    const inputId = o.inputId || (id ? `holo-${id}` : `holo-${Math.random().toString(36).slice(2, 9)}`);
+    const size = o.size === 'xs' || o.size === 'sm' ? o.size : 'sm';
+    const checked = o.checked ? ' checked' : '';
+    const title = String(o.title || '').replace(/"/g, '&quot;');
+    const off = String(o.off || 'OFF').replace(/</g, '');
+    const on = String(o.on || 'ON').replace(/</g, '');
+    const change = o.onchange ? ` onchange="${String(o.onchange).replace(/"/g, '&quot;')}"` : '';
+    const wrapId = id ? ` id="${id}"` : '';
+    return `<div class="dc-holo dc-holo--${size}"${wrapId} title="${title}">
+      <div class="dc-holo-wrap">
+        <input class="dc-holo-input" id="${inputId}" type="checkbox"${checked}${change} aria-label="${title}">
+        <label class="dc-holo-track" for="${inputId}">
+          <div class="dc-holo-lines"><div class="dc-holo-line"></div></div>
+          <div class="dc-holo-thumb">
+            <div class="dc-holo-core"></div>
+            <div class="dc-holo-inner"></div>
+            <div class="dc-holo-scan"></div>
+            <div class="dc-holo-particles">
+              <div class="dc-holo-particle"></div><div class="dc-holo-particle"></div>
+              <div class="dc-holo-particle"></div><div class="dc-holo-particle"></div>
+              <div class="dc-holo-particle"></div>
+            </div>
+          </div>
+          <div class="dc-holo-data">
+            <div class="dc-holo-txt off">${off}</div>
+            <div class="dc-holo-txt on">${on}</div>
+            <div class="dc-holo-dot off"></div>
+            <div class="dc-holo-dot on"></div>
+          </div>
+          <div class="dc-holo-rings">
+            <div class="dc-holo-ring"></div><div class="dc-holo-ring"></div><div class="dc-holo-ring"></div>
+          </div>
+          <div class="dc-holo-shine"></div>
+          <div class="dc-holo-glow"></div>
+        </label>
+      </div>
+    </div>`;
+  },
+
+  holoEstaOn(idOrEl) {
+    const el = typeof idOrEl === 'string' ? document.getElementById(idOrEl) : idOrEl;
+    if (!el) return false;
+    const inp = el.classList && el.classList.contains('dc-holo-input')
+      ? el
+      : el.querySelector && el.querySelector('.dc-holo-input');
+    if (inp) return !!inp.checked;
+    return !!(el.classList && el.classList.contains('on'));
+  },
+
+  holoPoner(idOrEl, on) {
+    const el = typeof idOrEl === 'string' ? document.getElementById(idOrEl) : idOrEl;
+    if (!el) return;
+    const inp = (el.classList && el.classList.contains('dc-holo-input'))
+      ? el
+      : (el.querySelector && el.querySelector('.dc-holo-input'));
+    if (inp) inp.checked = !!on;
+    if (el.classList) el.classList.toggle('on', !!on);
+  },
+
+  /** Convierte los `.toggle` clásicos de Configuración / Perfil. */
+  montarHolos(root) {
+    const scope = root || document;
+    scope.querySelectorAll('.toggle').forEach((el) => {
+      if (!el || el.classList.contains('dc-holo')) return;
+      if (el.querySelector && el.querySelector('.dc-holo-input')) return;
+      const id = el.id || '';
+      const checked = el.classList.contains('on');
+      const size = el.classList.contains('sm') ? 'xs' : 'sm';
+      const extra = el.getAttribute('data-onchange') || '';
+      const html = this.holoHtml({
+        id,
+        checked,
+        size,
+        title: el.getAttribute('title') || '',
+        onchange: extra,
+      });
+      el.insertAdjacentHTML('afterend', html);
+      const next = el.nextElementSibling;
+      el.remove();
+      if (id && next && !next.id) next.id = id;
+    });
+  },
+
+  syncTemaDesdeHolo(ev) {
+    const on = !!(ev && ev.target && ev.target.checked);
+    this.aplicarTema(on ? 'claro' : 'oscuro');
+  },
+
+  accionesEscritorio() {
+    const rol = this._rolActual();
+    const permitidos = this.ACCESO[rol] || [];
+    const pasos = this.ESCRITORIO_POR_ROL[rol] || this.ESCRITORIO_POR_ROL.administrador || [];
+    return pasos.filter((p) => !permitidos.length || permitidos.includes(p.modulo));
+  },
+
+  /**
+   * Escritorio: una “billetera” por área del rail.
+   * Cada tarjeta apilada = un módulo clickeable.
+   */
+  areasEscritorio() {
+    const permitidos = this._permitidosRol();
+    const maxCards = 12;
+    return this._areasVisibles().map((cat) => {
+      const items = cat.items.filter((it) => this._itemVisibleParaRol(it, permitidos));
+      const modules = [];
+      for (const it of items) {
+        const subs = this._subsVisibles(it.subs);
+        const href = subs[0] && subs[0].href ? subs[0].href : '';
+        if (!href) continue;
+        modules.push({
+          modulo: it.modulo,
+          label: this._txt(it),
+          href,
+          icon: it.icon || it.modulo,
+        });
+      }
+      const nombres = modules.map((m) => m.label);
+      const preview = nombres.slice(0, 4);
+      const hint = preview.length
+        ? (preview.join(' · ') + (nombres.length > 4 ? '…' : ''))
+        : this.t('home_area_h');
+      return {
+        area: cat.id,
+        icon: this.ICONO_AREA[cat.id] || 'analisis',
+        label: this._txt(cat),
+        hint,
+        href: modules[0] ? modules[0].href : '/paginas/inicio/index.html',
+        count: modules.length,
+        modules: modules.slice(0, maxCards),
+        extras: Math.max(0, modules.length - maxCards),
+      };
+    });
+  },
+
+  /** Pocket / “ver todos”: abre el panel del área en el rail. */
+  abrirAreaDesdeInicio(ev, catId) {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    this.abrirArea(catId);
+    return false;
+  },
+
+  pintarTableroGuardia(host) {
+    const root = host || document.getElementById('home-guardia');
+    if (!root) return;
+    const areas = this.areasEscritorio();
+    const areasEl = document.getElementById('gx-areas');
+    const listEl = document.getElementById('gx-mod-list');
+    const titleEl = document.getElementById('gx-area-title');
+    const countEl = document.getElementById('gx-area-count');
+    if (!areasEl || !listEl) return;
+    if (!areas.length) {
+      areasEl.innerHTML = '';
+      listEl.innerHTML = `<p class="dc-panel-empty">${this.t('home_sin_modulos')}</p>`;
+      return;
+    }
+    const sel = root.getAttribute('data-area') || areas[0].area;
+    const actual = areas.find((a) => a.area === sel) || areas[0];
+    root.setAttribute('data-area', actual.area);
+    const svg = (name, size) => {
+      try { return DiabCareIcons.svg(name, size); } catch (_) { return ''; }
+    };
+    areasEl.innerHTML = areas.map((a) => `
+      <button type="button" class="gx-area${a.area === actual.area ? ' is-on' : ''}"
+        data-area="${a.area}" onclick="DiabCareNav.elegirAreaGuardia('${a.area}')">
+        <span class="gx-area-ico">${svg(a.icon, 16)}</span>
+        <span>
+          <strong>${a.label}</strong>
+          <small>${a.count} ${this.t('home_modulos')}</small>
+        </span>
+      </button>`).join('');
+    if (titleEl) titleEl.textContent = actual.label;
+    if (countEl) countEl.textContent = `${actual.count} ${this.t('home_modulos')}`;
+    listEl.innerHTML = (actual.modules || []).map((m) => `
+      <a class="gx-mod" href="${m.href}">
+        <span class="gx-mod-ico">${svg(m.icon || m.modulo, 16)}</span>
+        <span>${m.label}</span>
+        <em>abrir</em>
+      </a>`).join('');
+  },
+
+  elegirAreaGuardia(areaId) {
+    const root = document.getElementById('home-guardia');
+    if (!root) return;
+    root.setAttribute('data-area', areaId);
+    this.pintarTableroGuardia(root);
+  },
+
+  /** @deprecated el escritorio ya no usa flip 3D. */
+  toggleHomeFlip() {
+    return false;
+  },
+
+  /** @deprecated alias */
+  toggleWallet(ev, el) {
+    return this.toggleHomeFlip(ev, el);
+  },
+
+  _areasVisibles() {
+    const permitidos = this._permitidosRol();
+    return this.CATEGORIAS.filter((cat) =>
+      cat.items.some((it) => this._itemVisibleParaRol(it, permitidos))
+    );
+  },
+
+  _areaGuardada() {
+    try { return localStorage.getItem('diabcare_area') || 'inicio'; } catch (_) { return 'inicio'; }
+  },
+
+  _setArea(area) {
+    try { localStorage.setItem('diabcare_area', area || 'inicio'); } catch (_) { /* ignore */ }
+  },
+
+  /**
+   * Área del rail/panel.
+   * En Inicio: respeta la elección del rail.
+   * En módulos: usa el área guardada (clic del rail); no la pisa con la ruta
+   * (si no, Farmacia/Negocio nunca se podían abrir estando en Pacientes).
+   */
+  _areaActual(href) {
+    const path = href || window.location.pathname || '';
+    const enInicio = /\/paginas\/inicio\//i.test(path);
+    const guardada = this._areaGuardada();
+    if (enInicio) {
+      if (guardada && guardada !== 'inicio') return guardada;
+      return 'inicio';
+    }
+    if (guardada && guardada !== 'inicio') return guardada;
+    return this._categoriaActiva(path) || 'inicio';
+  },
+
+  /** Al cargar una página de módulo, alinear el rail con esa ruta. */
+  _sincronizarAreaConRuta(href) {
+    const path = href || window.location.pathname || '';
+    if (/\/paginas\/inicio\//i.test(path)) return;
+    const porRuta = this._categoriaActiva(path);
+    if (porRuta) this._setArea(porRuta);
+  },
+
+  panelAbierto() {
+    try { return localStorage.getItem('diabcare_sidebar_colapsada') !== '1'; } catch (_) { return true; }
+  },
+
+  setPanelAbierto(open) {
+    try { localStorage.setItem('diabcare_sidebar_colapsada', open ? '0' : '1'); } catch (_) { /* ignore */ }
+  },
+
+  irInicio(ev) {
+    this._dockPinned = false;
+    this._ocultarMenu({ force: true });
+    this._setArea('inicio');
+    this.setPanelAbierto(false);
+    if (/\/paginas\/inicio\//i.test(window.location.pathname || '')) {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      this.render(window.location.pathname);
+      this.aplicarRoles();
+      this.aplicarEstadoColapsado();
+    }
+  },
+
+  /** Navegación dura a un módulo (evita clics tragados por overlays). */
+  irModulo(ev, href) {
+    if (ev) {
+      try { ev.preventDefault(); } catch (_) { /* ignore */ }
+      try { ev.stopPropagation(); } catch (_) { /* ignore */ }
+    }
+    const dest = String(href || '').trim();
+    if (!dest || dest === '#' || dest.startsWith('javascript:')) return false;
+    try {
+      const u = new URL(dest, window.location.origin);
+      if (u.pathname === window.location.pathname && u.search === (window.location.search || '')) {
+        if (u.hash && u.hash !== window.location.hash) window.location.hash = u.hash;
+        return false;
+      }
+    } catch (_) { /* seguir */ }
+    window.location.assign(dest);
+    return false;
+  },
+
+  colapsarPanel() {
+    this._dockPinned = false;
+    this.setPanelAbierto(false);
+    this._ocultarMenu({ force: true });
+    this._marcarRail();
+  },
+
+  abrirArea(catId) {
+    const area = String(catId || 'inicio');
+    if (area === 'inicio') {
+      this.irInicio();
+      if (!/\/paginas\/inicio\//i.test(window.location.pathname || '')) {
+        window.location.href = '/paginas/inicio/index.html';
+      }
+      return;
+    }
+    const btn = document.querySelector(`.dc-rail-btn[data-area="${area}"]`);
+    if (this._dockPinned && this._menuArea === area) {
+      this.colapsarPanel();
+      return;
+    }
+    this._dockPinned = true;
+    this._setArea(area);
+    this.setPanelAbierto(true);
+    this._mostrarMenu(area, btn);
+  },
+
+  _panelItemsHtml(areaId, href, permitidos) {
+    const cat = this.CATEGORIAS.find((c) => c.id === areaId);
+    if (!cat) return `<p class="dc-panel-empty">${this.t('home_elige_area')}</p>`;
+    const items = cat.items.filter((it) => this._itemVisibleParaRol(it, permitidos));
+    if (!items.length) return `<p class="dc-panel-empty">${this.t('home_sin_modulos')}</p>`;
+    return items.map((it) => this._itemHtml(it, href)).join('');
+  },
+
+  _bindDockHover() {
+    if (this._dockHoverBound) return;
+    this._dockHoverBound = true;
+    document.addEventListener('pointerover', (ev) => {
+      const shell = document.getElementById('diabcare-sidebar');
+      if (!shell || !ev.target || !ev.target.closest) return;
+      if (!ev.target.closest('#diabcare-sidebar')) return;
+      clearTimeout(this._dockLeaveTimer);
+      if (ev.target.closest('a.dc-rail-btn') && !ev.target.closest('[data-area]')) {
+        if (!this._dockPinned) this._programarOcultarMenu();
+        return;
+      }
+      const btn = ev.target.closest('.dc-rail-btn[data-area]');
+      if (!btn) return;
+      this._mostrarMenu(btn.getAttribute('data-area'), btn);
+    });
+    document.addEventListener('pointerout', (ev) => {
+      const shell = document.getElementById('diabcare-sidebar');
+      if (!shell) return;
+      const from = ev.target;
+      const to = ev.relatedTarget;
+      const inside = (el) => el && el.closest && el.closest('#diabcare-sidebar');
+      if (inside(from) && !inside(to)) this._programarOcultarMenu();
+    });
+    window.addEventListener('resize', () => {
+      if (!this._menuArea) return;
+      const btn = document.querySelector(`.dc-rail-btn[data-area="${this._menuArea}"]`);
+      if (btn) this._alinearMenu(btn);
+    });
+    document.addEventListener('click', (ev) => {
+      const shell = document.getElementById('diabcare-sidebar');
+      if (!shell) return;
+      if (ev.target && ev.target.closest && ev.target.closest('#diabcare-sidebar')) return;
+      if (this._dockPinned) this.colapsarPanel();
+      else this._ocultarMenu();
+    });
+  },
+
+  _programarOcultarMenu() {
+    clearTimeout(this._dockLeaveTimer);
+    this._dockLeaveTimer = setTimeout(() => {
+      if (this._dockPinned) return;
+      this._ocultarMenu();
+    }, 180);
+  },
+
+  _mostrarMenu(areaId, btn) {
+    const area = String(areaId || '');
+    if (!area || area === 'inicio') return;
+    const mount = document.getElementById('diabcare-sidebar');
+    if (!mount) return;
+    clearTimeout(this._dockLeaveTimer);
+    this._menuArea = area;
+    const href = window.location.pathname;
+    const permitidos = this._permitidosRol();
+    const cat = this.CATEGORIAS.find((c) => c.id === area);
+    const lab = cat ? this._txt(cat) : area;
+    let panel = document.getElementById('dc-shell-panel');
+    if (!panel) {
+      mount.insertAdjacentHTML('beforeend', `<div class="dc-panel is-open" id="dc-shell-panel">
+        <div class="dc-panel-head"><span class="dc-panel-title"></span></div>
+        <nav class="dc-panel-nav"></nav>
+      </div>`);
+      panel = document.getElementById('dc-shell-panel');
+    }
+    const tit = panel.querySelector('.dc-panel-title');
+    const nav = panel.querySelector('.dc-panel-nav');
+    if (tit) tit.textContent = lab;
+    if (nav) nav.innerHTML = this._panelItemsHtml(area, href, permitidos);
+    panel.classList.add('is-open');
+    panel.classList.toggle('is-pinned', !!this._dockPinned);
+    const alineado = btn || mount.querySelector(`.dc-rail-btn[data-area="${area}"]`);
+    this._alinearMenu(alineado);
+    this._marcarRail(area);
+    requestAnimationFrame(() => this._alinearMenu(alineado));
+  },
+
+  _ocultarMenu(opts) {
+    if (this._dockPinned && !(opts && opts.force)) return;
+    const panel = document.getElementById('dc-shell-panel');
+    if (panel) panel.remove();
+    this._menuArea = '';
+    this._marcarRail('');
+  },
+
+  _alinearMenu(btn) {
+    const panel = document.getElementById('dc-shell-panel');
+    const shell = document.getElementById('diabcare-sidebar');
+    if (!panel || !shell || !btn) return;
+    const s = shell.getBoundingClientRect();
+    const b = btn.getBoundingClientRect();
+    let x = (b.left + b.width / 2) - s.left;
+    const half = Math.min(panel.offsetWidth || 240, 300) / 2;
+    x = Math.max(half + 10, Math.min(s.width - half - 10, x));
+    panel.style.setProperty('--dc-panel-x', `${Math.round(x)}px`);
+  },
+
+  _marcarRail(areaAbierta) {
+    const mount = document.getElementById('diabcare-sidebar');
+    if (!mount) return;
+    const href = window.location.pathname || '';
+    const enInicio = /\/paginas\/inicio\//i.test(href);
+    const actual = this._categoriaActiva(href);
+    const abierta = areaAbierta || this._menuArea || '';
+    mount.querySelectorAll('.dc-rail-btn[data-area]').forEach((b) => {
+      const id = b.getAttribute('data-area');
+      b.classList.toggle('active', abierta === id);
+      b.classList.toggle('is-current', !enInicio && actual === id);
+    });
+    const home = mount.querySelector('.dc-rail-nav > a.dc-rail-btn');
+    if (home) home.classList.toggle('active', enInicio && !abierta);
+  },
+
   render(activeHref) {
     const mount = document.getElementById('diabcare-sidebar');
     if (!mount) return;
-    const href = activeHref || window.location.pathname;
-    const permitidos = this._permitidosRol();
+    const href = activeHref || ((window.location.pathname || '') + (window.location.hash || ''));
+    const areas = this._areasVisibles();
+    const enInicio = /\/paginas\/inicio\//i.test(href);
+    const areaRuta = this._categoriaActiva(href);
 
-    let navHtml = '';
-    const catActiva = this._categoriaActiva(href);
-    for (const cat of this.CATEGORIAS) {
-      const items = cat.items.filter(it => this._itemVisibleParaRol(it, permitidos));
-      if (!items.length) continue; // categoría vacía para este rol → no pintar
-      const abierta = cat.id === catActiva;
-      navHtml += `<div class="nav-cat-block" data-categoria="${cat.id}">`;
-      navHtml += `<button type="button" class="nav-cat-header${abierta ? ' open' : ''}" onclick="DiabCareNav.toggleCategoria(this)" aria-expanded="${abierta}">`;
-      navHtml += `<span class="nav-cat-label">${this._txt(cat)}</span>`;
-      navHtml += `<span class="nav-chevron">${DiabCareIcons.svg('chevron', 12)}</span>`;
-      navHtml += `</button>`;
-      navHtml += `<div class="nav-categoria${abierta ? ' open' : ''}">`;
-      for (const item of items) {
-        navHtml += this._itemHtml(item, href);
-      }
-      navHtml += '</div></div>';
+    if (localStorage.getItem('diabcare_sidebar_colapsada') == null) {
+      this.setPanelAbierto(false);
     }
 
-    const titColapso = this.t('tb_colapsar');
     const hospital = this.t('hospital');
+    const titInicio = this.t('home_inicio');
+    const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+    let rail = '';
+    rail += `<a class="dc-rail-btn${enInicio ? ' active' : ''}" href="/paginas/inicio/index.html" aria-label="${esc(titInicio)}" onclick="DiabCareNav.irInicio(event)">${DiabCareIcons.svg('home', 18)}<span class="dc-rail-name">${esc(titInicio)}</span></a>`;
+    for (const cat of areas) {
+      const ico = this.ICONO_AREA[cat.id] || 'analisis';
+      const lab = this._txt(cat);
+      const current = !enInicio && areaRuta === cat.id;
+      rail += `<button type="button" class="dc-rail-btn${current ? ' is-current' : ''}" data-area="${cat.id}" aria-label="${esc(lab)}" onclick="DiabCareNav.abrirArea('${cat.id}')">${DiabCareIcons.svg(ico, 18)}<span class="dc-rail-name">${esc(lab)}</span></button>`;
+    }
 
+    mount.classList.add('dc-shell');
     mount.innerHTML = `
-      <div class="logo-area">
-        <img class="logo-mark" src="/estaticos/img/logo-icon.svg" alt="DiabCare" width="28" height="28">
-        <div class="logo-copy"><div class="logo-text">DiabCare</div><div class="logo-sub">${hospital}</div></div>
-        <button type="button" class="sidebar-toggle" onclick="DiabCareNav.toggleColapso()" title="${titColapso}" aria-label="${titColapso}">
-          ${DiabCareIcons.svg('chevron', 14)}
-        </button>
-      </div>
-      <nav class="nav">${navHtml}</nav>`;
+      <div class="dc-rail">
+        <a class="dc-rail-logo" href="/paginas/inicio/index.html" title="DiabCare" onclick="DiabCareNav.irInicio(event)">
+          <img src="/estaticos/img/logo-icon.svg" alt="DiabCare" width="28" height="28">
+        </a>
+        <div class="dc-rail-nav">${rail}</div>
+        <div class="dc-rail-foot"><span class="dc-rail-hint">${hospital}</span></div>
+      </div>`;
+    this._asegurarClicsPanel();
+    this._bindDockHover();
+    if (this._dockPinned && this._menuArea && this._menuArea !== 'inicio') {
+      this._mostrarMenu(this._menuArea, mount.querySelector(`.dc-rail-btn[data-area="${this._menuArea}"]`));
+    }
+  },
+
+  /**
+   * Si .main queda encima del panel, el <a> no es el target.
+   * No toca el rail ni el botón comprimir.
+   */
+  _asegurarClicsPanel() {
+    if (this._dcNavDocBound) return;
+    this._dcNavDocBound = true;
+    document.addEventListener('click', (ev) => {
+      const side = document.getElementById('diabcare-sidebar');
+      if (!side) return;
+      // Rail / cerrar: dejar el onclick nativo
+      if (ev.target && ev.target.closest
+          && ev.target.closest('.dc-rail, .dc-panel-close, .dc-panel-head')) {
+        return;
+      }
+      const r = side.getBoundingClientRect();
+      const x = ev.clientX;
+      const y = ev.clientY;
+      if (x < r.left || x > r.right || y < r.top || y > r.bottom) return;
+
+      let a = null;
+      if (ev.target && ev.target.closest) {
+        a = ev.target.closest('#diabcare-sidebar a.nav-group-link, #diabcare-sidebar a.nav-sub-item');
+      }
+      if (!a && typeof document.elementsFromPoint === 'function') {
+        const stack = document.elementsFromPoint(x, y) || [];
+        for (const el of stack) {
+          if (!el || !el.closest) continue;
+          const hit = el.closest('a.nav-group-link, a.nav-sub-item');
+          if (hit && side.contains(hit)) {
+            a = hit;
+            break;
+          }
+        }
+      }
+      if (!a) return;
+      const href = a.getAttribute('href');
+      if (!href || href === '#' || href.startsWith('javascript:')) return;
+      try {
+        const dest = new URL(href, window.location.origin);
+        if (dest.pathname === window.location.pathname
+            && dest.search === (window.location.search || '')) return;
+      } catch (_) { /* seguir */ }
+      ev.preventDefault();
+      ev.stopPropagation();
+      window.location.assign(href);
+    }, true);
   },
 
   estaColapsada() {
-    return localStorage.getItem('diabcare_sidebar_colapsada') === '1';
+    return !this.panelAbierto();
   },
 
   aplicarEstadoColapsado() {
     const mount = document.getElementById('diabcare-sidebar');
     if (!mount) return;
-    const colapsada = this.estaColapsada();
-    // Solo toggle de clase: el CSS (.sidebar.collapsed .nav-categoria) ya muestra los ítems.
-    // Evita abrir/cerrar cientos de nodos en JS (eso hacía el colapso lento).
-    mount.classList.toggle('collapsed', colapsada);
-    document.body.classList.toggle('sidebar-collapsed', colapsada);
+    const uv = document.body.classList.contains('dc-uv') && !document.body.classList.contains('dc-auth');
+    const tienePanel = !!mount.querySelector('#dc-shell-panel');
+    const soloRail = uv || !this.panelAbierto() || !tienePanel;
+    mount.classList.toggle('dc-shell--rail-only', soloRail);
+    mount.classList.toggle('collapsed', soloRail);
+    document.body.classList.toggle('sidebar-collapsed', soloRail);
+    document.body.classList.toggle('dc-shell-on', true);
+    if (uv) {
+      mount.style.width = '';
+      mount.style.minWidth = '';
+      mount.style.maxWidth = '';
+    } else if (soloRail) {
+      mount.style.width = '64px';
+      mount.style.minWidth = '64px';
+      mount.style.maxWidth = '64px';
+    } else {
+      mount.style.width = '284px';
+      mount.style.minWidth = '284px';
+      mount.style.maxWidth = 'none';
+    }
+    this._asegurarClicsPanel();
   },
 
   toggleColapso() {
-    const next = this.estaColapsada() ? '0' : '1';
-    localStorage.setItem('diabcare_sidebar_colapsada', next);
+    this.setPanelAbierto(!this.panelAbierto());
+    // Si se abre sin área de módulo, abrir la primera visible
+    if (this.panelAbierto()) {
+      const area = this._areaActual(window.location.pathname);
+      if (!area || area === 'inicio') {
+        const first = this._areasVisibles()[0];
+        if (first) {
+          try { localStorage.setItem('diabcare_area', first.id); } catch (_) { /* ignore */ }
+          this.render(window.location.pathname);
+          this.aplicarRoles();
+        }
+      } else {
+        this.render(window.location.pathname);
+        this.aplicarRoles();
+      }
+    } else {
+      const panel = document.getElementById('dc-shell-panel');
+      if (panel) panel.remove();
+    }
     this.aplicarEstadoColapsado();
+  },
+
+  _rolActual() {
+    try {
+      return String((JSON.parse(localStorage.getItem('usuario') || '{}').rol || '')).toLowerCase();
+    } catch {
+      return '';
+    }
   },
 
   temaActual() {
@@ -407,18 +1823,32 @@ window.DiabCareNav = {
   aplicarTema(tema) {
     const t = tema === 'claro' ? 'claro' : 'oscuro';
     document.documentElement.setAttribute('data-tema', t);
-    localStorage.setItem('diabcare_tema', t);
-    const btn = document.getElementById('tb-tema');
-    if (btn) {
-      const oscuro = t === 'oscuro';
-      btn.title = this.t(oscuro ? 'tb_tema_claro' : 'tb_tema_oscuro');
-      btn.setAttribute('aria-label', btn.title);
-      btn.innerHTML = DiabCareIcons.svg(oscuro ? 'sol' : 'luna', 16);
-    }
+    try { localStorage.setItem('diabcare_tema', t); } catch (_) { /* ignore */ }
+    const title = this.t(t === 'oscuro' ? 'tb_tema_claro' : 'tb_tema_oscuro');
+    document.querySelectorAll('#tb-tema, #btn-tema').forEach((wrap) => {
+      wrap.title = title;
+      const inp = wrap.querySelector ? wrap.querySelector('.dc-holo-input') : null;
+      if (inp) {
+        inp.checked = t === 'claro';
+        inp.setAttribute('aria-label', title);
+      }
+    });
+    window.dispatchEvent(new CustomEvent('diabcare:tema', { detail: { tema: t } }));
+    this.montarTopbarAcciones(true);
   },
 
-  toggleTema() {
+  toggleTema(ev) {
+    if (ev && ev.target && ev.target.classList && ev.target.classList.contains('dc-holo-input')) {
+      this.aplicarTema(ev.target.checked ? 'claro' : 'oscuro');
+      return;
+    }
     this.aplicarTema(this.temaActual() === 'oscuro' ? 'claro' : 'oscuro');
+  },
+
+  /** Lee un token CSS resuelto del tema activo. Para dibujar en canvas. */
+  token(nombre, respaldo = '') {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(nombre);
+    return (v || '').trim() || respaldo;
   },
 
   idiomaActual() {
@@ -448,6 +1878,9 @@ window.DiabCareNav = {
     if (prev) prev.remove();
     this.montarTopbarAcciones(true);
     if (window.DiabCareI18n) DiabCareI18n.aplicarPagina();
+
+    // Los textos dibujados en <canvas> (ejes, leyendas) no los alcanza el DOM.
+    window.dispatchEvent(new CustomEvent('diabcare:idioma', { detail: { idioma: idi } }));
 
     if (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.toast) {
       DiabCareAPI.toast(this.t('idioma_ok'), 'success');
@@ -482,15 +1915,19 @@ window.DiabCareNav = {
     const verNotif = !permitidos.length || permitidos.includes('notificaciones');
     const verConfig = permitidos.includes('configuracion');
     const hrefConfig = verConfig
-      ? '/paginas/gobierno/configuracion/index.html'
+      ? '/paginas/gobierno/configuracion/index.html#sistema'
       : '/paginas/seguridad/perfil/index.html';
     const titleConfig = this.t(verConfig ? 'tb_config' : 'tb_preferencias');
     const titleTema = this.t(tema === 'oscuro' ? 'tb_tema_claro' : 'tb_tema_oscuro');
     const letra = ((u.nombre || 'U')[0] || 'U').toUpperCase();
+    const labTema = tema === 'claro'
+      ? (this.idiomaActual() === 'en' ? 'Light' : 'Claro')
+      : (this.idiomaActual() === 'en' ? 'Dark' : 'Oscuro');
+    const icoTema = DiabCareIcons.svg(tema === 'claro' ? 'sol' : 'luna', 16);
 
     acciones.innerHTML = `
-      <button type="button" class="tb-icon-btn" id="tb-tema" title="${titleTema}" onclick="DiabCareNav.toggleTema()">
-        ${DiabCareIcons.svg(tema === 'oscuro' ? 'sol' : 'luna', 16)}
+      <button type="button" class="tb-icon-btn" id="tb-tema-btn" title="${titleTema}" onclick="DiabCareNav.toggleTema()">
+        ${icoTema}<span class="tb-idioma-lab">${labTema}</span>
       </button>
       <div class="tb-menu-wrap">
         <button type="button" class="tb-icon-btn" id="tb-idioma" title="${this.t('tb_idioma')}" onclick="DiabCareNav.toggleMenuIdioma(event)">
@@ -551,6 +1988,7 @@ window.DiabCareNav = {
     right.appendChild(userWrap);
 
     this.pintarAvatarTopbar(u);
+    topbar.querySelectorAll('.tb-ecg').forEach((el) => el.remove());
 
     if (!this._topbarClickBound) {
       this._topbarClickBound = true;
@@ -617,14 +2055,44 @@ window.DiabCareNav = {
     if (open) this.cargarPanelNotificaciones();
   },
 
+  haySesionLocal() {
+    try {
+      return sessionStorage.getItem('dc_sesion_ok') === '1'
+        || localStorage.getItem('token') === 'sesion';
+    } catch {
+      return false;
+    }
+  },
+
+  marcarSesion(usuario) {
+    try {
+      sessionStorage.setItem('dc_sesion_ok', '1');
+      if (usuario) {
+        const raw = JSON.stringify(usuario);
+        sessionStorage.setItem('usuario', raw);
+        localStorage.setItem('usuario', raw);
+      }
+      localStorage.removeItem('token');
+    } catch (_) { /* ignore */ }
+  },
+
+  limpiarSesionCliente() {
+    try {
+      sessionStorage.removeItem('dc_sesion_ok');
+      sessionStorage.removeItem('usuario');
+      localStorage.removeItem('token');
+      localStorage.removeItem('usuario');
+    } catch (_) { /* ignore */ }
+  },
+
   async cargarBadgeNotificaciones() {
     const badge = document.getElementById('tb-notif-badge');
-    const token = localStorage.getItem('token');
-    if (!badge || !token) return;
+    if (!badge || !this.haySesionLocal()) return;
     try {
       const r = await fetch(`${this.getApi()}/api/notificaciones/?limit=1&solo_no_leidas=true`, {
-        headers: { Authorization: 'Bearer ' + token },
+        credentials: 'include',
         cache: 'no-store',
+        silent: true,
       });
       if (!r.ok) return;
       const d = await r.json();
@@ -640,13 +2108,13 @@ window.DiabCareNav = {
 
   async cargarPanelNotificaciones() {
     const lista = document.getElementById('tb-notif-lista');
-    const token = localStorage.getItem('token');
-    if (!lista || !token) return;
+    if (!lista || !this.haySesionLocal()) return;
     lista.innerHTML = `<div class="tb-notif-loading">${this.t('cargando')}</div>`;
     try {
       const r = await fetch(`${this.getApi()}/api/notificaciones/?limit=8&solo_no_leidas=false`, {
-        headers: { Authorization: 'Bearer ' + token },
+        credentials: 'include',
         cache: 'no-store',
+        silent: true,
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.detail || 'error');
@@ -680,12 +2148,11 @@ window.DiabCareNav = {
   },
 
   async abrirNotif(id, yaLeida) {
-    const token = localStorage.getItem('token');
-    if (token && id && !yaLeida) {
+    if (this.haySesionLocal() && id && !yaLeida) {
       try {
         await fetch(`${this.getApi()}/api/notificaciones/${id}/leida`, {
           method: 'PATCH',
-          headers: { Authorization: 'Bearer ' + token },
+          credentials: 'include',
         });
       } catch (_) { /* ignore */ }
     }
@@ -694,45 +2161,51 @@ window.DiabCareNav = {
 
   async marcarTodasNotif(ev) {
     if (ev) ev.stopPropagation();
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!this.haySesionLocal()) return;
     try {
       await fetch(`${this.getApi()}/api/notificaciones/leer-todas`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer ' + token },
+        credentials: 'include',
       });
       await this.cargarPanelNotificaciones();
       this.cargarBadgeNotificaciones();
     } catch (_) { /* ignore */ }
   },
 
+  /** Carga foto de perfil en un contenedor circular (topbar / sidebar). */
+  _aplicarFotoAvatar(av, nombre, bust) {
+    if (!av) return;
+    const letra = ((nombre || 'U')[0] || 'U').toUpperCase();
+    // Ruta relativa: misma origen + cookie httpOnly (evita localhost vs 127.0.0.1)
+    const url = `/api/auth/perfil/foto?t=${encodeURIComponent(bust || Date.now())}`;
+    av.innerHTML = '';
+    av.textContent = letra;
+    const img = document.createElement('img');
+    img.alt = nombre || 'Usuario';
+    img.src = url;
+    img.decoding = 'async';
+    img.loading = 'eager';
+    img.onload = () => {
+      if (!av.isConnected) return;
+      av.innerHTML = '';
+      av.appendChild(img);
+    };
+    img.onerror = () => {
+      if (!av.isConnected) return;
+      av.textContent = letra;
+    };
+  },
+
   pintarAvatarTopbar(u) {
     const av = document.getElementById('tb-user-avatar');
     if (!av) return;
     const nombre = (u && u.nombre) || 'U';
-    const letra = (nombre[0] || 'U').toUpperCase();
     const nameEl = document.getElementById('tb-user-name');
     const rolEl = document.getElementById('tb-user-rol');
-    if (nameEl) nameEl.textContent = u.nombre || nombre;
-    if (rolEl) rolEl.textContent = this.etiquetaRol(u.rol);
-    const token = localStorage.getItem('token') || '';
-    av.textContent = letra;
-    if (!token) return;
-    const bust = (u && u.foto_bust) || Date.now();
-    fetch(`${this.getApi()}/api/auth/perfil/foto?t=${bust}`, {
-      headers: { Authorization: 'Bearer ' + token },
-    })
-      .then(r => (r.ok ? r.blob() : Promise.reject()))
-      .then(b => {
-        if (!b || !b.type || !b.type.startsWith('image/')) throw new Error('no image');
-        const url = URL.createObjectURL(b);
-        av.innerHTML = '';
-        const img = document.createElement('img');
-        img.alt = nombre;
-        img.src = url;
-        av.appendChild(img);
-      })
-      .catch(() => { av.textContent = letra; });
+    if (nameEl) nameEl.textContent = (u && u.nombre) || nombre;
+    if (rolEl) rolEl.textContent = this.etiquetaRol(u && u.rol);
+    // Intentar siempre: la cookie basta; no depender de haySesionLocal
+    this._aplicarFotoAvatar(av, nombre, (u && u.foto_bust) || Date.now());
   },
 
   toggleCategoria(btn) {
@@ -756,17 +2229,49 @@ window.DiabCareNav = {
 
   toggle(h) { this.toggleModulo(h); },
 
-  initUser() {
-    const t = localStorage.getItem('token');
-    if (!t) {
-      this.forzarCierreSesion();
-      return;
+  async initUser() {
+    let u = {};
+    try {
+      u = JSON.parse(localStorage.getItem('usuario') || sessionStorage.getItem('usuario') || '{}');
+    } catch (_) { u = {}; }
+
+    // Validar cookie httpOnly en servidor
+    try {
+      const r = await fetch(`${this.getApi()}/api/auth/sesion`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const d = await r.json();
+      if (!d.ok || !d.autenticado) {
+        this.forzarCierreSesion('Tu sesión finalizó. Vuelve a iniciar sesión.');
+        return;
+      }
+      u = { ...u, ...(d.usuario || {}) };
+      this.marcarSesion(u);
+    } catch (_) {
+      if (!this.haySesionLocal() && !(u && u.email)) {
+        this.forzarCierreSesion();
+        return;
+      }
     }
-    if (this.tokenExpirado(t)) {
-      this.forzarCierreSesion('Tu sesión finalizó. Vuelve a iniciar sesión.');
-      return;
+
+    // Completar tiene_foto desde perfil si hace falta
+    if (u.tiene_foto == null) {
+      try {
+        const rp = await fetch(`${this.getApi()}/api/auth/perfil`, {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (rp.ok) {
+          const pu = await rp.json();
+          if (pu && !pu.detail) {
+            u = { ...u, ...pu };
+            this.marcarSesion(u);
+          }
+        }
+      } catch (_) { /* ignore */ }
     }
-    const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+
     if (u.idioma && !localStorage.getItem('diabcare_idioma')) {
       localStorage.setItem('diabcare_idioma', u.idioma === 'en' ? 'en' : 'es');
     }
@@ -784,36 +2289,7 @@ window.DiabCareNav = {
     const av = document.getElementById('userAvatar');
     if (!av) return;
     const nombre = (u && u.nombre) || 'U';
-    const letra = (nombre[0] || 'U').toUpperCase();
-    const token = localStorage.getItem('token') || '';
-    if (!token) {
-      av.textContent = letra;
-      return;
-    }
-    av.textContent = letra;
-    const api = this.getApi();
-    const bust = (u && u.foto_bust) || Date.now();
-    fetch(`${api}/api/auth/perfil/foto?t=${bust}`, {
-      headers: { Authorization: 'Bearer ' + token },
-    })
-      .then(r => (r.ok ? r.blob() : Promise.reject()))
-      .then(b => {
-        if (!b || !b.type || !b.type.startsWith('image/')) throw new Error('no image');
-        const url = URL.createObjectURL(b);
-        av.innerHTML = '';
-        const img = document.createElement('img');
-        img.alt = nombre;
-        img.src = url;
-        av.appendChild(img);
-        try {
-          const cur = JSON.parse(localStorage.getItem('usuario') || '{}');
-          cur.tiene_foto = true;
-          localStorage.setItem('usuario', JSON.stringify(cur));
-        } catch (_) {}
-      })
-      .catch(() => {
-        av.textContent = letra;
-      });
+    this._aplicarFotoAvatar(av, nombre, (u && u.foto_bust) || Date.now());
   },
 
   etiquetaRol(rol) {
@@ -832,7 +2308,7 @@ window.DiabCareNav = {
 
   aplicarRoles() {
     const u = JSON.parse(localStorage.getItem('usuario') || '{}');
-    const rol = u.rol || '';
+    const rol = String(u.rol || '').toLowerCase();
     const permitidos = this.ACCESO[rol];
     if (!permitidos) return;
 
@@ -841,7 +2317,7 @@ window.DiabCareNav = {
       el.style.display = permitidos.includes(mod) ? '' : 'none';
     });
 
-    document.querySelectorAll('.nav-cat-block[data-categoria]').forEach(block => {
+    document.querySelectorAll('.nav-cat-block[data-categoria], .dc-panel-sec[data-categoria]').forEach(block => {
       const items = block.querySelectorAll('[data-modulo]');
       const visibles = [...items].some(el => el.style.display !== 'none');
       block.style.display = visibles ? '' : 'none';
@@ -849,31 +2325,34 @@ window.DiabCareNav = {
   },
 
   async cerrarSesion() {
-    const t = localStorage.getItem('token');
     try {
-      if (t) {
-        const ctrl = new AbortController();
-        const to = setTimeout(() => ctrl.abort(), 2500);
-        try {
-          await fetch(`${this.getApi()}/api/auth/logout`, {
-            method: 'POST',
-            headers: { Authorization: 'Bearer ' + t },
-            signal: ctrl.signal,
-          });
-        } finally {
-          clearTimeout(to);
-        }
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 2500);
+      try {
+        await fetch(`${this.getApi()}/api/auth/logout`, {
+          method: 'POST',
+          credentials: 'include',
+          signal: ctrl.signal,
+        });
+      } finally {
+        clearTimeout(to);
       }
-    } catch (_) { /* ignore: token ya inválido o red */ }
+    } catch (_) { /* ignore: sesión ya inválida o red */ }
     sessionStorage.setItem('logout', '1');
+    this.limpiarSesionCliente();
+    const temaKeep = localStorage.getItem('diabcare_tema');
+    const idiKeep = localStorage.getItem('diabcare_idioma');
     localStorage.clear();
+    if (temaKeep) localStorage.setItem('diabcare_tema', temaKeep);
+    if (idiKeep) localStorage.setItem('diabcare_idioma', idiKeep);
     window.location.replace('/');
   },
 
-  /** JWT exp (segundos) → true si ya no es válido en el cliente. */
+  /** Con cookie-sesión el cliente no decodifica JWT; solo marca local. */
   tokenExpirado(token) {
     const t = token || localStorage.getItem('token');
     if (!t) return true;
+    if (t === 'sesion') return false;
     try {
       const part = t.split('.')[1];
       if (!part) return true;
@@ -896,8 +2375,12 @@ window.DiabCareNav = {
     this._cerrandoSesion = true;
     if (motivo) sessionStorage.setItem('sesion_msg', motivo);
     sessionStorage.setItem('logout', '1');
+    this.limpiarSesionCliente();
+    const temaKeep = localStorage.getItem('diabcare_tema');
+    const idiKeep = localStorage.getItem('diabcare_idioma');
     localStorage.clear();
-    // replace: evita que "adelante" vuelva a una app sin token
+    if (temaKeep) localStorage.setItem('diabcare_tema', temaKeep);
+    if (idiKeep) localStorage.setItem('diabcare_idioma', idiKeep);
     window.location.replace('/');
   },
 
@@ -905,43 +2388,85 @@ window.DiabCareNav = {
     this.forzarCierreSesion();
   },
 
-  /** Intercepta 401 de cualquier fetch hacia la API. */
+  /** Envía cookies + limpia Authorization basura; intercepta 401 + pantalla de carga. */
   instalarInterceptorAuth() {
     if (this._fetchPatched || typeof window === 'undefined') return;
     this._fetchPatched = true;
     const orig = window.fetch.bind(window);
     const self = this;
-    window.fetch = async function diabcareFetch(...args) {
-      const res = await orig(...args);
-      if (res.status !== 401) return res;
-      let url = '';
+
+    function urlDe(input) {
       try {
-        const req = args[0];
-        url = typeof req === 'string' ? req : (req && req.url) || '';
+        return typeof input === 'string' ? input : (input && input.url) || '';
+      } catch (_) {
+        return '';
+      }
+    }
+
+    window.fetch = async function diabcareFetch(input, init) {
+      const opts = init ? { ...init } : {};
+      if (opts.credentials == null) opts.credentials = 'include';
+      try {
+        const headers = new Headers(opts.headers || (input && input.headers) || undefined);
+        const auth = headers.get('Authorization') || '';
+        if (/^Bearer\s*(sesion|cookie|null|undefined)?$/i.test(auth.trim()) || auth === 'Bearer ') {
+          headers.delete('Authorization');
+          opts.headers = headers;
+        }
       } catch (_) { /* ignore */ }
-      if (/\/api\/auth\/(login|logout|recuperar|resetear|solicitud|registro)/i.test(url)) {
+
+      const url = urlDe(input);
+      const sk = window.DiabCareSkeleton;
+      const useSk = sk && sk.debeSkeletonFetch(url, opts);
+      let skAt = 0;
+      if (useSk) {
+        skAt = sk.beginFetchSkeleton ? sk.beginFetchSkeleton() : (sk.paintAllForFetch(), Date.now());
+      }
+      try {
+        const res = await orig(input, opts);
+        if (res.status === 401) {
+          if (/\/api\/auth\/(login|logout|recuperar|resetear|solicitud|registro|sesion)/i.test(url)) {
+            return res;
+          }
+          if (self.haySesionLocal()) {
+            self.forzarCierreSesion('Tu sesión finalizó. Vuelve a iniciar sesión.');
+          }
+        }
         return res;
+      } finally {
+        if (useSk && skAt) {
+          if (sk.endFetchSkeleton) await sk.endFetchSkeleton(skAt, sk.MIN_MS || 650);
+          else {
+            const wait = Math.max(0, (sk.MIN_MS || 650) - (Date.now() - skAt));
+            if (wait) await new Promise((r) => setTimeout(r, wait));
+            try { if (sk.clearExtras) sk.clearExtras(); } catch (_) { /* ignore */ }
+          }
+        }
       }
-      if (localStorage.getItem('token')) {
-        self.forzarCierreSesion('Tu sesión finalizó. Vuelve a iniciar sesión.');
-      }
-      return res;
     };
   },
 
-  /** Comprueba exp del JWT al cargar y cada rato / al volver a la pestaña. */
+  /** Vigila la sesión preguntando al servidor (cookie), no leyendo JWT. */
   iniciarVigilanciaSesion() {
     if (this._vigilanciaOn) return;
     this._vigilanciaOn = true;
-    const tick = () => {
-      const t = localStorage.getItem('token');
-      if (!t) return;
-      if (this.tokenExpirado(t)) {
-        this.forzarCierreSesion('Tu sesión finalizó. Vuelve a iniciar sesión.');
-      }
+    const tick = async () => {
+      if (!this.haySesionLocal()) return;
+      try {
+        const r = await fetch(`${this.getApi()}/api/auth/sesion`, {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const d = await r.json();
+        if (!d.ok || !d.autenticado) {
+          this.forzarCierreSesion('Tu sesión finalizó. Vuelve a iniciar sesión.');
+        } else if (d.usuario) {
+          this.marcarSesion(d.usuario);
+        }
+      } catch (_) { /* red temporal: no expulsar */ }
     };
-    tick();
-    setInterval(tick, 12000);
+    setTimeout(tick, 8000);
+    setInterval(tick, 60000);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') tick();
     });
@@ -976,13 +2501,10 @@ DiabCareNav._protegerHistorialSesion = function _protegerHistorialSesion() {
   if (this._histProt) return;
   this._histProt = true;
   try {
-    const t = localStorage.getItem('token');
-    if (!t || this.tokenExpirado(t)) return;
-    // Capa extra en el historial: "atrás" se queda en la misma página
+    if (!this.haySesionLocal()) return;
     history.pushState({ diabcareApp: 1 }, '', location.href);
     window.addEventListener('popstate', () => {
-      const tok = localStorage.getItem('token');
-      if (!tok || this.tokenExpirado(tok)) return;
+      if (!this.haySesionLocal()) return;
       history.pushState({ diabcareApp: 1 }, '', location.href);
     });
   } catch (_) { /* ignore */ }

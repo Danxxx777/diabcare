@@ -5,7 +5,7 @@ from typing import Optional
 from nucleo.utilidades.Dependencias import require_modulo, require_escritura
 from paquetes.clinico.citas.CitasServicio import (
     hoy, listar, listar_por_medico, obtener, crear, actualizar, cancelar, actualizar_estado_medico,
-    cobrar_consulta,
+    cobrar_consulta, preview_cobro, resumen_operativo,
 )
 
 router = APIRouter(prefix="/api/citas", tags=["Agenda clínica"])
@@ -59,11 +59,20 @@ class CitaEstadoMedico(BaseModel):
 
 class CobrarConsultaIn(BaseModel):
     metodo: str = "efectivo"
+    referencia: str = ""
 
 
 @router.get("/hoy")
 def citas_hoy(payload: dict = Depends(require_modulo("citas"))):
     return hoy()
+
+
+@router.get("/resumen")
+def citas_resumen(
+    fecha: str = Query("", description="YYYY-MM-DD; default hoy"),
+    payload: dict = Depends(require_modulo("citas")),
+):
+    return resumen_operativo(fecha)
 
 
 @router.get("/mis-citas")
@@ -105,17 +114,25 @@ def estado_cita_medico(
     return res
 
 
+@router.get("/{id_cita}/cobro")
+def get_preview_cobro(id_cita: str = _ID_CITA, payload=Depends(require_modulo("facturacion"))):
+    res = preview_cobro(id_cita)
+    if res.get("error"):
+        raise HTTPException(status_code=400, detail=res["error"])
+    return res
+
+
 @router.post("/{id_cita}/cobrar-consulta")
 def post_cobrar_consulta(
     id_cita: str = _ID_CITA,
     datos: CobrarConsultaIn = CobrarConsultaIn(),
     payload: dict = Depends(require_escritura("facturacion")),
 ):
-    """Caja: cobra CONS-DM y deja la cita lista para el médico (RN-CIT-010)."""
-    res = cobrar_consulta(id_cita, metodo=datos.metodo)
+    """Caja: cobra CONS-DM (efectivo/tarjeta/transferencia) o emite QR digital."""
+    res = cobrar_consulta(id_cita, metodo=datos.metodo, referencia=datos.referencia)
     if res.get("error"):
         raise HTTPException(status_code=400, detail=res["error"])
-    _auditar(_usuario(payload), "create", f"Cobro consulta cita {id_cita} factura={res.get('id_factura')}")
+    _auditar(_usuario(payload), "create", f"Cobro consulta cita {id_cita} factura={res.get('id_factura')} metodo={datos.metodo}")
     return res
 
 
@@ -147,7 +164,8 @@ def editar_cita(
     cambios.pop("estado", None)
     res = actualizar(id_cita, cambios)
     if "error" in res:
-        raise HTTPException(status_code=404, detail=res["error"])
+        code = 404 if "no encontrada" in str(res["error"]).lower() else 400
+        raise HTTPException(status_code=code, detail=res["error"])
     _auditar(_usuario(payload), "update", f"Cita {id_cita}")
     return res
 

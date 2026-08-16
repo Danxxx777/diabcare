@@ -4,9 +4,9 @@
 
 DiabCare Analytics / **DiabCare Hospital** es una plataforma SaaS académica (6to semestre — Construcción del Software) para la gestión y análisis de datos clínicos de diabetes hospitalaria. Incluye un HIS de demostración (pacientes, citas, mis citas, urgencias, laboratorio, farmacia, facturación, RRHH) y analítica clínica/negocio sobre almacenamiento columnar.
 
-**Stack tecnológico:** FastAPI + Python 3.14 (backend), **PostgreSQL** (BDR operativa — informes simples / transacciones del enunciado TA11), MinIO/Parquet (BD columnar — informes compuestos y DWH), pandas (transformación ELT), scikit-learn (ML), pyarrow, HTML/CSS/JS vanilla (frontend multi-página), PocketBase (origen del pipeline), Apache Airflow 2.9.1 Docker (orquestación ELT en diseño), Uvicorn.
+**Stack en ejecución (hoy):** FastAPI + Python 3.14, **MinIO/Parquet** (`operativo/`, `negocio/`, `stage/`), pandas (ELT), scikit-learn, pyarrow, frontend vanilla, PocketBase (origen del pipeline), Airflow en diseño/docker, Uvicorn.
 
-**Nota de implementación:** la demo actual persiste gran parte del operativo en Parquet bajo MinIO (`operativo/`, `negocio/`); la documentación táctica y de arquitectura identifica **PostgreSQL** como BDR y **MinIO** como capa columnar, alineado al enunciado de Tarea 11.
+**Análisis TA11 (documentación académica):** el enunciado distingue **BDR relacional** (informes simples) vs **BD columnar** (informes compuestos). En el PDF/Word se nombra **PostgreSQL** como BDR de referencia; **no está integrado en este repositorio todavía**. Los informes simples del HIS se demuestran con las mismas pantallas, persistiendo en Parquet operativo vía `ParquetStore`.
 
 ---
 
@@ -14,9 +14,9 @@ DiabCare Analytics / **DiabCare Hospital** es una plataforma SaaS académica (6t
 
 - **Sistema**: La aplicación web DiabCare Analytics (backend FastAPI + frontend HTML/JS multi-página).
 - **API**: Endpoints REST expuestos por el backend FastAPI en `localhost:8000`.
-- **PostgreSQL (BDR)**: Base relacional operativa del HIS (informes simples: listados y totales del turno). En el diseño TA11 es el origen transaccional; la UI demo consume APIs que hoy materializan sobre Parquet operativo hasta completar el cableado JDBC/SQLAlchemy.
-- **MinIO**: Object storage local en `localhost:9000`. Bucket principal: `diabetes-data`, prefijo `stage/` (analítica columnar). Bucket app: `diabcare-app` (`operativo/`, `negocio/`, usuarios, modelos, reportes).
-- **Dataset**: DataFrame de pandas cargado concatenando todos los `.parquet` en MinIO `stage/`, con registros clínicos de diabetes sintéticos.
+- **BDR / operativo (informe simple — TA11):** En el análisis táctico equivale a una BDR relacional (p. ej. PostgreSQL en el entregable Word). **En código:** listados del turno en `diabcare-app/operativo/` y `negocio/` (Parquet), no hay conexión SQL.
+- **MinIO**: Object storage en `localhost:9000`. Buckets `diabetes-data` (`stage/`) y `diabcare-app` (`operativo/`, `negocio/`, usuarios, modelos, reportes).
+- **Capa columnar (informe compuesto — TA11):** agregaciones en `stage/` y DWH — Dashboard, Calidad diabetes, PDF, Dataset.
 - **Token JWT**: Token de autenticación generado al iniciar sesión, válido por 8 horas, almacenado en `localStorage`.
 - **Roles**: `administrador`, `medico`, `analista`, `enfermero`, `farmaceutico`. Cada rol tiene acceso restringido a módulos específicos del sidebar y de la API.
 - **PocketBase**: Base de datos en `localhost:8090` que almacena datos origen del pipeline.
@@ -286,12 +286,12 @@ Extiende el analytics clínico a un HIS de demostración: facturación, farmacia
 
 ### Requirement 15: Nivel táctico (Tarea 11)
 
-**User Story:** Como jefatura, quiero objetivos tácticos con informes simples (BDR PostgreSQL) vs compuestos (MinIO columnar).
+**User Story:** Como jefatura, quiero objetivos tácticos con informes simples (BDR del enunciado) vs compuestos (MinIO columnar).
 
 #### Acceptance Criteria
 
 1. THE Análisis táctico SHALL usar tabla: Departamento | Objetivos | ¿Informe simple? | ¿Informe compuesto?
-2. **Informe simple** = listado/total transaccional desde BDR PostgreSQL (demo: pantallas HIS operativas).
+2. **Informe simple** = listado/total transaccional (en TA11: BDR relacional / PostgreSQL en Word; **en app:** pantallas HIS sobre Parquet operativo).
 3. **Informe compuesto** = agregación en MinIO/Parquet (Dashboard, Calidad diabetes, PDF, Dataset/DWH).
 4. THE ELT/Airflow SHALL documentarse como pipeline hacia la capa columnar; demo ejecutable desde Pipeline ELT (UI).
 

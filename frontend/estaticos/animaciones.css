@@ -1,0 +1,553 @@
+/* DiabCare — estación de telemetría (historia clínica, no SaaS glass)
+   Referencias: rail tipo storyboard, papel milimetrado de ECG, pulso SpO2.
+*/
+
+:root {
+  --glass-fill: #0c1018;
+  --glass-fill-strong: #121826;
+  --glass-fill-hover: #1a2230;
+  --glass-stroke: rgba(90, 127, 140, 0.18);
+  --glass-stroke-cyan: rgba(90, 127, 140, 0.4);
+  --glass-blur: none;
+  --glass-blur-strong: none;
+  --glass-shine: none;
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+html[data-tema="claro"] {
+  --glass-fill: #fffdfb;
+  --glass-fill-strong: #ffffff;
+  --glass-fill-hover: #f4f7f6;
+  --glass-stroke: rgba(140, 70, 78, 0.16);
+  --glass-stroke-cyan: rgba(15, 157, 138, 0.45);
+  --glass-shine: none;
+  --glass-shadow: 0 1px 2px rgba(40, 24, 24, 0.06);
+}
+
+/* Fondo: no pisa el chasis Uiverse */
+body:not(.dc-uv):not(.dc-auth) {
+  background-color: #1E2A2E !important;
+  background-image:
+    linear-gradient(rgba(90, 127, 140, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90, 127, 140, 0.05) 1px, transparent 1px) !important;
+  background-size: 28px 28px !important;
+  background-attachment: fixed !important;
+}
+html[data-tema="claro"] body:not(.dc-uv):not(.dc-auth) {
+  background-color: #f4f4f5 !important;
+  background-image:
+    linear-gradient(rgba(0, 119, 170, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 119, 170, 0.08) 1px, transparent 1px) !important;
+  background-size: 28px 28px !important;
+}
+
+/* Chasis plano: no aplica cuando el dock Uiverse está activo */
+body:not(.dc-auth):not(.dc-uv) {
+  padding: 0;
+  gap: 0;
+  box-sizing: border-box;
+}
+body:not(.dc-auth):not(.dc-uv)::before { display: none; }
+
+body:not(.dc-auth):not(.dc-uv) .sidebar {
+  background: #1E2A2E !important;
+  border: 0 !important;
+  border-right: 3px solid #5A7F8C !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+body:not(.dc-auth):not(.dc-uv) .main {
+  border-radius: 0;
+  background: rgba(8, 10, 16, 0.72);
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: hidden;
+}
+body:not(.dc-auth):not(.dc-uv) .topbar,
+body:not(.dc-auth):not(.dc-uv) .dash-topbar,
+body:not(.dc-auth):not(.dc-uv) header.topbar {
+  background: #0c1018 !important;
+  border-bottom: 1px solid rgba(90, 127, 140, 0.22) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-tema="claro"] body:not(.dc-auth):not(.dc-uv) .sidebar {
+  background: #1E2A2E !important;
+  border-right-color: #5A7F8C !important;
+}
+html[data-tema="claro"] body:not(.dc-auth):not(.dc-uv) .main {
+  background: rgba(244, 244, 245, 0.78);
+}
+html[data-tema="claro"] body:not(.dc-auth):not(.dc-uv) .topbar,
+html[data-tema="claro"] body:not(.dc-auth):not(.dc-uv) .dash-topbar,
+html[data-tema="claro"] body:not(.dc-auth):not(.dc-uv) header.topbar {
+  background: #fafafa !important;
+  border-bottom: 2px solid rgba(0, 119, 170, 0.22) !important;
+}
+
+@media (max-width: 720px) {
+  body:not(.dc-auth):not(.dc-uv) { padding: 0; gap: 0; }
+  body:not(.dc-auth):not(.dc-uv) .sidebar,
+  body:not(.dc-auth):not(.dc-uv) .main { border-radius: 0 !important; }
+}
+
+body:not(.dc-uv) .sidebar {
+  background: #1E2A2E !important;
+  border-right: 3px solid #5A7F8C !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #f4f4f5;
+}
+body:not(.dc-uv) .topbar,
+body:not(.dc-uv) .dash-topbar,
+body:not(.dc-uv) header.topbar {
+  background: #0c1018 !important;
+  border-bottom: 1px solid rgba(90, 127, 140, 0.22) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-tema="claro"] body:not(.dc-uv) .sidebar {
+  background: #1E2A2E !important;
+  border-color: #5A7F8C !important;
+  color: #f4f4f5 !important;
+}
+html[data-tema="claro"] body:not(.dc-uv) .topbar,
+html[data-tema="claro"] body:not(.dc-uv) .dash-topbar,
+html[data-tema="claro"] body:not(.dc-uv) header.topbar {
+  background: #fafafa !important;
+  border-color: rgba(0, 119, 170, 0.22) !important;
+}
+
+body.dc-uv .tb-ecg,
+body.dc-uv .tb-ecg::after {
+  animation: none !important;
+}
+.tb-ecg::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 64px;
+  background: linear-gradient(90deg, transparent, rgba(62, 207, 184, 0.55), transparent);
+  animation: dc-ecg-scan 2.6s linear infinite;
+  pointer-events: none;
+}
+html[data-tema="claro"] .tb-ecg {
+  background-color: rgba(196, 90, 98, 0.08);
+}
+html[data-tema="claro"] .tb-ecg::after {
+  background: linear-gradient(90deg, transparent, rgba(196, 90, 98, 0.45), transparent);
+}
+@keyframes dc-ecg-scan {
+  from { left: -64px; }
+  to { left: 100%; }
+}
+
+@keyframes dc-spin { to { transform: rotate(360deg); } }
+/* Pulso vital ~72 lpm: solo opacidad, como un LED de saturación */
+@keyframes dc-pulse {
+  0%, 100% { opacity: 0.42; }
+  12% { opacity: 1; }
+  24% { opacity: 0.5; }
+  36% { opacity: 0.92; }
+  52% { opacity: 0.42; }
+}
+@keyframes dc-fade-up {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dc-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dc-card-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dc-ecg-draw {
+  to { stroke-dashoffset: -280; }
+}
+
+/* ══════════════════════════════════════
+   PANTALLA DE CARGA — formas del chasis (uiverse-app.css)
+   ══════════════════════════════════════ */
+#dc-loading-screen[hidden] { display: none !important; }
+
+.loading .spinner,
+.loading .loading-dots,
+.dc-loading-spinner {
+  display: none !important;
+}
+
+/* No recortar el skeleton: las formas viven en uiverse-app.css */
+.dc-sk-shell,
+.dc-sk-mast,
+.dc-sk-topbar,
+.dc-sk-card,
+.dc-sk-stat,
+.dc-sk-panel,
+.dc-sk-row,
+.dc-sk-ico,
+.dc-sk-badge,
+.dc-sk-btn,
+.dc-sk-chart,
+.dc-sk-bone {
+  clip-path: none !important;
+}
+
+/* Capsula fullscreen: mantiene shimmer de texto en el título */
+.dc-text-shimmer {
+  display: inline-block;
+  background-image: linear-gradient(
+    90deg,
+    rgba(139, 149, 168, 0.55) 0%,
+    rgba(139, 149, 168, 0.55) 38%,
+    rgba(62, 207, 184, 0.95) 50%,
+    rgba(255, 255, 255, 0.9) 54%,
+    rgba(62, 207, 184, 0.95) 58%,
+    rgba(139, 149, 168, 0.55) 68%,
+    rgba(139, 149, 168, 0.55) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+  animation: dc-shimmer-text 1.55s ease-in-out infinite;
+}
+@keyframes dc-shimmer-text {
+  0%   { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+
+/* ══════════════════════════════════════
+   BOTONES — sólido clínico (sin glass)
+   ══════════════════════════════════════ */
+body:not(.dc-auth):not(.dc-uv) .btn,
+body:not(.dc-auth):not(.dc-uv) button.btn,
+body:not(.dc-auth):not(.dc-uv) a.btn,
+body:not(.dc-auth):not(.dc-uv) .btn-ghost,
+body:not(.dc-auth):not(.dc-uv) .btn-edit,
+body:not(.dc-auth):not(.dc-uv) .btn-del,
+body:not(.dc-auth):not(.dc-uv) .btn-danger,
+body:not(.dc-auth):not(.dc-uv) .btn-cancel,
+body:not(.dc-auth):not(.dc-uv) .tb-icon-btn,
+body:not(.dc-auth):not(.dc-uv) .tb-btn,
+body:not(.dc-auth):not(.dc-uv) .pref-btn,
+body:not(.dc-auth):not(.dc-uv) .quick-btn {
+  position: relative !important;
+  overflow: hidden !important;
+  background: var(--glass-fill) !important;
+  border: 1px solid var(--glass-stroke) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-radius: 4px !important;
+  transition: background 0.16s ease, border-color 0.16s ease !important;
+}
+body:not(.dc-auth):not(.dc-uv) .btn::before,
+body:not(.dc-auth):not(.dc-uv) button.btn::before,
+body:not(.dc-auth):not(.dc-uv) a.btn::before,
+body:not(.dc-auth):not(.dc-uv) .tb-icon-btn::before,
+body:not(.dc-auth):not(.dc-uv) .pref-btn::before,
+body:not(.dc-auth):not(.dc-uv) .quick-btn::before {
+  display: none !important;
+}
+body:not(.dc-auth):not(.dc-uv) .btn:hover,
+body:not(.dc-auth):not(.dc-uv) button.btn:hover,
+body:not(.dc-auth):not(.dc-uv) a.btn:hover,
+body:not(.dc-auth):not(.dc-uv) .tb-icon-btn:hover,
+body:not(.dc-auth):not(.dc-uv) .tb-btn:hover,
+body:not(.dc-auth):not(.dc-uv) .pref-btn:hover,
+body:not(.dc-auth):not(.dc-uv) .quick-btn:hover {
+  transform: none !important;
+  background: var(--glass-fill-hover) !important;
+  border-color: var(--glass-stroke-cyan) !important;
+  box-shadow: none !important;
+  filter: none;
+}
+body:not(.dc-auth):not(.dc-uv) .btn:active,
+body:not(.dc-auth):not(.dc-uv) button.btn:active {
+  transform: none !important;
+}
+
+/* Primary app (no login, sin chasis Uiverse) */
+body:not(.dc-auth):not(.dc-uv) .btn-primary,
+body:not(.dc-auth):not(.dc-uv) button.btn-primary,
+body:not(.dc-auth):not(.dc-uv) a.btn-primary {
+  background: #8FB4BE !important;
+  color: #1E2A2E !important;
+  border: 1.5px solid #A8C8D0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-tema="claro"] body:not(.dc-auth):not(.dc-uv) .btn-primary,
+html[data-tema="claro"] body:not(.dc-auth):not(.dc-uv) button.btn-primary {
+  color: #fff !important;
+  background: #3E5C67 !important;
+  border-color: #2F4A54 !important;
+}
+body:not(.dc-auth):not(.dc-uv) .btn-primary:hover,
+body:not(.dc-auth):not(.dc-uv) button.btn-primary:hover {
+  background: #A8C8D0 !important;
+  box-shadow: none !important;
+}
+
+body:not(.dc-auth):not(.dc-uv) .btn-ghost,
+body:not(.dc-auth):not(.dc-uv) button.btn-ghost {
+  color: var(--text, #E6E2DC) !important;
+}
+body:not(.dc-auth):not(.dc-uv) .btn-ghost:hover {
+  color: var(--text, #E6E2DC) !important;
+}
+
+/* ══════════════════════════════════════
+   CARDS — carpeta clínica (filete izquierdo)
+   ══════════════════════════════════════ */
+.tabla-card,
+.kpi-card,
+.perfil-card,
+.stat-card,
+.data-tile,
+.pipe-card,
+.panel-card,
+.panel,
+.an-hero,
+.dash-reminder,
+.ops-bar {
+  overflow: visible !important;
+  background: var(--glass-fill) !important;
+  border: 1px solid var(--glass-stroke) !important;
+  border-left: 3px solid #5A7F8C !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: border-color 0.16s ease, background 0.16s ease !important;
+}
+.kpi-card.cyan { border-left-color: #5A7F8C !important; box-shadow: none !important; }
+.kpi-card.green { border-left-color: #3d9a6a !important; box-shadow: none !important; }
+.kpi-card.amber { border-left-color: #c9923a !important; box-shadow: none !important; }
+.kpi-card.red { border-left-color: #d65a5a !important; box-shadow: none !important; }
+
+.tabla-card:hover,
+.kpi-card:hover,
+.perfil-card:hover,
+.stat-card:hover,
+.data-tile:hover,
+.pipe-card:hover,
+.panel-card:hover,
+.panel:hover,
+.an-hero:hover {
+  transform: none !important;
+  background: var(--glass-fill-hover) !important;
+  border-color: var(--glass-stroke-cyan) !important;
+  box-shadow: none !important;
+}
+
+body:not(.dc-auth):not(.dc-uv) .btn-ghost,
+body:not(.dc-auth):not(.dc-uv) button.btn-ghost,
+body:not(.dc-auth):not(.dc-uv) a.btn-ghost {
+  background: rgba(143, 180, 190, 0.18) !important;
+  border: 1.5px solid rgba(179, 208, 214, 0.55) !important;
+  color: #E6E2DC !important;
+  font-weight: 650 !important;
+}
+body:not(.dc-auth):not(.dc-uv) .btn-ghost:hover,
+body:not(.dc-auth):not(.dc-uv) button.btn-ghost:hover,
+body:not(.dc-auth):not(.dc-uv) a.btn-ghost:hover {
+  background: rgba(143, 180, 190, 0.28) !important;
+  border-color: #B3D0D6 !important;
+  color: #fff !important;
+}
+html[data-tema="claro"] body:not(.dc-auth):not(.dc-uv) .btn-ghost,
+html[data-tema="claro"] body:not(.dc-auth):not(.dc-uv) button.btn-ghost,
+html[data-tema="claro"] body:not(.dc-auth):not(.dc-uv) a.btn-ghost {
+  background: #ffffff !important;
+  border: 1.5px solid rgba(47, 61, 66, 0.38) !important;
+  color: #2F3D42 !important;
+}
+
+/* Topbar / sidebar chips glass */
+.tb-icon-btn,
+.tb-user,
+.pref-btn {
+  border-radius: 12px !important;
+}
+
+.main-content,
+.page-body,
+.content-area {
+  animation: dc-fade-up 0.4s ease both;
+  background: transparent !important;
+}
+.content {
+  background: transparent !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-text-shimmer,
+  .dc-sk-bone,
+  .dc-sk-card,
+  .dc-sk-stat,
+  .dc-sk-row,
+  .main-content,
+  .page-body,
+  .content-area,
+  .tb-ecg::after {
+    animation: none !important;
+  }
+  #dc-loading-screen,
+  .dc-sk-shell {
+    animation: none !important;
+  }
+}
+
+/* Rail siempre oscuro (historia clínica), también en tema claro.
+   Solo para el chasis antiguo: el dock de cristal (.dc-uv) tiene su propia
+   versión clara en uiverse-app.css. Sin el :not(.dc-uv), estas reglas empatan
+   en especificidad con las de uiverse y ganan por orden de carga —
+   navegacion.js inyecta animaciones.css después—, dejando el rail en #0a181c
+   con las etiquetas en #09090b: negro sobre negro. */
+html[data-tema="claro"] body:not(.dc-uv) .sidebar,
+html[data-tema="claro"] body:not(.dc-uv) .dc-shell,
+html[data-tema="claro"] body:not(.dc-uv) .dc-panel,
+html[data-tema="claro"] body:not(.dc-uv) .dc-rail {
+  background: #0a181c !important;
+  color: #e8eef2 !important;
+}
+html[data-tema="claro"] body:not(.dc-uv) .sidebar .logo-text,
+html[data-tema="claro"] body:not(.dc-uv) .sidebar .logo-sub,
+html[data-tema="claro"] body:not(.dc-uv) .sidebar .nav-group-label,
+html[data-tema="claro"] body:not(.dc-uv) .sidebar .nav-sub-item,
+html[data-tema="claro"] body:not(.dc-uv) .sidebar .nav-group-link,
+html[data-tema="claro"] body:not(.dc-uv) .dc-panel-title,
+html[data-tema="claro"] body:not(.dc-uv) .dc-rail-btn {
+  color: #d5e0e4 !important;
+}
+
+/* Escritorio: carpetas de planta, no tiles SaaS */
+.dc-home-tile {
+  border-radius: 4px !important;
+  border: 1px solid rgba(62, 207, 184, 0.22) !important;
+  border-left: 4px solid #5A7F8C !important;
+  background: rgba(10, 24, 28, 0.88) !important;
+  box-shadow: none !important;
+}
+.dc-home-tile[data-area="clinico"] { border-left-color: #5A7F8C !important; }
+.dc-home-tile[data-area="farmacia_rx"] { border-left-color: #5eead4 !important; }
+.dc-home-tile[data-area="negocio"] { border-left-color: #c9923a !important; }
+.dc-home-tile[data-area="analisis"] { border-left-color: #5a8fbc !important; }
+.dc-home-tile[data-area="datos"] { border-left-color: #8b95a8 !important; }
+.dc-home-tile[data-area="gobierno"] { border-left-color: #94a3b8 !important; }
+.dc-home-tile[data-area="seguridad"] { border-left-color: #2dd4bf !important; }
+.dc-wcard {
+  animation: dc-fade-up 0.35s ease both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+html[data-tema="claro"] .dc-home-tile {
+  background: #fffdfb !important;
+  border-color: rgba(140, 70, 78, 0.16) !important;
+}
+html[data-tema="claro"] .dc-home-tile-meta strong { color: #1a1d24 !important; }
+
+/* ══════════════════════════════════════
+   FORMAS — alarma / etiqueta de laboratorio
+   (no pastillas SaaS: esquina recortada + radio 2px)
+   ══════════════════════════════════════ */
+body:not(.dc-auth):not(.dc-uv) .btn,
+body:not(.dc-auth):not(.dc-uv) button.btn,
+body:not(.dc-auth):not(.dc-uv) a.btn,
+body:not(.dc-auth):not(.dc-uv) .tb-icon-btn,
+body:not(.dc-auth):not(.dc-uv) .tb-btn,
+body:not(.dc-auth):not(.dc-uv) .pref-btn,
+body:not(.dc-auth):not(.dc-uv) .quick-btn,
+body:not(.dc-auth):not(.dc-uv) .dc-rail-btn,
+body:not(.dc-auth):not(.dc-uv) .sidebar-toggle,
+body:not(.dc-auth):not(.dc-uv) .nav-sub-item,
+body:not(.dc-auth):not(.dc-uv) .nav-group-link,
+body:not(.dc-auth):not(.dc-uv) .nav-group-header,
+body:not(.dc-auth):not(.dc-uv) .fi,
+body:not(.dc-auth):not(.dc-uv) .fs,
+body:not(.dc-auth):not(.dc-uv) .search,
+body:not(.dc-auth):not(.dc-uv) input.fi,
+body:not(.dc-auth):not(.dc-uv) select.fs,
+body:not(.dc-auth):not(.dc-uv) textarea {
+  border-radius: 2px !important;
+  clip-path: none;
+}
+body:not(.dc-auth):not(.dc-uv) .tb-icon-btn {
+  min-height: 36px !important;
+  height: 36px !important;
+  border-radius: 2px !important;
+}
+body:not(.dc-auth) .sys-badge,
+body:not(.dc-auth) .tb-badge,
+body:not(.dc-auth) .dc-home-badge,
+body:not(.dc-auth) .b-admin,
+body:not(.dc-auth) .b-medico,
+body:not(.dc-auth) .b-activo,
+body:not(.dc-auth) .b-inactivo,
+body:not(.dc-auth) [class^="b-"] {
+  border-radius: 2px !important;
+}
+
+.toast {
+  position: fixed !important;
+  top: 12px !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  border-radius: 0 !important;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%) !important;
+  border-left-width: 8px !important;
+  border-left-style: solid !important;
+  transform: translate(-50%, -120%) !important;
+}
+.toast.show {
+  transform: translate(-50%, 0) !important;
+}
+
+.modal,
+.modal-card,
+.tb-dropdown,
+.tb-user-menu,
+.tb-notif-panel {
+  border-radius: 2px !important;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+.dc-holo-track,
+.dc-holo-track::after,
+.dc-holo-shine {
+  border-radius: 3px !important;
+}
+.dc-holo-thumb,
+.dc-holo-core,
+.dc-holo-inner {
+  border-radius: 2px !important;
+}
+
+.kpi-card,
+.tabla-card,
+.stat-card,
+.data-tile,
+.quick-btn,
+.ops-bar,
+.dc-home-tile {
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}

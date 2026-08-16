@@ -4,12 +4,14 @@
 
 DiabCare Analytics / **DiabCare Hospital** es una plataforma SaaS de análisis clínico de diabetes hospitalaria con HIS de demostración. Calcula estadísticas con pandas sobre Parquet en MinIO, entrena ML con scikit-learn, y expone UI multi-página con JWT por roles.
 
-La arquitectura es de tres capas más **dualidad de datos (TA11)**:
+La arquitectura en ejecución es **MinIO/Parquet** para operativo, negocio y analítica (`stage/`). Para TA11 el entregable académico separa conceptualmente BDR relacional (referencia PostgreSQL) vs columnar (MinIO); el código aún no usa PostgreSQL.
+
+Capas:
 - **Presentación**: Frontend multi-página HTML/CSS/JS vanilla servido por FastAPI como archivos estáticos con rutas dinámicas.
 - **Aplicación**: API REST con FastAPI + Uvicorn, autenticación JWT HS256, lógica de negocio en servicios Python separados por módulo (`backend/paquetes/`).
-- **BDR operativa (PostgreSQL)**: transacciones e informes simples del HIS (listados del turno). Objetivo de diseño académico; la demo sirve las mismas pantallas vía APIs sobre Parquet operativo hasta migración SQL.
-- **BD columnar (MinIO/Parquet)**: stage/ y DWH — informes compuestos (Dashboard, Calidad diabetes, PDF, Dataset).
-- **Origen / ELT**: PocketBase, Apache Airflow 2.9.1 Docker (orquestación objetivo), Pipeline ELT en UI/API.
+- **Operativo / “informe simple” (runtime):** `diabcare-app/operativo/` y `negocio/` vía `ParquetStore` — Agenda, Mis citas, facturación, etc.
+- **Columnar / “informe compuesto” (runtime):** `diabetes-data/stage/` y materialización DWH.
+- **Origen / ELT:** PocketBase, Airflow (orquestación objetivo), Pipeline ELT en UI/API.
 
 ---
 
@@ -17,23 +19,22 @@ La arquitectura es de tres capas más **dualidad de datos (TA11)**:
 
 ```mermaid
 graph TD
-    Browser["Navegador — DiabCare Hospital\nclinico/ + negocio/ + datos/"]
-    FastAPI["FastAPI + Uvicorn\nPrincipal.py :8000"]
-    JWT["JWT · roles · PERMISOS_MODULOS"]
-    PG["PostgreSQL BDR\ninformes simples HIS"]
-    MinIO["MinIO columnar\ndiabetes-data/stage/\ndiabcare-app operativo/ negocio/"]
+    Browser["Navegador — DiabCare Hospital"]
+    FastAPI["FastAPI + Uvicorn"]
+    JWT["JWT · roles"]
+    MinIO["MinIO Parquet\noperativo/ negocio/ stage/"]
     PocketBase["PocketBase :8090"]
     Airflow["Airflow :8080\norquestación ELT"]
     ML["sklearn + pyarrow"]
+    PG["PostgreSQL\nsolo análisis TA11 / futuro"]
 
     Browser --> FastAPI
     FastAPI --> JWT
-    FastAPI --> PG
     FastAPI --> MinIO
     FastAPI --> ML
     PocketBase --> Airflow
     Airflow --> MinIO
-    PG -. "objetivo TA11" .-> FastAPI
+    PG -. "no conectado en repo" .-> FastAPI
 ```
 
 ### Flujo de autenticación
@@ -527,15 +528,15 @@ flowchart LR
 
 ### Nivel táctico (Tarea 11)
 
-| Capa | Tecnología | Informes | Ejemplos demo |
-|------|------------|----------|----------------|
-| BDR | PostgreSQL (diseño) | Simples | Agenda, Mis citas, Facturación, Farmacia turno, Urgencias triage |
-| Columnar | MinIO/Parquet | Compuestos | Dashboard, Estadísticas, Calidad diabetes, Reportes PDF, Dataset/DWH |
-| ELT | Airflow + Pipeline UI | Materialización | PocketBase → stage/ → hechos/dimensiones |
+| Capa | Runtime (repo) | TA11 (Word/PDF) | Informes |
+|------|----------------|-----------------|----------|
+| Operativo / simple | Parquet `operativo/` + `negocio/` | BDR relacional (ref. PostgreSQL) | Agenda, Mis citas, Facturación… |
+| Columnar / compuesto | MinIO `stage/` + DWH | BD columnar | Dashboard, Calidad DM, PDF |
+| ELT | Pipeline UI + Airflow diseño | Airflow | Materialización |
 
 ### Pendiente de diseño/implementación
 
-- Cableado productivo PostgreSQL ↔ servicios hospitalarios (hoy Parquet operativo)
+- Integración real PostgreSQL (opcional) si el curso exige BDR en runtime
 - DAGs Airflow productivos en repo (demo ELT vía FastAPI)
 - Suite pytest ampliada P16–P20 y reglas RN (cobro, stock, triage)
 - Benchmarking / corporativo (fuera de demo operativa)

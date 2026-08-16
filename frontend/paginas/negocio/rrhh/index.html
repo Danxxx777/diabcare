@@ -5,17 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DiabCare - RRHH / Costeo</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260716p"></script>
+<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
 <style>
 .crud-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
 </style>
 </head>
-<body>
+<body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 <div class="main">
   <div class="topbar">
@@ -30,6 +32,28 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
         <button class="btn btn-primary btn-sm" id="btnNuevoRrhh" onclick="abrirModal()">+ Nuevo</button>
+      </div>
+    </div>
+    <div class="dash-row dash-4" style="margin-bottom:14px">
+      <div class="kpi-card cyan">
+        <div class="kpi-label">Personal costeado</div>
+        <div class="kpi-val cyan" id="k-rh-personal">—</div>
+        <div class="kpi-sub">colaboradores con costo/hora</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Turnos asignados</div>
+        <div class="kpi-val" id="k-rh-turnos">—</div>
+        <div class="kpi-sub">asignaciones vigentes</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Costo hora prom.</div>
+        <div class="kpi-val amber" id="k-rh-costo">—</div>
+        <div class="kpi-sub">promedio del personal</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Consultas periodo</div>
+        <div class="kpi-val green" id="k-rh-consultas">—</div>
+        <div class="kpi-sub" id="k-rh-ingreso">ingreso generado</div>
       </div>
     </div>
     <div class="crud-tabs" id="crudTabs"></div>
@@ -55,6 +79,23 @@ DiabCareNav.guardRol(['administrador','analista']);
 
 const u = JSON.parse(localStorage.getItem('usuario') || '{}');
 const readOnly = (u.rol || '') === 'analista';
+
+// Informe simple: costeo, turnos y productividad
+(async function kpisRrhh() {
+  try {
+    const r = await fetch(`${DiabCareNav.getApi()}/api/rrhh/resumen`, {
+      headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }, cache: 'no-store'
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    const money = n => '$' + Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: 2 });
+    document.getElementById('k-rh-personal').textContent = d.personal_costeado ?? '—';
+    document.getElementById('k-rh-turnos').textContent = d.asignaciones_turno ?? '—';
+    document.getElementById('k-rh-costo').textContent = money(d.costo_hora_promedio);
+    document.getElementById('k-rh-consultas').textContent = d.consultas_periodo ?? '—';
+    document.getElementById('k-rh-ingreso').textContent = money(d.ingreso_generado) + ' generado';
+  } catch (_) { /* sin datos */ }
+})();
 if (readOnly) {
   document.getElementById('negocioHint').textContent =
     'Vista de consulta para analista: cargos, turnos, costeo y productividad (sin editar).';

@@ -8,22 +8,23 @@ window.DiabCareAPI = {
   },
 
   token() {
-    return localStorage.getItem('token') || '';
+    // Compat: no hay JWT en JS; la cookie httpOnly autentica.
+    return (typeof DiabCareNav !== 'undefined' && DiabCareNav.haySesionLocal && DiabCareNav.haySesionLocal())
+      ? 'sesion'
+      : '';
   },
 
   usuario() {
     try {
-      return JSON.parse(localStorage.getItem('usuario') || '{}');
+      return JSON.parse(localStorage.getItem('usuario') || sessionStorage.getItem('usuario') || '{}');
     } catch {
       return {};
     }
   },
 
   headers(extra = {}) {
-    const h = { ...extra };
-    const t = this.token();
-    if (t) h.Authorization = `Bearer ${t}`;
-    return h;
+    // No enviamos Bearer: la sesión viaja en cookie httpOnly.
+    return { ...extra };
   },
 
   async fetch(path, opts = {}) {
@@ -34,12 +35,15 @@ window.DiabCareAPI = {
       headers['Content-Type'] = headers['Content-Type'] || 'application/json';
       body = JSON.stringify(body);
     }
-    const r = await fetch(url, { ...opts, headers, body });
+    const r = await fetch(url, { ...opts, headers, body, credentials: 'include' });
     if (r.status === 401) {
       if (typeof DiabCareNav !== 'undefined' && DiabCareNav.forzarCierreSesion) {
-        DiabCareNav.forzarCierreSesion('Tu sesión expiró. Inicia sesión de nuevo.');
+        DiabCareNav.forzarCierreSesion('Tu sesión finalizó. Vuelve a iniciar sesión.');
       } else {
-        localStorage.clear();
+        try {
+          sessionStorage.removeItem('dc_sesion_ok');
+          localStorage.removeItem('token');
+        } catch (_) { /* ignore */ }
         window.location.href = '/';
       }
       return r;
@@ -87,6 +91,48 @@ window.DiabCareAPI = {
     el.className = `toast show ${type}`;
     clearTimeout(el._toastTimer);
     el._toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+  },
+
+  /** Consulta programada: lun–sáb 07:00–19:00. Urgencias es 24 h. */
+  HORARIO_CONSULTA: { inicio: '07:00', fin: '19:00', dias: [1, 2, 3, 4, 5, 6] },
+
+  enHorarioConsulta(fecha, hora) {
+    const f = String(fecha || '').slice(0, 10);
+    const h = String(hora || '').slice(0, 5);
+    if (!f || !h) return 'Indique fecha y hora del turno.';
+    const d = new Date(f + 'T12:00:00');
+    if (Number.isNaN(d.getTime())) return 'La fecha no es válida.';
+    const dow = d.getDay(); // 0 domingo
+    if (!this.HORARIO_CONSULTA.dias.includes(dow)) {
+      return 'No hay consulta programada los domingos. Si es un caso agudo, registre en Urgencias.';
+    }
+    if (h < this.HORARIO_CONSULTA.inicio || h >= this.HORARIO_CONSULTA.fin) {
+      return `El horario de consulta es de ${this.HORARIO_CONSULTA.inicio} a ${this.HORARIO_CONSULTA.fin}. Fuera de ese rango atienda por Urgencias.`;
+    }
+    return '';
+  },
+
+  rangoFechasOk(inicio, fin) {
+    const a = String(inicio || '').slice(0, 10);
+    const b = String(fin || '').slice(0, 10);
+    if (!a || !b) return '';
+    if (b < a) return 'La fecha final no puede ser anterior a la fecha inicial.';
+    return '';
+  },
+
+  ligarRangoFechas(elMin, elMax) {
+    const a = typeof elMin === 'string' ? document.getElementById(elMin) : elMin;
+    const b = typeof elMax === 'string' ? document.getElementById(elMax) : elMax;
+    if (!a || !b) return;
+    const sync = () => {
+      if (a.value) b.min = a.value;
+      else b.removeAttribute('min');
+      if (b.value) a.max = b.value;
+      else a.removeAttribute('max');
+    };
+    a.addEventListener('change', sync);
+    b.addEventListener('change', sync);
+    sync();
   },
 
   /** Capitaliza una sola palabra o snake_case (estados, tipos). */
@@ -240,8 +286,8 @@ window.DiabCareAPI = {
         const api = (typeof DiabCareNav !== 'undefined' && DiabCareNav.getApi)
           ? DiabCareNav.getApi()
           : (this.baseUrl || '');
-        const tok = encodeURIComponent(localStorage.getItem('token') || '');
-        const src = `${api}/api/pacientes/${encodeURIComponent(pid)}/foto?token=${tok}`;
+        // Cookie httpOnly viaja con <img> same-origin; no poner JWT en la URL.
+        const src = `${api}/api/pacientes/${encodeURIComponent(pid)}/foto`;
         return `<div class="data-tile-avatar" data-ini="${ini}" aria-hidden="true">
           <img src="${src}" alt="" loading="lazy"
             onerror="var p=this.parentElement;this.remove();p.classList.add('is-fallback');p.textContent=p.getAttribute('data-ini')||'?';">
@@ -283,33 +329,38 @@ window.DiabCareAPI = {
   },
 
   async actualizarEstadoTopbar() {
-    const dot = document.querySelector('.tb-online-dot');
-    const label = document.querySelector('.tb-online-label');
+    // Estado de almacenamiento va en el menú del perfil (ya no en el chip MinIO del topbar)
+    const dot = document.getElementById('tb-storage-dot') || document.querySelector('.tb-online-dot');
+    const label = document.getElementById('tb-storage-label') || document.querySelector('.tb-online-label');
     if (!dot || !label) return;
-    const now = Date.now();
-    if (this._healthCache && (now - this._healthAt) < 45000) {
-      const h = this._healthCache;
+
+    const t = (key, fallback) => {
+      if (window.DiabCareNav && typeof DiabCareNav.t === 'function') return DiabCareNav.t(key);
+      return fallback;
+    };
+
+    const pintar = (h) => {
+      if (!h) {
+        dot.style.background = 'var(--red)';
+        label.textContent = 'Backend';
+        label.style.color = 'var(--red)';
+        return;
+      }
       const minioOk = h.minio === 'conectado';
       dot.style.background = minioOk ? 'var(--green)' : 'var(--amber)';
-      label.textContent = minioOk ? 'MinIO conectado' : 'MinIO degradado';
+      label.textContent = minioOk ? t('tb_minio_ok', 'Almacenamiento OK') : t('tb_minio_warn', 'Almacenamiento degradado');
       label.style.color = minioOk ? 'var(--green)' : 'var(--amber)';
-      label.style.textTransform = 'none';
+    };
+
+    const now = Date.now();
+    if (this._healthCache && (now - this._healthAt) < 45000) {
+      pintar(this._healthCache);
       return;
     }
     const h = await this.health();
     this._healthCache = h;
     this._healthAt = now;
-    if (!h) {
-      dot.style.background = 'var(--red)';
-      label.textContent = 'Backend sin respuesta';
-      label.style.color = 'var(--red)';
-      return;
-    }
-    const minioOk = h.minio === 'conectado';
-    dot.style.background = minioOk ? 'var(--green)' : 'var(--amber)';
-    label.textContent = minioOk ? 'MinIO conectado' : 'MinIO degradado';
-    label.style.color = minioOk ? 'var(--green)' : 'var(--amber)';
-    label.style.textTransform = 'none';
+    pintar(h);
   },
 
   /** Diálogo de confirmación acorde al tema (sustituye window.confirm). */
@@ -380,6 +431,196 @@ window.DiabCareAPI = {
   },
 
   /**
+   * Caja: cobra CONS-DM en efectivo/tarjeta/transferencia o emite QR digital.
+   * No marca pagado hasta que hay pago real (caja o Stripe).
+   */
+  cobrarConsulta(idCita, { onPaid } = {}) {
+    const money = (n) => {
+      const v = Number(n);
+      return Number.isFinite(v) ? '$' + v.toFixed(2) : '—';
+    };
+    const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+
+    return new Promise((resolve) => {
+      let overlay = document.getElementById('dc-cobro-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'dc-cobro-overlay';
+        overlay.className = 'overlay';
+        overlay.innerHTML = `
+          <style>
+            #dc-cobro-modal { max-width: 460px; width: calc(100vw - 32px); }
+            .dc-cobro-line { display:flex; justify-content:space-between; gap:12px; font-size:13px; margin:4px 0; }
+            .dc-cobro-line span:last-child { font-variant-numeric: tabular-nums; }
+            .dc-cobro-total { font-size:18px; font-weight:700; color:var(--cyan, #5A7F8C); margin-top:8px; }
+            .dc-cobro-metodos { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:14px 0 8px; }
+            .dc-cobro-metodos button { width:100%; }
+            .dc-cobro-warn { font-size:12px; color:var(--amber, #fbbf24); line-height:1.4; margin:8px 0 0; }
+            .dc-cobro-ok { font-size:12px; color:var(--green, #34d399); line-height:1.4; margin:8px 0 0; }
+            .dc-cobro-qr { text-align:center; margin-top:8px; }
+            .dc-cobro-qr img { width:220px; height:220px; background:#fff; padding:8px; border-radius:12px; }
+            .dc-cobro-url { font-size:11px; word-break:break-all; color:var(--text2, #94a3b8); margin-top:8px; }
+          </style>
+          <div class="modal" id="dc-cobro-modal" role="dialog" aria-modal="true">
+            <div class="modal-title" style="margin-bottom:8px">Cobrar consulta</div>
+            <div id="dc-cobro-body">Cargando…</div>
+            <div class="modal-actions">
+              <button type="button" class="btn-cancel" id="dc-cobro-cerrar">Cerrar</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+      }
+
+      const body = document.getElementById('dc-cobro-body');
+      const btnCerrar = document.getElementById('dc-cobro-cerrar');
+      let poll = null;
+      let done = false;
+
+      const close = (paid) => {
+        if (poll) { clearInterval(poll); poll = null; }
+        if (overlay._poll) { clearInterval(overlay._poll); overlay._poll = null; }
+        overlay.classList.remove('show');
+        btnCerrar.onclick = null;
+        if (!done) {
+          done = true;
+          if (paid && typeof onPaid === 'function') onPaid();
+          resolve(!!paid);
+        }
+      };
+      btnCerrar.onclick = () => close(false);
+      overlay.classList.add('show');
+
+      const cobrar = async (metodo, referencia = '') => {
+        const r = await this.fetch(`/api/citas/${idCita}/cobrar-consulta`, {
+          method: 'POST',
+          body: { metodo, referencia },
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          this.toast(d.detail || d.error || 'No se pudo cobrar', 'error');
+          return null;
+        }
+        return d;
+      };
+
+      const mostrarQr = (d) => {
+        const warn = d.internet
+          ? '<p class="dc-cobro-ok">El QR abre desde datos móviles (URL pública activa).</p>'
+          : '<p class="dc-cobro-warn">Este QR solo abre en tu Wi‑Fi. Para que cualquiera lo escanee: Configuración → Sistema → URL pública (o .\\scripts\\tunel-publico.ps1).</p>';
+        body.innerHTML = `
+          <p style="margin:0 0 6px;font-size:13px">El paciente paga con el celular. El cobro se registra cuando Stripe confirme o cuando caja cobre en ventanilla.</p>
+          <div class="dc-cobro-total">${money(d.total || d.monto)} · pendiente</div>
+          <div class="dc-cobro-qr">
+            ${d.qr_png ? `<img src="${d.qr_png}" alt="QR de pago">` : ''}
+            <div class="dc-cobro-url">${esc(d.url || '')}</div>
+            <button type="button" class="btn btn-ghost btn-sm" id="dc-cobro-copy" style="margin-top:8px">Copiar enlace</button>
+          </div>
+          ${warn}
+          <div class="dc-cobro-metodos" style="grid-template-columns:1fr">
+            <button type="button" class="btn btn-ghost" data-caja="1">Registrar pago en caja</button>
+          </div>
+          <p class="dc-cobro-warn" id="dc-cobro-wait">Esperando pago…</p>`;
+        document.getElementById('dc-cobro-copy')?.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(d.url || '');
+            this.toast('Enlace copiado', 'success');
+          } catch (_) {
+            this.toast(d.url || '', 'success');
+          }
+        });
+        body.querySelector('[data-caja]')?.addEventListener('click', () => pintarMetodos(d));
+        if (poll) clearInterval(poll);
+        poll = setInterval(async () => {
+          const r = await this.fetch(`/api/citas/${idCita}/cobro`);
+          const p = await r.json().catch(() => ({}));
+          if (r.ok && p.consulta_pagada) {
+            this.toast(p.mensaje || 'Consulta cobrada', 'success');
+            close(true);
+          }
+        }, 2500);
+        overlay._poll = poll;
+      };
+
+      const pintarMetodos = (prev) => {
+        if (poll) { clearInterval(poll); poll = null; }
+        const warn = prev.internet
+          ? ''
+          : '<p class="dc-cobro-warn">QR digital: hoy solo funciona en tu red. Configura la URL pública para cobro desde datos móviles.</p>';
+        body.innerHTML = `
+          <div class="dc-cobro-line"><span>Paciente</span><span>${esc(prev.paciente)}</span></div>
+          <div class="dc-cobro-line"><span>${esc(prev.concepto)}</span><span>${money(prev.precio)}</span></div>
+          <div class="dc-cobro-line"><span>IVA 15%</span><span>${money(prev.iva)}</span></div>
+          <div class="dc-cobro-line dc-cobro-total"><span>Total</span><span>${money(prev.total)}</span></div>
+          ${prev.stripe ? '<p class="dc-cobro-ok">Stripe test activo: el QR puede cobrar con tarjeta.</p>' : '<p class="hint" style="font-size:12px;margin:8px 0 0">Sin Stripe: el QR muestra el cobro y caja confirma el método.</p>'}
+          ${warn}
+          <div class="dc-cobro-metodos">
+            <button type="button" class="btn btn-primary" data-m="efectivo">Efectivo</button>
+            <button type="button" class="btn btn-ghost" data-m="tarjeta">Tarjeta en caja</button>
+            <button type="button" class="btn btn-ghost" data-m="transferencia">Transferencia</button>
+            <button type="button" class="btn btn-ghost" data-m="qr">QR / enlace</button>
+          </div>
+          <div id="dc-cobro-ref" hidden>
+            <label class="fl" for="dc-cobro-ref-in">Referencia / voucher</label>
+            <input class="fi" id="dc-cobro-ref-in" placeholder="Nº de transferencia">
+          </div>`;
+        body.querySelectorAll('[data-m]').forEach((btn) => {
+          btn.onclick = async () => {
+            const metodo = btn.getAttribute('data-m');
+            if (metodo === 'transferencia') {
+              const box = document.getElementById('dc-cobro-ref');
+              const inp = document.getElementById('dc-cobro-ref-in');
+              box.hidden = false;
+              const ref = (inp.value || '').trim();
+              if (!ref) {
+                inp.focus();
+                this.toast('Indique la referencia de la transferencia', 'error');
+                return;
+              }
+              const d = await cobrar('transferencia', ref);
+              if (d && d.consulta_pagada) {
+                this.toast(d.mensaje || `Cobrada · ${money(d.total)}`, 'success');
+                close(true);
+              }
+              return;
+            }
+            if (metodo === 'qr') {
+              btn.disabled = true;
+              const d = await cobrar('qr');
+              btn.disabled = false;
+              if (d) mostrarQr(d);
+              return;
+            }
+            btn.disabled = true;
+            const d = await cobrar(metodo);
+            btn.disabled = false;
+            if (d && d.consulta_pagada) {
+              this.toast(d.mensaje || `Cobrada · ${money(d.total)}`, 'success');
+              close(true);
+            }
+          };
+        });
+      };
+
+      (async () => {
+        const r = await this.fetch(`/api/citas/${idCita}/cobro`);
+        const prev = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          body.textContent = prev.detail || prev.error || 'No se pudo cargar el cobro';
+          return;
+        }
+        if (prev.consulta_pagada) {
+          this.toast(prev.mensaje || 'Consulta ya cobrada', 'success');
+          close(true);
+          return;
+        }
+        pintarMetodos(prev);
+      })();
+    });
+  },
+
+  /**
    * Búsqueda en vivo: ranking por similitud + debounce.
    * scoreText(haystack, needle) y bindLiveSearch({ input, onSearch, delay }).
    */
@@ -444,10 +685,7 @@ window.DiabCareAPI = {
     const API = apiBase || (window.DiabCareNav ? DiabCareNav.getApi() : 'http://localhost:8000');
     const getHdr = typeof headers === 'function'
       ? headers
-      : () => (headers || (() => {
-          const t = localStorage.getItem('token');
-          return t ? { Authorization: 'Bearer ' + t } : {};
-        })());
+      : () => (headers || {});
     const hidden = document.getElementById('m-' + field);
     const qInput = document.getElementById('m-' + field + '-q');
     const res = document.getElementById('m-' + field + '-res');
@@ -500,7 +738,7 @@ window.DiabCareAPI = {
       }
       const r = await fetch(
         `${API}/api/pacientes/?limit=${limit}&q=${encodeURIComponent(q)}&_=${Date.now()}`,
-        { headers: getHdr(), cache: 'no-store' }
+        { headers: getHdr(), cache: 'no-store', credentials: 'include' }
       );
       if (my !== seq) return;
       if (!r.ok) {
@@ -567,7 +805,10 @@ window.DiabCareAPI = {
           return;
         }
         try {
-          const r = await fetch(`${API}/api/pacientes/${encodeURIComponent(id)}`, { headers: getHdr() });
+          const r = await fetch(`${API}/api/pacientes/${encodeURIComponent(id)}`, {
+            headers: getHdr(),
+            credentials: 'include',
+          });
           if (r.ok) {
             seleccionar(await r.json());
             return;
@@ -603,10 +844,7 @@ window.DiabCareAPI = {
     const API = apiBase || (window.DiabCareNav ? DiabCareNav.getApi() : 'http://localhost:8000');
     const getHdr = typeof headers === 'function'
       ? headers
-      : () => (headers || (() => {
-          const t = localStorage.getItem('token');
-          return t ? { Authorization: 'Bearer ' + t } : {};
-        })());
+      : () => (headers || {});
     const hidden = document.getElementById('m-' + field);
     const qInput = document.getElementById('m-' + field + '-q');
     const res = document.getElementById('m-' + field + '-res');
@@ -660,7 +898,7 @@ window.DiabCareAPI = {
       }
       const r = await fetch(
         `${API}/api/medicamentos?limit=${limit}&q=${encodeURIComponent(q)}&_=${Date.now()}`,
-        { headers: getHdr(), cache: 'no-store' }
+        { headers: getHdr(), cache: 'no-store', credentials: 'include' }
       );
       if (my !== seq) return;
       if (!r.ok) {
@@ -727,7 +965,10 @@ window.DiabCareAPI = {
           return;
         }
         try {
-          const r = await fetch(`${API}/api/medicamentos/${encodeURIComponent(id)}`, { headers: getHdr() });
+          const r = await fetch(`${API}/api/medicamentos/${encodeURIComponent(id)}`, {
+            headers: getHdr(),
+            credentials: 'include',
+          });
           if (r.ok) {
             seleccionar(await r.json());
             return;

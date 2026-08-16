@@ -6,6 +6,7 @@ en MinIO `diabcare-app`. No almacena secretos (p. ej. claves secretas de MinIO).
 
 import io
 import json
+import os
 
 from paquetes.configuracion.ConfiguracionClienteMinio import get_cliente
 
@@ -35,6 +36,9 @@ DEFAULTS = {
     "email_cuentas": [],
     # id_plantilla → bool (activar/desactivar envío por categoría)
     "email_plantillas_activas": {},
+    "url_publica": "",
+    "stripe_secret_key": "",
+    "stripe_publishable_key": "",
 }
 
 # Claves que nunca se persisten aunque lleguen en el payload (seguridad).
@@ -124,6 +128,12 @@ def _enmascarar(cfg: dict) -> dict:
         out["email_brevo_api_key"] = _SECRETO_ENMASCARADO
     if out.get("email_resend_api_key"):
         out["email_resend_api_key"] = _SECRETO_ENMASCARADO
+    env_sk = (os.getenv("STRIPE_SECRET_KEY") or os.getenv("DIABCARE_STRIPE_SECRET") or "").strip()
+    if out.get("stripe_secret_key"):
+        out["stripe_secret_key"] = _SECRETO_ENMASCARADO
+        out["stripe_listo"] = True
+    else:
+        out["stripe_listo"] = env_sk.startswith("sk_")
     return out
 
 
@@ -152,6 +162,11 @@ def guardar_configuracion(datos: dict, usuario: str = "sistema") -> dict:
     resend_key = limpio.get("email_resend_api_key")
     if resend_key in (None, "", _SECRETO_ENMASCARADO):
         limpio.pop("email_resend_api_key", None)
+    stripe_key = limpio.get("stripe_secret_key")
+    if stripe_key in (None, "", _SECRETO_ENMASCARADO):
+        limpio.pop("stripe_secret_key", None)
+    if "url_publica" in limpio:
+        limpio["url_publica"] = str(limpio.get("url_publica") or "").strip().rstrip("/")
 
     if "email_cuentas" in limpio:
         limpio["email_cuentas"] = _normalizar_cuentas(limpio.get("email_cuentas"))

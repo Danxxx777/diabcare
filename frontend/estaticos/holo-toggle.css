@@ -1,0 +1,224 @@
+/* Interruptor clínico — pulso tipo SpO2, no holograma HUD */
+.dc-holo {
+  --holo-w: 118px;
+  --holo-h: 44px;
+  --holo-thumb: 38px;
+  --holo-gap: 3px;
+  --holo-font: 11px;
+  position: relative;
+  width: var(--holo-w);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 5;
+  flex-shrink: 0;
+}
+.dc-holo--sm {
+  --holo-w: 78px;
+  --holo-h: 32px;
+  --holo-thumb: 26px;
+  --holo-font: 10px;
+}
+.dc-holo--xs {
+  --holo-w: 52px;
+  --holo-h: 24px;
+  --holo-thumb: 20px;
+  --holo-font: 0px;
+}
+.dc-holo-wrap {
+  position: relative;
+  width: 100%;
+  height: var(--holo-h);
+}
+.dc-holo-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.dc-holo-track {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(12, 28, 36, 0.72);
+  border-radius: 3px;
+  cursor: pointer;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+  border: 1.5px solid rgba(179, 208, 214, 0.55);
+  display: block;
+}
+.dc-holo-track::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(20, 50, 55, 0.2) 0%, rgba(12, 28, 36, 0.15) 100%);
+  opacity: 0.7;
+  transition: background 0.35s ease;
+}
+.dc-holo-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  height: 22%;
+  background: linear-gradient(90deg, rgba(62, 207, 184, 0.18) 0%, transparent 100%);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.55;
+}
+.dc-holo-lines,
+.dc-holo-scan,
+.dc-holo-particles,
+.dc-holo-rings {
+  display: none !important;
+}
+.dc-holo-thumb {
+  position: absolute;
+  width: var(--holo-thumb);
+  height: var(--holo-thumb);
+  left: var(--holo-gap);
+  top: 50%;
+  margin-top: calc(var(--holo-thumb) / -2);
+  background: radial-gradient(circle, rgba(18, 42, 48, 0.95) 0%, rgba(8, 22, 28, 0.9) 100%);
+  border-radius: 2px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35), inset 0 0 8px rgba(62, 207, 184, 0.28);
+  transition: left 0.35s ease, background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+  z-index: 2;
+  border: 1px solid rgba(62, 207, 184, 0.45);
+  overflow: hidden;
+}
+.dc-holo-core {
+  position: absolute;
+  width: 74%;
+  height: 74%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(62, 207, 184, 0.45) 0%, rgba(20, 70, 70, 0.18) 100%);
+  border-radius: 2px;
+  transition: background 0.35s ease, box-shadow 0.35s ease;
+}
+.dc-holo-inner {
+  position: absolute;
+  width: 40%;
+  height: 40%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, rgba(126, 232, 216, 0.5) 100%);
+  border-radius: 2px;
+  animation: dc-holo-pulse 0.83s ease-in-out infinite;
+}
+@keyframes dc-holo-pulse {
+  0%, 100% { opacity: 0.45; }
+  14% { opacity: 1; }
+  28% { opacity: 0.5; }
+  42% { opacity: 0.88; }
+  58% { opacity: 0.45; }
+}
+.dc-holo-data { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.dc-holo-txt {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--holo-font);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  transition: opacity 0.3s ease;
+}
+.dc-holo-txt.off {
+  right: 10px;
+  opacity: 1;
+  color: #E6E2DC;
+  text-shadow: none;
+}
+.dc-holo-txt.on {
+  left: 10px;
+  opacity: 0;
+  color: #E6E2DC;
+  text-shadow: none;
+}
+.dc-holo-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  top: 50%;
+  margin-top: -3px;
+  background: #5A7F8C;
+  box-shadow: 0 0 6px rgba(62, 207, 184, 0.45);
+  animation: dc-holo-pulse 0.83s ease-in-out infinite;
+  transition: opacity 0.3s ease;
+}
+.dc-holo-dot.off { right: 8px; }
+.dc-holo-dot.on {
+  left: 8px;
+  opacity: 0;
+  background: #5A7F8C;
+  box-shadow: 0 0 6px rgba(62, 207, 184, 0.45);
+}
+.dc-holo-glow {
+  display: none;
+}
+.dc-holo-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 42%);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.dc-holo-input:checked + .dc-holo-track {
+  background: rgba(12, 40, 38, 0.78);
+  border-color: rgba(62, 207, 184, 0.42);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.35);
+}
+.dc-holo-input:checked + .dc-holo-track::before {
+  background: linear-gradient(90deg, rgba(15, 80, 72, 0.18) 0%, rgba(12, 40, 38, 0.12) 100%);
+}
+.dc-holo-input:checked + .dc-holo-track::after {
+  background: linear-gradient(90deg, rgba(62, 207, 184, 0.22) 0%, transparent 100%);
+}
+.dc-holo-input:checked + .dc-holo-track .dc-holo-thumb {
+  left: calc(100% - var(--holo-thumb) - var(--holo-gap));
+  background: radial-gradient(circle, rgba(18, 72, 64, 0.95) 0%, rgba(8, 36, 32, 0.9) 100%);
+  border-color: rgba(62, 207, 184, 0.55);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3), inset 0 0 8px rgba(62, 207, 184, 0.35);
+}
+.dc-holo-input:checked + .dc-holo-track .dc-holo-core {
+  background: radial-gradient(circle, rgba(62, 207, 184, 0.55) 0%, rgba(20, 80, 72, 0.2) 100%);
+}
+.dc-holo-input:checked + .dc-holo-track .dc-holo-inner {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.88) 0%, rgba(126, 232, 216, 0.5) 100%);
+}
+.dc-holo-input:checked + .dc-holo-track .dc-holo-txt.off { opacity: 0; }
+.dc-holo-input:checked + .dc-holo-track .dc-holo-txt.on { opacity: 1; }
+.dc-holo-input:checked + .dc-holo-track .dc-holo-dot.off { opacity: 0; }
+.dc-holo-input:checked + .dc-holo-track .dc-holo-dot.on { opacity: 1; }
+.dc-holo-track:hover {
+  border-color: rgba(62, 207, 184, 0.42);
+}
+.dc-holo-input:focus-visible + .dc-holo-track {
+  outline: 2px solid var(--accent, #5A7F8C);
+  outline-offset: 3px;
+}
+
+.dc-holo--sm .dc-holo-dot { display: none; }
+.dc-holo--xs .dc-holo-data { display: none; }
+
+.tb-acciones .dc-holo,
+.auth__prefs .dc-holo { flex-shrink: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-holo-inner, .dc-holo-dot {
+    animation: none !important;
+    opacity: 0.85;
+  }
+  .dc-holo-thumb, .dc-holo-track { transition-duration: 0.15s; }
+}

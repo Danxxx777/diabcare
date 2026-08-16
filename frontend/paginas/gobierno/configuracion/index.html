@@ -6,15 +6,25 @@
 <title>DiabCare - Configuración</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/estaticos/estilos.css">
-<link rel="stylesheet" href="/estaticos/dashboard.css">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/navegacion.js"></script>
+<script src="/estaticos/i18n.js"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
 <script src="/estaticos/api.js"></script>
 <style>
 .config-section { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:14px; }
-.config-title   { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
-.config-sub     { font-size:11px; color:var(--text3); margin-bottom:14px; }
+.config-title   {
+  font-family: var(--display), 'Figtree', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+.config-sub     { font-size: 11px; color: var(--text3); margin-bottom: 14px; line-height: 1.45; }
 .config-grid    { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 @media (max-width:720px) { .config-grid { grid-template-columns:1fr; } }
 .config-row     { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:0.5px solid var(--border); gap:12px; }
@@ -53,26 +63,51 @@
 .lab-body { margin-top: 4px; }
 
 .cfg-tabs {
-  display:flex; gap:6px; flex-wrap:wrap;
-  margin-bottom:14px; padding:4px;
-  background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px;
+  display:flex; flex-direction:column; gap:2px;
+  margin:0; padding:8px;
+  background:var(--uv-card, var(--bg2));
+  border:1px solid var(--uv-line, var(--border));
+  border-radius:16px;
+  position:sticky; top:8px;
+}
+.cfg-layout {
+  display:grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap:16px;
+  align-items:start;
+}
+@media (max-width:860px) {
+  .cfg-layout { grid-template-columns:1fr; }
+  .cfg-tabs { flex-direction:row; flex-wrap:wrap; position:static; }
 }
 .cfg-tab {
-  border:0; background:transparent; color:var(--text3);
-  padding:9px 14px; border-radius:8px; font-size:12px; cursor:pointer;
-  font-family:inherit; transition:background .15s, color .15s;
+  border:0; background:transparent; color:var(--text2);
+  padding:10px 12px; border-radius:12px; font-size:13px; cursor:pointer;
+  font-family:inherit; text-align:left; width:100%;
+  transition:background .15s, color .15s;
 }
-.cfg-tab:hover { color:var(--text2); background:rgba(255,255,255,0.04); }
-.cfg-tab.active { background:rgba(34,211,238,0.12); color:var(--cyan); font-weight:600; }
+.cfg-tab:hover { color:var(--text); background:rgba(90, 127, 140, 0.08); }
+.cfg-tab.active {
+  background:rgba(90, 127, 140, 0.12); color:var(--cyan); font-weight:600;
+  box-shadow: inset 3px 0 0 var(--cyan);
+}
 .cfg-panel { display:none; }
 .cfg-panel.active { display:block; }
+.cfg-sheet { background:var(--uv-card, var(--bg2)); border:1px solid var(--uv-line, var(--border)); border-radius:16px; padding:6px 18px 8px; }
+.cfg-sheet h3 {
+  margin:18px 0 4px; padding-top:12px; border-top:1px solid var(--uv-line, var(--border));
+  font-size:13px; font-weight:700; letter-spacing:-0.01em; color:var(--text);
+}
+.cfg-sheet h3:first-child { margin-top:8px; padding-top:8px; border-top:0; }
+.cfg-val { font-size:13px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; text-align:right; }
+.cfg-note { font-size:12px; line-height:1.45; color:var(--text2); margin:0 0 8px; max-width:62ch; }
 
 .subtabs { display:flex; gap:4px; margin-bottom:12px; flex-wrap:wrap; }
 .subtab {
   border:1px solid var(--border); background:transparent; color:var(--text3);
   padding:6px 12px; border-radius:999px; font-size:11px; cursor:pointer; font-family:inherit;
 }
-.subtab.active { border-color:rgba(34,211,238,0.4); color:var(--cyan); background:rgba(34,211,238,0.08); }
+.subtab.active { border-color:rgba(90, 127, 140, 0.4); color:var(--cyan); background:rgba(90, 127, 140, 0.08); }
 .subpanel { display:none; }
 .subpanel.active { display:block; }
 
@@ -84,8 +119,8 @@
 .mail-flow {
   display:grid; grid-template-columns:1fr auto 1fr auto 1fr; gap:8px; align-items:stretch;
   margin-bottom:16px; padding:14px 16px;
-  background:linear-gradient(135deg, rgba(34,211,238,0.07), rgba(74,222,128,0.04));
-  border:1px solid rgba(34,211,238,0.18); border-radius:12px;
+  background:linear-gradient(135deg, rgba(90, 127, 140, 0.07), rgba(74,222,128,0.04));
+  border:1px solid rgba(90, 127, 140, 0.18); border-radius:12px;
 }
 @media (max-width:720px) {
   .mail-flow { grid-template-columns:1fr; }
@@ -123,7 +158,7 @@
   background:rgba(255,255,255,0.02); cursor:pointer; transition:border-color .15s, background .15s;
 }
 .dist-card:hover { background:rgba(255,255,255,0.04); }
-.dist-card.on { border-color:rgba(34,211,238,.35); background:rgba(34,211,238,.06); }
+.dist-card.on { border-color:rgba(90, 127, 140, .35); background:rgba(90, 127, 140, .06); }
 .dist-card.paciente { border-left:3px solid var(--green); }
 .dist-card.rol { border-left:3px solid var(--cyan); }
 .dist-card.sistema { border-left:3px solid var(--amber); }
@@ -139,7 +174,7 @@
   background:rgba(255,255,255,0.015);
 }
 .cat-group.paciente { border-color:rgba(74,222,128,0.22); background:rgba(74,222,128,0.03); }
-.cat-group.rol { border-color:rgba(34,211,238,0.22); background:rgba(34,211,238,0.03); }
+.cat-group.rol { border-color:rgba(90, 127, 140, 0.22); background:rgba(90, 127, 140, 0.03); }
 .cat-group.sistema { border-color:rgba(251,191,36,0.22); background:rgba(251,191,36,0.03); }
 .cat-group-h {
   display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -150,7 +185,7 @@
   font-size:10px; padding:3px 8px; border-radius:999px; font-weight:600;
 }
 .cat-badge.paciente { color:var(--green); background:rgba(74,222,128,.12); }
-.cat-badge.rol { color:var(--cyan); background:rgba(34,211,238,.12); }
+.cat-badge.rol { color:var(--cyan); background:rgba(90, 127, 140, .12); }
 .cat-badge.sistema { color:var(--amber); background:rgba(251,191,36,.12); }
 
 .tpl-row {
@@ -168,7 +203,7 @@
 .tpl-name { font-size:13px; font-weight:600; color:var(--text); }
 .tpl-id {
   font-family:var(--mono); font-size:10px; color:var(--cyan);
-  background:rgba(34,211,238,.08); border:1px solid rgba(34,211,238,.2);
+  background:rgba(90, 127, 140, .08); border:1px solid rgba(90, 127, 140, .2);
   padding:2px 7px; border-radius:6px; white-space:nowrap;
 }
 .tpl-pipe {
@@ -197,7 +232,7 @@
 .toggle.sm.on::after { left:17px; }
 </style>
 </head>
-<body>
+<body class="dc-uv">
 
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 
@@ -210,19 +245,19 @@
     <div class="page-header">
       <div>
         <div class="page-title">Configuración del <span>sistema</span></div>
-        <div class="page-sub">Correo, MinIO y parámetros del sistema</div>
+        <div class="page-sub">Correo, almacenamiento, URL pública de QR y cobro</div>
       </div>
       <button class="btn btn-primary" onclick="guardar()">Guardar cambios</button>
     </div>
 
+    <div class="cfg-layout">
     <nav class="cfg-tabs" role="tablist">
-      <button type="button" class="cfg-tab active" data-tab="correo" onclick="mostrarTab('correo')">Correo</button>
+      <button type="button" class="cfg-tab active" data-tab="sistema" onclick="mostrarTab('sistema')">Sistema</button>
+      <button type="button" class="cfg-tab" data-tab="correo" onclick="mostrarTab('correo')">Correo</button>
       <button type="button" class="cfg-tab" data-tab="minio" onclick="mostrarTab('minio')">MinIO</button>
-      <button type="button" class="cfg-tab" data-tab="sistema" onclick="mostrarTab('sistema')">Sistema</button>
-      <button type="button" class="cfg-tab" data-tab="info" onclick="mostrarTab('info')">Información</button>
     </nav>
-
-    <div class="cfg-panel active" id="tab-correo">
+    <div class="cfg-main">
+    <div class="cfg-panel" id="tab-correo">
       <div class="mail-layout">
         <div class="config-section" style="margin-bottom:0;">
           <div class="config-title">Canal del hospital</div>
@@ -235,7 +270,7 @@
               <div class="config-row-label">Envío activo</div>
               <div class="config-row-sub">Interruptor general</div>
             </div>
-            <div class="toggle" id="t-email" onclick="toggleSwitch(this); actualizarEstado();"></div>
+            <div class="toggle" id="t-email" data-onchange="actualizarEstado()"></div>
           </div>
 
           <div class="subtabs" style="margin-top:10px;">
@@ -294,7 +329,7 @@
             </div>
             <div class="config-row" style="margin-top:8px;">
               <div class="config-row-label">TLS</div>
-              <div class="toggle on" id="t-email-tls" onclick="toggleSwitch(this)"></div>
+              <div class="toggle on" id="t-email-tls"></div>
             </div>
           </div>
 
@@ -338,22 +373,42 @@
       </div>
     </div>
 
-    <div class="cfg-panel" id="tab-sistema">
+    <div class="cfg-panel active" id="tab-sistema">
       <div class="config-section">
         <div class="config-title">Ajustes generales</div>
         <div class="config-sub">Comportamiento del sistema</div>
         <div class="config-row">
           <div><div class="config-row-label">Modo debug</div><div class="config-row-sub">Logs detallados</div></div>
-          <div class="toggle" id="t-debug" onclick="toggleSwitch(this)"></div>
+          <div class="toggle" id="t-debug"></div>
         </div>
         <div class="config-row">
           <div><div class="config-row-label">Auditoría automática</div><div class="config-row-sub">Registrar acciones</div></div>
-          <div class="toggle on" id="t-auditoria" onclick="toggleSwitch(this)"></div>
+          <div class="toggle on" id="t-auditoria"></div>
         </div>
         <div class="config-row">
           <div><div class="config-row-label">Cache de dataset</div><div class="config-row-sub">Consultas más rápidas</div></div>
-          <div class="toggle on" id="t-cache" onclick="toggleSwitch(this)"></div>
+          <div class="toggle on" id="t-cache"></div>
         </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-title">QR y cobro digital</div>
+        <div class="config-sub">Sin URL pública el QR solo abre en tu Wi‑Fi. Con túnel o dominio, cualquiera (datos móviles) puede escanear informes y pagar la consulta.</div>
+        <div class="fg" style="margin-bottom:12px;">
+          <label class="fl" for="url-publica">URL pública</label>
+          <input class="fi" id="url-publica" type="url" placeholder="https://algo.trycloudflare.com" autocomplete="off">
+        </div>
+        <p class="cfg-note" id="alcance-qr">Alcance: detectando…</p>
+        <p class="cfg-note">En la PC del servidor: <code>.\scripts\tunel-publico.ps1</code> (requiere cloudflared). Pega aquí la URL https y guarda. No uses localhost.</p>
+        <div class="fg" style="margin-bottom:12px;">
+          <label class="fl" for="stripe-pk">Stripe publishable (pk_test_…)</label>
+          <input class="fi" id="stripe-pk" type="text" placeholder="pk_test_…" autocomplete="off">
+        </div>
+        <div class="fg">
+          <label class="fl" for="stripe-sk">Stripe secret (sk_test_…)</label>
+          <input class="fi" id="stripe-sk" type="password" placeholder="sk_test_… o vacía = solo caja" autocomplete="new-password">
+        </div>
+        <p class="cfg-note" id="stripe-estado" style="margin-top:10px;">Stripe: …</p>
       </div>
 
       <div class="config-section lab-section" id="lab-demo">
@@ -388,15 +443,7 @@
         </div>
       </div>
     </div>
-
-    <div class="cfg-panel" id="tab-info">
-      <div class="config-section">
-        <div class="config-title">Información del sistema</div>
-        <div class="config-row"><div><div class="config-row-label">Versión</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">DiabCare Analytics v2.0.0</span></div>
-        <div class="config-row"><div><div class="config-row-label">Backend</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">FastAPI + Python 3.11</span></div>
-        <div class="config-row"><div><div class="config-row-label">Almacenamiento</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">MinIO + Parquet</span></div>
-        <div class="config-row"><div><div class="config-row-label">Plantillas</div></div><span style="font-size:11px;font-family:var(--mono);color:var(--text3);">ConfiguracionEmailPlantillas.py</span></div>
-      </div>
+    </div>
     </div>
   </div>
 </div>
@@ -404,6 +451,12 @@
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
 
 <script>
+(function () {
+  const id = (location.hash || '#sistema').replace('#', '');
+  if (!['sistema', 'correo', 'minio'].includes(id)) {
+    try { history.replaceState(null, '', '#sistema'); } catch (_) { location.hash = 'sistema'; }
+  }
+})();
 DiabCareNav.init();
 DiabCareNav.guardRol(['administrador']);
 const API = DiabCareNav.getApi();
@@ -426,10 +479,23 @@ let plantillasActivas = {};
 let filtroAud = 'todas';
 let _passGuardada = false;
 
-function toggleSwitch(el) { el.classList.toggle('on'); }
+function toggleSwitch(el) {
+  if (window.DiabCareNav) {
+    DiabCareNav.holoPoner(el, !DiabCareNav.holoEstaOn(el));
+    return;
+  }
+  el.classList.toggle('on');
+}
 function setToggle(id, on) {
+  if (window.DiabCareNav) {
+    DiabCareNav.holoPoner(id, on);
+    return;
+  }
   const el = document.getElementById(id);
   if (el) el.classList.toggle('on', !!on);
+}
+function toggleOn(id) {
+  return window.DiabCareNav ? DiabCareNav.holoEstaOn(id) : !!(document.getElementById(id) || {}).classList?.contains('on');
 }
 
 function toast(msg, type = 'success') {
@@ -441,10 +507,12 @@ function toast(msg, type = 'success') {
 }
 
 function mostrarTab(id) {
+  if (!['sistema', 'correo', 'minio'].includes(id)) id = 'sistema';
   document.querySelectorAll('.cfg-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
   document.querySelectorAll('.cfg-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + id));
   try { history.replaceState(null, '', '#' + id); } catch (_) {}
   if (id === 'correo') actualizarEstado();
+  if (window.DiabCareNav) DiabCareNav.render();
 }
 
 function toggleLabDemo() {
@@ -572,7 +640,7 @@ function pintarMapa() {
       const on = plantillasActivas[item.id] !== false;
       return `
         <div class="tpl-row ${on ? '' : 'off'}">
-          <div class="toggle sm ${on ? 'on' : ''}" onclick="togglePlantilla('${item.id}')" title="Activar / desactivar"></div>
+          <div class="toggle sm ${on ? 'on' : ''}" data-onchange="togglePlantilla('${item.id}')" title="Activar / desactivar"></div>
           <div class="tpl-main">
             <div class="tpl-top">
               <span class="tpl-name">${item.nombre}</span>
@@ -609,12 +677,13 @@ function pintarMapa() {
   });
 
   box.innerHTML = partes.join('') || '<div style="font-size:12px;color:var(--text3);">Sin resultados</div>';
+  if (window.DiabCareNav) DiabCareNav.montarHolos(box);
 }
 
 function actualizarEstado() {
   const box = document.getElementById('email-diag');
   const flow = document.getElementById('flow-from');
-  const on = document.getElementById('t-email').classList.contains('on');
+  const on = toggleOn('t-email');
   const rem = remitenteActual();
   const p = document.getElementById('email-proveedor').value;
   const passOk = _passGuardada
@@ -670,6 +739,28 @@ async function cargarConfig() {
     setToggle('t-email', c.email);
     setToggle('t-email-tls', c.email_smtp_tls !== false);
 
+    const urlPub = document.getElementById('url-publica');
+    if (urlPub) urlPub.value = c.url_publica || '';
+    const pk = document.getElementById('stripe-pk');
+    if (pk) pk.value = c.stripe_publishable_key || '';
+    const sk = document.getElementById('stripe-sk');
+    if (sk) {
+      sk.value = c.stripe_secret_key || '';
+      if (c.stripe_secret_key === '********') sk.placeholder = '•••• guardada';
+    }
+    const alcance = c.alcance_qr || {};
+    const alcanceEl = document.getElementById('alcance-qr');
+    if (alcanceEl) {
+      const net = alcance.internet ? 'internet (cualquier celular)' : 'solo tu Wi‑Fi / red local';
+      alcanceEl.textContent = 'Alcance actual: ' + net + (alcance.url ? ' · ' + alcance.url : '');
+    }
+    const stEl = document.getElementById('stripe-estado');
+    if (stEl) {
+      stEl.textContent = c.stripe_listo
+        ? 'Stripe listo (Checkout de prueba). El QR podrá cobrar con tarjeta.'
+        : 'Stripe vacío: el QR muestra el cobro y caja confirma efectivo/tarjeta/transferencia.';
+    }
+
     const rem = c.email_remitente || c.email_smtp_usuario || '';
     const remNom = c.email_remitente_nombre || 'DiabCare Analytics';
     document.getElementById('email-gmail-user').value = rem;
@@ -712,7 +803,7 @@ function leerConfigFormulario() {
   let smtpPass = document.getElementById('email-smtp-password').value;
   let smtpHost = document.getElementById('email-smtp-host').value.trim();
   let smtpPort = parseInt(document.getElementById('email-smtp-port').value, 10) || 587;
-  let smtpTls = document.getElementById('t-email-tls').classList.contains('on');
+  let smtpTls = toggleOn('t-email-tls');
   const gmailPass = document.getElementById('email-gmail-pass').value;
   const alertas = document.getElementById('email-destino-alertas').value.trim() || rem;
   const prueba = document.getElementById('email-prueba').value.trim() || rem;
@@ -729,10 +820,10 @@ function leerConfigFormulario() {
     minio_endpoint: document.getElementById('minio-endpoint').value.trim(),
     minio_bucket: document.getElementById('minio-bucket').value.trim(),
     minio_access: document.getElementById('minio-access').value.trim(),
-    debug: document.getElementById('t-debug').classList.contains('on'),
-    auditoria: document.getElementById('t-auditoria').classList.contains('on'),
-    cache: document.getElementById('t-cache').classList.contains('on'),
-    email: document.getElementById('t-email').classList.contains('on'),
+    debug: toggleOn('t-debug'),
+    auditoria: toggleOn('t-auditoria'),
+    cache: toggleOn('t-cache'),
+    email: toggleOn('t-email'),
     email_proveedor: p,
     email_brevo_api_key: document.getElementById('email-brevo-key').value,
     email_resend_api_key: document.getElementById('email-resend-key').value,
@@ -746,6 +837,9 @@ function leerConfigFormulario() {
     email_destino_alertas: alertas,
     email_destino_prueba: prueba,
     email_plantillas_activas: { ...plantillasActivas },
+    url_publica: (document.getElementById('url-publica')?.value || '').trim(),
+    stripe_publishable_key: (document.getElementById('stripe-pk')?.value || '').trim(),
+    stripe_secret_key: document.getElementById('stripe-sk')?.value || '',
   };
 }
 
@@ -845,6 +939,23 @@ async function guardar(silent = false) {
         pintarMapa();
       }
       actualizarEstado();
+      const alcance = d.configuracion.alcance_qr || {};
+      const alcanceEl = document.getElementById('alcance-qr');
+      if (alcanceEl) {
+        const net = alcance.internet ? 'internet (cualquier celular)' : 'solo tu Wi‑Fi / red local';
+        alcanceEl.textContent = 'Alcance actual: ' + net + (alcance.url ? ' · ' + alcance.url : '');
+      }
+      const stEl = document.getElementById('stripe-estado');
+      if (stEl) {
+        stEl.textContent = d.configuracion.stripe_listo
+          ? 'Stripe listo (Checkout de prueba). El QR podrá cobrar con tarjeta.'
+          : 'Stripe vacío: el QR muestra el cobro y caja confirma efectivo/tarjeta/transferencia.';
+      }
+      const sk = document.getElementById('stripe-sk');
+      if (sk && d.configuracion.stripe_secret_key === '********') {
+        sk.value = '********';
+        sk.placeholder = '•••• guardada';
+      }
     }
     if (!silent) toast('Guardado', 'success');
     return true;
@@ -854,8 +965,12 @@ async function guardar(silent = false) {
   }
 }
 
-const hash = (location.hash || '#correo').replace('#', '');
-mostrarTab(['correo', 'minio', 'sistema', 'info'].includes(hash) ? hash : 'correo');
+const hash = (location.hash || '#sistema').replace('#', '');
+mostrarTab(['correo', 'minio', 'sistema'].includes(hash) ? hash : 'sistema');
+window.addEventListener('hashchange', () => {
+  const id = (location.hash || '#sistema').replace('#', '');
+  mostrarTab(['correo', 'minio', 'sistema'].includes(id) ? id : 'sistema');
+});
 cargarConfig();
 </script>
 </body>

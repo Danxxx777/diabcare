@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/uiverse-app.css?v=contrast-1">
+<script src="/estaticos/iconos.js?v=uv-13"></script>
+<script src="/estaticos/i18n.js?v=uv-13"></script>
+<script src="/estaticos/navegacion.js?v=contrast-1"></script>
+<script src="/estaticos/api.js?v=uv-13"></script>
+</head>
+<body class="dc-uv">
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page" data-i18n="home_inicio">Inicio</span>
+    <div class="tb-right"></div>
+  </div>
+  <div class="content">
+    <div class="uv-home">
+      <header class="uv-mast">
+        <div class="mod-clinico uv-hero-art" id="home-art" aria-hidden="true"></div>
+        <div class="uv-hero-copy">
+          <p class="uv-kicker"><span id="home-rol">—</span><span class="uv-kicker-dot" aria-hidden="true"></span><span id="home-fecha"></span></p>
+          <h1 id="home-greet">Hoy</h1>
+          <p class="uv-lead" id="home-lead" data-i18n="home_lead">Turno de hoy: agenda, cola y avisos.</p>
+        </div>
+        <div class="uv-pulse" id="home-pulse" hidden aria-live="polite"></div>
+      </header>
+      <div class="uv-cols">
+        <div class="uv-stack">
+          <section class="uv-panel" id="panel-agenda">
+            <header>
+              <h2><span class="uv-panel-ico" id="home-ico-citas" aria-hidden="true"></span><span data-i18n="home_hoy_agenda">Agenda de hoy</span><span class="uv-count" id="home-n-citas" hidden></span></h2>
+              <a id="home-citas-link" href="/paginas/clinico/agenda/index.html" data-i18n="home_ver">Abrir</a>
+            </header>
+            <div class="uv-list" id="home-citas"></div>
+          </section>
+          <section class="uv-panel uv-panel--fill" id="panel-cola">
+            <header>
+              <h2><span class="uv-panel-ico" id="home-ico-cola" aria-hidden="true"></span><span data-i18n="home_hoy_cola">Cola de urgencias</span><span class="uv-count" id="home-n-cola" hidden></span></h2>
+              <a href="/paginas/clinico/urgencias/index.html" data-i18n="home_ver">Abrir</a>
+            </header>
+            <div class="uv-list" id="home-cola"></div>
+          </section>
+        </div>
+        <section class="uv-panel uv-panel--fill">
+          <header>
+            <h2><span class="uv-panel-ico" id="home-ico-avisos" aria-hidden="true"></span><span data-i18n="home_hoy_avisos">Avisos</span><span class="uv-count" id="home-n-avisos" hidden></span></h2>
+            <a href="/paginas/seguridad/notificaciones/index.html" data-i18n="home_ver">Abrir</a>
+          </header>
+          <div class="uv-list" id="home-avisos"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico', 'enfermero', 'farmaceutico', 'analista']);
+
+function t(k) { return DiabCareNav.t(k); }
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+function saludoClave() {
+  const h = new Date().getHours();
+  if (h < 12) return 'home_saludo_manana';
+  if (h < 19) return 'home_saludo_tarde';
+  return 'home_saludo_noche';
+}
+function fechaHoyIso() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function horaCorta(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function consultaAbierta() {
+  try {
+    if (!window.DiabCareAPI || typeof DiabCareAPI.enHorarioConsulta !== 'function') return true;
+    const now = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    const fecha = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+    const hora = `${p(now.getHours())}:${p(now.getMinutes())}`;
+    return !DiabCareAPI.enHorarioConsulta(fecha, hora);
+  } catch (_) {
+    return true;
+  }
+}
+async function api(path) {
+  try {
+    const r = await DiabCareAPI.json(path);
+    return r.ok ? (r.data || {}) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function pintarCabecera() {
+  try {
+    const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const nombre = String(u.nombre || u.usuario || '').trim().split(/\s+/)[0] || 'DiabCare';
+    const rolEl = document.getElementById('home-rol');
+    if (rolEl) rolEl.textContent = DiabCareNav.etiquetaRol(u.rol || '');
+    const greet = document.getElementById('home-greet');
+    if (greet) greet.innerHTML = `${t(saludoClave())}, <em>${esc(nombre)}</em>`;
+    const art = document.getElementById('home-art');
+    if (art && window.DiabCareIcons) art.innerHTML = DiabCareIcons.ilustracion('diabetes');
+    const icoCitas = document.getElementById('home-ico-citas');
+    const icoAvisos = document.getElementById('home-ico-avisos');
+    const icoCola = document.getElementById('home-ico-cola');
+    if (icoCitas) icoCitas.innerHTML = ico('citas');
+    if (icoAvisos) icoAvisos.innerHTML = ico('notificaciones');
+    if (icoCola) icoCola.innerHTML = ico('urgencias');
+    const fecha = document.getElementById('home-fecha');
+    if (fecha) {
+      const loc = document.documentElement.lang === 'en' ? 'en-GB' : 'es-PE';
+      fecha.textContent = new Date().toLocaleDateString(loc, {
+        weekday: 'long', day: 'numeric', month: 'long',
+      });
+    }
+  } catch (err) {
+    console.error('cabecera', err);
+  }
+}
+
+function ico(name) {
+  try { return DiabCareIcons.svg(name, 22); } catch (_) { return ''; }
+}
+function setCount(id, n) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (n == null || n === '') {
+    el.hidden = true;
+    el.textContent = '';
+    return;
+  }
+  el.hidden = false;
+  el.textContent = String(n);
+}
+function chip(href, n, label, hot) {
+  const alerta = hot && Number(n) > 0 ? ' is-hot' : '';
+  return `<a class="uv-chip${alerta}" href="${esc(href)}"><b>${esc(n)}</b><span>${esc(label)}</span></a>`;
+}
+function pintarPulse(datos) {
+  const host = document.getElementById('home-pulse');
+  if (!host) return;
+  const chips = [];
+  if (datos.puedeAgenda) {
+    chips.push(chip(datos.citasHref, datos.citasTotal ?? 0, t('home_chip_hoy')));
+  }
+  if (datos.urg) {
+    chips.push(chip('/paginas/clinico/urgencias/index.html', datos.urg.en_atencion_o_espera ?? 0, t('home_chip_cola'), true));
+  }
+  const nAvisos = datos.notif ? (datos.notif.no_leidas ?? 0) : null;
+  if (nAvisos != null) {
+    chips.push(chip('/paginas/seguridad/notificaciones/index.html', nAvisos, t('home_stat_avisos'), true));
+  }
+  const nLab = datos.lab ? (datos.lab.ordenes_pendientes ?? 0) : 0;
+  if (nLab > 0) chips.push(chip('/paginas/clinico/laboratorio/index.html', nLab, t('home_stat_lab'), true));
+  const nFarm = datos.farm ? (datos.farm.recetas_pendientes ?? 0) : 0;
+  if (nFarm > 0) chips.push(chip('/paginas/negocio/farmacia/index.html', nFarm, t('home_stat_farmacia'), true));
+  const nStock = datos.farm ? (datos.farm.stock_bajo ?? 0) : 0;
+  if (nStock > 0) chips.push(chip('/paginas/negocio/farmacia/index.html', nStock, t('home_stat_stock'), true));
+  host.hidden = !chips.length;
+  host.innerHTML = chips.join('');
+  setCount('home-n-citas', datos.puedeAgenda ? (datos.citasTotal ?? datos.citasLista.length) : null);
+  setCount('home-n-cola', datos.urg ? (datos.urg.en_atencion_o_espera ?? 0) : null);
+  setCount('home-n-avisos', nAvisos);
+}
+
+function pintarCitas(datos) {
+  const host = document.getElementById('home-citas');
+  const panel = document.getElementById('panel-agenda');
+  const link = document.getElementById('home-citas-link');
+  if (!host) return;
+  if (link && datos.citasHref) {
+    link.href = datos.citasHref;
+    link.hidden = false;
+  }
+  if (!datos.puedeAgenda) {
+    host.innerHTML = `<div class="uv-blank">
+      <p class="uv-blank-title">${esc(t('home_hoy_sin_agenda'))}</p>
+    </div>`;
+    if (link) link.hidden = true;
+    if (panel) panel.classList.add('is-compact');
+    return;
+  }
+  const rows = (datos.citasLista || []).slice(0, 6);
+  if (!rows.length) {
+    const cerrada = !consultaAbierta();
+    const titulo = cerrada ? t('home_hoy_citas_cerrada') : t('home_hoy_vacio_citas');
+    const href = esc(datos.citasHref || '/paginas/clinico/agenda/index.html');
+    host.innerHTML = `<div class="uv-blank">
+      <span class="uv-blank-ico">${ico('citas')}</span>
+      <p class="uv-blank-title">${esc(titulo)}</p>
+      <p class="uv-blank-sub">${esc(t('home_hoy_citas_horario'))}</p>
+      <a class="uv-cta" href="${href}">${esc(t('home_hoy_separar'))}</a>
+    </div>`;
+    if (panel) panel.classList.add('is-compact');
+    return;
+  }
+  if (panel) panel.classList.remove('is-compact');
+  host.innerHTML = rows.map((c) => {
+    const hora = esc(c.hora || '—');
+    const nom = esc(c.paciente_nombre || c.id_paciente || '—');
+    const est = esc(c.estado || '');
+    return `<a class="uv-row" href="${esc(datos.citasHref)}">
+      <span class="uv-row-ico">${ico('citas')}</span>
+      <time>${hora}</time>
+      <strong>${nom}</strong>
+      <em>${est}</em>
+    </a>`;
+  }).join('');
+}
+
+function pintarCola(datos) {
+  const host = document.getElementById('home-cola');
+  const panel = document.getElementById('panel-cola');
+  if (!host || !panel) return;
+  const crudas = (datos.urgLista || []).filter((u) => {
+    const e = String(u.estado || '').toLowerCase();
+    return ['triage', 'en_espera', 'registrado'].includes(e);
+  }).slice(0, 6);
+  if (!datos.urg) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  if (!crudas.length) {
+    host.innerHTML = `<div class="uv-blank uv-blank--mini">
+      <span class="uv-blank-ico">${ico('urgencias')}</span>
+      <p class="uv-blank-title">${esc(t('home_hoy_vacio_cola'))}</p>
+    </div>`;
+    return;
+  }
+  const href = '/paginas/clinico/urgencias/index.html';
+  host.innerHTML = crudas.map((u) => {
+    const tri = esc(String(u.triage || '—').toUpperCase());
+    const nom = esc(u.paciente_nombre || u.documento || '—');
+    const mot = esc(u.motivo || u.estado_label || u.estado || '');
+    return `<a class="uv-row uv-aviso" href="${href}">
+      <span class="uv-badge">${tri}</span>
+      <div><strong>${nom}</strong>${mot ? `<p>${mot}</p>` : ''}</div>
+    </a>`;
+  }).join('');
+}
+
+function pintarAvisos(datos) {
+  const host = document.getElementById('home-avisos');
+  if (!host) return;
+  const rows = (datos.notif && datos.notif.notificaciones) || [];
+  if (!rows.length) {
+    host.innerHTML = `<p class="uv-empty uv-empty-ico">${ico('notificaciones')}<span>${esc(t('home_hoy_vacio_avisos'))}</span></p>`;
+    return;
+  }
+  const href = '/paginas/seguridad/notificaciones/index.html';
+  host.innerHTML = rows.slice(0, 8).map((n) => {
+    const tit = esc(n.titulo || 'Aviso');
+    const msg = esc(n.mensaje || '');
+    const hm = esc(horaCorta(n.creado_en));
+    const tipo = String(n.tipo || '').toLowerCase();
+    const icoN = ({ warning: 'alert', error: 'alert', critico: 'urgencias', critical: 'urgencias', alerta: 'alert' }[tipo] || 'notificaciones');
+    return `<a class="uv-row uv-aviso" href="${href}">
+      <span class="uv-row-ico">${ico(icoN)}</span>
+      <div><strong>${tit}</strong>${msg ? `<p>${msg}</p>` : ''}</div>
+      <time class="uv-meta">${hm}</time>
+    </a>`;
+  }).join('');
+}
+
+async function cargarHoy() {
+  const iso = fechaHoyIso();
+  let rol = '';
+  try {
+    rol = String((DiabCareAPI.usuario() || {}).rol || '').toLowerCase();
+  } catch (_) { rol = ''; }
+  const puedeCitas = ['administrador', 'farmaceutico', 'enfermero'].includes(rol);
+  const puedeMias = ['administrador', 'medico'].includes(rol);
+  const puedeUrg = ['administrador', 'medico', 'enfermero', 'farmaceutico'].includes(rol);
+  const puedeLab = ['administrador', 'medico', 'enfermero'].includes(rol);
+  const puedeFarm = ['administrador', 'farmaceutico'].includes(rol);
+  const nada = Promise.resolve(null);
+
+  const [citasHoy, misCitas, urg, lab, farm, notif] = await Promise.all([
+    puedeCitas ? api('/api/citas/hoy') : nada,
+    (!puedeCitas && puedeMias) ? api(`/api/citas/mis-citas?limit=20&fecha=${iso}`) : nada,
+    puedeUrg ? api('/api/urgencias/resumen') : nada,
+    puedeLab ? api('/api/laboratorio/resumen') : nada,
+    puedeFarm ? api('/api/farmacia/resumen') : nada,
+    api('/api/notificaciones/?limit=8'),
+  ]);
+
+  const usaHoy = !!(citasHoy && Array.isArray(citasHoy.citas));
+  const usaMias = !usaHoy && !!(misCitas && Array.isArray(misCitas.citas));
+  const datos = {
+    urg,
+    urgLista: (urg && Array.isArray(urg.cola)) ? urg.cola : [],
+    lab,
+    farm,
+    notif,
+    puedeAgenda: usaHoy || usaMias,
+    citasHref: usaMias
+      ? '/paginas/clinico/mis_citas/index.html'
+      : '/paginas/clinico/agenda/index.html',
+    citasLista: usaHoy ? citasHoy.citas : (usaMias ? misCitas.citas : []),
+    citasTotal: usaHoy ? (citasHoy.total ?? 0) : (usaMias ? (misCitas.total ?? 0) : null),
+  };
+  if (!datos.puedeAgenda) datos.citasHref = null;
+
+  pintarPulse(datos);
+  pintarCitas(datos);
+  pintarCola(datos);
+  pintarAvisos(datos);
+}
+
+function pintarEscritorio() {
+  pintarCabecera();
+}
+
+pintarEscritorio();
+cargarHoy();
+window.addEventListener('diabcare:idioma', () => {
+  pintarEscritorio();
+  cargarHoy();
+});
+</script>
+</body>
+</html>

@@ -222,12 +222,15 @@ def dispensar(datos: dict) -> dict:
         total_stock = sum(float(x.get("cantidad") or 0) for x in _lotes_fifo(id_med)[0])
         if total_stock < float(med.get("stock_minimo") or 0):
             try:
-                from paquetes.notificaciones.NotificacionesServicio import crear as notif_crear
-                notif_crear({
-                    "titulo": "Stock bajo",
-                    "mensaje": f"Medicamento {med.get('nombre')} bajo mínimo ({total_stock})",
-                    "tipo": "warning",
-                })
+                from paquetes.notificaciones.NotificacionesServicio import emitir_a_roles
+                emitir_a_roles(
+                    "Stock bajo en farmacia",
+                    f"Medicamento {med.get('nombre')} bajo mínimo (stock {total_stock}).",
+                    "warning",
+                    roles=["farmaceutico", "administrador"],
+                    referencia_tipo="medicamento",
+                    referencia_id=str(id_med),
+                )
             except Exception:
                 pass
     if id_receta and outs:
@@ -560,6 +563,18 @@ def listar_ventas(**kwargs) -> dict:
     return res
 
 
+def comprobante_venta(id_venta: str) -> dict:
+    """Resuelve el comprobante de cliente de una venta (vía factura asociada)."""
+    v = ventas.obtener(id_venta)
+    if v.get("error"):
+        return v
+    fid = str(v.get("id_factura") or "").strip()
+    if not fid:
+        return {"error": "Esta venta aún no tiene factura. Registre la venta con emisión de factura."}
+    from paquetes.facturacion.FacturacionServicio import obtener_comprobante
+    return obtener_comprobante(fid)
+
+
 def enriquecer_recetas(filas: list) -> list:
     if not filas:
         return []
@@ -637,6 +652,57 @@ def listar_recetas_mostrador(offset: int = 0, limit: int = 50, q: str = "", esta
 
 def resumen_margen() -> dict:
     return margen_agg.listar(limit=100, incluir_inactivos=True)
+
+
+def resumen_operativo() -> dict:
+    """Informe simple: recetas, ventas e inventario de farmacia (consulta directa)."""
+    rec = recetas.extraer(copiar=False)
+    por_estado: dict[str, int] = {}
+    if not rec.empty and "estado" in rec.columns:
+        por_estado = {
+            str(k): int(v)
+            for k, v in rec["estado"].fillna("sin_estado").astype(str).str.lower().value_counts().items()
+        }
+    n_rec = int(len(rec))
+    dispensadas = por_estado.get("dispensada", 0) + por_estado.get("dispensado", 0)
+    anuladas = por_estado.get("anulada", 0) + por_estado.get("anulado", 0)
+    pendientes = max(0, n_rec - dispensadas - anuladas)
+
+    ven = ventas.extraer(copiar=False)
+    total_ventas = 0.0
+    n_ven_ok = 0
+    if not ven.empty:
+        mask_ok = ~ven["estado"].astype(str).str.lower().isin(["anulada", "anulado"]) if "estado" in ven.columns else True
+        ok = ven[mask_ok] if not isinstance(mask_ok, bool) else ven
+        n_ven_ok = int(len(ok))
+        if "total_neto" in ok.columns:
+            total_ventas = round(float(ok["total_neto"].fillna(0).astype(float).sum()), 2)
+
+    stock_bajo = 0
+    try:
+        lotes = inventario.extraer(copiar=False)
+        meds = medicamentos.extraer(copiar=False)
+        existencias: dict[str, float] = {}
+        if not lotes.empty and "id_medicamento" in lotes.columns:
+            for mid, grp in lotes.groupby(lotes["id_medicamento"].astype(str)):
+                existencias[str(mid)] = float(grp["cantidad"].fillna(0).astype(float).sum()) if "cantidad" in grp.columns else 0.0
+        if not meds.empty:
+            for r in meds[["id_medicamento", "stock_minimo"]].fillna(0).itertuples(index=False):
+                minimo = float(r.stock_minimo or 0)
+                if minimo and existencias.get(str(r.id_medicamento), 0.0) < minimo:
+                    stock_bajo += 1
+    except Exception:
+        pass
+
+    return {
+        "tipo": "informe_simple",
+        "recetas_total": n_rec,
+        "recetas_pendientes": pendientes,
+        "recetas_dispensadas": dispensadas,
+        "ventas": n_ven_ok,
+        "ventas_total": total_ventas,
+        "stock_bajo": stock_bajo,
+    }
 
 def seed_basico():
     if not (impuestos.listar(limit=1).get("impuestos") or []):

@@ -18,7 +18,11 @@
     "pytest.ini": true,
     "pruebas": true,
     "dags": true,
-    "plugins": true
+    "plugins": true,
+    "_tmp*": true,
+    "**/_tmp*": true,
+    "**/*.pyc": true,
+    "frontend/estaticos/_backup_diseno_pre_glass": true
   },
   "search.exclude": {
     "_futuro": true,
@@ -31,6 +35,10 @@
     "etapa": true,
     "pruebas": true,
     "dags": true,
-    "plugins": true
+    "plugins": true,
+    "_tmp*": true,
+    "**/_tmp*": true,
+    "**/*.pyc": true,
+    "frontend/estaticos/_backup_diseno_pre_glass": true
   }
 }
