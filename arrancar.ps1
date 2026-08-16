@@ -1,10 +1,15 @@
 # DiabCare - un solo arranque (todo el stack de exhibicion)
 #
 # Uso:
-#   .\arrancar.ps1
+#   .\arrancar.ps1              stack local (los QR solo abren en tu Wi-Fi)
+#   .\arrancar.ps1 -ConTunel    ademas abre el tunel publico para que los QR
+#                               se escaneen desde datos moviles
 #   Ctrl+Shift+B  -> tarea "DiabCare: arrancar todo"
 #
 # Levanta: Docker Desktop -> MinIO -> PocketBase -> Airflow (DAGs ELT) -> FastAPI
+param(
+    [switch]$ConTunel
+)
 
 $ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot
@@ -127,6 +132,56 @@ Write-Host '  DAGs: diabcare_elt (hourly E-L-T) | diabcare_elt_historico | diabc
 Write-Host '  UI:   Datos -> Orquestador  |  carpeta etl/ + dags/' -ForegroundColor DarkGray
 Write-Host ""
 
+# --- 4b. Tunel publico (opcional) ---
+# Va ANTES del backend a proposito: el tunel escribe DIABCARE_PUBLIC_URL en
+# .env y el backend solo lee esa variable al arrancar. Lanzandolo despues, la
+# URL no tomaria efecto hasta el siguiente arranque.
+if ($ConTunel) {
+    Write-Host "[4b] Tunel publico (cloudflared)..." -ForegroundColor Cyan
+    $cf = Get-Command cloudflared -ErrorAction SilentlyContinue
+    if (-not $cf) {
+        Write-Host "      No esta cloudflared. Instalalo con:" -ForegroundColor Yellow
+        Write-Host "        winget install Cloudflare.cloudflared" -ForegroundColor Yellow
+        Write-Host "      Se continua sin tunel: los QR solo abriran en tu Wi-Fi." -ForegroundColor Yellow
+    } else {
+        # Se recuerda la URL anterior para distinguir la nueva: trycloudflare
+        # entrega un subdominio distinto en cada arranque.
+        $urlPrevia = ""
+        if (Test-Path $envFile) {
+            $m = Select-String -Path $envFile -Pattern "^DIABCARE_PUBLIC_URL=(.*)$" -ErrorAction SilentlyContinue
+            if ($m) { $urlPrevia = $m.Matches[0].Groups[1].Value.Trim() }
+        }
+        $tunel = Join-Path $PSScriptRoot "scripts\tunel-publico.ps1"
+        Start-Process powershell -ArgumentList @(
+            "-NoExit", "-ExecutionPolicy", "Bypass", "-File", $tunel
+        ) | Out-Null
+        Write-Host "      Abriendo tunel en otra ventana. Esperando la URL..." -ForegroundColor Yellow
+
+        $urlNueva = ""
+        $esperado = 0
+        while ($esperado -lt 60) {
+            Start-Sleep -Seconds 2
+            $esperado += 2
+            if (-not (Test-Path $envFile)) { continue }
+            $m = Select-String -Path $envFile -Pattern "^DIABCARE_PUBLIC_URL=(.*)$" -ErrorAction SilentlyContinue
+            if (-not $m) { continue }
+            $v = $m.Matches[0].Groups[1].Value.Trim()
+            if ($v -and $v -ne $urlPrevia) { $urlNueva = $v; break }
+        }
+
+        if ($urlNueva) {
+            # Se inyecta en ESTE proceso: el backend hereda el entorno del script.
+            $env:DIABCARE_PUBLIC_URL = $urlNueva
+            Write-Host "      URL publica: $urlNueva" -ForegroundColor Green
+            Write-Host "      Los QR de cobro y de informes ya apuntan ahi." -ForegroundColor Green
+        } else {
+            Write-Host "      El tunel no entrego una URL en 60s." -ForegroundColor Yellow
+            Write-Host "      Revisa esa ventana; los QR quedan en modo Wi-Fi local." -ForegroundColor Yellow
+        }
+    }
+    Write-Host ""
+}
+
 # --- 5. Backend FastAPI ---
 Write-Host "[5/5] Backend FastAPI..." -ForegroundColor Cyan
 $env:PYTHONPATH = "$PSScriptRoot;$PSScriptRoot\backend"
@@ -134,6 +189,13 @@ $env:PYTHONPATH = "$PSScriptRoot;$PSScriptRoot\backend"
 if (Test-Puerto 8000) {
     Write-Host "      Ya habia un proceso en :8000. Stack listo (no se relanzo el backend)." -ForegroundColor Green
     Write-Host "      Si cambiaste codigo, detener con .\detener.ps1 y vuelve a arrancar." -ForegroundColor Yellow
+    if ($ConTunel -and $env:DIABCARE_PUBLIC_URL) {
+        # El backend en marcha arranco sin esa variable y no la va a releer.
+        Write-Host ""
+        Write-Host "      OJO: ese backend ya estaba corriendo, asi que no leyo la URL nueva." -ForegroundColor Yellow
+        Write-Host "      Pegala en Configuracion -> Sistema -> URL publica (toma efecto al instante)" -ForegroundColor Yellow
+        Write-Host "      o reinicia con .\detener.ps1 y .\arrancar.ps1 -ConTunel" -ForegroundColor Yellow
+    }
     Write-Host ""
     Write-Host "Listo. Abre http://localhost:8000" -ForegroundColor Green
     exit 0
