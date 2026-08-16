@@ -118,6 +118,48 @@ def _rng(opts: dict):
     return np.random.default_rng()
 
 
+def _sigmoide(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
+
+def _sesgo_perfil(perfil: str) -> tuple[float, float, float]:
+    """
+    (BMI base, prevalencia objetivo, desplazamiento de HbA1c) por perfil.
+
+    La prevalencia se fija como objetivo y se alcanza calibrando el intercepto,
+    no ajustandolo a ojo: asi el numero es exacto y sigue dependiendo de los
+    factores de riesgo. El 11 % del perfil clinico es el orden de magnitud real
+    de diabetes en poblacion adulta; el 74 % anterior era imposible.
+    """
+    if perfil == "alto_riesgo":
+        return 31.0, 0.42, 0.3
+    if perfil == "bajo_riesgo":
+        return 23.5, 0.03, -0.2
+    if perfil == "balanceado":
+        return 27.5, 0.40, 0.0
+    return 27.0, 0.11, 0.0
+
+
+def _desplazar_a_prevalencia(logit: np.ndarray, objetivo: float) -> float:
+    """
+    Constante que lleva la prevalencia media del lote al objetivo pedido.
+
+    Permite fijar la prevalencia sin perder la estructura: los factores de
+    riesgo siguen ordenando quién tiene más probabilidad, solo se mueve el
+    nivel general. Sortear la etiqueta al azar con p=objetivo, como se hacia
+    antes, borraba toda relacion con edad, BMI y comorbilidades.
+    """
+    muestra = logit if logit.size <= 20000 else logit[:20000]
+    bajo, alto = -12.0, 12.0
+    for _ in range(40):
+        medio = (bajo + alto) / 2
+        if _sigmoide(muestra + medio).mean() < objetivo:
+            bajo = medio
+        else:
+            alto = medio
+    return (bajo + alto) / 2
+
+
 def _generar_chunk_table(n: int, year: int, opts: dict, rng: np.random.Generator, offset: int = 0):
     """Generación vectorizada — órdenes de magnitud más rápida que fila a fila."""
     import pyarrow as pa
@@ -130,42 +172,57 @@ def _generar_chunk_table(n: int, year: int, opts: dict, rng: np.random.Generator
     perfil = opts.get("perfil") or "aleatorio"
 
     age = np.round(rng.uniform(edad_min, edad_max, n), 1)
+    smoking = rng.choice(HISTORIAL_TABAQUISMO, n)
 
-    if perfil == "alto_riesgo":
-        bmi = np.round(rng.uniform(28, 45, n), 2)
-        hba1c = np.round(rng.uniform(6.8, 9.5, n), 1)
-        glucosa = rng.integers(160, 301, n)
-        hiper = (rng.random(n) < 0.55).astype(np.int8)
-        cardio = (rng.random(n) < 0.35).astype(np.int8)
-    elif perfil == "bajo_riesgo":
-        bmi = np.round(rng.uniform(18, 26, n), 2)
-        hba1c = np.round(rng.uniform(4.0, 5.8, n), 1)
-        glucosa = rng.integers(80, 141, n)
-        hiper = (rng.random(n) < 0.05).astype(np.int8)
-        cardio = (rng.random(n) < 0.02).astype(np.int8)
-    elif perfil == "balanceado":
-        bmi = np.round(rng.uniform(20, 35, n), 2)
-        hba1c = np.round(rng.uniform(4.5, 8.0, n), 1)
-        glucosa = rng.integers(90, 221, n)
-        hiper = (rng.random(n) < 0.2).astype(np.int8)
-        cardio = (rng.random(n) < 0.1).astype(np.int8)
-    else:
-        bmi = np.round(rng.uniform(15, 45, n), 2)
-        hba1c = np.round(rng.uniform(3.5, 9.0, n), 1)
-        glucosa = rng.integers(80, 301, n)
-        hiper = (rng.random(n) < np.where(bmi > 30, 0.4, 0.1)).astype(np.int8)
-        cardio = (rng.random(n) < 0.08).astype(np.int8)
+    # ── Antropometría y comorbilidades, dependientes de la edad ──
+    # El BMI sube con la edad y la hipertensión sube con el BMI: si se sortean
+    # sueltos, ningún corte demográfico muestra diferencia y todas las gráficas
+    # salen planas.
+    bmi_base, prev_perfil, glc_off = _sesgo_perfil(perfil)
+    bmi = np.clip(rng.normal(bmi_base + 0.045 * (age - 40), 4.2, n), 15.0, 50.0)
+    p_hiper = _sigmoide(-3.4 + 0.045 * (age - 45) + 0.085 * (bmi - 27))
+    hiper = (rng.random(n) < p_hiper).astype(np.int8)
+    p_cardio = _sigmoide(-4.6 + 0.055 * (age - 45) + 0.05 * (bmi - 27) + 0.7 * hiper)
+    cardio = (rng.random(n) < p_cardio).astype(np.int8)
+    fuma = np.isin(smoking, ("actual", "current")).astype(np.int8)
 
-    if prevalencia is not None:
-        p = max(0.0, min(1.0, float(prevalencia)))
-        diabetes = (rng.random(n) < p).astype(np.int8)
-    elif perfil == "alto_riesgo":
-        diabetes = (rng.random(n) < 0.72).astype(np.int8)
-    elif perfil == "bajo_riesgo":
-        diabetes = (rng.random(n) < 0.08).astype(np.int8)
-    else:
-        clinico = (hba1c > 6.5) | (glucosa > 200)
-        diabetes = np.where(clinico, 1, (rng.random(n) < 0.15).astype(np.int8))
+    # ── Diabetes a partir del riesgo, NO de los análisis ──
+    # Antes la etiqueta era `hba1c > 6.5 or glucosa > 200` sobre valores
+    # uniformes: el 70 % daba positivo por construcción, ningún factor
+    # discriminaba y el modelo ML "acertaba" repitiendo el umbral.
+    logit = (
+        -5.9
+        + 0.052 * (age - 45)
+        + 0.115 * (bmi - 27)
+        + 0.80 * hiper
+        + 0.55 * cardio
+        + 0.35 * fuma
+    )
+    objetivo = float(prevalencia) if prevalencia is not None else prev_perfil
+    logit = logit + _desplazar_a_prevalencia(logit, max(0.001, min(0.999, objetivo)))
+    diabetes = (rng.random(n) < _sigmoide(logit)).astype(np.int8)
+
+    # ── Análisis condicionados al diagnóstico ──
+    # Se solapan a propósito: sin solape el modelo separa perfecto y la métrica
+    # deja de significar nada.
+    # El solape es clinico, no ruido: una parte de los diabeticos esta bien
+    # controlada (HbA1c < 7) y una parte de los no diabeticos es prediabetica
+    # (5,7-6,4). Sin ese cruce el modelo solo reaprende el umbral diagnostico y
+    # la metrica no dice nada del modelo.
+    hba1c = np.where(
+        diabetes == 1,
+        rng.normal(7.35, 1.55, n),
+        rng.normal(5.50, 0.62, n),
+    )
+    glucosa = np.where(
+        diabetes == 1,
+        rng.normal(168, 52, n),
+        rng.normal(112, 26, n),
+    )
+    bmi = np.round(np.where(diabetes == 1, bmi + rng.normal(2.6, 1.0, n), bmi), 2)
+    bmi = np.clip(bmi, 15.0, 50.0)
+    hba1c = np.round(np.clip(hba1c + glc_off, 3.5, 15.0), 1)
+    glucosa = np.clip(glucosa, 70, 400).astype(np.int16)
 
     if genero in GENEROS:
         gender = np.full(n, genero, dtype=object)
@@ -178,7 +235,6 @@ def _generar_chunk_table(n: int, year: int, opts: dict, rng: np.random.Generator
         location = rng.choice(UBICACIONES, n)
 
     race_idx = rng.integers(0, len(RAZA_KEYS), n)
-    smoking = rng.choice(HISTORIAL_TABAQUISMO, n)
 
     columns = {
         "encounter_id": pa.array(np.arange(offset + 1, offset + n + 1, dtype=np.int64)),
