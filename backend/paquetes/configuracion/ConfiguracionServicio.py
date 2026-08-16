@@ -39,6 +39,11 @@ DEFAULTS = {
     "url_publica": "",
     "stripe_secret_key": "",
     "stripe_publishable_key": "",
+    # Horario de atencion de la clinica. Urgencias queda fuera: es 24 h.
+    # horario_dias: 0=lunes ... 6=domingo.
+    "horario_apertura": "07:00",
+    "horario_cierre": "19:00",
+    "horario_dias": [0, 1, 2, 3, 4, 5],
 }
 
 # Claves que nunca se persisten aunque lleguen en el payload (seguridad).

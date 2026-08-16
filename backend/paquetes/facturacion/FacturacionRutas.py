@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, Any
 from nucleo.utilidades.Dependencias import require_modulo, require_escritura
 from paquetes.facturacion import FacturacionServicio as S
+from paquetes.facturacion import CajaServicio as C
 
 router = APIRouter(prefix="/api", tags=["P16 Facturación"])
 
@@ -180,6 +181,40 @@ def pago_publico_simular(token: str):
     if r.get("error"):
         raise HTTPException(400, detail=r["error"])
     return r
+
+
+# ── Turno de caja ──────────────────────────────────────────────────────────
+class AperturaIn(BaseModel):
+    fondo_inicial: float = 0.0
+    notas: str = ""
+
+
+class CierreIn(BaseModel):
+    contado_efectivo: float = 0.0
+    notas: str = ""
+
+
+@router.get("/caja/estado")
+def caja_estado(payload=Depends(require_modulo("facturacion"))):
+    """Turno vigente con lo acumulado, o caja cerrada."""
+    return C.estado_caja()
+
+
+@router.post("/caja/abrir")
+def caja_abrir(d: AperturaIn, payload=Depends(require_escritura("facturacion"))):
+    return _ok(C.abrir_turno(_u(payload), d.fondo_inicial, d.notas))
+
+
+@router.post("/caja/cerrar")
+def caja_cerrar(d: CierreIn, payload=Depends(require_escritura("facturacion"))):
+    """Arqueo: el esperado lo calcula el sistema, solo se declara lo contado."""
+    return _ok(C.cerrar_turno(_u(payload), d.contado_efectivo, d.notas))
+
+
+@router.get("/caja/historial")
+def caja_historial(limite: int = Query(30, ge=1, le=200),
+                   payload=Depends(require_modulo("facturacion"))):
+    return C.historial(limite)
 
 @router.get("/pagos/{id_pago}")
 def obtener_pago(id_pago: str, payload=Depends(require_modulo("facturacion"))):

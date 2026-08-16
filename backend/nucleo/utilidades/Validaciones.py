@@ -4,10 +4,40 @@ from __future__ import annotations
 from datetime import datetime, time
 
 
+# Valores de reserva. El horario real sale de Configuración → Sistema: estaba
+# quemado aquí y cambiarlo obligaba a tocar Python y reiniciar el backend.
 HORARIO_CONSULTA_INICIO = time(7, 0)
 HORARIO_CONSULTA_FIN = time(19, 0)
 # 0=lunes … 6=domingo. Domingo no hay consulta programada (urgencias sí).
 DIAS_CONSULTA = {0, 1, 2, 3, 4, 5}
+
+
+def horario_configurado() -> tuple[time, time, set[int]]:
+    """(apertura, cierre, días) desde Configuración, con reserva al valor fijo."""
+    try:
+        from paquetes.configuracion.ConfiguracionServicio import obtener_configuracion
+        cfg = obtener_configuracion() or {}
+    except Exception:
+        return HORARIO_CONSULTA_INICIO, HORARIO_CONSULTA_FIN, DIAS_CONSULTA
+
+    ini = parse_hora(cfg.get("horario_apertura")) or HORARIO_CONSULTA_INICIO
+    fin = parse_hora(cfg.get("horario_cierre")) or HORARIO_CONSULTA_FIN
+    if fin <= ini:  # rango invertido en Configuración: no dejar la agenda muerta
+        ini, fin = HORARIO_CONSULTA_INICIO, HORARIO_CONSULTA_FIN
+
+    crudo = cfg.get("horario_dias")
+    dias = set()
+    if isinstance(crudo, str):
+        crudo = [p for p in crudo.replace(";", ",").split(",") if p.strip()]
+    if isinstance(crudo, (list, tuple)):
+        for d in crudo:
+            try:
+                n = int(d)
+            except (TypeError, ValueError):
+                continue
+            if 0 <= n <= 6:
+                dias.add(n)
+    return ini, fin, (dias or DIAS_CONSULTA)
 
 
 def rango_fechas_ok(inicio: str, fin: str) -> str:
@@ -48,12 +78,13 @@ def horario_consulta_ok(fecha: str, hora: str) -> str:
         dia = datetime.strptime(f, "%Y-%m-%d").date()
     except ValueError:
         return "La fecha no es válida."
-    if dia.weekday() not in DIAS_CONSULTA:
-        return "No hay consulta programada los domingos. Use Urgencias si es un caso agudo."
-    if h < HORARIO_CONSULTA_INICIO or h >= HORARIO_CONSULTA_FIN:
+    ini, fin, dias = horario_configurado()
+    if dia.weekday() not in dias:
+        return "Ese día la clínica no tiene consulta programada. Use Urgencias si es un caso agudo."
+    if h < ini or h >= fin:
         return (
-            f"El horario de consulta es de {HORARIO_CONSULTA_INICIO.strftime('%H:%M')} "
-            f"a {HORARIO_CONSULTA_FIN.strftime('%H:%M')}. Fuera de ese rango atienda por Urgencias."
+            f"El horario de consulta es de {ini.strftime('%H:%M')} "
+            f"a {fin.strftime('%H:%M')}. Fuera de ese rango atienda por Urgencias."
         )
     return ""
 

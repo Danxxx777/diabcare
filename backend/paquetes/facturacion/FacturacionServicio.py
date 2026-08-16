@@ -445,6 +445,13 @@ def crear_pago(id_factura: str, datos: dict) -> dict:
     f = facturas.obtener(id_factura)
     if f.get("error"):
         return f
+    # Un cobro fuera de turno no entra en ningun arqueo: la caja nunca cuadraria.
+    # `omitir_turno` existe para la carga de datos sinteticos, que no pasa por caja.
+    if not datos.get("omitir_turno"):
+        from paquetes.facturacion.CajaServicio import exigir_caja_abierta
+        cerrada = exigir_caja_abierta()
+        if cerrada:
+            return {"error": cerrada}
     pago = pagos.crear({
         "id_factura": id_factura,
         "monto": float(datos.get("monto") or 0),
@@ -706,6 +713,10 @@ def confirmar_checkout_stripe(token: str, session_id: str) -> dict:
         "metodo": "tarjeta",
         "referencia": session_id[:24],
         "fecha": _now()[:10],
+        # El paciente paga desde su celular: no puede depender de si caja abrio
+        # el turno. Es tarjeta, no toca el cajon, asi que no altera el arqueo de
+        # efectivo; si hay turno abierto igual entra en sus totales.
+        "omitir_turno": True,
     })
     if pago.get("error"):
         return pago
@@ -734,6 +745,7 @@ def simular_pago(token: str) -> dict:
         "metodo": "tarjeta",
         "referencia": f"SIM-{str(token)[:10].upper()}",
         "fecha": _now()[:10],
+        "omitir_turno": True,  # mismo motivo que el pago por Stripe
     })
     if pago.get("error"):
         return pago
