@@ -79,7 +79,7 @@ body.dc-uv .es-kpi .sub {
 .es-bar-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; }
 .es-bar-row span.n { width: 88px; flex-shrink: 0; color: var(--text2); font-weight: 700; }
 .es-track { flex: 1; height: 10px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
-.es-track i { display: block; height: 100%; background: #8FB4BE; }
+.es-track i { display: block; height: 100%; background: var(--dc-info); }
 .es-bar-row b { width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
 .es-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .es-empty {
@@ -135,20 +135,20 @@ html[data-tema="claro"] .es-track { background: rgba(47,61,66,.12); }
       <div class="es-card tabla-card">
         <h3>BMI</h3>
         <p class="es-hint">Índice de masa corporal promedio.</p>
-        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-bmi-c" style="width:0;background:#C46B6B"></i></div><b id="v-bmi-c">—</b></div>
-        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-bmi-s" style="width:0;background:#6B9A7A"></i></div><b id="v-bmi-s">—</b></div>
+        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-bmi-c" style="width:0;background:var(--dc-riesgo)"></i></div><b id="v-bmi-c">—</b></div>
+        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-bmi-s" style="width:0;background:var(--dc-ok)"></i></div><b id="v-bmi-s">—</b></div>
       </div>
       <div class="es-card tabla-card">
         <h3>HbA1c (%)</h3>
         <p class="es-hint">Hemoglobina glicosilada. Meta &lt; 7 %.</p>
-        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-hba-c" style="width:0;background:#C46B6B"></i></div><b id="v-hba-c">—</b></div>
-        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-hba-s" style="width:0;background:#6B9A7A"></i></div><b id="v-hba-s">—</b></div>
+        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-hba-c" style="width:0;background:var(--dc-riesgo)"></i></div><b id="v-hba-c">—</b></div>
+        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-hba-s" style="width:0;background:var(--dc-ok)"></i></div><b id="v-hba-s">—</b></div>
       </div>
       <div class="es-card tabla-card">
         <h3>Glucosa (mg/dL)</h3>
         <p class="es-hint">Glucosa en sangre promedio.</p>
-        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-glc-c" style="width:0;background:#C46B6B"></i></div><b id="v-glc-c">—</b></div>
-        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-glc-s" style="width:0;background:#6B9A7A"></i></div><b id="v-glc-s">—</b></div>
+        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-glc-c" style="width:0;background:var(--dc-riesgo)"></i></div><b id="v-glc-c">—</b></div>
+        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-glc-s" style="width:0;background:var(--dc-ok)"></i></div><b id="v-glc-s">—</b></div>
       </div>
     </div>
 
@@ -330,7 +330,7 @@ function pintarHist(id, hist) {
   // entre cohortes sin comparar alturas vecinas una por una.
   const banda = BANDA_NORMAL[id] || [];
   DiabCareGraf.areas(document.getElementById(id), labels, [con, sin], {
-    colors: ['#C46B6B', '#6B9A7A'],
+    colors: [DiabCareGraf.rol.riesgo, DiabCareGraf.rol.ok],
     bandaDesde: banda[0], bandaHasta: banda[1],
   });
 }
@@ -366,13 +366,13 @@ function pintar(s, q) {
   if (window.DiabCareGraf) {
     // Proporciones en matriz de 100 puntos (1 punto = 1 % de la cohorte).
     DiabCareGraf.waffle(document.getElementById('c-pie'),
-      ['Sin diabetes', 'Con diabetes'], [sin, con], ['#6B9A7A', '#C46B6B']);
+      ['Sin diabetes', 'Con diabetes'], [sin, con], [DiabCareGraf.rol.ok, DiabCareGraf.rol.riesgo]);
     const h = (q && q.control_hba1c) || {};
     if (h.con_dato) {
       DiabCareGraf.waffle(document.getElementById('c-ctrl'),
         ['Control <7%', 'Subóptimo 7–9%', 'Descontrol ≥9%'],
         [h.controlado_lt7 || 0, h.suboptimo_7_9 || 0, h.descontrol_gte9 || 0],
-        ['#6B9A7A', '#C4A06A', '#C46B6B']);
+        [DiabCareGraf.rol.ok, DiabCareGraf.rol.alerta, DiabCareGraf.rol.riesgo]);
     }
     if (s.histogramas) {
       pintarHist('c-bmi', s.histogramas.bmi);
@@ -388,18 +388,18 @@ function pintar(s, q) {
     }
     const prevEdad = s.prevalencia_edad || {};
     const eLab = Object.keys(prevEdad);
-    DiabCareGraf.line(document.getElementById('c-edad'), eLab, eLab.map(k => prevEdad[k]), '#C4A06A');
+    DiabCareGraf.line(document.getElementById('c-edad'), eLab, eLab.map(k => prevEdad[k]), DiabCareGraf.rol.alerta);
     const gen = s.genero_detalle || {};
     const gLab = Object.keys(gen).map(k => GENERO[k] || k);
     const gVal = Object.values(gen).map(v => Number(v.prevalencia || 0));
     // Prevalencia por categoria: piruleta, se comparan posiciones no areas.
     DiabCareGraf.lollipop(document.getElementById('c-gen'), gLab, gVal,
-      { color: '#8FB4BE', suffix: '%', max: 100 });
+      { color: DiabCareGraf.rol.info, suffix: '%', max: 100 });
     const raz = s.razas_prevalencia || s.razas || {};
     const rLab = Object.keys(raz).map(k => RAZA[k] || k);
     const rVal = Object.values(raz).map(v => Number(v.prevalencia != null ? v.prevalencia : 0));
     DiabCareGraf.lollipop(document.getElementById('c-raza'), rLab, rVal,
-      { color: '#8FB4BE', suffix: '%', max: 100 });
+      { color: DiabCareGraf.rol.info, suffix: '%', max: 100 });
     const cp = s.comorbilidades_prevalencia || {};
     if (cp.hipertension) {
       // Mancuerna: el segmento entre ambos puntos ES la brecha DM+ vs DM-.
@@ -414,7 +414,7 @@ function pintar(s, q) {
     DiabCareGraf.areas(document.getElementById('c-year'),
       tend.map(t => t.year),
       [tend.map(t => t.total || 0)],
-      { colors: ['#8FB4BE'] });
+      { colors: [DiabCareGraf.rol.info] });
   }
 
   const edadRows = Object.entries(s.edad || {}).map(([k, v]) => {

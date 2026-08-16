@@ -36,6 +36,20 @@ body.dc-uv {
   --text3: #C5CDD1;
   --text4: #A8B4B8;
   --muted: #C5CDD1;
+
+  /* Paleta semantica clinica. Convive con la vieja de Tailwind saturado
+     (#fbbf24, #4ade80, #f87171, #a78bfa, #00a8cc) que desentona con el resto
+     de la app: usar SIEMPRE estos tokens, nunca un hex suelto en la pagina. */
+  --dc-riesgo: #C46B6B;        /* critico / DM+ / descontrol */
+  --dc-riesgo-suave: rgba(196, 107, 107, 0.18);
+  --dc-ok: #6B9A7A;            /* controlado / pagado / DM- */
+  --dc-ok-suave: rgba(107, 154, 122, 0.18);
+  --dc-alerta: #C4A06A;        /* suboptimo / pendiente */
+  --dc-alerta-suave: rgba(196, 160, 106, 0.18);
+  --dc-info: #8FB4BE;          /* dato neutro / acento de grafico */
+  --dc-info-suave: rgba(143, 180, 190, 0.18);
+  --dc-arena: #A98D72;         /* categoria adicional */
+  --dc-violeta: #8DA79F;       /* 5a serie, en verde grisaceo, no violeta vivo */
 }
 html[data-tema="claro"] body.dc-uv {
   --uv-page: #E6E2DC;
@@ -56,6 +70,18 @@ html[data-tema="claro"] body.dc-uv {
   --glass: rgba(247, 245, 241, 0.78);
   --glass-strong: #F7F5F1;
   --glass-border: rgba(90, 127, 140, 0.28);
+
+  /* En claro los mismos roles necesitan mas contraste contra fondo arena. */
+  --dc-riesgo: #A34F4F;
+  --dc-riesgo-suave: rgba(163, 79, 79, 0.14);
+  --dc-ok: #4B7A5B;
+  --dc-ok-suave: rgba(75, 122, 91, 0.14);
+  --dc-alerta: #9A7638;
+  --dc-alerta-suave: rgba(154, 118, 56, 0.14);
+  --dc-info: #3E5C67;
+  --dc-info-suave: rgba(62, 92, 103, 0.14);
+  --dc-arena: #7D6449;
+  --dc-violeta: #5F7A72;
 }
 
 body.dc-uv:not(.dc-auth) {

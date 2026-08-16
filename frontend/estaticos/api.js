@@ -461,24 +461,58 @@ window.DiabCareAPI = {
             .dc-cobro-ok { font-size:12px; color:var(--green, #34d399); line-height:1.4; margin:8px 0 0; }
             .dc-cobro-qr { text-align:center; margin-top:8px; position:relative; }
             .dc-cobro-qr img { width:220px; height:220px; background:#fff; padding:8px; border-radius:12px; transition:filter .35s ease, opacity .35s ease; }
-            .dc-cobro-hecho img { filter:blur(3px) grayscale(.6); opacity:.35; }
-            .dc-cobro-check { position:absolute; inset:0 0 auto; height:236px; display:flex;
-              flex-direction:column; align-items:center; justify-content:center; gap:8px;
-              color:#4ade80; font-weight:700; font-size:14px; }
-            .dc-cobro-check svg { width:78px; height:78px; }
+            /* Aprobacion tipo terminal de pago: el QR se retira y en su lugar
+               entra el check. La secuencia es anillo -> tilde -> texto, con un
+               pulso que sale del circulo, que es lo que da la sensacion de
+               "aprobado" del datafast. */
+            /* Estado final declarado aparte de la animacion: si el motor no la
+               reproduce, el QR igual desaparece en vez de quedar bajo el check. */
+            .dc-cobro-hecho img {
+              opacity:0; transform:scale(.82); filter:blur(6px) grayscale(1);
+              animation:dcQrSale .42s cubic-bezier(.4,0,.2,1) both;
+            }
+            @keyframes dcQrSale {
+              from { transform:none; filter:none; opacity:1; }
+              to { transform:scale(.82); filter:blur(6px) grayscale(1); opacity:0; }
+            }
+            .dc-cobro-check {
+              position:absolute; left:0; right:0; top:0; height:236px; display:flex;
+              flex-direction:column; align-items:center; justify-content:center; gap:10px;
+              color:var(--dc-ok); font-weight:700; font-size:15px; letter-spacing:.01em;
+            }
+            .dc-cobro-check .dc-check-caja { position:relative; width:96px; height:96px; }
+            .dc-cobro-check svg { width:96px; height:96px; position:relative; z-index:1;
+              animation:dcCheckEntra .5s .18s cubic-bezier(.34,1.56,.64,1) both; }
             .dc-cobro-check .dc-check-aro, .dc-cobro-check .dc-check-tilde {
-              fill:none; stroke:#4ade80; stroke-width:3.4; stroke-linecap:round; stroke-linejoin:round; }
-            .dc-cobro-check .dc-check-aro { stroke-dasharray:145; stroke-dashoffset:145;
-              animation:dcCheckAro .45s ease forwards; }
-            .dc-cobro-check .dc-check-tilde { stroke-dasharray:36; stroke-dashoffset:36;
-              animation:dcCheckTilde .3s .4s ease forwards; }
-            .dc-cobro-check span { opacity:0; animation:dcCheckTexto .3s .62s ease forwards; }
-            @keyframes dcCheckAro { to { stroke-dashoffset:0; } }
-            @keyframes dcCheckTilde { to { stroke-dashoffset:0; } }
-            @keyframes dcCheckTexto { to { opacity:1; } }
+              fill:none; stroke:var(--dc-ok); stroke-linecap:round; stroke-linejoin:round; }
+            .dc-cobro-check .dc-check-aro { stroke-width:3; stroke-dasharray:145; stroke-dashoffset:145;
+              animation:dcTrazo .5s .2s cubic-bezier(.65,0,.35,1) forwards; }
+            .dc-cobro-check .dc-check-tilde { stroke-width:4.2; stroke-dasharray:36; stroke-dashoffset:36;
+              animation:dcTrazo .28s .6s cubic-bezier(.65,0,.35,1) forwards; }
+            /* Pulso que se expande y se apaga, como el "beep" de aprobacion. */
+            .dc-cobro-check .dc-check-pulso {
+              position:absolute; inset:0; border-radius:50%;
+              border:2px solid var(--dc-ok); opacity:0;
+              animation:dcPulso .9s .55s ease-out forwards;
+            }
+            .dc-cobro-check .dc-check-pulso:nth-of-type(2) { animation-delay:.72s; }
+            .dc-cobro-check b { opacity:0; font-size:19px; font-weight:800;
+              animation:dcSube .34s .78s cubic-bezier(.34,1.56,.64,1) both; }
+            .dc-cobro-check span { opacity:0; font-weight:600; font-size:12.5px;
+              color:var(--text2); animation:dcSube .34s .9s ease both; }
+            @keyframes dcTrazo { to { stroke-dashoffset:0; } }
+            @keyframes dcCheckEntra { from { transform:scale(.55); opacity:0; } to { transform:scale(1); opacity:1; } }
+            @keyframes dcPulso {
+              0% { transform:scale(.8); opacity:.55; }
+              100% { transform:scale(1.75); opacity:0; }
+            }
+            @keyframes dcSube { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
             @media (prefers-reduced-motion: reduce) {
-              .dc-cobro-check .dc-check-aro, .dc-cobro-check .dc-check-tilde,
-              .dc-cobro-check span { animation-duration:1ms; animation-delay:0ms; }
+              .dc-cobro-hecho img { animation:none; opacity:0; }
+              .dc-cobro-check svg, .dc-cobro-check b, .dc-cobro-check span,
+              .dc-cobro-check .dc-check-aro, .dc-cobro-check .dc-check-tilde {
+                animation-duration:1ms !important; animation-delay:0ms !important; }
+              .dc-cobro-check .dc-check-pulso { display:none; }
             }
             .dc-cobro-url { font-size:11px; word-break:break-all; color:var(--text2, #94a3b8); margin-top:8px; }
           </style>
@@ -556,7 +590,7 @@ window.DiabCareAPI = {
           const p = await r.json().catch(() => ({}));
           if (r.ok && p.consulta_pagada) {
             if (poll) { clearInterval(poll); poll = null; }
-            confirmarSobreQr(p.mensaje || 'Consulta cobrada');
+            confirmarSobreQr(p.mensaje || 'Consulta cobrada', money(d.total || d.monto));
           }
         }, 2500);
         overlay._poll = poll;
@@ -564,23 +598,33 @@ window.DiabCareAPI = {
 
       // Cerrar de golpe deja la duda de si el QR llego a cobrarse. El check
       // sobre el propio QR es la confirmacion de que el pago entro.
-      const confirmarSobreQr = (mensaje) => {
+      const confirmarSobreQr = (mensaje, monto) => {
         const caja = body.querySelector('.dc-cobro-qr');
         if (caja) {
           caja.classList.add('dc-cobro-hecho');
+          const url = caja.querySelector('.dc-cobro-url');
+          const copiar = document.getElementById('dc-cobro-copy');
+          // El enlace ya no sirve de nada una vez cobrado.
+          if (url) url.remove();
+          if (copiar) copiar.remove();
           caja.insertAdjacentHTML('beforeend', `
-            <div class="dc-cobro-check" role="status" aria-label="Pago registrado">
-              <svg viewBox="0 0 52 52" aria-hidden="true">
-                <circle class="dc-check-aro" cx="26" cy="26" r="23" />
-                <path class="dc-check-tilde" d="M15 27 l8 8 l15 -16" />
-              </svg>
-              <span>Pago registrado</span>
+            <div class="dc-cobro-check" role="status">
+              <div class="dc-check-caja">
+                <i class="dc-check-pulso"></i><i class="dc-check-pulso"></i>
+                <svg viewBox="0 0 52 52" aria-hidden="true">
+                  <circle class="dc-check-aro" cx="26" cy="26" r="23" />
+                  <path class="dc-check-tilde" d="M15 27 l8 8 l15 -16" />
+                </svg>
+              </div>
+              <b>Pago aprobado</b>
+              <span>${monto ? esc(monto) + ' · ' : ''}Cobro registrado</span>
             </div>`);
         }
         const wait = document.getElementById('dc-cobro-wait');
         if (wait) { wait.textContent = mensaje; wait.className = 'dc-cobro-ok'; }
         this.toast(mensaje, 'success');
-        setTimeout(() => close(true), 1900);
+        // Tiempo suficiente para que la secuencia termine antes de cerrar.
+        setTimeout(() => close(true), 2600);
       };
 
       const pintarMetodos = (prev) => {

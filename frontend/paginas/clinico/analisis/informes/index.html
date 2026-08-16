@@ -618,7 +618,7 @@ async function cargarComplejos() {
     mkChart('c-topmeds', 'bar', top.map(x => x.nombre), [{
       label: DiabCareI18n.t('pa_ds_dispensaciones'),
       data: top.map(x => x.total_dispensaciones),
-      backgroundColor: tk('--dv-2-soft', 'rgba(167,139,250,0.18)'), borderColor: tk('--dv-2', '#a78bfa'), borderWidth: 1,
+      backgroundColor: tk('--dv-2-soft', 'rgba(167,139,250,0.18)'), borderColor: tk('--dv-2', 'var(--dc-violeta)'), borderWidth: 1,
     }], { indexAxis: 'y', plugins: { legend: { display: false } } });
   }
 

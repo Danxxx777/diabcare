@@ -31,7 +31,7 @@
 .pipe-icon.blue   { background:rgba(0, 229, 255, 0.15); color: var(--cyan); }
 .pipe-icon.green  { background:rgba(74,222,128,0.12); color: var(--green); }
 .pipe-icon.amber  { background:rgba(251,191,36,0.12); color: var(--amber); }
-.pipe-icon.purple { background:rgba(167,139,250,0.12); color: #a78bfa; }
+.pipe-icon.purple { background:rgba(167,139,250,0.12); color: var(--dc-violeta); }
 .pipe-icon.teal   { background:rgba(0, 229, 255, 0.1); color: #2dd4bf; }
 .pipe-arrow {
   display:flex; align-items:center; color:var(--muted,var(--text3));
@@ -614,7 +614,7 @@ async function cargar() {
 
     const origenBadge = o => {
       if (o === 'generador') return '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(0, 229, 255, 0.12);color:var(--cyan)">GEN</span>';
-      if (o === 'elt') return '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(167,139,250,0.12);color:#a78bfa">ELT</span>';
+      if (o === 'elt') return '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(167,139,250,0.12);color:var(--dc-violeta)">ELT</span>';
       return '';
     };
 

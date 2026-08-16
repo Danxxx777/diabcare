@@ -2,7 +2,33 @@
  * Gráficas canvas locales (sin CDN) para el módulo de análisis.
  */
 (function (w) {
-  const PAL = ['#8FB4BE', '#C4A06A', '#6B9A7A', '#C46B6B', '#A98D72', '#8DA79F', '#B3D0D6'];
+  // Los colores salen de los tokens del tema: asi el mismo grafico cambia con
+  // claro/oscuro y no se cuela la paleta vieja de Tailwind saturado.
+  function tono(nombre, respaldo) {
+    try {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+      return v || respaldo;
+    } catch (_) {
+      return respaldo;
+    }
+  }
+  const PAL_FB = ['#8FB4BE', '#C4A06A', '#6B9A7A', '#C46B6B', '#A98D72', '#8DA79F', '#B3D0D6'];
+  const TOKENS = ['--dc-info', '--dc-alerta', '--dc-ok', '--dc-riesgo', '--dc-arena', '--dc-violeta', '--accent2'];
+  const PAL = new Proxy([], {
+    get(_t, k) {
+      if (k === 'length') return TOKENS.length;
+      const i = Number(k);
+      if (Number.isInteger(i)) return tono(TOKENS[i % TOKENS.length], PAL_FB[i % PAL_FB.length]);
+      return undefined;
+    },
+  });
+  // Atajos por rol clinico, para no repetir el nombre del token en cada pagina.
+  const ROL = {
+    get riesgo() { return tono('--dc-riesgo', '#C46B6B'); },
+    get ok() { return tono('--dc-ok', '#6B9A7A'); },
+    get alerta() { return tono('--dc-alerta', '#C4A06A'); },
+    get info() { return tono('--dc-info', '#8FB4BE'); },
+  };
 
   function css(name, fallback) {
     try {
@@ -182,8 +208,8 @@
     const ys = puntos.map((p) => Number(p.y) || 0);
     const xMax = o.xMax || maxOf(xs);
     const yMax = o.yMax || maxOf(ys);
-    const colDm = o.colorDm || '#C46B6B';
-    const colNo = o.colorNo || '#6B9A7A';
+    const colDm = o.colorDm || ROL.riesgo;
+    const colNo = o.colorNo || ROL.ok;
 
     ctx.strokeStyle = grid();
     ctx.lineWidth = 1;
@@ -198,13 +224,13 @@
       const y = h - pad.b - (o.umbralY / yMax) * innerH;
       ctx.save();
       ctx.setLineDash([4, 3]);
-      ctx.strokeStyle = 'rgba(196,107,107,0.75)';
+      ctx.strokeStyle = ROL.riesgo;
       ctx.beginPath();
       ctx.moveTo(pad.l, y);
       ctx.lineTo(w - pad.r, y);
       ctx.stroke();
       ctx.restore();
-      ctx.fillStyle = 'rgba(196,107,107,0.9)';
+      ctx.fillStyle = ROL.riesgo;
       ctx.font = '600 9px IBM Plex Mono, monospace';
       ctx.textAlign = 'left';
       ctx.fillText(o.umbralLabel || String(o.umbralY), pad.l + 4, y - 3);
@@ -256,7 +282,7 @@
     const innerH = h - pad.t - pad.b;
     const n = Math.max(1, labels.length - 1);
     const mx = maxOf(series.flat());
-    const cols = o.colors || ['#C46B6B', '#6B9A7A'];
+    const cols = o.colors || [ROL.riesgo, ROL.ok];
 
     ctx.strokeStyle = grid();
     ctx.lineWidth = 1;
@@ -270,7 +296,7 @@
     if (o.bandaDesde != null && o.bandaHasta != null && labels.length > 1) {
       const x0 = pad.l + (o.bandaDesde / n) * innerW;
       const x1 = pad.l + (o.bandaHasta / n) * innerW;
-      ctx.fillStyle = 'rgba(107,154,122,0.13)';
+      ctx.fillStyle = tono('--dc-ok-suave','rgba(107,154,122,0.13)');
       ctx.fillRect(x0, pad.t, Math.max(1, x1 - x0), innerH);
     }
 
@@ -449,8 +475,8 @@
     const paso = (h - pad.t - pad.b) / n;
     const y0 = pad.t;
     const mx = o.max || maxOf([...serieA, ...serieB]) || 1;
-    const colA = o.colorA || '#C46B6B';
-    const colB = o.colorB || '#6B9A7A';
+    const colA = o.colorA || ROL.riesgo;
+    const colB = o.colorB || ROL.ok;
     const suf = o.suffix || '';
 
     ctx.textAlign = 'left';
@@ -478,7 +504,7 @@
       ctx.lineTo(pad.l + innerW, y);
       ctx.stroke();
 
-      ctx.strokeStyle = 'rgba(143,180,190,0.85)';
+      ctx.strokeStyle = ROL.info;
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(xa, y);
@@ -503,5 +529,5 @@
     });
   }
 
-  w.DiabCareGraf = { doughnut, bars, line, scatter, areas, waffle, lollipop, dumbbell, pal: PAL };
+  w.DiabCareGraf = { doughnut, bars, line, scatter, areas, waffle, lollipop, dumbbell, pal: PAL, rol: ROL };
 })(window);
