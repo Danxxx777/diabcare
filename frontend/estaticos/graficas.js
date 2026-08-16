@@ -318,15 +318,29 @@
    */
   function waffle(canvas, labels, values, colors, opts) {
     const o = opts || {};
-    const g = prep(canvas, o.height || 200);
+    if (!canvas) return;
+    // La retícula se dimensiona ANTES de crear el lienzo: primero cuántas
+    // columnas entran a lo ancho, y con eso cuánto alto hace falta. Fijar
+    // 10x10 en una tarjeta ancha y baja dejaba media tarjeta vacía a los lados
+    // y, al ensancharla, la mitad inferior en blanco.
+    const wCss = Math.max(160, canvas.clientWidth
+      || (canvas.parentElement && canvas.parentElement.clientWidth) || 320);
+    const anchoLeyenda = Math.min(wCss * 0.38, 150);
+    const dispW = Math.max(60, wCss - anchoLeyenda - 16);
+    const paso = Math.max(10, Math.min(24, dispW / 20));
+    const cols = Math.max(5, Math.min(25, Math.floor(dispW / paso)));
+    const filas = Math.ceil(100 / cols);
+    const altoLeyenda = labels.length * 22;
+    const alto = Math.max(72, filas * paso + 14, altoLeyenda + 10);
+
+    const g = prep(canvas, o.height || alto);
     if (!g) return;
     const { ctx, w, h } = g;
-    const cols = 10, filas = 10;
     const total = values.reduce((a, b) => a + (Number(b) || 0), 0) || 1;
-    const zonaW = w * 0.52;
-    const paso = Math.min(zonaW / cols, (h - 24) / filas);
-    const r = Math.max(2.5, paso * 0.34);
-    const x0 = 8, y0 = 14;
+    const r = Math.max(2.5, paso * 0.36);
+    const x0 = 6;
+    const y0 = Math.max(4, (h - paso * filas) / 2);
+    const xLeyenda = x0 + paso * cols + 16;
 
     // Reparto de los 100 puntos respetando el total (el resto al mayor)
     const cuota = values.map((v) => (Number(v) || 0) / total * 100);
@@ -347,17 +361,18 @@
       ctx.fill();
     });
 
-    let ly = y0 + 4;
+    // Leyenda centrada verticalmente contra la retícula, no colgada arriba.
+    let ly = Math.max(4, (h - altoLeyenda) / 2);
     ctx.textAlign = 'left';
     ctx.font = '600 11px Figtree, sans-serif';
     labels.forEach((lab, i) => {
       ctx.fillStyle = (colors && colors[i]) || PAL[i % PAL.length];
       ctx.beginPath();
-      ctx.arc(w * 0.60 + 5, ly + 5, 4.5, 0, Math.PI * 2);
+      ctx.arc(xLeyenda + 5, ly + 6, 4.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = ink();
-      ctx.fillText(`${lab}  ${enteros[i]}%`, w * 0.60 + 15, ly + 9);
-      ly += 21;
+      ctx.fillText(`${lab}  ${enteros[i]}%`, xLeyenda + 15, ly + 10);
+      ly += 22;
     });
   }
 
@@ -368,19 +383,23 @@
    */
   function lollipop(canvas, labels, values, opts) {
     const o = opts || {};
-    const g = prep(canvas, o.height || 220);
+    // Altura segun cuantas categorias haya: con 3 filas, un canvas de 220 px
+    // dejaba dos tercios en blanco. La tarjeta se encoge a lo que hace falta.
+    const n = labels.length || 1;
+    const alto = Math.max(96, Math.min(o.height || 240, 20 + n * 40));
+    const g = prep(canvas, alto);
     if (!g) return;
     const { ctx, w, h } = g;
-    const pad = { l: Math.min(96, w * 0.32), r: 42, t: 12, b: 12 };
+    const pad = { l: Math.min(104, w * 0.30), r: 46, t: 10, b: 10 };
     const innerW = w - pad.l - pad.r;
-    const n = labels.length || 1;
     const paso = (h - pad.t - pad.b) / n;
+    const y0 = pad.t;
     const mx = o.max || maxOf(values) || 1;
     const col = o.color || PAL[0];
     const suf = o.suffix || '';
 
     labels.forEach((lab, i) => {
-      const y = pad.t + paso * i + paso / 2;
+      const y = y0 + paso * i + paso / 2;
       ctx.strokeStyle = grid();
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -419,13 +438,16 @@
    */
   function dumbbell(canvas, labels, serieA, serieB, opts) {
     const o = opts || {};
-    const g = prep(canvas, o.height || 220);
+    // Mismo criterio que la piruleta, mas la franja de la leyenda.
+    const n = labels.length || 1;
+    const alto = Math.max(104, Math.min(o.height || 240, 34 + n * 44));
+    const g = prep(canvas, alto);
     if (!g) return;
     const { ctx, w, h } = g;
-    const pad = { l: Math.min(96, w * 0.30), r: 46, t: 26, b: 12 };
+    const pad = { l: Math.min(104, w * 0.28), r: 50, t: 24, b: 10 };
     const innerW = w - pad.l - pad.r;
-    const n = labels.length || 1;
     const paso = (h - pad.t - pad.b) / n;
+    const y0 = pad.t;
     const mx = o.max || maxOf([...serieA, ...serieB]) || 1;
     const colA = o.colorA || '#C46B6B';
     const colB = o.colorB || '#6B9A7A';
@@ -443,7 +465,7 @@
     });
 
     labels.forEach((lab, i) => {
-      const y = pad.t + paso * i + paso / 2;
+      const y = y0 + paso * i + paso / 2;
       const a = Number(serieA[i]) || 0;
       const b = Number(serieB[i]) || 0;
       const xa = pad.l + (a / mx) * innerW;
