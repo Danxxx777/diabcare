@@ -173,6 +173,14 @@ def pago_publico_confirmar(token: str, d: StripeConfirmIn):
         raise HTTPException(400, detail=r["error"])
     return r
 
+@router.post("/pagos/publico/{token}/simular")
+def pago_publico_simular(token: str):
+    """Cobro de demostracion desde el celular cuando no hay pasarela real."""
+    r = S.simular_pago(token)
+    if r.get("error"):
+        raise HTTPException(400, detail=r["error"])
+    return r
+
 @router.get("/pagos/{id_pago}")
 def obtener_pago(id_pago: str, payload=Depends(require_modulo("facturacion"))):
     return _nf(S.pagos.obtener(id_pago))

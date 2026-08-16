@@ -459,8 +459,27 @@ window.DiabCareAPI = {
             .dc-cobro-metodos button { width:100%; }
             .dc-cobro-warn { font-size:12px; color:var(--amber, #fbbf24); line-height:1.4; margin:8px 0 0; }
             .dc-cobro-ok { font-size:12px; color:var(--green, #34d399); line-height:1.4; margin:8px 0 0; }
-            .dc-cobro-qr { text-align:center; margin-top:8px; }
-            .dc-cobro-qr img { width:220px; height:220px; background:#fff; padding:8px; border-radius:12px; }
+            .dc-cobro-qr { text-align:center; margin-top:8px; position:relative; }
+            .dc-cobro-qr img { width:220px; height:220px; background:#fff; padding:8px; border-radius:12px; transition:filter .35s ease, opacity .35s ease; }
+            .dc-cobro-hecho img { filter:blur(3px) grayscale(.6); opacity:.35; }
+            .dc-cobro-check { position:absolute; inset:0 0 auto; height:236px; display:flex;
+              flex-direction:column; align-items:center; justify-content:center; gap:8px;
+              color:#4ade80; font-weight:700; font-size:14px; }
+            .dc-cobro-check svg { width:78px; height:78px; }
+            .dc-cobro-check .dc-check-aro, .dc-cobro-check .dc-check-tilde {
+              fill:none; stroke:#4ade80; stroke-width:3.4; stroke-linecap:round; stroke-linejoin:round; }
+            .dc-cobro-check .dc-check-aro { stroke-dasharray:145; stroke-dashoffset:145;
+              animation:dcCheckAro .45s ease forwards; }
+            .dc-cobro-check .dc-check-tilde { stroke-dasharray:36; stroke-dashoffset:36;
+              animation:dcCheckTilde .3s .4s ease forwards; }
+            .dc-cobro-check span { opacity:0; animation:dcCheckTexto .3s .62s ease forwards; }
+            @keyframes dcCheckAro { to { stroke-dashoffset:0; } }
+            @keyframes dcCheckTilde { to { stroke-dashoffset:0; } }
+            @keyframes dcCheckTexto { to { opacity:1; } }
+            @media (prefers-reduced-motion: reduce) {
+              .dc-cobro-check .dc-check-aro, .dc-cobro-check .dc-check-tilde,
+              .dc-cobro-check span { animation-duration:1ms; animation-delay:0ms; }
+            }
             .dc-cobro-url { font-size:11px; word-break:break-all; color:var(--text2, #94a3b8); margin-top:8px; }
           </style>
           <div class="modal" id="dc-cobro-modal" role="dialog" aria-modal="true">
@@ -533,14 +552,35 @@ window.DiabCareAPI = {
         body.querySelector('[data-caja]')?.addEventListener('click', () => pintarMetodos(d));
         if (poll) clearInterval(poll);
         poll = setInterval(async () => {
-          const r = await this.fetch(`/api/citas/${idCita}/cobro`);
+          const r = await this.fetch(`/api/citas/${idCita}/cobro`, { skeleton: false });
           const p = await r.json().catch(() => ({}));
           if (r.ok && p.consulta_pagada) {
-            this.toast(p.mensaje || 'Consulta cobrada', 'success');
-            close(true);
+            if (poll) { clearInterval(poll); poll = null; }
+            confirmarSobreQr(p.mensaje || 'Consulta cobrada');
           }
         }, 2500);
         overlay._poll = poll;
+      };
+
+      // Cerrar de golpe deja la duda de si el QR llego a cobrarse. El check
+      // sobre el propio QR es la confirmacion de que el pago entro.
+      const confirmarSobreQr = (mensaje) => {
+        const caja = body.querySelector('.dc-cobro-qr');
+        if (caja) {
+          caja.classList.add('dc-cobro-hecho');
+          caja.insertAdjacentHTML('beforeend', `
+            <div class="dc-cobro-check" role="status" aria-label="Pago registrado">
+              <svg viewBox="0 0 52 52" aria-hidden="true">
+                <circle class="dc-check-aro" cx="26" cy="26" r="23" />
+                <path class="dc-check-tilde" d="M15 27 l8 8 l15 -16" />
+              </svg>
+              <span>Pago registrado</span>
+            </div>`);
+        }
+        const wait = document.getElementById('dc-cobro-wait');
+        if (wait) { wait.textContent = mensaje; wait.className = 'dc-cobro-ok'; }
+        this.toast(mensaje, 'success');
+        setTimeout(() => close(true), 1900);
       };
 
       const pintarMetodos = (prev) => {

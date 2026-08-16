@@ -710,3 +710,31 @@ def confirmar_checkout_stripe(token: str, session_id: str) -> dict:
     if pago.get("error"):
         return pago
     return publico_pago(token)
+
+
+def simular_pago(token: str) -> dict:
+    """
+    Cobro de demostración desde el celular, sin pasarela real.
+
+    Sin clave de Stripe el enlace del QR solo podía decir "pague en caja", así
+    que no había manera de recorrer el flujo completo paciente -> pago
+    registrado. Esto lo cierra y deja marcada la referencia como simulada para
+    que no se confunda con un cobro de tarjeta real.
+    """
+    info = publico_pago(token)
+    if info.get("error"):
+        return info
+    if info.get("pagado"):
+        return info
+    e = _enlace_por_token(token)
+    if not e:
+        return {"error": "Enlace no válido o vencido"}
+    pago = crear_pago(str(e.get("id_factura")), {
+        "monto": float(e.get("monto") or 0),
+        "metodo": "tarjeta",
+        "referencia": f"SIM-{str(token)[:10].upper()}",
+        "fecha": _now()[:10],
+    })
+    if pago.get("error"):
+        return pago
+    return publico_pago(token)

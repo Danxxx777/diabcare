@@ -131,10 +131,13 @@
       </dl></div>
       ${stripe
         ? '<button type="button" class="btn btn-primary" id="btn-pay">Pagar con tarjeta</button>'
-        : '<p class="hint" style="margin-top:14px">Pague en caja (efectivo, tarjeta o transferencia). Esta pantalla se actualiza sola cuando el cobro quede registrado.</p>'}
+        : `<button type="button" class="btn btn-primary" id="btn-sim">Pagar ahora</button>
+           <p class="hint" style="margin-top:10px">Cobro de demostración: no se mueve dinero real. También puede pagar en caja.</p>`}
       ${params.get('cancel') === '1' ? '<p class="hint" style="margin-top:10px">Pago cancelado en Stripe. Puede reintentar o pagar en caja.</p>' : ''}`;
     const btn = document.getElementById('btn-pay');
     if (btn) btn.onclick = checkout;
+    const sim = document.getElementById('btn-sim');
+    if (sim) sim.onclick = simular;
   }
   function esc(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({
@@ -175,6 +178,23 @@
       return;
     }
     location.href = d.url;
+  }
+  async function simular() {
+    const btn = document.getElementById('btn-sim');
+    if (btn) { btn.disabled = true; btn.textContent = 'Procesando…'; }
+    showEstado('loading', 'Autorizando el pago…');
+    // Pausa deliberada: sin ella el salto a "Pagado" es tan brusco que no se
+    // entiende que hubo un cobro de por medio.
+    await new Promise((r) => setTimeout(r, 900));
+    const r = await fetch('/api/pagos/publico/' + encodeURIComponent(token) + '/simular', { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      showEstado('bad', d.detail || d.error || 'No se pudo registrar el pago');
+      if (btn) { btn.disabled = false; btn.textContent = 'Pagar ahora'; }
+      return;
+    }
+    showEstado('ok', 'Pago aprobado');
+    cargar();
   }
   async function confirmarStripe() {
     const sid = params.get('session_id');

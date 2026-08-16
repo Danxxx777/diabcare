@@ -2095,8 +2095,15 @@ window.DiabCareNav = {
 
   haySesionLocal() {
     try {
+      // `dc_sesion_ok` vive en sessionStorage, que es por pestaña: al abrir una
+      // pestaña nueva se perdía y el panel de notificaciones se quedaba en
+      // "Cargando…" para siempre, con la cookie de sesión perfectamente válida.
+      // `usuario` lo escribe el login en localStorage y se borra al cerrar
+      // sesión, así que sobrevive entre pestañas. La cookie sigue mandando: si
+      // caducó, la llamada devuelve 401 y el propio fetch cierra la sesión.
       return sessionStorage.getItem('dc_sesion_ok') === '1'
-        || localStorage.getItem('token') === 'sesion';
+        || localStorage.getItem('token') === 'sesion'
+        || !!localStorage.getItem('usuario');
     } catch {
       return false;
     }
