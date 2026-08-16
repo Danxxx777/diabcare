@@ -164,5 +164,152 @@
     });
   }
 
-  w.DiabCareGraf = { doughnut, bars, line, pal: PAL };
+  /**
+   * Dispersión de dos variables clínicas, un punto por paciente.
+   * `puntos`: [{x, y, g}] donde g=1 marca la cohorte con diabetes.
+   * Es la vista que separa de verdad las dos poblaciones: una barra promedia
+   * y esconde justamente la nube de riesgo metabólico.
+   */
+  function scatter(canvas, puntos, opts) {
+    const o = opts || {};
+    const g = prep(canvas, o.height || 240);
+    if (!g) return;
+    const { ctx, w, h } = g;
+    const pad = { l: 40, r: 14, t: 16, b: 38 };
+    const innerW = w - pad.l - pad.r;
+    const innerH = h - pad.t - pad.b;
+    const xs = puntos.map((p) => Number(p.x) || 0);
+    const ys = puntos.map((p) => Number(p.y) || 0);
+    const xMax = o.xMax || maxOf(xs);
+    const yMax = o.yMax || maxOf(ys);
+    const colDm = o.colorDm || '#C46B6B';
+    const colNo = o.colorNo || '#6B9A7A';
+
+    ctx.strokeStyle = grid();
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t);
+    ctx.lineTo(pad.l, h - pad.b);
+    ctx.lineTo(w - pad.r, h - pad.b);
+    ctx.stroke();
+
+    // Umbral clínico horizontal (p. ej. HbA1c 6,5 %)
+    if (o.umbralY) {
+      const y = h - pad.b - (o.umbralY / yMax) * innerH;
+      ctx.save();
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = 'rgba(196,107,107,0.75)';
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(w - pad.r, y);
+      ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = 'rgba(196,107,107,0.9)';
+      ctx.font = '600 9px IBM Plex Mono, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(o.umbralLabel || String(o.umbralY), pad.l + 4, y - 3);
+    }
+
+    puntos.forEach((p) => {
+      const x = pad.l + ((Number(p.x) || 0) / xMax) * innerW;
+      const y = h - pad.b - ((Number(p.y) || 0) / yMax) * innerH;
+      ctx.beginPath();
+      ctx.arc(x, y, 2.6, 0, Math.PI * 2);
+      ctx.fillStyle = Number(p.g) === 1 ? colDm : colNo;
+      ctx.globalAlpha = 0.55;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    ctx.fillStyle = muted();
+    ctx.font = '600 10px Figtree, sans-serif';
+    ctx.textAlign = 'center';
+    if (o.xLabel) ctx.fillText(o.xLabel, pad.l + innerW / 2, h - 8);
+    ctx.textAlign = 'right';
+    ctx.font = '600 10px IBM Plex Mono, monospace';
+    ctx.fillText(String(Math.round(yMax)), pad.l - 4, pad.t + 8);
+    ctx.fillText('0', pad.l - 4, h - pad.b);
+    if (o.yLabel) {
+      ctx.save();
+      ctx.translate(11, pad.t + innerH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = muted();
+      ctx.font = '600 10px Figtree, sans-serif';
+      ctx.fillText(o.yLabel, 0, 0);
+      ctx.restore();
+    }
+  }
+
+  /**
+   * Curvas de distribución superpuestas (DM+ vs DM-) con relleno.
+   * Un histograma en barras agrupadas obliga a comparar alturas vecinas;
+   * dos áreas encimadas muestran de un vistazo el desplazamiento entre cohortes.
+   */
+  function areas(canvas, labels, series, opts) {
+    const o = opts || {};
+    const g = prep(canvas, o.height || 220);
+    if (!g) return;
+    const { ctx, w, h } = g;
+    const pad = { l: 40, r: 14, t: 16, b: 36 };
+    const innerW = w - pad.l - pad.r;
+    const innerH = h - pad.t - pad.b;
+    const n = Math.max(1, labels.length - 1);
+    const mx = maxOf(series.flat());
+    const cols = o.colors || ['#C46B6B', '#6B9A7A'];
+
+    ctx.strokeStyle = grid();
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t);
+    ctx.lineTo(pad.l, h - pad.b);
+    ctx.lineTo(w - pad.r, h - pad.b);
+    ctx.stroke();
+
+    // Banda de referencia clínica (rango normal del indicador)
+    if (o.bandaDesde != null && o.bandaHasta != null && labels.length > 1) {
+      const x0 = pad.l + (o.bandaDesde / n) * innerW;
+      const x1 = pad.l + (o.bandaHasta / n) * innerW;
+      ctx.fillStyle = 'rgba(107,154,122,0.13)';
+      ctx.fillRect(x0, pad.t, Math.max(1, x1 - x0), innerH);
+    }
+
+    series.forEach((vals, si) => {
+      const col = cols[si % cols.length];
+      ctx.beginPath();
+      ctx.moveTo(pad.l, h - pad.b);
+      vals.forEach((v, i) => {
+        const x = pad.l + (i / n) * innerW;
+        const y = h - pad.b - ((Number(v) || 0) / mx) * innerH;
+        ctx.lineTo(x, y);
+      });
+      ctx.lineTo(pad.l + innerW, h - pad.b);
+      ctx.closePath();
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      vals.forEach((v, i) => {
+        const x = pad.l + (i / n) * innerW;
+        const y = h - pad.b - ((Number(v) || 0) / mx) * innerH;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+
+    ctx.fillStyle = muted();
+    ctx.font = '600 10px Figtree, sans-serif';
+    ctx.textAlign = 'center';
+    labels.forEach((lab, i) => {
+      ctx.fillText(String(lab).slice(0, 9), pad.l + (i / n) * innerW, h - 10);
+    });
+    ctx.textAlign = 'right';
+    ctx.font = '600 10px IBM Plex Mono, monospace';
+    ctx.fillText(String(Math.round(mx)), pad.l - 4, pad.t + 8);
+  }
+
+  w.DiabCareGraf = { doughnut, bars, line, scatter, areas, pal: PAL };
 })(window);

@@ -52,6 +52,8 @@ body.dc-uv .es-kpi .sub {
 }
 .es-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .es-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.es-grid-1 { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+.es-hint-inline { font-weight: 400; font-size: 11px; color: var(--text2); }
 @media (max-width: 980px) {
   .es-grid-2, .es-grid-3 { grid-template-columns: 1fr; }
 }
@@ -176,6 +178,14 @@ html[data-tema="claro"] .es-track { background: rgba(47,61,66,.12); }
       <div class="es-card tabla-card">
         <h3>Glucosa</h3>
         <canvas class="es-chart" id="c-glc"></canvas>
+      </div>
+    </div>
+
+    <div class="section-label">Correlación de riesgo metabólico</div>
+    <div class="es-grid-1">
+      <div class="es-card tabla-card">
+        <h3>BMI vs HbA1c <span class="es-hint-inline">— cada punto es un paciente; rojo = DM+</span></h3>
+        <canvas class="es-chart" id="c-riesgo"></canvas>
       </div>
     </div>
 
@@ -304,12 +314,25 @@ function pintarPromedios(p) {
   barW('b-glc-s', p.glucosa?.sin, 280);
 }
 
+// Rango de referencia clinico por indicador, en indices del histograma.
+const BANDA_NORMAL = {
+  'c-bmi': [1, 2],   // 18,5-24,9
+  'c-hba': [0, 1],   // < 5,7 %
+  'c-glc': [0, 1],   // < 100 mg/dL
+};
+
 function pintarHist(id, hist) {
   if (!hist || !window.DiabCareGraf) return;
   const labels = Object.keys(hist);
   const con = labels.map(l => hist[l].con || 0);
   const sin = labels.map(l => hist[l].sin || 0);
-  DiabCareGraf.bars(document.getElementById(id), labels, [con, sin], { colors: ['#C46B6B', '#6B9A7A'] });
+  // Areas superpuestas en vez de barras agrupadas: se ve el desplazamiento
+  // entre cohortes sin comparar alturas vecinas una por una.
+  const banda = BANDA_NORMAL[id] || [];
+  DiabCareGraf.areas(document.getElementById(id), labels, [con, sin], {
+    colors: ['#C46B6B', '#6B9A7A'],
+    bandaDesde: banda[0], bandaHasta: banda[1],
+  });
 }
 
 function pintar(s, q) {
@@ -353,6 +376,13 @@ function pintar(s, q) {
       pintarHist('c-bmi', s.histogramas.bmi);
       pintarHist('c-hba', s.histogramas.hba1c);
       pintarHist('c-glc', s.histogramas.glucosa);
+    }
+    const muestra = s.scatter_muestra || [];
+    if (muestra.length) {
+      DiabCareGraf.scatter(document.getElementById('c-riesgo'),
+        muestra.map(p => ({ x: p.bmi, y: p.hba1c, g: p.diabetes })),
+        { xLabel: 'BMI', yLabel: 'HbA1c (%)', xMax: 50, yMax: 10,
+          umbralY: 6.5, umbralLabel: 'HbA1c 6,5 % - umbral diagnostico' });
     }
     const prevEdad = s.prevalencia_edad || {};
     const eLab = Object.keys(prevEdad);
