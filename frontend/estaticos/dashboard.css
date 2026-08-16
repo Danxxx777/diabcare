@@ -183,9 +183,9 @@ html[data-tema="claro"] .kpi-val.red { color: #8A3030; }
 .sys-row:last-child { border-bottom: none; }
 .sys-label { font-size: 11px; color: var(--text); min-width: 0; }
 .sys-badge { font-size: 11px; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 700; padding: 3px 8px; border-radius: 2px; flex-shrink: 0; border: 0; letter-spacing: .04em; text-transform: uppercase; }
-.sys-badge.ok   { background: rgba(74,222,128,0.14); color: #4ade80; }
-.sys-badge.warn { background: rgba(251,191,36,0.14); color: #fbbf24; }
-.sys-badge.err  { background: rgba(248,113,113,0.14); color: #f87171; }
+.sys-badge.ok   { background: var(--dc-ok-suave); color: var(--dc-ok); }
+.sys-badge.warn { background: var(--dc-alerta-suave); color: var(--dc-alerta); }
+.sys-badge.err  { background: var(--dc-riesgo-suave); color: var(--dc-riesgo); }
 
 .alert-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .alert-item:last-child { border-bottom: none; }
@@ -314,7 +314,7 @@ html[data-tema="claro"] .dash-task:hover {
   background: rgba(0, 230, 192, 0.06);
   border-color: rgba(0, 230, 192, 0.12);
 }
-html[data-tema="claro"] .reminder-title { color: #0f172a; }
+html[data-tema="claro"] .reminder-title { color: var(--uv-ink, var(--text)); }
 html[data-tema="claro"] .reminder-text { color: #334155; }
 
 @media (max-width: 1200px) {

@@ -457,8 +457,8 @@ window.DiabCareAPI = {
             .dc-cobro-total { font-size:18px; font-weight:700; color:var(--cyan, #5A7F8C); margin-top:8px; }
             .dc-cobro-metodos { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:14px 0 8px; }
             .dc-cobro-metodos button { width:100%; }
-            .dc-cobro-warn { font-size:12px; color:var(--amber, #fbbf24); line-height:1.4; margin:8px 0 0; }
-            .dc-cobro-ok { font-size:12px; color:var(--green, #34d399); line-height:1.4; margin:8px 0 0; }
+            .dc-cobro-warn { font-size:12px; color:var(--dc-alerta); line-height:1.4; margin:8px 0 0; }
+            .dc-cobro-ok { font-size:12px; color:var(--dc-ok); line-height:1.4; margin:8px 0 0; }
             .dc-cobro-qr { text-align:center; margin-top:8px; position:relative; }
             .dc-cobro-qr img { width:220px; height:220px; background:#fff; padding:8px; border-radius:12px; transition:filter .35s ease, opacity .35s ease; }
             /* Aprobacion tipo terminal de pago: el QR se retira y en su lugar
@@ -514,7 +514,7 @@ window.DiabCareAPI = {
                 animation-duration:1ms !important; animation-delay:0ms !important; }
               .dc-cobro-check .dc-check-pulso { display:none; }
             }
-            .dc-cobro-url { font-size:11px; word-break:break-all; color:var(--text2, #94a3b8); margin-top:8px; }
+            .dc-cobro-url { font-size:11px; word-break:break-all; color:var(--text2); margin-top:8px; }
           </style>
           <div class="modal" id="dc-cobro-modal" role="dialog" aria-modal="true">
             <div class="modal-title" style="margin-bottom:8px">Cobrar consulta</div>

@@ -448,7 +448,7 @@ html[data-tema="claro"] body:not(.dc-uv) .dc-rail-btn {
 .dc-home-tile[data-area="negocio"] { border-left-color: #c9923a !important; }
 .dc-home-tile[data-area="analisis"] { border-left-color: #5a8fbc !important; }
 .dc-home-tile[data-area="datos"] { border-left-color: #8b95a8 !important; }
-.dc-home-tile[data-area="gobierno"] { border-left-color: #94a3b8 !important; }
+.dc-home-tile[data-area="gobierno"] { border-left-color: var(--dc-info) !important; }
 .dc-home-tile[data-area="seguridad"] { border-left-color: #2dd4bf !important; }
 .dc-wcard {
   animation: dc-fade-up 0.35s ease both;

@@ -646,7 +646,7 @@ body {
   padding: 6px;
   border-radius: 2px;
   border: 1px solid var(--border);
-  background: rgb(16, 18, 34);
+  background: var(--uv-card, var(--card));
   box-shadow: 0 12px 36px rgba(0,0,0,0.45);
   z-index: 80;
   display: flex;
@@ -794,7 +794,7 @@ body {
   border-radius: 2px;
   clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
   border: 1px solid var(--border);
-  background: rgb(16, 18, 34);
+  background: var(--uv-card, var(--card));
   box-shadow: 0 16px 40px rgba(0,0,0,0.45);
   z-index: 60;
   display: flex;
@@ -1711,7 +1711,7 @@ html[data-tema="claro"] .tb-ecg {
 
 html[data-tema="claro"] .tb-icon-btn {
   background: rgba(255, 255, 255, 0.65);
-  border-color: rgba(40, 70, 110, 0.12);
+  border-color: var(--uv-line, var(--border));
   color: var(--text2);
 }
 html[data-tema="claro"] .tb-icon-btn:hover {
@@ -1722,21 +1722,21 @@ html[data-tema="claro"] .tb-icon-btn:hover {
 
 html[data-tema="claro"] .tb-dropdown {
   background: #ffffff;
-  border-color: rgba(40, 70, 110, 0.14);
-  box-shadow: 0 12px 32px rgba(40, 70, 110, 0.14);
+  border-color: var(--uv-line, var(--border));
+  box-shadow: 0 12px 32px var(--uv-line, var(--border));
 }
 html[data-tema="claro"] .tb-user {
   background: rgba(255, 255, 255, 0.75);
-  border-color: rgba(40, 70, 110, 0.14);
+  border-color: var(--uv-line, var(--border));
 }
 html[data-tema="claro"] .tb-user:hover {
   background: rgba(90, 127, 140, 0.10);
   border-color: rgba(90, 127, 140, 0.28);
 }
 html[data-tema="claro"] .tb-notif-panel {
-  background: rgba(255, 255, 255, 0.97);
-  border-color: rgba(40, 70, 110, 0.14);
-  box-shadow: 0 16px 40px rgba(40, 70, 110, 0.16);
+  background: var(--uv-card, var(--card));
+  border-color: var(--uv-line, var(--border));
+  box-shadow: var(--shadow-card, 0 16px 40px rgba(20, 28, 32, 0.18));
 }
 html[data-tema="claro"] .tb-notif-item:hover {
   background: rgba(90, 127, 140, 0.06);
@@ -1757,8 +1757,8 @@ html[data-tema="claro"] .panel,
 html[data-tema="claro"] .chart-card,
 html[data-tema="claro"] .data-tile {
   background: rgba(255, 255, 255, 0.70);
-  border-color: rgba(40, 70, 110, 0.12);
-  box-shadow: 0 10px 28px rgba(40, 70, 110, 0.08);
+  border-color: var(--uv-line, var(--border));
+  box-shadow: 0 10px 28px rgba(20, 28, 32, 0.08);
 }
 
 html[data-tema="claro"] .btn-primary { color: #fff; }
@@ -1771,7 +1771,7 @@ html[data-tema="claro"] select,
 html[data-tema="claro"] textarea {
   background: rgba(255, 255, 255, 0.85);
   color: var(--text);
-  border-color: rgba(40, 70, 110, 0.16);
+  border-color: var(--uv-line, var(--border));
 }
 
 html[data-tema="claro"] .nav-cat-label { color: var(--text4); }
@@ -1807,7 +1807,7 @@ html[data-tema="claro"] .quick-sub { color: #334155; }
 html[data-tema="claro"] {
   --modal-bg: #ffffff;
   --modal-field: #f1f5f9;
-  --modal-scrim: rgba(15, 23, 42, 0.62);
+  --modal-scrim: rgba(20, 28, 32, 0.62);
 }
 html[data-tema="claro"] .overlay,
 html[data-tema="claro"] .modal-overlay {
@@ -1819,9 +1819,9 @@ html[data-tema="claro"] .modal-card .modal-header,
 html[data-tema="claro"] .modal-card .modal-body,
 html[data-tema="claro"] .modal-card .modal-footer {
   background: #ffffff !important;
-  border-color: rgba(40, 70, 110, 0.16);
-  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.22);
-  color: #0f172a;
+  border-color: var(--uv-line, var(--border));
+  box-shadow: 0 24px 56px rgba(20, 28, 32, 0.22);
+  color: var(--uv-ink, var(--text));
 }
 html[data-tema="claro"] .form-modal-grid input,
 html[data-tema="claro"] .form-modal-grid select,
@@ -1833,7 +1833,7 @@ html[data-tema="claro"] .modal input,
 html[data-tema="claro"] .modal select,
 html[data-tema="claro"] .modal textarea {
   background: var(--modal-field) !important;
-  color: #0f172a;
+  color: var(--uv-ink, var(--text));
 }
 
 /* ═══════════════════════════════════════════
@@ -2540,11 +2540,11 @@ html[data-tema="claro"] .dc-home::before {
 }
 html[data-tema="claro"] .dc-home-tile {
   background: rgba(255, 255, 255, 0.78);
-  border-color: rgba(15, 23, 42, 0.12);
+  border-color: var(--uv-line, var(--border));
 }
-html[data-tema="claro"] .dc-home-tile-meta strong { color: #0f172a; }
-html[data-tema="claro"] .dc-wcard { color: #0f172a; }
-html[data-tema="claro"] .dc-wcard:hover { color: #0f172a; }
+html[data-tema="claro"] .dc-home-tile-meta strong { color: var(--uv-ink, var(--text)); }
+html[data-tema="claro"] .dc-wcard { color: var(--uv-ink, var(--text)); }
+html[data-tema="claro"] .dc-wcard:hover { color: var(--uv-ink, var(--text)); }
 html[data-tema="claro"] .dc-panel {
   background: #0a181c;
 }
