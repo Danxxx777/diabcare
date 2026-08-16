@@ -633,7 +633,6 @@ function mostrarMock() {
 async function mostrarPdfReal(nombre) {
   try {
     const r = await fetch(`${API}/api/reportes/${encodeURIComponent(nombre)}`, {
-      headers: { 'Authorization': 'Bearer ' + token },
       skeleton: false,
     });
     if (!r.ok) { toast('No se pudo abrir la vista previa', 'error'); return; }
@@ -771,7 +770,6 @@ async function cargarReportes() {
 async function descargar(nombre) {
   try {
     const r = await fetch(`${API}/api/reportes/${encodeURIComponent(nombre)}`, {
-      headers: { 'Authorization': 'Bearer ' + token },
       skeleton: false,
     });
     if (!r.ok) { toast('No se pudo descargar', 'error'); return; }
@@ -802,7 +800,6 @@ async function eliminarReporte(nombre) {
   try {
     const r = await fetch(`${API}/api/reportes/${encodeURIComponent(nombre)}`, {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token },
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { toast(d.detail || 'No se pudo eliminar', 'error'); return; }
@@ -826,7 +823,10 @@ async function vaciarHistorial() {
   if (!ok) return;
   const btn = document.getElementById('btnVaciarHistorial');
   if (btn) { btn.disabled = true; btn.textContent = 'Vaciando...'; }
-  const hdr = { 'Authorization': 'Bearer ' + token };
+  // Sesion por cookie httpOnly: same-origin la manda sola. La variable `token`
+  // quedo de la epoca del JWT en localStorage y ya no existe: usarla lanzaba
+  // ReferenceError, que el catch mostraba como un enganoso "Error de conexion".
+  const hdr = {};
   try {
     // Preferir POST (más compatible si el backend no recargó DELETE)
     let r = await fetch(`${API}/api/reportes/vaciar-historial`, { method: 'POST', headers: hdr });
