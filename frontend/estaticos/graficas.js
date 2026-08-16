@@ -311,5 +311,175 @@
     ctx.fillText(String(Math.round(mx)), pad.l - 4, pad.t + 8);
   }
 
-  w.DiabCareGraf = { doughnut, bars, line, scatter, areas, pal: PAL };
+  /**
+   * Matriz de 100 puntos: cada punto es 1 % de la cohorte.
+   * Sustituye al pastel para proporciones: se lee la parte sin estimar
+   * ángulos, que es justo lo que un sector circular hace mal.
+   */
+  function waffle(canvas, labels, values, colors, opts) {
+    const o = opts || {};
+    const g = prep(canvas, o.height || 200);
+    if (!g) return;
+    const { ctx, w, h } = g;
+    const cols = 10, filas = 10;
+    const total = values.reduce((a, b) => a + (Number(b) || 0), 0) || 1;
+    const zonaW = w * 0.52;
+    const paso = Math.min(zonaW / cols, (h - 24) / filas);
+    const r = Math.max(2.5, paso * 0.34);
+    const x0 = 8, y0 = 14;
+
+    // Reparto de los 100 puntos respetando el total (el resto al mayor)
+    const cuota = values.map((v) => (Number(v) || 0) / total * 100);
+    const enteros = cuota.map(Math.floor);
+    let faltan = 100 - enteros.reduce((a, b) => a + b, 0);
+    const orden = cuota.map((c, i) => [c - Math.floor(c), i]).sort((a, b) => b[0] - a[0]);
+    for (let k = 0; k < faltan; k++) enteros[orden[k % orden.length][1]] += 1;
+
+    const plano = [];
+    enteros.forEach((n, i) => { for (let k = 0; k < n; k++) plano.push(i); });
+
+    plano.forEach((si, idx) => {
+      const cx = x0 + (idx % cols) * paso + paso / 2;
+      const cy = y0 + Math.floor(idx / cols) * paso + paso / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = (colors && colors[si]) || PAL[si % PAL.length];
+      ctx.fill();
+    });
+
+    let ly = y0 + 4;
+    ctx.textAlign = 'left';
+    ctx.font = '600 11px Figtree, sans-serif';
+    labels.forEach((lab, i) => {
+      ctx.fillStyle = (colors && colors[i]) || PAL[i % PAL.length];
+      ctx.beginPath();
+      ctx.arc(w * 0.60 + 5, ly + 5, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = ink();
+      ctx.fillText(`${lab}  ${enteros[i]}%`, w * 0.60 + 15, ly + 9);
+      ly += 21;
+    });
+  }
+
+  /**
+   * Piruleta horizontal: una línea guía y un punto en el valor.
+   * Para comparar categorías sin el peso visual de la barra; el ojo compara
+   * posiciones de puntos, que es más preciso que comparar áreas.
+   */
+  function lollipop(canvas, labels, values, opts) {
+    const o = opts || {};
+    const g = prep(canvas, o.height || 220);
+    if (!g) return;
+    const { ctx, w, h } = g;
+    const pad = { l: Math.min(96, w * 0.32), r: 42, t: 12, b: 12 };
+    const innerW = w - pad.l - pad.r;
+    const n = labels.length || 1;
+    const paso = (h - pad.t - pad.b) / n;
+    const mx = o.max || maxOf(values) || 1;
+    const col = o.color || PAL[0];
+    const suf = o.suffix || '';
+
+    labels.forEach((lab, i) => {
+      const y = pad.t + paso * i + paso / 2;
+      ctx.strokeStyle = grid();
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(pad.l + innerW, y);
+      ctx.stroke();
+
+      const v = Number(values[i]) || 0;
+      const x = pad.l + (v / mx) * innerW;
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+
+      ctx.fillStyle = muted();
+      ctx.font = '600 10px Figtree, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(lab).slice(0, 18), pad.l - 8, y + 3.5);
+      ctx.fillStyle = ink();
+      ctx.font = '600 10px IBM Plex Mono, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(v.toFixed(1).replace('.', ',') + suf, x + 9, y + 3.5);
+    });
+  }
+
+  /**
+   * Mancuerna: dos puntos unidos por una línea, uno por cohorte.
+   * Hecha para contrastar DM+ contra DM-: lo que importa es la brecha, y aquí
+   * la brecha es literalmente el segmento entre ambos puntos.
+   */
+  function dumbbell(canvas, labels, serieA, serieB, opts) {
+    const o = opts || {};
+    const g = prep(canvas, o.height || 220);
+    if (!g) return;
+    const { ctx, w, h } = g;
+    const pad = { l: Math.min(96, w * 0.30), r: 46, t: 26, b: 12 };
+    const innerW = w - pad.l - pad.r;
+    const n = labels.length || 1;
+    const paso = (h - pad.t - pad.b) / n;
+    const mx = o.max || maxOf([...serieA, ...serieB]) || 1;
+    const colA = o.colorA || '#C46B6B';
+    const colB = o.colorB || '#6B9A7A';
+    const suf = o.suffix || '';
+
+    ctx.textAlign = 'left';
+    ctx.font = '600 10px Figtree, sans-serif';
+    [[o.labelA || 'DM+', colA, pad.l], [o.labelB || 'DM-', colB, pad.l + 70]].forEach(([t, c, x]) => {
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.arc(x + 4, 10, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = ink();
+      ctx.fillText(t, x + 13, 13.5);
+    });
+
+    labels.forEach((lab, i) => {
+      const y = pad.t + paso * i + paso / 2;
+      const a = Number(serieA[i]) || 0;
+      const b = Number(serieB[i]) || 0;
+      const xa = pad.l + (a / mx) * innerW;
+      const xb = pad.l + (b / mx) * innerW;
+
+      ctx.strokeStyle = grid();
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(pad.l + innerW, y);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(143,180,190,0.85)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(xa, y);
+      ctx.lineTo(xb, y);
+      ctx.stroke();
+
+      [[xb, colB], [xa, colA]].forEach(([x, c]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 5.2, 0, Math.PI * 2);
+        ctx.fillStyle = c;
+        ctx.fill();
+      });
+
+      ctx.fillStyle = muted();
+      ctx.font = '600 10px Figtree, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(lab).slice(0, 18), pad.l - 8, y + 3.5);
+      ctx.fillStyle = ink();
+      ctx.font = '600 10px IBM Plex Mono, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(Math.abs(a - b).toFixed(1).replace('.', ',') + suf, Math.max(xa, xb) + 9, y + 3.5);
+    });
+  }
+
+  w.DiabCareGraf = { doughnut, bars, line, scatter, areas, waffle, lollipop, dumbbell, pal: PAL };
 })(window);

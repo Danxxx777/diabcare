@@ -364,10 +364,12 @@ function pintar(s, q) {
 
   pintarPromedios(s.promedios);
   if (window.DiabCareGraf) {
-    DiabCareGraf.doughnut(document.getElementById('c-pie'), ['Sin diabetes', 'Con diabetes'], [sin, con], ['#6B9A7A', '#C46B6B']);
+    // Proporciones en matriz de 100 puntos (1 punto = 1 % de la cohorte).
+    DiabCareGraf.waffle(document.getElementById('c-pie'),
+      ['Sin diabetes', 'Con diabetes'], [sin, con], ['#6B9A7A', '#C46B6B']);
     const h = (q && q.control_hba1c) || {};
     if (h.con_dato) {
-      DiabCareGraf.doughnut(document.getElementById('c-ctrl'),
+      DiabCareGraf.waffle(document.getElementById('c-ctrl'),
         ['Control <7%', 'Subóptimo 7–9%', 'Descontrol ≥9%'],
         [h.controlado_lt7 || 0, h.suboptimo_7_9 || 0, h.descontrol_gte9 || 0],
         ['#6B9A7A', '#C4A06A', '#C46B6B']);
@@ -390,21 +392,26 @@ function pintar(s, q) {
     const gen = s.genero_detalle || {};
     const gLab = Object.keys(gen).map(k => GENERO[k] || k);
     const gVal = Object.values(gen).map(v => Number(v.prevalencia || 0));
-    DiabCareGraf.bars(document.getElementById('c-gen'), gLab, [gVal], { colors: ['#8FB4BE'] });
+    // Prevalencia por categoria: piruleta, se comparan posiciones no areas.
+    DiabCareGraf.lollipop(document.getElementById('c-gen'), gLab, gVal,
+      { color: '#8FB4BE', suffix: '%', max: 100 });
     const raz = s.razas_prevalencia || s.razas || {};
     const rLab = Object.keys(raz).map(k => RAZA[k] || k);
     const rVal = Object.values(raz).map(v => Number(v.prevalencia != null ? v.prevalencia : 0));
-    DiabCareGraf.bars(document.getElementById('c-raza'), rLab, [rVal], { colors: ['#8FB4BE'] });
+    DiabCareGraf.lollipop(document.getElementById('c-raza'), rLab, rVal,
+      { color: '#8FB4BE', suffix: '%', max: 100 });
     const cp = s.comorbilidades_prevalencia || {};
     if (cp.hipertension) {
-      DiabCareGraf.bars(document.getElementById('c-comorb'),
-        ['HTA', 'Cardiopatía'],
-        [[cp.hipertension.con_diabetes || 0, cp.cardiopatia?.con_diabetes || 0],
-         [cp.hipertension.sin_diabetes || 0, cp.cardiopatia?.sin_diabetes || 0]],
-        { colors: ['#C46B6B', '#6B9A7A'] });
+      // Mancuerna: el segmento entre ambos puntos ES la brecha DM+ vs DM-.
+      DiabCareGraf.dumbbell(document.getElementById('c-comorb'),
+        ['Hipertensión', 'Cardiopatía'],
+        [cp.hipertension.con_diabetes || 0, cp.cardiopatia?.con_diabetes || 0],
+        [cp.hipertension.sin_diabetes || 0, cp.cardiopatia?.sin_diabetes || 0],
+        { labelA: 'DM+', labelB: 'DM-', suffix: '%', max: 100 });
     }
+    // Serie temporal: linea, no barras.
     const tend = s.tendencia || [];
-    DiabCareGraf.bars(document.getElementById('c-year'),
+    DiabCareGraf.areas(document.getElementById('c-year'),
       tend.map(t => t.year),
       [tend.map(t => t.total || 0)],
       { colors: ['#8FB4BE'] });
