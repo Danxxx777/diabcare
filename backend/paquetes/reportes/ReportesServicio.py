@@ -1189,6 +1189,147 @@ def _seccion_filtrado(pdf: FPDF, filtros: dict, resumen: dict, numero: str = "5"
     )
 
 
+def _ajustar(pdf: FPDF, texto, ancho: float) -> str:
+    """Recorta el texto para que entre en la celda sin desbordar la columna."""
+    t = _txt(texto)
+    if pdf.get_string_width(t) <= ancho - 2:
+        return t
+    while t and pdf.get_string_width(t + "...") > ancho - 2:
+        t = t[:-1]
+    return (t + "...") if t else ""
+
+
+def _tabla_detalle(pdf: FPDF, cabeceras: list, filas: list, pesos: list,
+                   alineaciones: list, alto: float = 5.4):
+    """
+    Tabla de registros reales, con anchos proporcionales al ancho util y
+    cabecera repetida en cada pagina (un listado largo cruza varias hojas).
+    """
+    total_peso = sum(pesos) or 1
+    anchos = [pdf.epw * p / total_peso for p in pesos]
+
+    def _cabecera():
+        pdf.set_font("Helvetica", "B", 7.2)
+        pdf.set_fill_color(*COLOR_FONDO_SEC)
+        pdf.set_text_color(*COLOR_PRIMARIO)
+        pdf.set_draw_color(203, 213, 225)
+        pdf.set_line_width(0.15)
+        for cab, w, al in zip(cabeceras, anchos, alineaciones):
+            pdf.cell(w, 6, _ajustar(pdf, cab, w), border=1, align=al, fill=True)
+        pdf.ln()
+
+    def _cuerpo():
+        pdf.set_font("Helvetica", "", 6.9)
+        pdf.set_text_color(*COLOR_TEXTO)
+
+    _cabecera()
+    _cuerpo()
+    for i, fila in enumerate(filas):
+        if pdf.will_page_break(alto):
+            pdf.add_page()
+            _cabecera()
+            _cuerpo()
+        pdf.set_fill_color(248, 250, 252) if i % 2 else pdf.set_fill_color(255, 255, 255)
+        for val, w, al in zip(fila, anchos, alineaciones):
+            pdf.cell(w, alto, _ajustar(pdf, val, w), border=1, align=al, fill=True)
+        pdf.ln()
+    pdf.ln(2)
+
+
+def _bloque_detalle(pdf: FPDF, bloque: dict):
+    """Pinta un bloque de detalle declarando origen y cobertura."""
+    if not bloque:
+        return
+    _subtitulo_area(pdf, bloque["titulo"])
+    if bloque.get("error"):
+        _parrafo(pdf, f"No se pudo leer {bloque.get('objeto', 'la fuente')}: {bloque['error']}")
+        return
+    if not bloque["filas"]:
+        _parrafo(pdf, f"Sin registros en {bloque['objeto']} para el alcance solicitado.")
+        return
+    if bloque["truncado"]:
+        detalle_cob = (
+            f"Mostrando {_fmt_num(bloque['mostradas'])} de {_fmt_num(bloque['total'])} "
+            f"registros que cumplen el filtro. Origen: {bloque['objeto']}."
+        )
+    else:
+        detalle_cob = (
+            f"{_fmt_num(bloque['total'])} registros (listado completo). "
+            f"Origen: {bloque['objeto']}."
+        )
+    _parrafo(pdf, detalle_cob, espacio=1)
+    _tabla_detalle(pdf, bloque["cabeceras"], bloque["filas"],
+                   bloque["pesos"], bloque["alineaciones"])
+
+
+def _seccion_detalle_operativo(pdf: FPDF, depto: str, filtros: dict, cron,
+                               numero: str = "1"):
+    """Registros reales de cada area en alcance (no contadores agregados)."""
+    from paquetes.reportes import ReportesDatos as RD
+
+    claves = list(RD.FUENTES) if depto == "todos" else [depto]
+    claves = [c for c in claves if c in RD.FUENTES]
+    _bloque_titulo(pdf, numero, "Detalle operativo",
+                   "Registros tal como estan almacenados en MinIO.")
+    if not claves:
+        _parrafo(pdf, "El area solicitada no tiene una fuente de detalle asociada.")
+        return
+    for clave in claves:
+        try:
+            bloque = RD.detalle(clave, filtros, cron)
+        except Exception as e:
+            logger.warning("Detalle de %s no disponible: %s", clave, e)
+            continue
+        _bloque_detalle(pdf, bloque)
+
+
+def _seccion_detalle_clinico(pdf: FPDF, filtros: dict, cron, numero: str = "2"):
+    """Encuentros clinicos del stage con los filtros del informe aplicados."""
+    from paquetes.reportes import ReportesDatos as RD
+
+    _bloque_titulo(pdf, numero, "Detalle clinico",
+                   "Encuentros del dataset que cumplen los filtros del informe.")
+    try:
+        bloque = RD.detalle_clinico(filtros, cron)
+    except Exception as e:
+        logger.warning("Detalle clinico no disponible: %s", e)
+        _parrafo(pdf, "No se pudo leer el dataset clinico desde MinIO.")
+        return
+    _bloque_detalle(pdf, bloque)
+
+
+def _seccion_trazabilidad(pdf: FPDF, cron, numero: str = "9"):
+    """Coste real de armar el informe, fuente por fuente."""
+    _bloque_titulo(pdf, numero, "Trazabilidad y rendimiento",
+                   "Que se leyo de MinIO y cuanto costo cada etapa.")
+    filas = cron.como_filas()
+    if not filas:
+        _parrafo(pdf, "No se registraron lecturas de MinIO para este informe.")
+        return
+    _parrafo(pdf,
+        "Cada fila es un objeto Parquet leido directamente de MinIO (sin cache), "
+        "con el tiempo de descarga, el de parseo a tabla y el de filtrado.",
+        espacio=1,
+    )
+    _tabla_detalle(
+        pdf,
+        ["Fuente", "Objeto en MinIO", "Tam.", "Filas", "Filtr.",
+         "MinIO", "Parseo", "Filtro"],
+        filas,
+        [1.8, 4.2, 0.8, 0.95, 0.95, 0.7, 0.7, 0.7],
+        ["L", "L", "R", "R", "R", "R", "R", "R"],
+    )
+    t = cron.totales()
+    _parrafo(pdf,
+        f"Total: {t['fuentes']} fuentes, {_fmt_num(t['filas_origen'])} filas leidas "
+        f"({t['bytes_leidos'] / 1024 / 1024:.1f} MB). "
+        f"MinIO {t['ms_minio']:.0f} ms + parseo {t['ms_parseo']:.0f} ms + "
+        f"filtrado {t['ms_filtro']:.0f} ms. "
+        f"Armado total del documento: {cron.ms_transcurrido:.0f} ms.",
+        espacio=1,
+    )
+
+
 def _seccion_cierre(pdf: FPDF, numero: str = "6"):
     _bloque_titulo(pdf, numero, "Cierre")
     _parrafo(pdf,
@@ -1216,6 +1357,9 @@ def generar_pdf(
         k: v for k, v in filtros.items()
         if k not in ("tipo", "departamento") and v is not None and v != ""
     }
+
+    from paquetes.reportes.ReportesDatos import Cronometro
+    cron = Cronometro()
 
     est = _estadisticas_dataset() if incluir_analitica else {}
     met = _metricas_modelo() if incluir_analitica else {}
@@ -1245,18 +1389,15 @@ def generar_pdf(
         pdf.add_page()
 
         _portada(pdf, meta, filtros)
-        _resumen_ejecutivo(
-            pdf, est, met, resumen, ops, comp,
-            incluir_analitica=incluir_analitica,
-        )
         _seccion_kpis(pdf, ops, comp, est if incluir_analitica else None)
 
         n = 1
-        if incluir_simple and depto == "todos":
-            _seccion_prioridades(pdf, ops, numero=str(n))
+        # El nucleo del informe es el detalle: los registros como estan en MinIO.
+        if incluir_simple:
+            _seccion_detalle_operativo(pdf, depto, filtros, cron, numero=str(n))
             n += 1
-        elif incluir_simple:
-            _seccion_informes_simples(pdf, ops, numero=str(n))
+        if incluir_analitica or clinicos:
+            _seccion_detalle_clinico(pdf, filtros, cron, numero=str(n))
             n += 1
         if incluir_compuesto and (depto == "todos" or depto in _DEPTOS_COMPUESTO):
             _seccion_informes_compuestos(pdf, comp, numero=str(n))
@@ -1268,6 +1409,8 @@ def generar_pdf(
                 _seccion_filtrado(pdf, filtros, resumen, numero=str(n))
                 n += 1
         # Detalle ML (exactitud/F1) no aporta a un informe de gestion: se omite.
+        _seccion_trazabilidad(pdf, cron, numero=str(n))
+        n += 1
         _seccion_cierre(pdf, numero=str(n))
 
         return bytes(pdf.output())
