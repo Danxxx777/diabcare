@@ -11,10 +11,12 @@ import io
 import json
 import os
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -91,20 +93,43 @@ def _http_json(url: str, method: str = "GET", data: dict | None = None, token: s
         raise RuntimeError(f"Error HTTP PocketBase ({e.code}): {e.reason}. {detalle[:200]}") from e
 
 
-def _probar_http(url: str, timeout: float = 3.0) -> bool:
+# Sondas a servicios externos (PocketBase / Airflow) cacheadas unos segundos.
+# /api/pipeline/estado encadena 3-4 sondas y, con los servicios caidos, cada una
+# gasta ~2-4 s: "localhost" resuelve a ::1 y a 127.0.0.1 y se prueban las dos.
+# Sin cache el endpoint tardaba ~12 s en cada carga de la pagina de Pipeline.
+_SONDA_TTL = 15.0
+_sondas: dict[str, tuple[float, bool]] = {}
+_sondas_lock = threading.Lock()
+
+
+def _probar_http(url: str, timeout: float = 1.5) -> bool:
+    ahora = time.monotonic()
+    with _sondas_lock:
+        cache = _sondas.get(url)
+        if cache is not None and (ahora - cache[0]) < _SONDA_TTL:
+            return cache[1]
     try:
         with urllib.request.urlopen(url, timeout=timeout) as r:
-            return 200 <= r.status < 500
+            ok = 200 <= r.status < 500
     except Exception:
-        return False
+        ok = False
+    with _sondas_lock:
+        _sondas[url] = (time.monotonic(), ok)
+    return ok
 
 
 def _conectividad() -> dict:
-    return {
-        "minio": "conectado" if verificar_conexion() else "sin conexión",
-        "pocketbase": "conectado" if _probar_http(f"{POCKETBASE_URL}/api/health") else "sin conexión",
-        "airflow": "conectado" if _probar_http(f"{AIRFLOW_URL.rstrip('/')}/health") else "sin conexión",
-    }
+    # En paralelo: en serie, con los tres servicios caidos, se sumaban los
+    # timeouts de cada sonda antes de poder responder.
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        minio = pool.submit(verificar_conexion)
+        pb = pool.submit(_probar_http, f"{POCKETBASE_URL}/api/health")
+        af = pool.submit(_probar_http, f"{AIRFLOW_URL.rstrip('/')}/health")
+        return {
+            "minio": "conectado" if minio.result() else "sin conexión",
+            "pocketbase": "conectado" if pb.result() else "sin conexión",
+            "airflow": "conectado" if af.result() else "sin conexión",
+        }
 
 
 def estado_publico() -> dict:

@@ -514,6 +514,12 @@
     if (host.classList && (host.classList.contains('tabla-card') || host.classList.contains('tabla-wrap'))) {
       const tb = cuerpoLista(host);
       if (tb) return paintTablaCuerpo(tb);
+      // Card sin cuerpo de lista (p. ej. #boxHallazgos, que lleva un <ul>):
+      // ocultar sin destruir. Si se cae al innerHTML='' del final, se borran
+      // nodos que el modulo busca luego por id y su render explota.
+      paintKeepChildren(host, htmlPanel());
+      paintExtras();
+      return host;
     }
     if (host.id === 'tablaBody' || host.id === 'tbody' || (host.tagName && host.tagName.toLowerCase() === 'tbody')) {
       return paintTablaCuerpo(host);
@@ -794,9 +800,12 @@ window.DiabCareNav = {
   getApi() {
     if (typeof window === 'undefined') return 'http://localhost:8000';
     const { protocol, hostname, port, origin } = window.location;
-    if (port === '8000') return origin;
+    // El mismo FastAPI sirve el frontend y la API, asi que el origen actual
+    // siempre es el correcto. Clavar el puerto 8000 rompia la app entera al
+    // levantarla en cualquier otro puerto (o detras de un proxy).
+    if (protocol === 'http:' || protocol === 'https:') return origin;
     const host = hostname && hostname !== '' ? hostname : 'localhost';
-    return `${protocol}//${host}:8000`;
+    return `http://${host}:${port || '8000'}`;
   },
   get API() { return this.getApi(); },
 

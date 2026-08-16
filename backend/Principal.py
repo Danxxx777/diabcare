@@ -44,7 +44,7 @@ from nucleo.utilidades.LogConfig import silenciar_logs, log_advertencia
 
 silenciar_logs()
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
@@ -258,10 +258,22 @@ _LEGACY = {
     "configuracion/index.html": "gobierno/configuracion/index.html",
 }
 
+_PAGINAS_DIR = (_FRONTEND / "paginas").resolve()
+
+
 def _html_file(path: Path) -> FileResponse:
     """Sirve HTML con charset UTF-8; sin cache agresivo para no servir JS/HTML viejo."""
+    # {ruta:path} acepta '..': sin esta contencion se podia leer cualquier
+    # archivo del repo sin sesion (codigo fuente y credenciales de MinIO).
+    # Y sin is_file() un archivo inexistente reventaba en 500 en vez de 404.
+    try:
+        destino = path.resolve()
+    except OSError:
+        raise HTTPException(status_code=404, detail="Página no encontrada")
+    if not destino.is_relative_to(_PAGINAS_DIR) or not destino.is_file():
+        raise HTTPException(status_code=404, detail="Página no encontrada")
     return FileResponse(
-        path,
+        destino,
         media_type="text/html; charset=utf-8",
         headers={
             "Cache-Control": "no-cache, no-store, must-revalidate",

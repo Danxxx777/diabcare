@@ -37,6 +37,12 @@ UMBRAL_HBA1C = 7.5
 UMBRAL_GLUCOSA = 180
 TIPOS_EMAIL = {"warning", "error", "critico", "critical", "alerta"}
 
+# Tope de alertas creadas por corrida. Materializar 50.000 registros llegaba a
+# generar ~8.500 filas de golpe, inutilizando la bandeja y el tiempo de carga.
+MAX_ALERTAS_POR_CORRIDA = 200
+# Por encima de esto se manda un solo correo resumen en lugar de uno por alerta.
+MAX_EMAILS_INDIVIDUALES = 10
+
 ROLES_VALIDOS = ("administrador", "medico", "enfermero", "farmaceutico", "analista")
 
 # Etiquetas con mayúscula inicial (UI / mensajes)
@@ -140,6 +146,36 @@ def enviar_correo_usuario(
     return enviar_correo(destino, asunto, texto, html, plantilla=plantilla)
 
 
+def _fila_notificacion(
+    titulo: str,
+    mensaje: str,
+    tipo: str = "info",
+    *,
+    leida: bool = False,
+    email_enviado: bool = False,
+    destinatario_tipo: str = "todos",
+    destinatario: str = "",
+    canal: str = "in_app",
+    referencia_tipo: str = "",
+    referencia_id: str = "",
+) -> dict:
+    """Construye una fila de notificación sin tocar MinIO (permite insertar en lote)."""
+    return {
+        "id": str(uuid.uuid4()),
+        "titulo": str(titulo or "Notificación"),
+        "mensaje": str(mensaje or ""),
+        "tipo": (tipo or "info").lower(),
+        "leida": bool(leida),
+        "creado_en": datetime.now().isoformat(),
+        "email_enviado": bool(email_enviado),
+        "destinatario_tipo": (destinatario_tipo or "todos").lower(),
+        "destinatario": str(destinatario or ""),
+        "canal": (canal or "in_app").lower(),
+        "referencia_tipo": str(referencia_tipo or ""),
+        "referencia_id": str(referencia_id or ""),
+    }
+
+
 def emitir(
     titulo: str,
     mensaje: str,
@@ -199,20 +235,16 @@ def emitir(
         crear_in_app = True  # keep history; filtered out for staff inbox unless admin
         destinatario_tipo = "paciente_email"
 
-    fila = {
-        "id": str(uuid.uuid4()),
-        "titulo": str(titulo or "Notificación"),
-        "mensaje": str(mensaje or ""),
-        "tipo": tipo,
-        "leida": False if crear_in_app else True,
-        "creado_en": datetime.now().isoformat(),
-        "email_enviado": email_ok,
-        "destinatario_tipo": destinatario_tipo,
-        "destinatario": str(destinatario or ""),
-        "canal": canal,
-        "referencia_tipo": str(referencia_tipo or ""),
-        "referencia_id": str(referencia_id or ""),
-    }
+    fila = _fila_notificacion(
+        titulo, mensaje, tipo,
+        leida=not crear_in_app,
+        email_enviado=email_ok,
+        destinatario_tipo=destinatario_tipo,
+        destinatario=destinatario,
+        canal=canal,
+        referencia_tipo=referencia_tipo,
+        referencia_id=referencia_id,
+    )
     _cargar(pd.concat([df, pd.DataFrame([fila])], ignore_index=True))
     return fila
 
@@ -402,79 +434,160 @@ def estadisticas(user_id: str = "", rol: str = "") -> dict:
     }
 
 
-def _ya_existe_titulo_reciente(titulo: str, horas: int = 24) -> bool:
+def _titulos_recientes(horas: int = 24) -> set[str]:
+    """
+    Títulos emitidos en las últimas `horas`, en un único barrido vectorizado.
+
+    Devolver un set permite deduplicar N alertas con una sola lectura. La versión
+    fila a fila costaba ~900 ms por consulta con 8.000 notificaciones acumuladas.
+    """
     df = _extraer()
-    if df.empty:
-        return False
-    limite = datetime.now() - timedelta(hours=horas)
-    for _, row in df.iterrows():
-        if row.get("titulo") != titulo:
-            continue
-        try:
-            ts = datetime.fromisoformat(str(row.get("creado_en", "")))
-            if ts >= limite:
-                return True
-        except ValueError:
-            pass
-    return False
+    if df.empty or "titulo" not in df.columns:
+        return set()
+    ts = pd.to_datetime(df.get("creado_en"), errors="coerce")
+    frescas = df.loc[ts >= (datetime.now() - timedelta(hours=horas)), "titulo"]
+    return set(frescas.astype(str))
 
 
-def evaluar_alertas_clinicas() -> dict:
+def _ya_existe_titulo_reciente(titulo: str, horas: int = 24) -> bool:
+    return str(titulo) in _titulos_recientes(horas)
+
+
+def evaluar_alertas_clinicas(limite: int = MAX_ALERTAS_POR_CORRIDA) -> dict:
+    """
+    Evalúa HbA1c y glucosa sobre el dataset clínico y avisa al médico.
+
+    Filtra vectorizado, deduplica contra un set y escribe el parquet UNA sola vez.
+    La versión anterior recorría el dataset con iterrows(), consultaba duplicados
+    fila a fila (~900 ms cada consulta con 8.000 notificaciones acumuladas) y
+    reescribía el parquet entero por alerta: ~12 min con 50.000 registros, y
+    varias horas en la corrida siguiente.
+
+    Los correos individuales solo se envían si la corrida genera pocas alertas
+    (caso de una consulta puntual). En una carga masiva se manda un único
+    resumen, en vez de miles de envíos SMTP.
+    """
     try:
-        from paquetes.registros_clinicos.RegistrosClinicosServicio import _extraer
+        from paquetes.registros_clinicos.RegistrosClinicosServicio import (
+            _extraer as _extraer_registros,
+        )
     except Exception:
         return {"evaluadas": 0, "alertas_nuevas": 0}
 
-    df = _extraer()
+    df = _extraer_registros()
     if df.empty:
         return {"evaluadas": 0, "alertas_nuevas": 0}
 
-    nuevas = 0
-    for _, row in df.iterrows():
-        eid = row.get("encounter_id", "?")
-        hba1c = float(row.get("hbA1c_level") or 0)
-        glucosa = float(row.get("blood_glucose_level") or 0)
-        paciente = row.get("paciente_nombre") or row.get("id_paciente") or "Paciente"
-        email_pac = str(row.get("email") or row.get("paciente_email") or "").strip()
+    total = int(len(df))
 
-        if hba1c > UMBRAL_HBA1C:
+    def _num(col: str) -> pd.Series:
+        if col not in df.columns:
+            return pd.Series(float("nan"), index=df.index, dtype="float64")
+        return pd.to_numeric(df[col], errors="coerce")
+
+    hba = _num("hbA1c_level")
+    glc = _num("blood_glucose_level")
+    # NaN > umbral es False, así que los faltantes quedan fuera solos.
+    candidatos = df.loc[(hba > UMBRAL_HBA1C) | (glc > UMBRAL_GLUCOSA)]
+    if candidatos.empty:
+        return {"evaluadas": total, "alertas_nuevas": 0, "truncado": False}
+
+    def _texto(col: str) -> list[str]:
+        if col not in candidatos.columns:
+            return [""] * len(candidatos)
+        return candidatos[col].fillna("").astype(str).tolist()
+
+    if "encounter_id" in candidatos.columns:
+        eids = candidatos["encounter_id"].tolist()
+    else:
+        eids = list(range(1, len(candidatos) + 1))
+    nombres = _texto("paciente_nombre")
+    if not any(nombres):
+        nombres = _texto("id_paciente")
+    correos = _texto("email")
+    if not any(correos):
+        correos = _texto("paciente_email")
+
+    vistos = _titulos_recientes()
+    filas: list[dict] = []
+    avisos_paciente: list[tuple[str, str, str]] = []
+    truncado = False
+
+    for eid, h, g, nombre, correo in zip(
+        eids,
+        hba.loc[candidatos.index].tolist(),
+        glc.loc[candidatos.index].tolist(),
+        nombres,
+        correos,
+    ):
+        if len(filas) >= limite:
+            truncado = True
+            break
+        paciente = nombre.strip() or "Paciente"
+
+        if h > UMBRAL_HBA1C:
             titulo = f"Alerta HbA1c - encuentro {eid}"
-            if not _ya_existe_titulo_reciente(titulo):
-                emitir(
+            if titulo not in vistos:
+                vistos.add(titulo)
+                filas.append(_fila_notificacion(
                     titulo,
-                    f"{paciente}: HbA1c {hba1c:.1f}% supera umbral {UMBRAL_HBA1C}%.",
+                    f"{paciente}: HbA1c {h:.1f}% supera umbral {UMBRAL_HBA1C}%.",
                     "warning",
-                    destinatario_tipo="rol",
-                    destinatario="medico",
-                    canal="ambos",
-                    referencia_tipo="encuentro",
-                    referencia_id=str(eid),
-                )
-                if email_pac:
-                    emitir(
-                        "DiabCare - Resultado de seguimiento",
-                        f"Hola {paciente}, su HbA1c ({hba1c:.1f}%) requiere seguimiento. Contacte a su médico.",
-                        "info",
-                        destinatario_tipo="paciente_email",
-                        destinatario=email_pac,
-                        canal="email",
-                        destino_email=email_pac,
-                    )
-                nuevas += 1
+                    destinatario_tipo="rol", destinatario="medico",
+                    canal="in_app", referencia_tipo="encuentro", referencia_id=str(eid),
+                ))
+                if correo.strip():
+                    avisos_paciente.append((correo.strip(), paciente, f"{h:.1f}"))
 
-        if glucosa > UMBRAL_GLUCOSA:
+        if g > UMBRAL_GLUCOSA:
             titulo = f"Alerta glucosa - encuentro {eid}"
-            if not _ya_existe_titulo_reciente(titulo):
-                emitir(
+            if titulo not in vistos:
+                vistos.add(titulo)
+                filas.append(_fila_notificacion(
                     titulo,
-                    f"{paciente}: glucosa {glucosa:.0f} mg/dL supera umbral {UMBRAL_GLUCOSA}.",
+                    f"{paciente}: glucosa {g:.0f} mg/dL supera umbral {UMBRAL_GLUCOSA}.",
                     "warning",
-                    destinatario_tipo="rol",
-                    destinatario="medico",
-                    canal="ambos",
-                    referencia_tipo="encuentro",
-                    referencia_id=str(eid),
-                )
-                nuevas += 1
+                    destinatario_tipo="rol", destinatario="medico",
+                    canal="in_app", referencia_tipo="encuentro", referencia_id=str(eid),
+                ))
 
-    return {"evaluadas": int(len(df)), "alertas_nuevas": nuevas}
+    if not filas:
+        return {"evaluadas": total, "alertas_nuevas": 0, "truncado": False}
+
+    # Escritura única: antes era una reescritura completa del parquet por alerta.
+    _cargar(pd.concat([_extraer(), pd.DataFrame(filas)], ignore_index=True))
+
+    emails = 0
+    if len(filas) <= MAX_EMAILS_INDIVIDUALES:
+        for correo, paciente, valor in avisos_paciente:
+            try:
+                if _enviar_email_alerta(
+                    "DiabCare - Resultado de seguimiento",
+                    f"Hola {paciente}, su HbA1c ({valor}%) requiere seguimiento. "
+                    "Contacte a su médico.",
+                    correo,
+                    plantilla="notificacion",
+                ):
+                    emails += 1
+            except Exception:
+                pass
+    else:
+        try:
+            if _enviar_email_alerta(
+                f"DiabCare - {len(filas)} alertas clínicas nuevas",
+                f"Se detectaron {len(filas)} encuentros fuera de umbral "
+                f"(HbA1c > {UMBRAL_HBA1C}% o glucosa > {UMBRAL_GLUCOSA} mg/dL) "
+                f"sobre {total} registros. Revise la bandeja de notificaciones.",
+                None,
+                plantilla="alerta",
+            ):
+                emails = 1
+        except Exception:
+            pass
+
+    return {
+        "evaluadas": total,
+        "alertas_nuevas": len(filas),
+        "emails_enviados": emails,
+        "truncado": truncado,
+    }

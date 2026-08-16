@@ -213,7 +213,12 @@ def listar_activos_por_rol(rol: str) -> list:
         return []
     sub = df[df["rol"].astype(str).str.lower() == str(rol).lower()]
     if "activo" in sub.columns:
-        sub = sub[sub["activo"].map(_coerce_bool)]
+        # astype(bool) es obligatorio: si sub ya viene vacio, .map() devuelve una
+        # Series vacia de dtype object y pandas la trata como lista de columnas,
+        # no como mascara -> el DataFrame queda sin columnas y el sort revienta.
+        sub = sub[sub["activo"].map(_coerce_bool).astype(bool)]
+    if sub.empty:
+        return []
     sub = sub.sort_values("nombre", kind="stable")
     return sub[["id", "nombre", "email", "rol"]].fillna("").to_dict(orient="records")
 

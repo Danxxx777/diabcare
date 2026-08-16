@@ -515,6 +515,10 @@ def listar(limit: int = 50, offset: int = 0, filtros: dict = None) -> dict:
 
 def obtener(encounter_id: int) -> dict:
     df = _extraer()
+    # Sin dataset en stage/, _extraer() devuelve un DataFrame sin columnas y el
+    # filtro de abajo lanzaria KeyError -> 500 en vez de "no encontrado".
+    if df.empty or "encounter_id" not in df.columns:
+        return {"error": "Registro no encontrado"}
     fila = df[df["encounter_id"] == encounter_id]
     if fila.empty:
         return {"error": "Registro no encontrado"}
