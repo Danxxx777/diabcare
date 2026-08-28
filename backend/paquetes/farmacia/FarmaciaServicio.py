@@ -810,6 +810,16 @@ def dispensar_receta(id_receta: str) -> dict:
     return {"mensaje": "Receta dispensada", "dispensaciones": resultados}
 
 
+def receta_ya_cobrada(receta: dict) -> bool:
+    """La receta ya se pago en caja junto con la consulta.
+
+    Caja factura la atencion completa -consulta, laboratorio y medicamentos- y
+    deja la receta en "pagada". Volver a cobrarla en el mostrador seria cobrarle
+    dos veces al paciente.
+    """
+    return estado_receta(receta.get("estado")) == "pagada"
+
+
 def dispensar_y_cobrar_receta(id_receta: str, metodo: str) -> dict:
     receta = obtener_receta_completa(id_receta)
     if receta.get("error"):
@@ -817,6 +827,16 @@ def dispensar_y_cobrar_receta(id_receta: str, metodo: str) -> dict:
     lineas = receta.get("medicamentos") or []
     if not lineas:
         return {"error": "La receta no tiene medicamentos. Debe corregirse desde la consulta médica"}
+
+    # Ya pagada en caja: aqui solo se entrega.
+    if receta_ya_cobrada(receta):
+        entrega = dispensar_receta(id_receta)
+        if entrega.get("error"):
+            return entrega
+        entrega["mensaje"] = "Receta entregada. Ya estaba cobrada en caja con la consulta."
+        entrega["cobrada_en_caja"] = True
+        return entrega
+
     metodo_n = str(metodo or "efectivo").lower()
     if metodo_n not in ("efectivo", "tarjeta", "transferencia"):
         return {"error": "Método de pago no válido"}

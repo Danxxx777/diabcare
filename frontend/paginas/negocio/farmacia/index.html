@@ -300,6 +300,26 @@ function renderMedicamentosReceta(row) {
     </div>`).join('')}</div>`;
 }
 
+/** Caja cobra la atencion completa y deja la receta en "pagada". */
+function pagadaEnCaja(row) {
+  return String(row?.estado || '').toLowerCase() === 'pagada';
+}
+
+/** Deja claro si aqui se cobra o solo se entrega: evita cobrar dos veces. */
+function cobroLeyenda(row) {
+  if (!row) return '';
+  if (pagadaEnCaja(row)) {
+    return `<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--st-ok-line);
+      background:var(--st-ok-bg);font-size:12px;color:var(--text2)">
+      <strong>Ya cobrada en caja</strong> junto con la consulta. Aquí solo se entrega: no se emite otra factura.</div>`;
+  }
+  const total = (row.medicamentos || []).reduce((a, m) => a + Number(m.subtotal || 0), 0);
+  return `<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--st-warning-line);
+    background:var(--st-warning-bg);font-size:12px;color:var(--text2)">
+    <strong>Pendiente de cobro</strong> — no pasó por caja. Se cobrará en el mostrador:
+    <b>${DiabCareAPI.money ? DiabCareAPI.money(total) : total.toFixed(2)}</b>.</div>`;
+}
+
 async function abrirDetalleReceta(row) {
   recetaSeleccionada = row || null;
   const lineas = row?.medicamentos || [];
@@ -310,10 +330,11 @@ async function abrirDetalleReceta(row) {
       <span class="muted">Fecha: ${row?.fecha || '-'}</span>
     </div>
     ${lineas.length ? renderMedicamentosReceta(row) : '<div class="loading">Receta incompleta. Debe corregirse desde la consulta médica.</div>'}
+    ${cobroLeyenda(row)}
     ${row?.indicaciones ? `<div style="margin-top:12px"><strong>Indicaciones generales</strong><p>${row.indicaciones}</p></div>` : ''}`;
   const btn = document.getElementById('btnDispensarCompleta');
   btn.disabled = !lineas.length;
-  btn.textContent = 'Confirmar entrega';
+  btn.textContent = pagadaEnCaja(row) ? 'Confirmar entrega' : 'Cobrar y entregar';
   btn.title = lineas.length ? '' : 'La receta debe corregirse desde la consulta médica';
   document.getElementById('rxDetalleModal').style.display = 'flex';
 }
@@ -328,15 +349,22 @@ async function dispensarRecetaCompleta() {
   const btn = document.getElementById('btnDispensarCompleta');
   btn.disabled = true;
   const original = btn.textContent;
-  btn.textContent = 'Dispensando...';
+  const yaPagada = pagadaEnCaja(recetaSeleccionada);
+  btn.textContent = yaPagada ? 'Entregando...' : 'Cobrando...';
   try {
-    const r = await fetch(`${API}/api/farmacia/recetas/${encodeURIComponent(recetaSeleccionada.id_receta)}/dispensar`, {
-      method: 'POST', headers: hdr(), credentials: 'include'
+    // Pagada en caja: solo se entrega. Sin cobrar: el mostrador la factura.
+    // El backend vuelve a comprobarlo, asi que no se puede cobrar dos veces.
+    const ruta = yaPagada ? 'dispensar' : 'dispensar-cobrar';
+    const id = encodeURIComponent(recetaSeleccionada.id_receta);
+    const cab = yaPagada ? hdr() : { ...hdr(), 'Content-Type': 'application/json' };
+    const r = await fetch(`${API}/api/farmacia/recetas/${id}/${ruta}`, {
+      method: 'POST', headers: cab, credentials: 'include',
+      body: yaPagada ? undefined : JSON.stringify({ metodo: 'efectivo' })
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.detail || data.error || 'No se pudo dispensar');
     cerrarDetalleReceta();
-    toast('Medicamentos entregados correctamente');
+    toast(data.mensaje || (yaPagada ? 'Medicamentos entregados' : 'Receta cobrada y entregada'));
     if (farmTabs) await farmTabs.switchTab('historial');
     cargarKpisFarm();
   } catch (error) {
