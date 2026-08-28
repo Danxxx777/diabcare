@@ -10,9 +10,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-2"></script>
-<script src="/estaticos/api.js?v=contrast-1"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 <script src="/estaticos/graficas.js?v=contrast-1"></script>
 <style>
 body.dc-uv .es-kpis {
@@ -106,13 +106,10 @@ html[data-tema="claro"] .es-track { background: rgba(47,61,66,.12); }
     <div class="page-header page-header--clinico">
       <div>
         <div class="page-title">Análisis <span>estadístico</span></div>
-        <div class="page-sub">Cohorte del workpanel clínico (MinIO). Pensado para el analista: prevalencia, control, demografía y hallazgos.</div>
+        <div class="page-sub">Prevalencia, control metabólico, demografía y hallazgos de la cohorte clínica.</div>
       </div>
       <div class="es-actions">
         <button class="btn btn-ghost btn-sm" type="button" id="btnCsv">Exportar CSV</button>
-        <a class="btn btn-ghost btn-sm" href="/paginas/clinico/analisis/diabetes/index.html">Calidad DM</a>
-        <a class="btn btn-ghost btn-sm" href="/paginas/clinico/analisis/informes/index.html">Panel</a>
-        <a class="btn btn-ghost btn-sm" href="/paginas/clinico/reportes/index.html">PDF</a>
         <button class="btn btn-primary btn-sm" type="button" id="btnReload">Actualizar</button>
       </div>
     </div>
@@ -125,7 +122,7 @@ html[data-tema="claro"] .es-track { background: rgba(47,61,66,.12); }
     </div>
 
     <div class="es-card es-find tabla-card" id="boxHallazgos">
-      <h3>Hallazgos para el analista</h3>
+      <h3>Hallazgos Clínicos Prioritarios</h3>
       <p class="es-hint">Se calculan sobre el DWH. HbA1c promedio &gt; 7,5 % es alerta clínica (ADA).</p>
       <ul id="listaHallazgos"><li>Cargando cohorte…</li></ul>
     </div>
@@ -135,20 +132,20 @@ html[data-tema="claro"] .es-track { background: rgba(47,61,66,.12); }
       <div class="es-card tabla-card">
         <h3>BMI</h3>
         <p class="es-hint">Índice de masa corporal promedio.</p>
-        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-bmi-c" style="width:0;background:var(--dc-riesgo)"></i></div><b id="v-bmi-c">—</b></div>
-        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-bmi-s" style="width:0;background:var(--dc-ok)"></i></div><b id="v-bmi-s">—</b></div>
+        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-bmi-c" style="width:0;background:var(--dc-riesgo)"></i></div><b id="v-bmi-c">-</b></div>
+        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-bmi-s" style="width:0;background:var(--dc-ok)"></i></div><b id="v-bmi-s">-</b></div>
       </div>
       <div class="es-card tabla-card">
         <h3>HbA1c (%)</h3>
         <p class="es-hint">Hemoglobina glicosilada. Meta &lt; 7 %.</p>
-        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-hba-c" style="width:0;background:var(--dc-riesgo)"></i></div><b id="v-hba-c">—</b></div>
-        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-hba-s" style="width:0;background:var(--dc-ok)"></i></div><b id="v-hba-s">—</b></div>
+        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-hba-c" style="width:0;background:var(--dc-riesgo)"></i></div><b id="v-hba-c">-</b></div>
+        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-hba-s" style="width:0;background:var(--dc-ok)"></i></div><b id="v-hba-s">-</b></div>
       </div>
       <div class="es-card tabla-card">
         <h3>Glucosa (mg/dL)</h3>
         <p class="es-hint">Glucosa en sangre promedio.</p>
-        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-glc-c" style="width:0;background:var(--dc-riesgo)"></i></div><b id="v-glc-c">—</b></div>
-        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-glc-s" style="width:0;background:var(--dc-ok)"></i></div><b id="v-glc-s">—</b></div>
+        <div class="es-bar-row"><span class="n">Con DM</span><div class="es-track"><i id="b-glc-c" style="width:0;background:var(--dc-riesgo)"></i></div><b id="v-glc-c">-</b></div>
+        <div class="es-bar-row"><span class="n">Sin DM</span><div class="es-track"><i id="b-glc-s" style="width:0;background:var(--dc-ok)"></i></div><b id="v-glc-s">-</b></div>
       </div>
     </div>
 
@@ -160,7 +157,7 @@ html[data-tema="claro"] .es-track { background: rgba(47,61,66,.12); }
       </div>
       <div class="es-card tabla-card">
         <h3>Control HbA1c en DM+</h3>
-        <p class="es-hint">&lt;7 % controlado · 7–9 % subóptimo · ≥9 % descontrol.</p>
+        <p class="es-hint">&lt;7 % controlado - 7-9 % subóptimo - ≥9 % descontrol.</p>
         <canvas class="es-chart" id="c-ctrl" height="200"></canvas>
       </div>
     </div>
@@ -184,7 +181,7 @@ html[data-tema="claro"] .es-track { background: rgba(47,61,66,.12); }
     <div class="section-label">Correlación de riesgo metabólico</div>
     <div class="es-grid-1">
       <div class="es-card tabla-card">
-        <h3>BMI vs HbA1c <span class="es-hint-inline">— cada punto es un paciente; rojo = DM+</span></h3>
+        <h3>BMI vs HbA1c <span class="es-hint-inline">- cada punto es un paciente; rojo = DM+</span></h3>
         <canvas class="es-chart" id="c-riesgo"></canvas>
       </div>
     </div>
@@ -241,12 +238,12 @@ let _calidad = null;
 
 function nfmt(v) {
   const n = Number(v);
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '-';
   return n.toLocaleString('es-EC');
 }
 function pct(v) {
   const n = Number(v);
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '-';
   return n.toFixed(1) + '%';
 }
 function setTxt(id, v) {
@@ -300,12 +297,12 @@ function hallazgos(s, q) {
 
 function pintarPromedios(p) {
   if (!p) return;
-  setTxt('v-bmi-c', p.bmi?.con ?? '—');
-  setTxt('v-bmi-s', p.bmi?.sin ?? '—');
-  setTxt('v-hba-c', p.hba1c?.con ?? '—');
-  setTxt('v-hba-s', p.hba1c?.sin ?? '—');
-  setTxt('v-glc-c', p.glucosa?.con ?? '—');
-  setTxt('v-glc-s', p.glucosa?.sin ?? '—');
+  setTxt('v-bmi-c', p.bmi?.con ?? '-');
+  setTxt('v-bmi-s', p.bmi?.sin ?? '-');
+  setTxt('v-hba-c', p.hba1c?.con ?? '-');
+  setTxt('v-hba-s', p.hba1c?.sin ?? '-');
+  setTxt('v-glc-c', p.glucosa?.con ?? '-');
+  setTxt('v-glc-s', p.glucosa?.sin ?? '-');
   barW('b-bmi-c', p.bmi?.con, 45);
   barW('b-bmi-s', p.bmi?.sin, 45);
   barW('b-hba-c', p.hba1c?.con, 12);
@@ -370,7 +367,7 @@ function pintar(s, q) {
     const h = (q && q.control_hba1c) || {};
     if (h.con_dato) {
       DiabCareGraf.waffle(document.getElementById('c-ctrl'),
-        ['Control <7%', 'Subóptimo 7–9%', 'Descontrol ≥9%'],
+        ['Control <7%', 'Subóptimo 7-9%', 'Descontrol ≥9%'],
         [h.controlado_lt7 || 0, h.suboptimo_7_9 || 0, h.descontrol_gte9 || 0],
         [DiabCareGraf.rol.ok, DiabCareGraf.rol.alerta, DiabCareGraf.rol.riesgo]);
     }
@@ -466,19 +463,21 @@ function exportCsv() {
 
 async function cargar() {
   setTxt('k-total', '…');
-  const [st, cal] = await Promise.all([
-    DiabCareAPI.json('/api/registros/estadisticas'),
-    DiabCareAPI.json('/api/registros/calidad-diabetes'),
-  ]);
-  if (st.status === 401 || cal.status === 401) return;
+  const opciones = { silent: true, skeleton: false };
+  const st = await DiabCareAPI.json('/api/registros/estadisticas', opciones);
+  if (st.status === 401) return;
   if (!st.ok) {
-    setTxt('k-total', '—');
+    setTxt('k-total', '-');
     document.getElementById('listaHallazgos').innerHTML =
       '<li>No se pudieron leer las estadísticas del workpanel. Revise sesión y MinIO.</li>';
     DiabCareAPI.toast('Error al cargar estadísticas', 'error');
     return;
   }
-  pintar(st.data || { total: 0 }, cal.ok ? cal.data : {});
+  pintar(st.data || { total: 0 }, {});
+
+  const cal = await DiabCareAPI.json('/api/registros/calidad-diabetes', opciones);
+  if (cal.status === 401) return;
+  if (cal.ok) pintar(st.data || { total: 0 }, cal.data || {});
 }
 
 document.getElementById('btnReload').addEventListener('click', cargar);

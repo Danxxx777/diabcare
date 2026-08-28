@@ -374,7 +374,7 @@ def generar_hospital(
     ]))
 
     # ── Recetas / dispensaciones / ventas ───────────────────────────────────
-    recetas_rows, disp_rows = [], []
+    recetas_rows, recetas_det_rows, disp_rows = [], [], []
     for i in range(n_ops):
         rid = _uid()
         pac = pacientes[i % len(pacientes)]
@@ -388,6 +388,12 @@ def generar_hospital(
             "estado": "dispensada" if rng.random() < 0.7 else "pendiente",
             "fecha": fecha, "creado_en": now, "actualizado_en": now,
         })
+        recetas_det_rows.append({
+            "id_detalle": _uid(), "id_receta": rid, "id_medicamento": mid,
+            "dosis": "1 unidad", "frecuencia": "Cada 12 horas", "duracion": "30 días",
+            "cantidad": 2.0, "indicaciones": "Administrar según indicación médica",
+            "estado": "emitida", "creado_en": now, "actualizado_en": now,
+        })
         if rng.random() < 0.7 and inv_rows:
             lot = inv_rows[int(rng.integers(0, len(inv_rows)))]
             cant = float(int(rng.integers(1, 5)))
@@ -397,8 +403,21 @@ def generar_hospital(
                 "lote": lot["lote"], "fecha": fecha, "estado": "dispensada",
                 "creado_en": now, "actualizado_en": now,
             })
+    if not disp_rows and recetas_rows and inv_rows:
+        receta = recetas_rows[0]
+        detalle = recetas_det_rows[0]
+        lote = inv_rows[0]
+        receta["estado"] = "dispensada"
+        disp_rows.append({
+            "id_dispensacion": _uid(), "id_receta": receta["id_receta"],
+            "id_medicamento": detalle["id_medicamento"],
+            "id_inventario": lote["id_inventario"], "cantidad": 1.0,
+            "lote": lote["lote"], "fecha": receta["fecha"], "estado": "dispensada",
+            "creado_en": now, "actualizado_en": now,
+        })
     conteos.update(_escribir_lote([
         ("oper_recetas", Farm.recetas, recetas_rows),
+        ("oper_recetas_detalle", Farm.recetas_detalle, recetas_det_rows),
         ("hechos_farmacia_dispensacion", Farm.dispensaciones, disp_rows),
     ]))
 
@@ -435,6 +454,14 @@ def generar_hospital(
                 "motivo": "Devolución parcial", "monto": round(pu, 2), "fecha": fecha,
                 "estado": "emitida", "creado_en": now, "actualizado_en": now,
             })
+    if not notas_rows and ventas_rows:
+        venta = ventas_rows[0]
+        notas_rows.append({
+            "id_nota": _uid(), "tipo": "credito", "id_venta": venta["id_venta"],
+            "id_compra": "", "motivo": "Ajuste sintético de prueba",
+            "monto": 1.0, "fecha": venta["fecha"], "estado": "emitida",
+            "creado_en": now, "actualizado_en": now,
+        })
     conteos.update(_escribir_lote([
         ("oper_ordenes_venta", Farm.ordenes_venta, ov_rows),
         ("oper_ordenes_venta_detalle", Farm.ordenes_venta_det, ov_det),
@@ -514,6 +541,29 @@ def generar_hospital(
                 "fecha_autorizacion": fecha, "estado": "autorizado",
                 "creado_en": now, "actualizado_en": now,
             })
+    if not bridge_rows and pacientes and seguros_rows:
+        bridge_rows.append({
+            "id_bridge": _uid(), "id_paciente": pacientes[0],
+            "id_seguro": seguros_rows[0]["id_seguro"],
+            "poliza": f"POL-{year}-0001", "activo": True,
+            "creado_en": now, "actualizado_en": now,
+        })
+    if not pagos_rows and fact_rows:
+        factura = fact_rows[0]
+        factura["estado"] = "pagada"
+        pagos_rows.append({
+            "id_pago": _uid(), "id_factura": factura["id_factura"],
+            "monto": factura["total"], "metodo": "efectivo",
+            "fecha": factura["fecha"], "estado": "registrado",
+            "creado_en": now, "actualizado_en": now,
+        })
+        comp_rows.append({
+            "id_comprobante": _uid(), "id_factura": factura["id_factura"],
+            "tipo": "factura", "autorizacion_sri": f"SIM-{factura['id_factura'][:8]}",
+            "clave_acceso": f"DEMO{factura['id_factura'][:20]}",
+            "fecha_autorizacion": factura["fecha"], "estado": "autorizado",
+            "creado_en": now, "actualizado_en": now,
+        })
     conteos.update(_escribir_lote([
         ("bridge_paciente_seguro", F.bridge_seguro, bridge_rows),
         ("hechos_facturacion", F.facturas, fact_rows),
@@ -641,6 +691,13 @@ def generar_hospital(
                 "notas": "", "estado": "activa",
                 "creado_en": now, "actualizado_en": now,
             })
+    if not com_rows and pacientes:
+        com_rows.append({
+            "id_comorbilidad": _uid(), "id_paciente": pacientes[0],
+            "tipo": "neuropatia", "fecha_deteccion": f"{year}-01-15",
+            "id_medico": personal["medico"][0], "notas": "Registro sintético",
+            "estado": "activa", "creado_en": now, "actualizado_en": now,
+        })
 
     # ── RRHH ────────────────────────────────────────────────────────────────
     pers_rows, asg_rows, prod_rows = [], [], []
@@ -712,6 +769,7 @@ def generar_hospital(
         ("agg_medicamentos_top", top_store, top_rows),
     ]))
 
+    tablas_vacias = sorted(k for k, v in conteos.items() if int(v or 0) <= 0)
     return {
         "ok": True,
         "mensaje": "Datos hospitalarios generados en negocio/",
@@ -719,6 +777,12 @@ def generar_hospital(
         "tablas": len(conteos),
         "filas_total": int(sum(conteos.values())),
         "conteos": conteos,
+        "cobertura": {
+            "pobladas": len(conteos) - len(tablas_vacias),
+            "total": len(conteos),
+            "vacias": tablas_vacias,
+            "completa": not tablas_vacias,
+        },
         "modo_rapido": modo_rapido,
         "year": year,
         "periodo": periodo,

@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DiabCare QR">
-<title>DiabCare · Verificar informe</title>
+<title>DiabCare - Verificar informe</title>
 <link rel="manifest" href="/estaticos/verificar-manifest.json">
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/estaticos/img/logo-icon.svg">
@@ -135,11 +135,11 @@
       <div class="estado loading" id="estado">Comprobando…</div>
       <div class="meta" id="meta">
         <dl>
-          <div><dt>Código</dt><dd id="m-codigo">—</dd></div>
-          <div><dt>Archivo</dt><dd id="m-nombre">—</dd></div>
-          <div><dt>Fecha</dt><dd id="m-fecha">—</dd></div>
-          <div><dt>Tipo</dt><dd id="m-tipo">—</dd></div>
-          <div><dt>Generado por</dt><dd id="m-usuario">—</dd></div>
+          <div><dt>Código</dt><dd id="m-codigo">-</dd></div>
+          <div><dt>Archivo</dt><dd id="m-nombre">-</dd></div>
+          <div><dt>Fecha</dt><dd id="m-fecha">-</dd></div>
+          <div><dt>Tipo</dt><dd id="m-tipo">-</dd></div>
+          <div><dt>Generado por</dt><dd id="m-usuario">-</dd></div>
         </dl>
         <div class="actions" id="acciones">
           <a class="btn btn-primary" id="btn-ver" href="#" target="_blank" rel="noopener">Ver PDF</a>
@@ -152,7 +152,7 @@
     <p class="install" id="install-hint">
       En el celular: menú del navegador → <strong>Añadir a pantalla de inicio</strong> para usarlo como app.
     </p>
-    <p class="foot">DiabCare · verificación documental<br>Solo datos agregados · sin datos personales</p>
+    <p class="foot">DiabCare - verificación documental<br>Solo datos agregados - sin datos personales</p>
   </div>
 
 <script>
@@ -194,7 +194,7 @@
   }
 
   function fmtFecha(iso) {
-    if (!iso) return '—';
+    if (!iso) return '-';
     try {
       const d = new Date(iso);
       if (Number.isNaN(d.getTime())) return iso;
@@ -226,10 +226,10 @@
       }
       setEstado('ok', 'Documento verificado');
       $('m-codigo').textContent = d.codigo || cod;
-      $('m-nombre').textContent = d.nombre || '—';
+      $('m-nombre').textContent = d.nombre || '-';
       $('m-fecha').textContent = fmtFecha(d.fecha);
-      $('m-tipo').textContent = [d.tipo, d.departamento].filter(Boolean).join(' · ') || '—';
-      $('m-usuario').textContent = d.usuario || '—';
+      $('m-tipo').textContent = [d.tipo, d.departamento].filter(Boolean).join(' - ') || '-';
+      $('m-usuario').textContent = d.usuario || '-';
       const pdfUrl = `${apiBase}/api/reportes/verificar/${encodeURIComponent(d.codigo || cod)}/pdf`;
       $('btn-ver').href = pdfUrl;
       $('btn-descargar').href = pdfUrl;

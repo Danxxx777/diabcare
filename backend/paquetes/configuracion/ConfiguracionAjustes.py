@@ -10,7 +10,7 @@ POCKETBASE_COLLECTION = os.environ.get("POCKETBASE_COLLECTION", "diabetes_datase
 
 # Clave compartida con el DAG de Airflow (header X-DiabCare-Pipeline-Key)
 PIPELINE_INTERNAL_KEY = os.environ.get("DIABCARE_PIPELINE_KEY", "diabcare-pipeline-demo")
-AIRFLOW_URL = os.environ.get("AIRFLOW_URL", "http://localhost:8080")
+AIRFLOW_URL = os.environ.get("AIRFLOW_URL", "http://localhost:8081")
 AIRFLOW_USER = os.environ.get("AIRFLOW_USER", "admin")
 AIRFLOW_PASSWORD = os.environ.get("AIRFLOW_PASSWORD", "admin")
 AIRFLOW_DAG_ID = os.environ.get("AIRFLOW_DAG_ID", "diabcare_elt")

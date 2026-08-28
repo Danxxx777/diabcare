@@ -10,9 +10,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 <style>
 .config-section { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:14px; }
 .config-title   {
@@ -392,8 +392,23 @@
       </div>
 
       <div class="config-section">
+        <div class="config-title">Horario de Atención</div>
+        <div class="config-sub">Se aplica a agenda y consultas. Urgencias permanece disponible las 24 horas.</div>
+        <div class="config-grid" style="grid-template-columns:1fr 1fr;margin-top:12px">
+          <div class="fg"><label class="fl" for="horario-apertura">Apertura</label><input class="fi" id="horario-apertura" type="time" value="08:00"></div>
+          <div class="fg"><label class="fl" for="horario-cierre">Cierre</label><input class="fi" id="horario-cierre" type="time" value="18:00"></div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px" id="horario-dias">
+          <label><input type="checkbox" value="0"> Lunes</label><label><input type="checkbox" value="1"> Martes</label>
+          <label><input type="checkbox" value="2"> Miércoles</label><label><input type="checkbox" value="3"> Jueves</label>
+          <label><input type="checkbox" value="4"> Viernes</label><label><input type="checkbox" value="5"> Sábado</label>
+          <label><input type="checkbox" value="6"> Domingo</label>
+        </div>
+      </div>
+
+      <div class="config-section">
         <div class="config-title">QR y cobro digital</div>
-        <div class="config-sub">Sin URL pública el QR solo abre en tu Wi‑Fi. Con túnel o dominio, cualquiera (datos móviles) puede escanear informes y pagar la consulta.</div>
+        <div class="config-sub">Sin URL pública el QR solo abre en tu Wi-Fi. Con túnel o dominio, cualquiera (datos móviles) puede escanear informes y pagar la consulta.</div>
         <div class="fg" style="margin-bottom:12px;">
           <label class="fl" for="url-publica">URL pública</label>
           <input class="fi" id="url-publica" type="url" placeholder="https://algo.trycloudflare.com" autocomplete="off">
@@ -544,7 +559,7 @@ async function ejecutarFotosAuto() {
     }
     const pg = d.por_genero || {};
     const detalle = `♀${pg.women || 0} ♂${pg.men || 0}`;
-    if (st) st.textContent = `${d.asignadas || 0} ok · ${detalle}`;
+    if (st) st.textContent = `${d.asignadas || 0} ok - ${detalle}`;
     toast(`${d.asignadas || 0} fotos asignadas (${detalle})`, 'success');
   } catch {
     toast('Error de conexión', 'error');
@@ -649,7 +664,7 @@ function pintarMapa() {
             <div class="tpl-pipe">
               <div class="tpl-node">
                 <div class="tpl-node-k">Cuándo</div>
-                <div class="tpl-node-v">${item.cuando || '—'}</div>
+                <div class="tpl-node-v">${item.cuando || '-'}</div>
               </div>
               <div class="tpl-pipe-arr">→</div>
               <div class="tpl-node">
@@ -662,7 +677,7 @@ function pintarMapa() {
                 <div class="tpl-node-v">${item.destino || AUDIENCIA_TITULO[aud]}</div>
               </div>
             </div>
-            <div class="tpl-mod">módulo · ${item.modulo || '—'}</div>
+            <div class="tpl-mod">módulo - ${item.modulo || '-'}</div>
           </div>
         </div>`;
     }).join('');
@@ -695,7 +710,7 @@ function actualizarEstado() {
   const listo = on && rem.includes('@') && passOk;
   box.className = 'mail-status' + (listo ? ' ok' : '');
   box.innerHTML = listo
-    ? `<span class="dot"></span><span>Canal listo · ${p} · ${rem}</span>`
+    ? `<span class="dot"></span><span>Canal listo - ${p} - ${rem}</span>`
     : `<span class="dot"></span><span>${!on ? 'Envío apagado' : (!rem.includes('@') ? 'Falta cuenta' : 'Falta credencial')}</span>`;
   if (flow) {
     flow.textContent = rem.includes('@')
@@ -738,6 +753,10 @@ async function cargarConfig() {
     setToggle('t-cache', c.cache !== false);
     setToggle('t-email', c.email);
     setToggle('t-email-tls', c.email_smtp_tls !== false);
+    document.getElementById('horario-apertura').value = c.horario_apertura || '08:00';
+    document.getElementById('horario-cierre').value = c.horario_cierre || '18:00';
+    const diasHorario = new Set((c.horario_dias || [0,1,2,3,4]).map(Number));
+    document.querySelectorAll('#horario-dias input').forEach(el => { el.checked = diasHorario.has(Number(el.value)); });
 
     const urlPub = document.getElementById('url-publica');
     if (urlPub) urlPub.value = c.url_publica || '';
@@ -751,8 +770,8 @@ async function cargarConfig() {
     const alcance = c.alcance_qr || {};
     const alcanceEl = document.getElementById('alcance-qr');
     if (alcanceEl) {
-      const net = alcance.internet ? 'internet (cualquier celular)' : 'solo tu Wi‑Fi / red local';
-      alcanceEl.textContent = 'Alcance actual: ' + net + (alcance.url ? ' · ' + alcance.url : '');
+      const net = alcance.internet ? 'internet (cualquier celular)' : 'solo tu Wi-Fi / red local';
+      alcanceEl.textContent = 'Alcance actual: ' + net + (alcance.url ? ' - ' + alcance.url : '');
     }
     const stEl = document.getElementById('stripe-estado');
     if (stEl) {
@@ -840,6 +859,9 @@ function leerConfigFormulario() {
     url_publica: (document.getElementById('url-publica')?.value || '').trim(),
     stripe_publishable_key: (document.getElementById('stripe-pk')?.value || '').trim(),
     stripe_secret_key: document.getElementById('stripe-sk')?.value || '',
+    horario_apertura: document.getElementById('horario-apertura').value,
+    horario_cierre: document.getElementById('horario-cierre').value,
+    horario_dias: [...document.querySelectorAll('#horario-dias input:checked')].map(el => Number(el.value)),
   };
 }
 
@@ -913,6 +935,16 @@ async function testMinio() {
 }
 
 async function guardar(silent = false) {
+  const apertura = document.getElementById('horario-apertura').value;
+  const cierre = document.getElementById('horario-cierre').value;
+  if (!apertura || !cierre || apertura >= cierre) {
+    if (!silent) toast('El horario de cierre debe ser posterior a la apertura', 'error');
+    return false;
+  }
+  if (!document.querySelector('#horario-dias input:checked')) {
+    if (!silent) toast('Selecciona al menos un día de atención', 'error');
+    return false;
+  }
   try {
     const r = await fetch(`${API}/api/configuracion/`, {
       method: 'POST',
@@ -942,8 +974,8 @@ async function guardar(silent = false) {
       const alcance = d.configuracion.alcance_qr || {};
       const alcanceEl = document.getElementById('alcance-qr');
       if (alcanceEl) {
-        const net = alcance.internet ? 'internet (cualquier celular)' : 'solo tu Wi‑Fi / red local';
-        alcanceEl.textContent = 'Alcance actual: ' + net + (alcance.url ? ' · ' + alcance.url : '');
+        const net = alcance.internet ? 'internet (cualquier celular)' : 'solo tu Wi-Fi / red local';
+        alcanceEl.textContent = 'Alcance actual: ' + net + (alcance.url ? ' - ' + alcance.url : '');
       }
       const stEl = document.getElementById('stripe-estado');
       if (stEl) {

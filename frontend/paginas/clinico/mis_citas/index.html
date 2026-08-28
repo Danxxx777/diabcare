@@ -9,9 +9,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 <style>
 .at-meta {
   font-size: 12px; color: var(--text2); margin-bottom: 12px;
@@ -32,10 +32,10 @@
     <div class="page-header">
       <div>
         <div class="page-title">Mis <span>citas</span></div>
-        <div class="page-sub">Turnos asignados al médico · confirmar, atender o marcar no asistió</div>
+        <div class="page-sub">Turnos asignados al médico - confirmar, atender o marcar no asistió</div>
       </div>
     </div>
-    <div class="stats-grid">
+    <div class="stats-grid" style="display:none!important">
       <div class="stat-card"><div class="stat-label">Turnos asignados</div><div class="stat-value blue" id="st-total">-</div></div>
       <div class="stat-card"><div class="stat-label">Médico</div><div class="stat-value" id="st-medico" style="font-size:14px">-</div></div>
     </div>
@@ -64,7 +64,7 @@
     <div class="modal-body form-modal-grid">
       <input type="hidden" id="at-id-cita">
       <input type="hidden" id="at-id-paciente">
-      <div class="span-full at-meta" id="at-meta">—</div>
+      <div class="span-full at-meta" id="at-meta">-</div>
       <label>Edad<input id="at-age" type="number" min="1" max="120" step="1" required></label>
       <label>Género
         <select id="at-gender">
@@ -101,7 +101,7 @@ const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 let pag = 1;
 let _totalRows = 0;
-const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 12;
+const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 9;
 let _rows = [];
 
 function toast(msg, type='success') {
@@ -162,12 +162,12 @@ async function cargar() {
       rows: _rows,
       idField: 'id_cita',
       columns: [
-        { key: 'paciente_nombre', label: 'Paciente', title: true, render: c => esc(c.paciente_nombre) || '—' },
+        { key: 'paciente_nombre', label: 'Paciente', title: true, render: c => esc(c.paciente_nombre) || '-' },
         { key: 'estado', label: 'Estado', badge: true, render: c =>
-          c.estado_label || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(c.estado) : c.estado) || '—' },
+          c.estado_label || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(c.estado) : c.estado) || '-' },
         { key: 'fecha', label: 'Fecha' },
         { key: 'hora', label: 'Hora' },
-        { key: 'motivo', label: 'Motivo', render: c => esc(c.motivo) || '—' },
+        { key: 'motivo', label: 'Motivo', render: c => esc(c.motivo) || '-' },
         { key: 'pago_label', label: 'Cobro', render: c =>
           c.pago_label || (c.consulta_pagada ? 'Cobrada' : 'Pendiente cobro') },
       ],
@@ -221,8 +221,8 @@ async function abrirAtender(idCita) {
   document.getElementById('at-id-cita').value = c.id_cita;
   document.getElementById('at-id-paciente').value = c.id_paciente || '';
   document.getElementById('at-meta').innerHTML =
-    `<div><b>Paciente:</b> ${esc(c.paciente_nombre) || '—'}</div>` +
-    `<div style="margin-top:4px"><b>Motivo:</b> ${esc(c.motivo) || '—'}</div>` +
+    `<div><b>Paciente:</b> ${esc(c.paciente_nombre) || '-'}</div>` +
+    `<div style="margin-top:4px"><b>Motivo:</b> ${esc(c.motivo) || '-'}</div>` +
     `<div style="margin-top:4px"><b>Turno:</b> ${esc(c.fecha)} ${esc(c.hora)}</div>`;
 
   document.getElementById('at-age').value = 45;
@@ -310,9 +310,13 @@ async function guardarAtencion() {
       return;
     }
 
-    toast('Consulta documentada');
-    cerrarAtender();
-    cargar();
+    toast('Consulta documentada. Complete la receta médica.');
+    const cita = _rows.find(x => String(x.id_cita) === String(idCita)) || {};
+    const qs = new URLSearchParams({
+      encounter_id: String(idCita), id_paciente: String(idPaciente || ''),
+      paciente: cita.paciente_nombre || 'Paciente'
+    });
+    location.href = `/paginas/negocio/recetas/index.html?${qs.toString()}`;
   } catch (_) {
     toast('Error de conexión', 'error');
   } finally {

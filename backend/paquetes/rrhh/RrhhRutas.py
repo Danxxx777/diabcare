@@ -1,4 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+import csv
+import io
+
+import pandas as pd
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from typing import Optional
 from nucleo.utilidades.Dependencias import require_modulo, require_escritura
@@ -30,6 +34,113 @@ class PersonalIn(BaseModel):
     costo_hora: float = 0
     fecha_vigencia: str = ""
     activo: Optional[bool] = True
+
+class EmpleadoIn(BaseModel):
+    codigo: str
+    nombre: str
+    apellido: str = ""
+    documento: str = ""
+    email: str = ""
+    telefono: str = ""
+    cargo: str = ""
+    area: str = ""
+    sede: str = ""
+    fecha_ingreso: str = ""
+    estado_laboral: str = "activo"
+    rol_sugerido: str = ""
+
+class ProvisionarIn(BaseModel):
+    ids: list[str]
+
+class AsignacionTurnoIn(BaseModel):
+    id_personal: str
+    id_turno: str
+    fecha: str
+    activo: Optional[bool] = True
+
+@router.get("/empleados")
+def list_empleados(offset: int = 0, limit: int = 100, payload=Depends(require_modulo("rrhh"))):
+    return S.listar_empleados(offset, min(limit, 500))
+
+@router.get("/empleados/resumen")
+def resumen_empleados(payload=Depends(require_modulo("rrhh"))):
+    return S.resumen_empleados()
+
+@router.post("/empleados")
+def post_empleado(d: EmpleadoIn, payload=Depends(require_escritura("rrhh"))):
+    r = _ok(S.crear_empleado(d.dict()))
+    S.empleados.auditar(_u(payload), "create", f"Empleado {r.get('id_empleado')}", "rrhh")
+    return r
+
+@router.put("/empleados/{id_empleado}")
+def put_empleado(id_empleado: str, d: EmpleadoIn, payload=Depends(require_escritura("rrhh"))):
+    r = _nf(S.actualizar_empleado(id_empleado, d.dict()))
+    S.empleados.auditar(_u(payload), "update", f"Empleado {id_empleado}", "rrhh")
+    return r
+
+@router.post("/empleados/provisionar")
+def provisionar_empleados(d: ProvisionarIn, payload=Depends(require_escritura("rrhh"))):
+    return _ok(S.provisionar_empleados(d.ids, _u(payload)))
+
+@router.get("/asignaciones")
+def list_asignaciones(offset: int = 0, limit: int = 100, payload=Depends(require_modulo("rrhh"))):
+    return S.bridge_turno.listar(offset, min(limit, 500), incluir_inactivos=True)
+
+@router.post("/asignaciones")
+def post_asignacion(d: AsignacionTurnoIn, payload=Depends(require_escritura("rrhh"))):
+    r = _ok(S.crear_asignacion(d.dict()))
+    S.bridge_turno.auditar(_u(payload), "create", f"Asignación {r.get('id_bridge')}", "rrhh")
+    return r
+
+@router.put("/asignaciones/{id_bridge}")
+def put_asignacion(id_bridge: str, d: AsignacionTurnoIn, payload=Depends(require_escritura("rrhh"))):
+    r = _nf(S.bridge_turno.actualizar(id_bridge, d.dict()))
+    S.bridge_turno.auditar(_u(payload), "update", f"Asignación {id_bridge}", "rrhh")
+    return r
+
+@router.delete("/asignaciones/{id_bridge}")
+def del_asignacion(id_bridge: str, payload=Depends(require_escritura("rrhh"))):
+    r = _nf(S.bridge_turno.eliminar_logico(id_bridge))
+    S.bridge_turno.auditar(_u(payload), "delete", f"Asignación {id_bridge}", "rrhh")
+    return r
+
+@router.post("/empleados/importar")
+async def importar_empleados(
+    archivo: UploadFile = File(...), payload=Depends(require_escritura("rrhh"))
+):
+    contenido = await archivo.read()
+    if len(contenido) > 5 * 1024 * 1024:
+        raise HTTPException(413, detail="El archivo supera el límite de 5 MB")
+    nombre = (archivo.filename or "").lower()
+    if nombre.endswith(".xlsx"):
+        try:
+            hoja = pd.read_excel(io.BytesIO(contenido), sheet_name="Empleados", header=None, dtype=str)
+            encabezado = next(
+                (i for i, row in hoja.head(10).iterrows()
+                 if "codigo" in {S._clave(v) for v in row.tolist()} and "nombre" in {S._clave(v) for v in row.tolist()}),
+                None,
+            )
+            if encabezado is None:
+                raise ValueError("No se encontraron las columnas Código y Nombre")
+            datos = hoja.iloc[encabezado + 1:].copy()
+            datos.columns = hoja.iloc[encabezado].tolist()
+            datos = datos.dropna(how="all").fillna("")
+            filas = datos.to_dict(orient="records")
+        except (ValueError, ImportError) as exc:
+            raise HTTPException(400, detail=f"Excel inválido: {exc}") from exc
+    else:
+        try:
+            texto = contenido.decode("utf-8-sig")
+            muestra = texto[:4096]
+            dialecto = csv.Sniffer().sniff(muestra, delimiters=",;")
+            filas = list(csv.DictReader(io.StringIO(texto), dialect=dialecto))
+        except (UnicodeDecodeError, csv.Error) as exc:
+            raise HTTPException(400, detail="CSV inválido o codificación distinta de UTF-8") from exc
+    if len(filas) > 10000:
+        raise HTTPException(400, detail="Máximo 10.000 empleados por archivo")
+    resultado = S.importar_empleados(filas)
+    S.empleados.auditar(_u(payload), "import", f"Archivo RRHH: {len(filas)} filas", "rrhh")
+    return resultado
 
 @router.get("/colaboradores")
 def colaboradores(payload=Depends(require_modulo("rrhh"))):

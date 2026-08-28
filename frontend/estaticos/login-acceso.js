@@ -1,5 +1,5 @@
 /* ============================================================
-   DiabCare · lógica de la pantalla de acceso
+   DiabCare - lógica de la pantalla de acceso
    Endpoints FastAPI reales: /api/auth/*
    ============================================================ */
 
@@ -33,7 +33,7 @@ function detalleFastApi(cuerpo) {
     return d
       .map((x) => (typeof x === "string" ? x : x.msg || JSON.stringify(x)))
       .filter(Boolean)
-      .join(" · ");
+      .join(" - ");
   }
   return null;
 }
@@ -192,9 +192,30 @@ function aplicarTemaLogin(tema) {
   }
 }
 
-function toggleTemaLogin() {
+function toggleTemaLogin(temaForzado) {
   const actual = document.documentElement.getAttribute("data-tema") === "claro" ? "claro" : "oscuro";
-  aplicarTemaLogin(actual === "oscuro" ? "claro" : "oscuro");
+  const next = temaForzado === "claro" || temaForzado === "oscuro"
+    ? temaForzado
+    : (actual === "oscuro" ? "claro" : "oscuro");
+  const root = document.documentElement;
+  if (root.classList.contains("dc-theme-changing")) return;
+  const btn = $("#btn-tema");
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const rect = btn?.getBoundingClientRect();
+  if (rect) {
+    root.style.setProperty("--dc-theme-x", `${rect.left + rect.width / 2}px`);
+    root.style.setProperty("--dc-theme-y", `${rect.top + rect.height / 2}px`);
+  }
+  const aplicar = () => aplicarTemaLogin(next);
+  root.classList.add("dc-theme-changing");
+  if (!reduceMotion && typeof document.startViewTransition === "function") {
+    document.startViewTransition(aplicar).finished.finally(() => {
+      root.classList.remove("dc-theme-changing");
+    });
+    return;
+  }
+  aplicar();
+  window.setTimeout(() => root.classList.remove("dc-theme-changing"), reduceMotion ? 0 : 480);
 }
 
 function setIdiomaLogin(cod) {
@@ -225,7 +246,7 @@ function wirePrefs() {
   const holo = document.querySelector("#btn-tema .dc-holo-input") || $("#holo-btn-tema");
   if (holo) {
     holo.addEventListener("change", (e) => {
-      aplicarTemaLogin(e.target.checked ? "claro" : "oscuro");
+      toggleTemaLogin(e.target.checked ? "claro" : "oscuro");
     });
   } else {
     $("#btn-tema")?.addEventListener("click", toggleTemaLogin);
@@ -415,7 +436,7 @@ formLogin.addEventListener("submit", async (e) => {
   }
 });
 
-/* ---------- recuperar: paso 1 · enviar código ---------- */
+/* ---------- recuperar: paso 1 - enviar código ---------- */
 const formRec = $("#form-recuperar");
 formRec.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -447,7 +468,7 @@ formRec.addEventListener("submit", async (e) => {
   }
 });
 
-/* ---------- recuperar: paso 2 · resetear ---------- */
+/* ---------- recuperar: paso 2 - resetear ---------- */
 const formReset = $("#form-resetear");
 formReset.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -528,7 +549,7 @@ formSol.addEventListener("submit", async (e) => {
       nombre,
       email: correo,
       rol_solicitado: $("#rol").value,
-      motivo: motivoParts.join(" · "),
+      motivo: motivoParts.join(" - "),
     });
     aviso(
       box,

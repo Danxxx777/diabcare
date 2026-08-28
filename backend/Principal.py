@@ -62,6 +62,7 @@ from paquetes.configuracion.ConfiguracionRutas import router as router_configura
 from paquetes.modelo_ml.ModeloMlRutas import router as router_modelo_ml
 from paquetes.clinico.pacientes.PacientesRutas import router as router_pacientes
 from paquetes.clinico.admisiones.AdmisionesRutas import router as router_admisiones
+from paquetes.clinico.habitaciones.HabitacionesRutas import router as router_habitaciones
 from paquetes.clinico.citas.CitasRutas import router as router_citas
 from paquetes.clinico.citas.MisCitasRutas import router as router_mis_citas
 from paquetes.notificaciones.NotificacionesRutas import router as router_notificaciones
@@ -71,6 +72,7 @@ from paquetes.laboratorio.LaboratorioRutas import router as router_laboratorio
 from paquetes.urgencias.UrgenciasRutas import router as router_urgencias
 from paquetes.comorbilidades.ComorbilidadesRutas import router as router_comorbilidades
 from paquetes.rrhh.RrhhRutas import router as router_rrhh
+from paquetes.instrumental.InstrumentalRutas import router as router_instrumental
 
 # Infraestructura compartida (P12)
 from paquetes.configuracion.ConfiguracionClienteMinio import inicializar_buckets, verificar_conexion
@@ -113,6 +115,7 @@ app.include_router(router_configuracion)
 app.include_router(router_modelo_ml)
 app.include_router(router_pacientes)
 app.include_router(router_admisiones)
+app.include_router(router_habitaciones)
 app.include_router(router_citas)
 app.include_router(router_mis_citas)
 app.include_router(router_notificaciones)
@@ -122,6 +125,7 @@ app.include_router(router_laboratorio)
 app.include_router(router_urgencias)
 app.include_router(router_comorbilidades)
 app.include_router(router_rrhh)
+app.include_router(router_instrumental)
 
 # ── FRONTEND (HTML vanilla) ──
 _BASE = Path(__file__).resolve().parent

@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DiabCare Pago">
-<title>DiabCare · Pagar consulta</title>
+<title>DiabCare - Pagar consulta</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/estaticos/img/logo-icon.svg">
 <style>
@@ -103,7 +103,7 @@
 
   function money(n) {
     const v = Number(n);
-    return Number.isFinite(v) ? '$' + v.toFixed(2) : '—';
+    return Number.isFinite(v) ? '$' + v.toFixed(2) : '-';
   }
   function showEstado(tipo, texto) {
     estadoEl.className = 'estado show ' + tipo;

@@ -30,6 +30,12 @@ recetas = ParquetStore(
      "fecha", "creado_en", "actualizado_en"],
     "id_receta", "recetas", modo_borrado="estado", valor_anulado="anulada",
 )
+recetas_detalle = ParquetStore(
+    "negocio/oper_recetas_detalle.parquet",
+    ["id_detalle", "id_receta", "id_medicamento", "dosis", "frecuencia", "duracion",
+     "cantidad", "indicaciones", "estado", "creado_en", "actualizado_en"],
+    "id_detalle", "detalles_receta", modo_borrado="estado", valor_anulado="anulada",
+)
 inventario = ParquetStore(
     "negocio/oper_inventario.parquet",
     ["id_inventario", "id_medicamento", "lote", "fecha_vencimiento", "cantidad", "costo_unitario",
@@ -580,6 +586,8 @@ def enriquecer_recetas(filas: list) -> list:
         return []
     ids = {str(r.get("id_paciente") or "") for r in filas}
     mapa = mapa_pacientes(ids)
+    ids_receta = {str(r.get("id_receta") or "") for r in filas if r.get("id_receta")}
+    detalles = mapa_detalles_recetas(ids_receta)
     out = []
     for r in filas:
         x = dict(r)
@@ -594,8 +602,93 @@ def enriquecer_recetas(filas: list) -> list:
         x["tiene_foto"] = bool(p.get("tiene_foto"))
         est = str(x.get("estado") or "").lower()
         x["estado_label"] = ESTADOS_RECETA.get(est, (est[:1].upper() + est[1:]) if est else "—")
+        x["medicamentos"] = detalles.get(str(x.get("id_receta") or ""), [])
         out.append(x)
     return out
+
+
+def mapa_detalles_recetas(ids_receta: set[str]) -> dict[str, list]:
+    ids_validos = {str(x) for x in ids_receta if x}
+    salida = {rid: [] for rid in ids_validos}
+    if not ids_validos:
+        return salida
+    res = recetas_detalle.listar(limit=_SIN_TOPE, incluir_inactivos=True)
+    filas = [
+        dict(x) for x in (res.get("detalles_receta") or [])
+        if str(x.get("id_receta") or "") in ids_validos
+        and str(x.get("estado") or "").lower() not in ("anulada", "anulado")
+    ]
+    ids_med = {str(x.get("id_medicamento") or "") for x in filas if x.get("id_medicamento")}
+    meds_res = medicamentos.listar(limit=_SIN_TOPE, incluir_inactivos=True)
+    meds_map = {
+        str(m.get("id_medicamento") or ""): m
+        for m in (meds_res.get("medicamentos") or [])
+        if str(m.get("id_medicamento") or "") in ids_med
+    }
+    for x in filas:
+        rid = str(x.get("id_receta") or "")
+        med = meds_map.get(str(x.get("id_medicamento") or "")) or {}
+        x["medicamento_nombre"] = str(med.get("nombre") or "Medicamento")
+        x["precio_unitario"] = float(med.get("precio_venta") or 0)
+        x["subtotal"] = round(float(x.get("cantidad") or 0) * x["precio_unitario"], 2)
+        salida.setdefault(rid, []).append(x)
+    return salida
+
+
+def detalles_receta(id_receta: str) -> list:
+    return mapa_detalles_recetas({str(id_receta) if id_receta else ""}).get(str(id_receta), [])
+
+
+def _guardar_detalles_receta(id_receta: str, lineas: list) -> None:
+    for linea in lineas or []:
+        id_med = str(linea.get("id_medicamento") or "").strip()
+        if not id_med:
+            continue
+        recetas_detalle.crear({
+            "id_receta": id_receta,
+            "id_medicamento": id_med,
+            "dosis": str(linea.get("dosis") or ""),
+            "frecuencia": str(linea.get("frecuencia") or ""),
+            "duracion": str(linea.get("duracion") or ""),
+            "cantidad": float(linea.get("cantidad") or 0),
+            "indicaciones": str(linea.get("indicaciones") or ""),
+            "estado": "emitida",
+        })
+
+
+def crear_receta(datos: dict) -> dict:
+    payload = dict(datos or {})
+    lineas = list(payload.pop("medicamentos", []) or [])
+    if not lineas:
+        return {"error": "La receta debe incluir al menos un medicamento"}
+    creada = recetas.crear(payload)
+    if creada.get("error"):
+        return creada
+    id_receta = str(creada.get("id_receta") or "")
+    _guardar_detalles_receta(id_receta, lineas)
+    creada["medicamentos"] = detalles_receta(id_receta)
+    return creada
+
+
+def actualizar_receta(id_receta: str, datos: dict) -> dict:
+    payload = dict(datos or {})
+    lineas = payload.pop("medicamentos", None)
+    actualizada = recetas.actualizar(id_receta, payload)
+    if actualizada.get("error") or lineas is None:
+        return actualizada
+    anteriores = detalles_receta(id_receta)
+    for linea in anteriores:
+        recetas_detalle.eliminar_logico(str(linea.get("id_detalle") or ""))
+    _guardar_detalles_receta(id_receta, list(lineas or []))
+    return actualizada
+
+
+def obtener_receta_completa(id_receta: str) -> dict:
+    receta = recetas.obtener(id_receta)
+    if receta.get("error"):
+        return receta
+    filas = enriquecer_recetas([receta])
+    return filas[0] if filas else receta
 
 
 def listar_recetas(**kwargs) -> dict:
@@ -608,30 +701,43 @@ def listar_recetas_mostrador(offset: int = 0, limit: int = 50, q: str = "", esta
     """Recetas para mostrador. Pagina sobre el universo completo (sin tope 1500)."""
     limit = max(1, min(int(limit or 50), 300))
     offset = max(0, int(offset or 0))
-    filtros = {"estado": estado} if estado else None
     ql = str(q or "").strip().lower()
 
+    # La vista inicial no necesita enriquecer todo el historial. Filtrar y paginar
+    # primero evita cargar pacientes y detalles de cientos de recetas no visibles.
     if not ql:
-        base = recetas.listar(
-            offset=offset,
-            limit=limit,
-            filtros=filtros,
-            incluir_inactivos=True,
-            orden="fecha",
-        )
-        return {
-            "total": int(base.get("total") or 0),
-            "recetas": enriquecer_recetas(list(base.get("recetas") or [])),
-        }
+        df = recetas.extraer(copiar=False)
+        if df.empty:
+            return {"total": 0, "recetas": []}
+        estados = df["estado"].fillna("").astype(str).str.lower()
+        if estado:
+            df = df[estados == str(estado).lower()]
+        else:
+            df = df[estados == "pagada"]
+            det = recetas_detalle.extraer(copiar=False)
+            ids_con_detalle = set(det["id_receta"].dropna().astype(str)) if not det.empty else set()
+            df = df[df["id_receta"].astype(str).isin(ids_con_detalle)]
+        if "fecha" in df.columns:
+            df = df.sort_values("fecha", ascending=False)
+        total = int(len(df))
+        pagina = df.iloc[offset: offset + limit].fillna("").to_dict(orient="records")
+        return {"total": total, "recetas": enriquecer_recetas(pagina)}
 
     base = recetas.listar(
         offset=0,
         limit=_SIN_TOPE,
-        filtros=filtros,
         incluir_inactivos=True,
         orden="fecha",
     )
     rows = enriquecer_recetas(list(base.get("recetas") or []))
+    if estado:
+        rows = [x for x in rows if str(x.get("estado") or "").lower() == str(estado).lower()]
+    else:
+        rows = [
+            x for x in rows
+            if str(x.get("estado") or "").lower() == "pagada"
+            and bool(x.get("medicamentos"))
+        ]
     toks = [t for t in ql.replace(",", " ").split() if len(t) >= 2]
     filtradas = []
     for item in rows:
@@ -650,6 +756,79 @@ def listar_recetas_mostrador(offset: int = 0, limit: int = 50, q: str = "", esta
     return {"total": total, "recetas": filtradas[offset: offset + limit]}
 
 
+def dispensar_receta(id_receta: str) -> dict:
+    receta = recetas.obtener(id_receta)
+    if receta.get("error"):
+        return receta
+    estado = str(receta.get("estado") or "").lower()
+    if estado in ("dispensada", "dispensado"):
+        return {"error": "La receta ya fue dispensada"}
+    if estado in ("anulada", "anulado"):
+        return {"error": "La receta está anulada"}
+    lineas = detalles_receta(id_receta)
+    if not lineas:
+        return {"error": "La receta antigua no tiene medicamentos estructurados; dispénsela manualmente"}
+
+    hoy = date.today().isoformat()
+    for linea in lineas:
+        cantidad = float(linea.get("cantidad") or 0)
+        if cantidad <= 0:
+            return {"error": f"Cantidad inválida para {linea.get('medicamento_nombre') or 'medicamento'}"}
+        lotes, _ = _lotes_fifo(str(linea.get("id_medicamento") or ""))
+        disponible = sum(
+            float(lote.get("cantidad") or 0) for lote in lotes
+            if not str(lote.get("fecha_vencimiento") or "") or str(lote.get("fecha_vencimiento")) >= hoy
+        )
+        if disponible < cantidad:
+            return {"error": f"Stock insuficiente para {linea.get('medicamento_nombre') or 'medicamento'}"}
+
+    resultados = []
+    for linea in lineas:
+        resultado = dispensar({
+            "id_receta": id_receta,
+            "id_medicamento": linea.get("id_medicamento"),
+            "cantidad": linea.get("cantidad"),
+        })
+        if resultado.get("error"):
+            return resultado
+        resultados.extend(resultado.get("dispensaciones") or [])
+    recetas.actualizar(id_receta, {"estado": "dispensada"})
+    return {"mensaje": "Receta dispensada", "dispensaciones": resultados}
+
+
+def dispensar_y_cobrar_receta(id_receta: str, metodo: str) -> dict:
+    receta = obtener_receta_completa(id_receta)
+    if receta.get("error"):
+        return receta
+    lineas = receta.get("medicamentos") or []
+    if not lineas:
+        return {"error": "La receta no tiene medicamentos. Debe corregirse desde la consulta médica"}
+    metodo_n = str(metodo or "efectivo").lower()
+    if metodo_n not in ("efectivo", "tarjeta", "transferencia"):
+        return {"error": "Método de pago no válido"}
+    from paquetes.facturacion.CajaServicio import exigir_caja_abierta
+    cerrada = exigir_caja_abierta()
+    if cerrada:
+        return {"error": cerrada}
+    venta = registrar_venta({
+        "id_paciente": receta.get("id_paciente") or "", "tipo": "con_receta", "id_receta": id_receta,
+        "lineas": [{"id_medicamento": x.get("id_medicamento"), "cantidad": x.get("cantidad"), "precio_unitario": x.get("precio_unitario")} for x in lineas],
+        "emitir_factura": True,
+    })
+    if venta.get("error"):
+        return venta
+    id_factura = str(venta.get("id_factura") or "")
+    if not id_factura:
+        return {"error": "No se pudo emitir la factura de farmacia"}
+    from paquetes.facturacion.FacturacionServicio import crear_pago
+    total_venta = float(venta.get("total_neto") or (venta.get("registro") or {}).get("total_neto") or 0)
+    pago = crear_pago(id_factura, {"monto": total_venta, "metodo": metodo_n})
+    if pago.get("error"):
+        return pago
+    recetas.actualizar(id_receta, {"estado": "dispensada"})
+    return {"mensaje": "Receta dispensada y cobrada", "venta": venta, "pago": pago, "id_factura": id_factura}
+
+
 def resumen_margen() -> dict:
     return margen_agg.listar(limit=100, incluir_inactivos=True)
 
@@ -666,7 +845,16 @@ def resumen_operativo() -> dict:
     n_rec = int(len(rec))
     dispensadas = por_estado.get("dispensada", 0) + por_estado.get("dispensado", 0)
     anuladas = por_estado.get("anulada", 0) + por_estado.get("anulado", 0)
-    pendientes = max(0, n_rec - dispensadas - anuladas)
+    pendientes = 0
+    if not rec.empty and "id_receta" in rec.columns:
+        try:
+            det = recetas_detalle.extraer(copiar=False)
+            ids_con_detalle = set(det["id_receta"].dropna().astype(str)) if not det.empty else set()
+            estados = rec["estado"].fillna("").astype(str).str.lower()
+            activas = estados == "pagada"
+            pendientes = int(rec[activas & rec["id_receta"].astype(str).isin(ids_con_detalle)].shape[0])
+        except Exception:
+            pendientes = max(0, n_rec - dispensadas - anuladas)
 
     ven = ventas.extraer(copiar=False)
     total_ventas = 0.0

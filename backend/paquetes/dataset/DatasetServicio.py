@@ -366,6 +366,17 @@ def generar_y_subir(cantidad: int = 100000, year: int = 2025, opts: dict | None 
                 evaluar_alertas_clinicas()
             except Exception:
                 pass
+        dwh_conteos = {}
+        if isinstance(dwh, dict) and dwh.get("ok"):
+            for clave in ("hechos", "dim_paciente", "dim_ubicacion", "dim_raza", "dim_condicion", "dim_tiempo"):
+                dwh_conteos[clave] = int(dwh.get(clave) or 0)
+            dwh_conteos.update({
+                k: int(v or 0) for k, v in (dwh.get("extendido") or {}).items()
+            })
+        hospital_resultado = (hospital.get("hospital") or {}) if isinstance(hospital, dict) else {}
+        hospital_conteos = hospital_resultado.get("conteos") or {}
+        conteos_generados = {**dwh_conteos, **hospital_conteos}
+        tablas_vacias = sorted(k for k, v in conteos_generados.items() if int(v or 0) <= 0)
         return {
             "mensaje": f"{cantidad:,} registros generados y subidos".replace(",", "."),
             "archivo": archivo,
@@ -374,6 +385,12 @@ def generar_y_subir(cantidad: int = 100000, year: int = 2025, opts: dict | None 
             "modo_rapido": bool(opts.get("modo_rapido")),
             "dwh": dwh,
             "hospital": hospital,
+            "cobertura_tablas": {
+                "pobladas": len(conteos_generados) - len(tablas_vacias),
+                "total": len(conteos_generados),
+                "vacias": tablas_vacias,
+                "completa": bool(conteos_generados) and not tablas_vacias,
+            },
             "flujo": {
                 "pacientes": (hospital or {}).get("pacientes"),
                 "citas": (hospital or {}).get("citas"),

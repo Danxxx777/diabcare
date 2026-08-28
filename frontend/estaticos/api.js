@@ -93,8 +93,8 @@ window.DiabCareAPI = {
     el._toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
   },
 
-  /** Consulta programada: lun–sáb 07:00–19:00. Urgencias es 24 h. */
-  HORARIO_CONSULTA: { inicio: '07:00', fin: '19:00', dias: [1, 2, 3, 4, 5, 6] },
+  /** Consulta programada: lunes a viernes, 08:00-18:00. Urgencias es 24 h. */
+  HORARIO_CONSULTA: { inicio: '08:00', fin: '18:00', dias: [1, 2, 3, 4, 5] },
 
   enHorarioConsulta(fecha, hora) {
     const f = String(fecha || '').slice(0, 10);
@@ -102,9 +102,12 @@ window.DiabCareAPI = {
     if (!f || !h) return 'Indique fecha y hora del turno.';
     const d = new Date(f + 'T12:00:00');
     if (Number.isNaN(d.getTime())) return 'La fecha no es válida.';
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    if (d < hoy) return 'No se puede reservar un turno en una fecha pasada.';
     const dow = d.getDay(); // 0 domingo
     if (!this.HORARIO_CONSULTA.dias.includes(dow)) {
-      return 'No hay consulta programada los domingos. Si es un caso agudo, registre en Urgencias.';
+      return 'La consulta programada funciona de lunes a viernes. Si es un caso agudo, registre en Urgencias.';
     }
     if (h < this.HORARIO_CONSULTA.inicio || h >= this.HORARIO_CONSULTA.fin) {
       return `El horario de consulta es de ${this.HORARIO_CONSULTA.inicio} a ${this.HORARIO_CONSULTA.fin}. Fuera de ese rango atienda por Urgencias.`;
@@ -138,7 +141,7 @@ window.DiabCareAPI = {
   /** Capitaliza una sola palabra o snake_case (estados, tipos). */
   capLabel(v) {
     const t = String(v == null ? '' : v).trim();
-    if (!t || t === '-' || t === '—') return t || '—';
+    if (!t || t === '-' || t === '-') return t || '-';
     if (t.includes(' ') || t.includes('·') || t.includes('/')) return t;
     if (t.includes('_')) {
       return t.split('_').filter(Boolean).map(w =>
@@ -153,11 +156,11 @@ window.DiabCareAPI = {
 
   moneyFmt(v, decimals = 2) {
     const n = Number(v);
-    return Number.isFinite(n) ? n.toFixed(decimals) : '—';
+    return Number.isFinite(n) ? n.toFixed(decimals) : '-';
   },
 
   /** Tamaño de página por defecto para cuadrículas (fotos + tarjetas). */
-  GRID_PAGE_SIZE: 12,
+  GRID_PAGE_SIZE: 9,
 
   /**
    * Contenedor del pager debajo de `.tabla-wrap` (o tras `#tablaBody`).
@@ -196,7 +199,7 @@ window.DiabCareAPI = {
     const to = Math.min(p * ps, tot);
     host.innerHTML = `
       <button type="button" class="btn btn-ghost btn-sm" data-pag="prev" ${p <= 1 ? 'disabled' : ''}>← Anterior</button>
-      <span class="data-pager-info">${from}–${to} de ${tot} · Pág ${p} / ${pages}</span>
+      <span class="data-pager-info">${from}-${to} de ${tot} - Pág ${p} / ${pages}</span>
       <button type="button" class="btn btn-ghost btn-sm" data-pag="next" ${p >= pages ? 'disabled' : ''}>Siguiente →</button>
     `;
     if (typeof onPage === 'function') {
@@ -253,10 +256,10 @@ window.DiabCareAPI = {
     const metaCols = cols.filter(c => c !== titleCol && c !== badgeCol);
 
     const cell = (row, col) => {
-      if (!col) return '—';
+      if (!col) return '-';
       if (typeof col.render === 'function') return col.render(row);
       const v = row[col.key];
-      if (v == null || v === '') return '—';
+      if (v == null || v === '') return '-';
       if (col.key === 'estado' && row.estado_label) return row.estado_label;
       return this.capLabel ? (typeof v === 'string' && !String(v).includes(' ') ? this.capLabel(v) : v) : v;
     };
@@ -309,8 +312,8 @@ window.DiabCareAPI = {
         <div class="data-tile-head">
           ${av}
           <div class="data-tile-head-text">
-            <h3 class="data-tile-title">${title || '—'}</h3>
-            ${badge && badge !== '—' ? `<span class="data-tile-badge">${badge}</span>` : ''}
+            <h3 class="data-tile-title">${title || '-'}</h3>
+            ${badge && badge !== '-' ? `<span class="data-tile-badge">${badge}</span>` : ''}
           </div>
         </div>
         ${meta ? `<dl class="data-tile-meta">${meta}</dl>` : ''}
@@ -437,7 +440,7 @@ window.DiabCareAPI = {
   cobrarConsulta(idCita, { onPaid } = {}) {
     const money = (n) => {
       const v = Number(n);
-      return Number.isFinite(v) ? '$' + v.toFixed(2) : '—';
+      return Number.isFinite(v) ? '$' + v.toFixed(2) : '-';
     };
     const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -517,7 +520,7 @@ window.DiabCareAPI = {
             .dc-cobro-url { font-size:11px; word-break:break-all; color:var(--text2); margin-top:8px; }
           </style>
           <div class="modal" id="dc-cobro-modal" role="dialog" aria-modal="true">
-            <div class="modal-title" style="margin-bottom:8px">Cobrar consulta</div>
+            <div class="modal-title" style="margin-bottom:8px">Facturar atención</div>
             <div id="dc-cobro-body">Cargando…</div>
             <div class="modal-actions">
               <button type="button" class="btn-cancel" id="dc-cobro-cerrar">Cerrar</button>
@@ -561,10 +564,10 @@ window.DiabCareAPI = {
       const mostrarQr = (d) => {
         const warn = d.internet
           ? '<p class="dc-cobro-ok">El QR abre desde datos móviles (URL pública activa).</p>'
-          : '<p class="dc-cobro-warn">Este QR solo abre en tu Wi‑Fi. Para que cualquiera lo escanee: Configuración → Sistema → URL pública (o .\\scripts\\tunel-publico.ps1).</p>';
+          : '<p class="dc-cobro-warn">Este QR solo abre en tu Wi-Fi. Para que cualquiera lo escanee: Configuración → Sistema → URL pública (o .\\scripts\\tunel-publico.ps1).</p>';
         body.innerHTML = `
           <p style="margin:0 0 6px;font-size:13px">El paciente paga con el celular. El cobro se registra cuando Stripe confirme o cuando caja cobre en ventanilla.</p>
-          <div class="dc-cobro-total">${money(d.total || d.monto)} · pendiente</div>
+          <div class="dc-cobro-total">${money(d.total || d.monto)} - pendiente</div>
           <div class="dc-cobro-qr">
             ${d.qr_png ? `<img src="${d.qr_png}" alt="QR de pago">` : ''}
             <div class="dc-cobro-url">${esc(d.url || '')}</div>
@@ -617,7 +620,7 @@ window.DiabCareAPI = {
                 </svg>
               </div>
               <b>Pago aprobado</b>
-              <span>${monto ? esc(monto) + ' · ' : ''}Cobro registrado</span>
+              <span>${monto ? esc(monto) + ' - ' : ''}Cobro registrado</span>
             </div>`);
         }
         const wait = document.getElementById('dc-cobro-wait');
@@ -632,9 +635,10 @@ window.DiabCareAPI = {
         const warn = prev.internet
           ? ''
           : '<p class="dc-cobro-warn">QR digital: hoy solo funciona en tu red. Configura la URL pública para cobro desde datos móviles.</p>';
+        const detalle = (prev.lineas || []).map(x => `<div class="dc-cobro-line"><span>${esc(x.concepto)} x ${Number(x.cantidad || 1)}</span><span>${money(Number(x.cantidad || 1) * Number(x.precio_unitario || 0))}</span></div>`).join('');
         body.innerHTML = `
           <div class="dc-cobro-line"><span>Paciente</span><span>${esc(prev.paciente)}</span></div>
-          <div class="dc-cobro-line"><span>${esc(prev.concepto)}</span><span>${money(prev.precio)}</span></div>
+          ${detalle || `<div class="dc-cobro-line"><span>${esc(prev.concepto)}</span><span>${money(prev.precio)}</span></div>`}
           <div class="dc-cobro-line"><span>IVA 15%</span><span>${money(prev.iva)}</span></div>
           <div class="dc-cobro-line dc-cobro-total"><span>Total</span><span>${money(prev.total)}</span></div>
           ${prev.stripe ? '<p class="dc-cobro-ok">Stripe test activo: el QR puede cobrar con tarjeta.</p>' : '<p class="hint" style="font-size:12px;margin:8px 0 0">Sin Stripe: el QR muestra el cobro y caja confirma el método.</p>'}
@@ -664,7 +668,7 @@ window.DiabCareAPI = {
               }
               const d = await cobrar('transferencia', ref);
               if (d && d.consulta_pagada) {
-                this.toast(d.mensaje || `Cobrada · ${money(d.total)}`, 'success');
+                this.toast(d.mensaje || `Cobrada - ${money(d.total)}`, 'success');
                 close(true);
               }
               return;
@@ -680,7 +684,7 @@ window.DiabCareAPI = {
             const d = await cobrar(metodo);
             btn.disabled = false;
             if (d && d.consulta_pagada) {
-              this.toast(d.mensaje || `Cobrada · ${money(d.total)}`, 'success');
+              this.toast(d.mensaje || `Cobrada - ${money(d.total)}`, 'success');
               close(true);
             }
           };
@@ -782,7 +786,7 @@ window.DiabCareAPI = {
     const labelPac = (p) => {
       const nom = p.nombre_completo || `${p.nombre || ''} ${p.apellido || ''}`.trim() || 'Paciente';
       const doc = p.documento || 'sin cédula';
-      return `${nom} · ${doc}`;
+      return `${nom} - ${doc}`;
     };
 
     const pintarChip = (p) => {
@@ -839,7 +843,7 @@ window.DiabCareAPI = {
       }
       res.innerHTML = list.map(p =>
         `<button type="button" class="pac-suggest-item" data-id="${esc(p.id_paciente)}">
-          <strong>${esc(p.documento || '—')}</strong>
+          <strong>${esc(p.documento || '-')}</strong>
           <span>${esc(p.nombre_completo || ((p.nombre || '') + ' ' + (p.apellido || '')).trim())}</span>
         </button>`
       ).join('');
@@ -940,8 +944,8 @@ window.DiabCareAPI = {
 
     const labelMed = (m) => {
       const nom = m.nombre || 'Medicamento';
-      const pa = m.principio_activo ? ` · ${m.principio_activo}` : '';
-      const pvp = m.precio_venta != null && m.precio_venta !== '' ? ` · $${m.precio_venta}` : '';
+      const pa = m.principio_activo ? ` - ${m.principio_activo}` : '';
+      const pvp = m.precio_venta != null && m.precio_venta !== '' ? ` - $${m.precio_venta}` : '';
       return `${nom}${pa}${pvp}`;
     };
 
@@ -999,8 +1003,8 @@ window.DiabCareAPI = {
       }
       res.innerHTML = list.map(m =>
         `<button type="button" class="pac-suggest-item" data-id="${esc(m.id_medicamento)}">
-          <strong>${esc(m.nombre || '—')}</strong>
-          <span>${esc([m.principio_activo, m.forma, m.precio_venta != null && m.precio_venta !== '' ? `PVP $${m.precio_venta}` : ''].filter(Boolean).join(' · ') || 'Catálogo')}</span>
+          <strong>${esc(m.nombre || '-')}</strong>
+          <span>${esc([m.principio_activo, m.forma, m.precio_venta != null && m.precio_venta !== '' ? `PVP $${m.precio_venta}` : ''].filter(Boolean).join(' - ') || 'Catálogo')}</span>
         </button>`
       ).join('');
       res.hidden = false;

@@ -534,13 +534,14 @@ def _confirmar_cita_de_factura(fac: dict) -> None:
     if not cid:
         return
     try:
-        from paquetes.clinico.citas.CitasServicio import actualizar, obtener
+        from paquetes.clinico.citas.CitasServicio import actualizar, obtener, marcar_recetas_pagadas_cita
         cita = obtener(cid)
         if cita.get("error"):
             return
         est = str(cita.get("estado") or "").lower()
         if est == "programada":
             actualizar(cid, {"estado": "confirmada"})
+        marcar_recetas_pagadas_cita(cita)
     except Exception:
         pass
 

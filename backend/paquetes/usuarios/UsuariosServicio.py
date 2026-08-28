@@ -305,6 +305,20 @@ def desactivar_usuario(id_usuario):
     return {"mensaje": "Usuario desactivado"}
 
 
+def restablecer_password_temporal_por_email(email: str, password: str) -> dict:
+    """Regenera una clave temporal sin exponerla en la respuesta."""
+    df = _extraer()
+    idx = df.index[df["email"].astype(str).str.lower() == str(email).strip().lower()].tolist()
+    if not idx:
+        return {"error": "Usuario no encontrado"}
+    i = idx[0]
+    df.at[i, "password_hash"] = _hash(password)
+    df.at[i, "activo"] = _valor_escritura("activo", True)
+    df.at[i, "debe_cambiar_password"] = _valor_escritura("debe_cambiar_password", True)
+    _cargar(df)
+    return {"mensaje": "Contraseña temporal regenerada", "id": str(df.at[i, "id"])}
+
+
 def asignar_rol(id_usuario, rol):
     df = _extraer()
     idx = df.index[df["id"] == id_usuario].tolist()

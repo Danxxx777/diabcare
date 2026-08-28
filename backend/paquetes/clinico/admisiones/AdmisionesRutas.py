@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
+from datetime import date
 
 from nucleo.utilidades.Dependencias import require_modulo
-from paquetes.clinico.admisiones.AdmisionesServicio import resumen, listar, obtener, crear, actualizar
+from paquetes.clinico.admisiones.AdmisionesServicio import resumen, listar, obtener, crear, actualizar, listar_camas
 
 router = APIRouter(prefix="/api/admisiones", tags=["Admisiones"])
 
@@ -52,9 +53,34 @@ class AdmisionActualizar(BaseModel):
     notas: Optional[str] = None
 
 
+def _validar_admision(datos: dict) -> None:
+    if datos.get("tipo") not in {"ambulatoria", "urgencia", "hospitalizacion"}:
+        raise HTTPException(status_code=400, detail="Seleccione un tipo de atención válido")
+    if datos.get("via_llegada") not in {
+        "propia", "ambulancia", "referido", "traslado_interno", "rescate", "autoridad",
+    }:
+        raise HTTPException(status_code=400, detail="Seleccione una vía de llegada válida")
+    ingreso_txt = str(datos.get("fecha_ingreso") or "")
+    egreso_txt = str(datos.get("fecha_egreso") or "")
+    try:
+        ingreso = date.fromisoformat(ingreso_txt) if ingreso_txt else None
+        egreso = date.fromisoformat(egreso_txt) if egreso_txt else None
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Revise las fechas de ingreso y egreso")
+    if ingreso and datos.get("estado") in {"activa", "alta"} and ingreso > date.today():
+        raise HTTPException(status_code=400, detail="Una admisión activa o con alta no puede iniciar en el futuro")
+    if ingreso and egreso and egreso < ingreso:
+        raise HTTPException(status_code=400, detail="La fecha de egreso no puede ser anterior al ingreso")
+
+
 @router.get("/resumen")
 def resumen_admisiones(payload: dict = Depends(require_modulo("admisiones"))):
     return resumen()
+
+
+@router.get("/camas")
+def camas_admisiones(payload: dict = Depends(require_modulo("admisiones"))):
+    return listar_camas()
 
 
 @router.get("/")
@@ -63,9 +89,10 @@ def listar_admisiones(
     limit: int = Query(50, ge=1, le=200),
     estado: str = "",
     q: str = "",
+    tipo: str = "",
     payload: dict = Depends(require_modulo("admisiones")),
 ):
-    return listar(offset, limit, estado, q)
+    return listar(offset, limit, estado, q, tipo)
 
 
 @router.get("/{id_admision}")
@@ -78,7 +105,9 @@ def obtener_admision(id_admision: str, payload: dict = Depends(require_modulo("a
 
 @router.post("/")
 def crear_admision(datos: AdmisionEntrada, payload: dict = Depends(require_modulo("admisiones"))):
-    res = crear(datos.dict())
+    contenido = datos.dict()
+    _validar_admision(contenido)
+    res = crear(contenido)
     if "error" in res:
         raise HTTPException(status_code=400, detail=res["error"])
     _auditar(_usuario(payload), "create", f"Admisión {res.get('id_admision')}")
@@ -91,7 +120,12 @@ def editar_admision(
     datos: AdmisionActualizar,
     payload: dict = Depends(require_modulo("admisiones")),
 ):
-    res = actualizar(id_admision, datos.dict(exclude_none=True))
+    cambios = datos.dict(exclude_none=True)
+    actual = obtener(id_admision)
+    if "error" in actual:
+        raise HTTPException(status_code=404, detail=actual["error"])
+    _validar_admision({**actual, **cambios})
+    res = actualizar(id_admision, cambios)
     if "error" in res:
         raise HTTPException(status_code=404, detail=res["error"])
     _auditar(_usuario(payload), "update", f"Admisión {id_admision}")

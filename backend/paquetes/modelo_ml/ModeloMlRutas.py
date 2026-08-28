@@ -1,7 +1,7 @@
 ﻿from fastapi import APIRouter, Depends
 
 from nucleo.utilidades.Dependencias import require_modulo
-from paquetes.modelo_ml.ModeloMlServicio import info, reentrenar, historial
+from paquetes.modelo_ml.ModeloMlServicio import info, reentrenar, historial, resumen
 
 router = APIRouter(prefix="/api/modelo-ml", tags=["Modelo ML"])
 
@@ -19,6 +19,11 @@ def obtener_info(payload: dict = Depends(require_modulo("modelo_ml"))):
 @router.get("/historial")
 def obtener_historial(payload: dict = Depends(require_modulo("modelo_ml"))):
     return historial()
+
+
+@router.get("/resumen")
+def obtener_resumen(payload: dict = Depends(require_modulo("modelo_ml"))):
+    return resumen()
 
 
 @router.post("/reentrenar")

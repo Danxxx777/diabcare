@@ -131,7 +131,7 @@ def test_horario_configurado_devuelve_valores_usables():
 
 
 def test_turno_fuera_de_horario_se_rechaza():
-    lunes = "2026-08-17"
+    lunes = "2099-08-17"
     ini, fin, _ = V.horario_configurado()
     dentro = f"{ini.hour + 1:02d}:00"
     assert V.horario_consulta_ok(lunes, dentro) == ""
@@ -143,12 +143,12 @@ def test_dia_sin_consulta_se_rechaza():
     _, _, dias = V.horario_configurado()
     if 6 in dias:
         pytest.skip("la configuración actual atiende domingos")
-    assert V.horario_consulta_ok("2026-08-16", "10:00") != ""  # domingo
+    assert V.horario_consulta_ok("2099-08-16", "10:00") != ""  # domingo
 
 
 def test_fecha_u_hora_invalidas_no_revientan():
     assert V.horario_consulta_ok("", "10:00") != ""
-    assert V.horario_consulta_ok("2026-08-17", "") != ""
+    assert V.horario_consulta_ok("2099-08-17", "") != ""
     assert V.horario_consulta_ok("no-es-fecha", "10:00") != ""
 
 

@@ -9,17 +9,13 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
+<script src="/estaticos/crud-modulo.js?v=text-36"></script>
 <style>
 .negocio-shell { width: 100%; max-width: none; }
 .content.negocio-shell { padding-left: 18px; padding-right: 18px; }
-.negocio-kicker {
-  font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
-  color: var(--cyan); margin-bottom: 6px; font-weight: 600;
-}
 .crud-tabs {
   display: flex; flex-wrap: wrap; gap: 6px;
   margin-bottom: 14px; padding: 6px;
@@ -28,6 +24,58 @@
 }
 .crud-tabs .btn { border-radius: 8px; }
 .money { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.farm-control {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+  margin: 0 0 10px;
+}
+.farm-control .kpi-card {
+  min-height: 40px; padding: 8px 12px; display: grid;
+  grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 9px;
+  border: 1px solid var(--border); border-radius: 11px;
+  background: var(--card) !important; box-shadow: none;
+}
+.farm-control .kpi-label { grid-column: 2; color: var(--muted) !important; font-size: 10px; }
+.farm-control .kpi-val { grid-column: 1; grid-row: 1 / 3; align-self: center; color: var(--text) !important; font-size: 20px; line-height: 1; }
+.farm-control .kpi-sub { grid-column: 2; color: var(--muted) !important; font-size: 9px; }
+.farm-control .is-action { cursor: pointer; transition: border-color .18s ease, transform .18s ease; }
+.farm-control .is-action:hover { border-color: var(--cyan); transform: translateY(-1px); }
+.rx-med-list { display:grid; gap:7px; width:100%; min-width:0; }
+.rx-med-item { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto; gap:10px; align-items:center; min-width:0; max-width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:9px; background:var(--bg2); overflow:hidden; }
+.rx-med-item span { color:var(--muted); font-size:10px; }
+.rx-med-item b { white-space:nowrap; font-size:10px; color:var(--cyan); }
+.data-tile-meta > div,.data-tile-meta dd { min-width:0; }
+.data-tile .rx-med-item { grid-template-columns:1fr; gap:3px; padding:7px 8px; }
+.data-tile .rx-med-item strong,.data-tile .rx-med-item span,.data-tile .rx-med-item b { white-space:normal; overflow-wrap:anywhere; }
+.rx-modal-card { width:min(760px,calc(100vw - 32px)) !important; }
+@media(max-width:700px){.rx-med-item{grid-template-columns:1fr}.rx-med-item span,.rx-med-item b{white-space:normal}}
+.farm-med-grid.data-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+.farm-med-grid .data-tile {
+  display: grid; grid-template-columns: 116px minmax(0, 1fr); grid-template-rows: auto 1fr auto;
+  min-height: 176px; padding: 0 !important; overflow: hidden;
+}
+.farm-med-visual {
+  grid-column: 1; grid-row: 1 / 4; min-height: 176px;
+  border-right: 1px solid var(--border);
+  background-color: color-mix(in srgb, var(--cyan) 8%, var(--card));
+  background-image: url('/estaticos/img/farmacia-productos-v1.png');
+  background-repeat: no-repeat; background-size: 400% 100%;
+  background-position: var(--farm-sprite-x, 0%) center;
+}
+.farm-med-grid .data-tile-head { margin: 0 12px; padding: 13px 0 9px !important; }
+.farm-med-grid .data-tile-title { font-size: 14px !important; }
+.farm-med-grid .data-tile-badge {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--border)) !important;
+  color: var(--green) !important; background: color-mix(in srgb, var(--green) 9%, var(--card)) !important;
+}
+.farm-med-grid .data-tile-meta { margin: 0 12px; padding: 10px 0 !important; grid-template-columns: 1fr !important; }
+.farm-med-grid .data-tile-meta > div { display: flex; justify-content: space-between; gap: 10px; }
+.farm-med-grid .data-tile-meta dt { font-size: 9px; }
+.farm-med-grid .data-tile-meta dd { text-align: right; font-weight: 700; }
+.farm-med-grid .data-tile-actions { margin: 0 12px; padding: 9px 0 11px !important; }
+@media(max-width:1250px){.farm-med-grid.data-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:950px){.farm-med-grid.data-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:650px){.farm-med-grid.data-grid{grid-template-columns:1fr!important}.farm-med-grid .data-tile{grid-template-columns:96px minmax(0,1fr)}}
+@media(max-width:760px){.farm-control{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body class="dc-uv">
@@ -39,36 +87,34 @@
   <div class="content negocio-shell">
     <div class="page-header">
       <div>
-        <div class="negocio-kicker">Negocio · mostrador</div>
-        <div class="page-title">Farmacia <span>operativa</span></div>
-        <div class="page-sub" id="pageSub">Catálogo, inventario, ventas y caja</div>
+        <div class="page-title" id="farmPageTitle">Farmacia</div>
+        <div class="page-sub" id="farmPageSub">Medicamentos, recetas y dispensación</div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a class="btn btn-ghost btn-sm" href="/paginas/negocio/facturacion/index.html">Ir a facturación</a>
-        <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
-        <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nuevo</button>
+      <div id="farmPageActions" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="btnSeed" type="button" onclick="seedModulo()">Cargar catálogo</button>
+        <button class="btn btn-primary btn-sm" type="button" onclick="abrirModal()">+ Nuevo</button>
       </div>
     </div>
 
-    <div class="dash-row dash-4" style="margin-bottom:14px">
+    <div class="farm-control" aria-label="Resumen del control farmacéutico">
       <div class="kpi-card cyan">
         <div class="kpi-label">Medicamentos</div>
-        <div class="kpi-val cyan" id="k-meds">—</div>
+        <div class="kpi-val cyan" id="k-meds">-</div>
         <div class="kpi-sub">en catálogo</div>
       </div>
-      <div class="kpi-card amber">
+      <div class="kpi-card amber is-action" id="kpi-stock" title="Revisar inventario y existencias">
         <div class="kpi-label">Stock bajo</div>
-        <div class="kpi-val amber" id="k-stock">—</div>
+        <div class="kpi-val amber" id="k-stock">-</div>
         <div class="kpi-sub">bajo el mínimo</div>
       </div>
       <div class="kpi-card green">
         <div class="kpi-label">Ventas</div>
-        <div class="kpi-val green" id="k-ventas">—</div>
+        <div class="kpi-val green" id="k-ventas">-</div>
         <div class="kpi-sub" id="k-ventas-sub">registradas</div>
       </div>
-      <div class="kpi-card" id="kpi-rx" style="cursor:pointer" title="Ver recetas pendientes del médico">
-        <div class="kpi-label">Rx pendientes</div>
-        <div class="kpi-val" id="k-rx">—</div>
+      <div class="kpi-card is-action" id="kpi-rx" title="Ver recetas pendientes del médico">
+        <div class="kpi-label">Rx listas</div>
+        <div class="kpi-val" id="k-rx">-</div>
         <div class="kpi-sub">por dispensar</div>
       </div>
     </div>
@@ -76,6 +122,16 @@
     <div class="crud-tabs" id="crudTabs"></div>
     <div class="tabla-card">
       <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando mostrador…</div></div></div>
+    </div>
+  </div>
+</div>
+<div id="rxDetalleModal" class="modal-overlay" style="display:none">
+  <div class="modal-card rx-modal-card">
+    <div class="modal-header"><span>Receta por dispensar</span></div>
+    <div class="modal-body" id="rxDetalleBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" type="button" onclick="cerrarDetalleReceta()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="btnDispensarCompleta" type="button" onclick="dispensarRecetaCompleta()">Dispensar receta completa</button>
     </div>
   </div>
 </div>
@@ -91,8 +147,32 @@
   </div>
 </div>
 <script>
+const MODO_GESTION = new URLSearchParams(location.search).get('area') === 'gestion';
+const ORDEN_TABS = MODO_GESTION
+  ? ['proveedores', 'compras', 'inventario', 'ventas', 'kardex', 'cxp']
+  : ['rx', 'historial', 'meds'];
 DiabCareNav.init();
 DiabCareNav.guardRol(['administrador','farmaceutico']);
+
+if (MODO_GESTION) {
+  document.title = 'DiabCare - Negocio y almacén';
+  const topPage = document.querySelector('.tb-page');
+  if (topPage) topPage.textContent = 'Negocio y almacén';
+  document.getElementById('farmPageTitle').textContent = 'Negocio y almacén';
+  document.getElementById('farmPageSub').textContent = 'Abastecimiento, inventario y control financiero';
+  document.querySelector('.farm-control').style.display = 'none';
+  document.getElementById('farmPageActions').innerHTML = `
+    <button class="btn btn-primary btn-sm" type="button" onclick="abrirModal()">+ Nuevo</button>`;
+}
+
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+const volverArriba = () => {
+  const content = document.querySelector('.content');
+  if (content) content.scrollTop = 0;
+  window.scrollTo(0, 0);
+};
+volverArriba();
+window.addEventListener('load', volverArriba, { once: true });
 
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
@@ -101,26 +181,27 @@ const hdr = () => ({ Authorization: 'Bearer ' + token });
 async function kpi(url, key) {
   try {
     const r = await fetch(`${API}${url}`, { headers: hdr(), cache: 'no-store' });
-    if (!r.ok) return '—';
+    if (!r.ok) return '-';
     const d = await r.json();
     if (typeof d.total === 'number') return d.total;
     const list = d[key] || [];
-    return Array.isArray(list) ? list.length : '—';
-  } catch (_) { return '—'; }
+    return Array.isArray(list) ? list.length : '-';
+  } catch (_) { return '-'; }
 }
 
 async function cargarKpisFarm() {
+  if (document.querySelector('.dash-row')?.style.display === 'none') return;
   const meds = await kpi('/api/medicamentos?limit=1', 'medicamentos');
   document.getElementById('k-meds').textContent = meds;
   try {
     const r = await fetch(`${API}/api/farmacia/resumen`, { headers: hdr(), cache: 'no-store' });
     if (!r.ok) return;
     const d = await r.json();
-    document.getElementById('k-stock').textContent = d.stock_bajo ?? '—';
-    document.getElementById('k-ventas').textContent = d.ventas ?? '—';
+    document.getElementById('k-stock').textContent = d.stock_bajo ?? '-';
+    document.getElementById('k-ventas').textContent = d.ventas ?? '-';
     document.getElementById('k-ventas-sub').textContent =
       '$' + Number(d.ventas_total || 0).toLocaleString('es-EC', { minimumFractionDigits: 2 }) + ' facturado';
-    document.getElementById('k-rx').textContent = d.recetas_pendientes ?? '—';
+    document.getElementById('k-rx').textContent = d.recetas_pendientes ?? '-';
   } catch (_) { /* sin datos */ }
 }
 cargarKpisFarm();
@@ -162,7 +243,7 @@ const recLookup = {
   label: r => {
     const doc = r.paciente_documento || r.paciente_nombre || '';
     const ind = (r.indicaciones || 'Sin indicación').slice(0, 48);
-    return `${r.fecha || ''} · ${doc ? doc + ' · ' : ''}${ind}`;
+    return `${r.fecha || ''} - ${doc ? doc + ' - ' : ''}${ind}`;
   }
 };
 const pacLookup = {
@@ -173,12 +254,98 @@ const pacLookup = {
 
 const money = (v) => {
   const n = Number(v);
-  return Number.isFinite(n) ? n.toFixed(2) : '—';
+  return Number.isFinite(n) ? n.toFixed(2) : '-';
 };
 const estadoLbl = (row, key = 'estado') =>
-  row[key + '_label'] || (row[key] ? String(row[key]).charAt(0).toUpperCase() + String(row[key]).slice(1) : '—');
+  row[key + '_label'] || (row[key] ? String(row[key]).charAt(0).toUpperCase() + String(row[key]).slice(1) : '-');
 
 let farmTabs = null;
+let recetaSeleccionada = null;
+
+function decorarMedicamentos(rows) {
+  const grid = document.querySelector('#tablaBody > .data-grid');
+  if (!grid) return;
+  grid.classList.add('farm-med-grid');
+  const posiciones = ['0%', '33.333%', '66.667%', '100%'];
+  grid.querySelectorAll('.data-tile').forEach((card, index) => {
+    const nombre = String(rows[index]?.nombre || '').toLowerCase();
+    let tipo = 1;
+    if (/insulina|glargina|nph/.test(nombre)) tipo = 0;
+    else if (/tira|glucosa|reactiv/.test(nombre)) tipo = 2;
+    else if (/aguja|jering|lanceta|insumo/.test(nombre)) tipo = 3;
+    const visual = document.createElement('div');
+    visual.className = 'farm-med-visual';
+    visual.style.setProperty('--farm-sprite-x', posiciones[tipo]);
+    visual.setAttribute('role', 'img');
+    visual.setAttribute('aria-label', `Presentación referencial de ${rows[index]?.nombre || 'medicamento'}`);
+    card.insertBefore(visual, card.firstChild);
+  });
+}
+
+function abrirFarmTab(id, crear) {
+  if (!farmTabs) return;
+  Promise.resolve(farmTabs.switchTab(id)).then(() => {
+    if (crear && typeof window.abrirModal === 'function') window.abrirModal();
+  });
+}
+
+function renderMedicamentosReceta(row) {
+  const lineas = row?.medicamentos || [];
+  if (!lineas.length) return '<span class="muted">Receta anterior - revisar indicaciones</span>';
+  return `<div class="rx-med-list">${lineas.map(x => `
+    <div class="rx-med-item">
+      <strong>${x.medicamento_nombre || 'Medicamento'}</strong>
+      <span>${[x.dosis, x.frecuencia, x.duracion].filter(Boolean).join(' - ')}</span>
+      <b>${Number(x.cantidad || 0)} unidad(es) - $${money(x.subtotal || 0)}</b>
+    </div>`).join('')}</div>`;
+}
+
+async function abrirDetalleReceta(row) {
+  recetaSeleccionada = row || null;
+  const lineas = row?.medicamentos || [];
+  document.getElementById('rxDetalleBody').innerHTML = `
+    <div style="display:grid;gap:5px;margin-bottom:12px">
+      <strong>${row?.paciente_nombre || 'Paciente'}</strong>
+      <span class="muted">Cédula: ${row?.paciente_documento || '-'}</span>
+      <span class="muted">Fecha: ${row?.fecha || '-'}</span>
+    </div>
+    ${lineas.length ? renderMedicamentosReceta(row) : '<div class="loading">Receta incompleta. Debe corregirse desde la consulta médica.</div>'}
+    ${row?.indicaciones ? `<div style="margin-top:12px"><strong>Indicaciones generales</strong><p>${row.indicaciones}</p></div>` : ''}`;
+  const btn = document.getElementById('btnDispensarCompleta');
+  btn.disabled = !lineas.length;
+  btn.textContent = 'Confirmar entrega';
+  btn.title = lineas.length ? '' : 'La receta debe corregirse desde la consulta médica';
+  document.getElementById('rxDetalleModal').style.display = 'flex';
+}
+
+function cerrarDetalleReceta() {
+  document.getElementById('rxDetalleModal').style.display = 'none';
+  recetaSeleccionada = null;
+}
+
+async function dispensarRecetaCompleta() {
+  if (!recetaSeleccionada?.id_receta) return;
+  const btn = document.getElementById('btnDispensarCompleta');
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Dispensando...';
+  try {
+    const r = await fetch(`${API}/api/farmacia/recetas/${encodeURIComponent(recetaSeleccionada.id_receta)}/dispensar`, {
+      method: 'POST', headers: hdr(), credentials: 'include'
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || data.error || 'No se pudo dispensar');
+    cerrarDetalleReceta();
+    toast('Medicamentos entregados correctamente');
+    if (farmTabs) await farmTabs.switchTab('historial');
+    cargarKpisFarm();
+  } catch (error) {
+    toast(error.message || 'No se pudo dispensar', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
 
 function irDespacharDesdeRx(row) {
   if (!row || !row.id_receta) return;
@@ -187,7 +354,7 @@ function irDespacharDesdeRx(row) {
   const ind = (row.indicaciones || '').slice(0, 56);
   sessionStorage.setItem('farm_prefill_rx', JSON.stringify({
     id_receta: row.id_receta,
-    label: [doc || nom, ind].filter(Boolean).join(' · ') || row.id_receta
+    label: [doc || nom, ind].filter(Boolean).join(' - ') || row.id_receta
   }));
   if (farmTabs) farmTabs.switchTab('dispensar');
   else alert('Abra la pestaña Dispensar y elija la receta.');
@@ -226,10 +393,12 @@ DiabCareCrud.mountTabs({
       listUrl: '/api/medicamentos', listKey: 'medicamentos', idField: 'id_medicamento',
       itemUrl: id => '/api/medicamentos/' + id, seedUrl: '/api/farmacia/seed',
       columns: [
-        {key:'nombre', label:'Medicamento'}, {key:'principio_activo', label:'Principio activo'},
+        {key:'nombre', label:'Medicamento', title:true}, {key:'principio_activo', label:'Principio activo'},
         {key:'precio_venta', label:'PVP', render: r => money(r.precio_venta)},
-        {key:'stock_minimo', label:'Mínimo'}, {key:'activo', label:'Activo'}
+        {key:'stock_minimo', label:'Stock mínimo'},
+        {key:'activo', label:'Estado', badge:true, render: r => r.activo ? 'Activo' : 'Inactivo'}
       ],
+      onLoaded: decorarMedicamentos,
       fields: [
         {
           key:'nombre', required:true, labelUi:'Nombre comercial', full:true,
@@ -254,8 +423,8 @@ DiabCareCrud.mountTabs({
         {
           key:'venta_libre', as:'select', labelUi:'¿Se vende sin receta?',
           options:[
-            {value:'false', label:'No — requiere receta médica'},
-            {value:'true', label:'Sí — venta libre / OTC'}
+            {value:'false', label:'No - requiere receta médica'},
+            {value:'true', label:'Sí - venta libre / OTC'}
           ],
           default:'false'
         }
@@ -288,7 +457,7 @@ DiabCareCrud.mountTabs({
       createUrl: '/api/farmacia/compras',
       lookups: [provLookup, medLookup],
       columns: [
-        {key:'proveedor_nombre', label:'Proveedor', render: r => r.proveedor_nombre || '—'},
+        {key:'proveedor_nombre', label:'Proveedor', render: r => r.proveedor_nombre || '-'},
         {key:'fecha_compra', label:'Fecha'},
         {key:'total', label:'Total', render: r => money(r.total)},
         {key:'estado', label:'Estado', render: r => estadoLbl(r)}
@@ -337,42 +506,38 @@ DiabCareCrud.mountTabs({
       editTitle: 'Editar lote'
     },
     {
-      id: 'rx', label: 'Rx pendientes', sub: 'Rx pendientes',
-      listUrl: '/api/farmacia/recetas?estado=emitida', listKey: 'recetas', idField: 'id_receta',
+      id: 'rx', label: 'Bandeja de recetas', sub: 'Recetas pendientes de dispensación',
+      listUrl: '/api/farmacia/recetas', listKey: 'recetas', idField: 'id_receta',
       itemUrl: id => '/api/farmacia/recetas/' + id,
       hideCreate: true, hideEdit: true, hideDelete: true,
       searchPlaceholder: 'Buscar por cédula, paciente o indicación…',
       columns: [
         {key:'paciente_documento', label:'Cédula'},
         {key:'paciente_nombre', label:'Paciente'},
+        {key:'medicamentos', label:'Medicamentos indicados', render: r => renderMedicamentosReceta(r)},
         {key:'indicaciones', label:'Indicación'},
         {key:'fecha', label:'Fecha'},
         {key:'estado', label:'Estado', render: r => estadoLbl(r)}
       ],
       fields: [],
       rowActions: [
-        { id: 'despachar', label: 'Despachar', onClick: (row) => irDespacharDesdeRx(row) }
+        { id: 'despachar', label: 'Ver y dispensar', onClick: (row) => abrirDetalleReceta(row) }
       ]
     },
     {
-      id: 'dispensar', label: 'Dispensar', sub: 'Dispensar',
-      listUrl: '/api/farmacia/dispensaciones', listKey: 'dispensaciones', idField: 'id_dispensacion',
-      itemUrl: id => '/api/farmacia/dispensaciones/' + id,
-      createUrl: '/api/farmacia/dispensar',
-      hideEdit: true,
-      lookups: [medLookup, recLookup],
+      id: 'historial', label: 'Historial de dispensación', sub: 'Recetas dispensadas y cobradas',
+      listUrl: '/api/farmacia/recetas?estado=dispensada', listKey: 'recetas', idField: 'id_receta',
+      itemUrl: id => '/api/farmacia/recetas/' + id,
+      hideCreate: true, hideEdit: true, hideDelete: true,
+      searchPlaceholder: 'Buscar receta dispensada por cédula o paciente…',
       columns: [
-        {key:'id_medicamento', label:'Medicamento', lookup:'id_medicamento'},
-        {key:'cantidad', label:'Cantidad'}, {key:'lote', label:'Lote'},
-        {key:'fecha', label:'Fecha'},
-        {key:'estado', label:'Estado', render: r => estadoLbl(r)}
+        {key:'paciente_documento', label:'Cédula'},
+        {key:'paciente_nombre', label:'Paciente'},
+        {key:'medicamentos', label:'Medicamentos entregados', render: r => renderMedicamentosReceta(r)},
+        {key:'fecha', label:'Fecha de receta'},
+        {key:'estado', label:'Estado', badge:true, render: () => 'Dispensada'}
       ],
-      fields: [
-        {key:'id_medicamento', required:true, labelUi:'Medicamento', full:true},
-        {key:'id_receta', labelUi:'Receta', full:true},
-        {key:'cantidad', type:'number', labelUi:'Cantidad', required:true, default:1, placeholder:'1'}
-      ],
-      createTitle: 'Dispensar'
+      fields: []
     },
     {
       id: 'ventas', label: 'Ventas', sub: 'Ventas',
@@ -384,7 +549,7 @@ DiabCareCrud.mountTabs({
       columns: [
         {key:'total_neto', label:'Total neto', render: r => money(r.total_neto)},
         {key:'iva', label:'IVA', render: r => money(r.iva)},
-        {key:'factura_label', label:'Factura', render: r => r.factura_label || '—'},
+        {key:'factura_label', label:'Factura', render: r => r.factura_label || '-'},
         {key:'fecha', label:'Fecha'},
         {key:'estado', label:'Estado', render: r => estadoLbl(r)}
       ],
@@ -444,7 +609,7 @@ DiabCareCrud.mountTabs({
       listUrl: '/api/farmacia/cuentas-por-pagar', listKey: 'cuentas_por_pagar', idField: 'id_cxp',
       itemUrl: id => '/api/farmacia/cuentas-por-pagar/' + id,
       columns: [
-        {key:'compra_label', label:'Compra', render: r => r.compra_label || '—'},
+        {key:'compra_label', label:'Compra', render: r => r.compra_label || '-'},
         {key:'monto_pendiente', label:'Pendiente', render: r => money(r.monto_pendiente)},
         {key:'fecha_vencimiento', label:'Vence'},
         {key:'estado', label:'Estado', render: r => estadoLbl(r)}
@@ -462,33 +627,16 @@ DiabCareCrud.mountTabs({
       createTitle: 'Registrar CxP',
       editTitle: 'Editar CxP'
     },
-    {
-      id: 'cierre', label: 'Cierre de caja', sub: 'Cierre de caja',
-      listUrl: '/api/farmacia/cierre-caja', listKey: 'cierres', idField: 'id_cierre',
-      itemUrl: id => '/api/farmacia/cierre-caja/' + id,
-      createUrl: '/api/farmacia/cierre-caja',
-      columns: [
-        {key:'fecha', label:'Fecha'},
-        {key:'monto_esperado', label:'Esperado', render: r => money(r.monto_esperado)},
-        {key:'monto_contado', label:'Contado', render: r => money(r.monto_contado)},
-        {key:'diferencia', label:'Dif.', render: r => money(r.diferencia)},
-        {key:'estado', label:'Estado', render: r => estadoLbl(r)}
-      ],
-      fields: [
-        {key:'fecha', type:'date', labelUi:'Fecha'},
-        {key:'total_ventas_efectivo', type:'number', labelUi:'Ventas en efectivo (USD)', default:0, placeholder:'0.00'},
-        {key:'total_ventas_tarjeta', type:'number', labelUi:'Ventas con tarjeta (USD)', default:0, placeholder:'0.00'},
-        {key:'total_ventas_seguro', type:'number', labelUi:'Ventas por seguro (USD)', default:0, placeholder:'0.00'},
-        {key:'monto_esperado', type:'number', labelUi:'Monto esperado', default:0},
-        {key:'monto_contado', type:'number', labelUi:'Monto contado', default:0}
-      ],
-      createTitle: 'Cerrar caja'
-    }
-  ]
+  ].filter(tab => ORDEN_TABS.includes(tab.id))
+   .sort((a, b) => ORDEN_TABS.indexOf(a.id) - ORDEN_TABS.indexOf(b.id))
 }).then(ctl => {
   farmTabs = ctl;
   const kpiRx = document.getElementById('kpi-rx');
+  const kpiStock = document.getElementById('kpi-stock');
   if (kpiRx) kpiRx.addEventListener('click', () => farmTabs && farmTabs.switchTab('rx'));
+  if (kpiStock) kpiStock.addEventListener('click', () => {
+    location.href = '/paginas/negocio/farmacia/index.html?area=gestion';
+  });
 });
 </script>
 </body>

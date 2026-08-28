@@ -34,9 +34,9 @@
 .stats-grid-compact .stat-value { font-size: 18px; }
 </style>
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 </head>
 <body class="dc-uv">
 
@@ -60,7 +60,7 @@
       </div>
     </div>
 
-    <div class="stats-grid-compact" id="statsTop">
+    <div class="stats-grid-compact" id="statsTop" style="display:none!important">
       <div class="stat-card"><div class="stat-label">Tablas</div><div class="stat-value blue" id="st-tablas">-</div></div>
       <div class="stat-card"><div class="stat-label">Filas DWH</div><div class="stat-value" id="st-filas">-</div></div>
       <div class="stat-card"><div class="stat-label">Hechos diabetes</div><div class="stat-value" id="st-fact">-</div></div>
@@ -326,7 +326,7 @@ async function cargarTabla() {
     const rows = data.datos || [];
 
     document.getElementById('info').textContent =
-      `${rows.length} filas · total ${(data.total||0).toLocaleString('es-ES')}`;
+      `${rows.length} filas - total ${(data.total||0).toLocaleString('es-ES')}`;
     document.getElementById('pagInfo').textContent = `Pág ${pag}`;
 
 
@@ -351,7 +351,6 @@ async function cargarTabla() {
 function prevPag() { if (pag > 1) { pag--; cargarTabla(); } }
 function nextPag() { pag++; cargarTabla(); }
 
-if (!localStorage.getItem('token')) window.location.href = '/';
 cargarEsquema();
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') cargarEsquema();

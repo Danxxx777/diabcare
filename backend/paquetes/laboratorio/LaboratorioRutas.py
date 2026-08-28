@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional
+from datetime import date
 from nucleo.utilidades.Dependencias import require_modulo
 from paquetes.laboratorio import LaboratorioServicio as S
 
@@ -20,6 +21,12 @@ class PruebaIn(BaseModel):
     unidad: str = ""
     activo: Optional[bool] = True
 
+    @validator("codigo", "nombre")
+    def validar_catalogo(cls, valor):
+        if not str(valor or "").strip():
+            raise ValueError("Código y nombre son obligatorios")
+        return str(valor).strip()
+
 class OrdenIn(BaseModel):
     id_paciente: str
     id_prueba: str
@@ -28,11 +35,47 @@ class OrdenIn(BaseModel):
     estado: str = "pendiente"
     fecha: str = ""
 
+    @validator("id_paciente", "id_prueba")
+    def validar_referencia(cls, valor):
+        if not str(valor or "").strip():
+            raise ValueError("Seleccione paciente y prueba")
+        return str(valor).strip()
+
+    @validator("fecha")
+    def validar_fecha_orden(cls, valor):
+        if not valor:
+            return valor
+        try:
+            fecha = date.fromisoformat(valor)
+        except ValueError:
+            raise ValueError("La fecha de la orden no es válida")
+        if fecha > date.today():
+            raise ValueError("La fecha de la orden no puede estar en el futuro")
+        return valor
+
 class ResultadoIn(BaseModel):
     valor: str = ""
     unidad: str = ""
     fecha: str = ""
     estado: str = "registrado"
+
+    @validator("valor")
+    def validar_valor(cls, valor):
+        if not str(valor or "").strip():
+            raise ValueError("Indique el valor del resultado")
+        return str(valor).strip()
+
+    @validator("fecha")
+    def validar_fecha_resultado(cls, valor):
+        if not valor:
+            return valor
+        try:
+            fecha = date.fromisoformat(valor)
+        except ValueError:
+            raise ValueError("La fecha del resultado no es válida")
+        if fecha > date.today():
+            raise ValueError("La fecha del resultado no puede estar en el futuro")
+        return valor
 
 @router.get("/resumen")
 def resumen(payload=Depends(require_modulo("laboratorio"))):
@@ -74,7 +117,8 @@ def get_or(id_orden: str, payload=Depends(require_modulo("laboratorio"))):
 @router.post("/ordenes")
 def post_or(d: OrdenIn, payload=Depends(require_modulo("laboratorio_ordenar"))):
     data = d.dict()
-    data.setdefault("id_medico", payload.get("sub") or "")
+    if not data.get("id_medico"):
+        data["id_medico"] = payload.get("sub") or ""
     data["estado"] = "pendiente"
     if not data.get("fecha"):
         from datetime import date
@@ -84,7 +128,10 @@ def post_or(d: OrdenIn, payload=Depends(require_modulo("laboratorio_ordenar"))):
 
 @router.put("/ordenes/{id_orden}")
 def put_or(id_orden: str, d: OrdenIn, payload=Depends(require_modulo("laboratorio_ordenar"))):
-    r = _nf(S.ordenes.actualizar(id_orden, d.dict(exclude_none=True)))
+    cambios = d.dict(exclude_none=True)
+    if not cambios.get("id_medico"):
+        cambios.pop("id_medico", None)
+    r = _nf(S.ordenes.actualizar(id_orden, cambios))
     S.ordenes.auditar(_u(payload), "update", f"Orden {id_orden}", "laboratorio"); return r
 
 @router.delete("/ordenes/{id_orden}")

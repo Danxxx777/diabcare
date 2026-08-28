@@ -41,9 +41,9 @@ DEFAULTS = {
     "stripe_publishable_key": "",
     # Horario de atencion de la clinica. Urgencias queda fuera: es 24 h.
     # horario_dias: 0=lunes ... 6=domingo.
-    "horario_apertura": "07:00",
-    "horario_cierre": "19:00",
-    "horario_dias": [0, 1, 2, 3, 4, 5],
+    "horario_apertura": "08:00",
+    "horario_cierre": "18:00",
+    "horario_dias": [0, 1, 2, 3, 4],
 }
 
 # Claves que nunca se persisten aunque lleguen en el payload (seguridad).
@@ -157,6 +157,16 @@ def obtener_configuracion(enmascarar_secretos: bool = True) -> dict:
 def guardar_configuracion(datos: dict, usuario: str = "sistema") -> dict:
     actual = obtener_configuracion(enmascarar_secretos=False)
     limpio = {k: v for k, v in (datos or {}).items() if k not in _PROHIBIDAS}
+    if "horario_apertura" in limpio or "horario_cierre" in limpio:
+        apertura = str(limpio.get("horario_apertura") or actual.get("horario_apertura") or "")
+        cierre = str(limpio.get("horario_cierre") or actual.get("horario_cierre") or "")
+        if len(apertura) != 5 or len(cierre) != 5 or apertura >= cierre:
+            return {"error": "El horario de cierre debe ser posterior a la apertura"}
+    if "horario_dias" in limpio:
+        dias = sorted({int(d) for d in (limpio.get("horario_dias") or []) if str(d).isdigit() and 0 <= int(d) <= 6})
+        if not dias:
+            return {"error": "Seleccione al menos un día de atención"}
+        limpio["horario_dias"] = dias
 
     pwd = limpio.get("email_smtp_password")
     if pwd in (None, "", _SECRETO_ENMASCARADO):
@@ -199,8 +209,10 @@ def guardar_configuracion(datos: dict, usuario: str = "sistema") -> dict:
 
     try:
         from paquetes.auditoria.AuditoriaServicio import registrar
-        registrar(usuario, "update", "configuracion",
-                  "Ajustes del sistema actualizados")
+        registrar(
+            usuario, "update", "configuracion", "Ajustes del sistema actualizados",
+            antes=_enmascarar(actual), despues=_enmascarar(nuevo),
+        )
     except Exception:
         pass
     return {"mensaje": "Configuración guardada", "configuracion": _enmascarar(nuevo)}

@@ -10,9 +10,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js?v=20260809a"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 <style>
 .pipe-flow {
   display:flex; align-items:center; justify-content:space-between;
@@ -109,9 +109,45 @@
   padding: 0 14px 12px;
   line-height: 1.4;
 }
+.pipe-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding:6px; margin-bottom:12px; border:1px solid var(--border); border-radius:14px; background:color-mix(in srgb,var(--bg2) 88%,transparent); }
+.pipe-tab { display:flex; align-items:center; gap:10px; min-height:54px; padding:8px 14px; border:1px solid transparent; border-radius:10px; background:transparent; color:var(--text2); text-align:left; cursor:pointer; transition:background .18s,border-color .18s,transform .18s; }
+.pipe-tab:hover { background:color-mix(in srgb,var(--accent) 8%,transparent); transform:translateY(-1px); }
+.pipe-tab.active { background:color-mix(in srgb,var(--accent) 16%,var(--bg2)); border-color:color-mix(in srgb,var(--accent) 48%,var(--border)); color:var(--text); }
+.pipe-tab .ico-svg { flex:0 0 auto; color:var(--accent); }
+.pipe-tab-copy { display:grid; gap:2px; }
+.pipe-tab-copy strong { font-size:12px; }
+.pipe-tab-copy small { color:var(--text3); font-size:10px; font-weight:400; }
+.vista-procesos .solo-rendimiento,
+.vista-rendimiento .solo-proceso,
+.detalle-tecnico[hidden] { display:none !important; }
+.pipe-workspace { position:relative; overflow:hidden; border-radius:14px !important; background:linear-gradient(145deg,color-mix(in srgb,var(--bg2) 96%,transparent),color-mix(in srgb,var(--accent) 4%,var(--bg2))) !important; }
+.pipe-workspace::before { content:""; position:absolute; inset:0 0 auto; height:2px; background:linear-gradient(90deg,var(--accent),transparent 70%); opacity:.75; }
+.pipe-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding-top:2px; }
+.pipe-actions .form-control { min-height:34px; border-radius:9px; }
+.pipe-benchmark-intro { margin:0 0 12px; color:var(--text2); font-size:12px; }
+#pipe-main-status { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+#pipe-main-status .status-card { position:relative; min-height:90px; padding:15px 16px; overflow:hidden; background:linear-gradient(145deg,var(--bg2),color-mix(in srgb,var(--accent) 5%,var(--bg2))); }
+#pipe-main-status .status-card::after { content:""; position:absolute; width:56px; height:56px; right:-22px; bottom:-24px; border:1px solid color-mix(in srgb,var(--accent) 26%,transparent); border-radius:50%; }
+#pipe-main-status .status-label { margin-bottom:10px; }
+.dag-card { display:grid; grid-template-columns:38px minmax(0,1fr) auto auto; gap:12px; align-items:center; padding:12px 13px; border:1px solid var(--border); border-radius:11px; background:color-mix(in srgb,var(--bg2) 94%,transparent); transition:border-color .18s,transform .18s,background .18s; }
+.dag-card:hover { transform:translateY(-1px); border-color:color-mix(in srgb,var(--accent) 42%,var(--border)); background:color-mix(in srgb,var(--accent) 6%,var(--bg2)); }
+.dag-icon { display:grid; place-items:center; width:38px; height:38px; border-radius:10px; color:var(--accent); background:color-mix(in srgb,var(--accent) 13%,transparent); }
+.dag-main { min-width:0; }
+.dag-name { font-size:12px; font-weight:700; color:var(--text); }
+.dag-desc { margin-top:3px; color:var(--text2); font-size:10px; }
+.dag-meta { margin-top:4px; color:var(--text3); font-size:9px; }
+.dag-status { padding:4px 8px; border-radius:999px; font-size:9px; font-weight:700; color:var(--text2); background:color-mix(in srgb,var(--text3) 12%,transparent); }
+.dag-status.is-active { color:var(--green); background:color-mix(in srgb,var(--green) 13%,transparent); }
+.dag-status.is-paused { color:var(--amber); background:color-mix(in srgb,var(--amber) 13%,transparent); }
+@media (max-width:720px) {
+  .pipe-tabs { grid-template-columns:1fr; }
+  .dag-card { grid-template-columns:34px minmax(0,1fr) auto; }
+  .dag-status { display:none; }
+  #pipe-main-status { grid-template-columns:1fr !important; }
+}
 </style>
 </head>
-<body class="dc-uv">
+<body class="dc-uv vista-procesos">
 
 <aside class="sidebar" id="diabcare-sidebar"></aside>
 
@@ -126,64 +162,72 @@
   <div class="content">
     <div class="page-header">
       <div>
-        <div class="page-title">Orquestador <span>ELT</span></div>
-        <div class="page-sub">Apache Airflow · DAGs E→L→T (ELT) · incremental · benchmark SQL vs Parquet</div>
+        <div class="page-title">Pipeline <span>ELT</span></div>
+        <div class="page-sub">Procesos y rendimiento de datos</div>
       </div>
     </div>
 
-    <div class="panel" style="margin-bottom:14px;padding:18px 20px">
-      <div class="panel-title" style="margin-bottom:10px">Hoja de ruta Airflow (DAGs)</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.45;max-width:78ch">
-        Elija qué DAG ejecutar y revise el schedule. Estrategia:
-        <strong>incremental</strong> (añade Parquet; no vacía MinIO). Histórico solo relee PocketBase.
-        Arranque: <code>arrancar-airflow.ps1</code>.
-      </p>
-      <div id="dags-list" style="display:grid;gap:10px;margin-bottom:14px">
+    <div class="pipe-tabs" role="tablist" aria-label="Secciones de Pipeline ELT">
+      <button class="pipe-tab active" type="button" data-pipe-tab="procesos" onclick="cambiarVista('procesos')">
+        <span data-icon="pipeline" data-icon-size="18"></span>
+        <span class="pipe-tab-copy"><strong>Procesos ELT</strong><small>Ejecutar y supervisar cargas</small></span>
+      </button>
+      <button class="pipe-tab" type="button" data-pipe-tab="rendimiento" onclick="cambiarVista('rendimiento')">
+        <span data-icon="benchmarking" data-icon-size="18"></span>
+        <span class="pipe-tab-copy"><strong>Rendimiento</strong><small>Comparar SQL y Parquet</small></span>
+      </button>
+    </div>
+
+    <div class="panel pipe-workspace" style="margin-bottom:14px;padding:18px 20px">
+      <div class="panel-title" id="pipe-control-title" style="margin-bottom:10px">Procesos disponibles</div>
+      <p class="pipe-benchmark-intro solo-rendimiento">Compara el tiempo de consulta entre SQL y Parquet.</p>
+      <div id="dags-list" class="solo-proceso" style="display:grid;gap:10px;margin-bottom:14px">
         <div class="loading"><div class="spinner"></div>Cargando DAGs…</div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-        <select id="dagSelect" class="form-control" style="max-width:280px;font-size:12px">
-          <option value="diabcare_elt">diabcare_elt (horario)</option>
-          <option value="diabcare_elt_historico">diabcare_elt_historico (domingo)</option>
-          <option value="diabcare_benchmark_sql">diabcare_benchmark_sql (diario)</option>
+      <div class="pipe-actions">
+        <select id="dagSelect" class="form-control solo-proceso" style="max-width:280px;font-size:12px">
+          <option value="diabcare_elt">Actualización incremental</option>
+          <option value="diabcare_elt_historico">Carga histórica</option>
+          <option value="diabcare_benchmark_sql">Comparación de rendimiento</option>
         </select>
-        <button class="btn btn-primary btn-sm" onclick="dispararAirflow()" id="btnAirflow">▶ Ejecutar DAG elegido</button>
-        <button class="btn btn-ghost btn-sm" onclick="ejecutarPipeline(false)" id="btnPipeline">↻ Sync directo (sin Airflow)</button>
-        <button class="btn btn-ghost btn-sm" onclick="correrBenchmark()" id="btnBench">⏱ Benchmark SQL vs Parquet</button>
+        <button class="btn btn-primary btn-sm solo-proceso" onclick="dispararAirflow()" id="btnAirflow">Ejecutar</button>
+        <button class="btn btn-ghost btn-sm solo-proceso" onclick="ejecutarPipeline(false)" id="btnPipeline">Sincronizar</button>
+        <button class="btn btn-ghost btn-sm solo-proceso" onclick="mostrarDetallesTecnicos()">Detalles técnicos</button>
+        <button class="btn btn-primary btn-sm solo-rendimiento" onclick="correrBenchmark()" id="btnBench">Iniciar comparación</button>
       </div>
     </div>
 
-    <div class="status-grid" style="margin-bottom:14px;grid-template-columns:repeat(4,1fr)">
-      <div class="status-card">
-        <div class="status-label">Duración última ELT</div>
+    <div class="status-grid" id="pipe-main-status" style="margin-bottom:14px">
+      <div class="status-card solo-proceso">
+        <div class="status-label">Última sincronización</div>
         <div class="status-val" id="s-dur-elt" style="font-size:18px">-</div>
         <div class="pipe-sub" id="s-dur-elt-sub" style="margin-top:6px;text-align:left">API FastAPI</div>
       </div>
-      <div class="status-card">
-        <div class="status-label">Duración Airflow (DAG)</div>
+      <div class="status-card solo-proceso">
+        <div class="status-label">Última ejecución</div>
         <div class="status-val" id="s-dur-af" style="font-size:18px">-</div>
         <div class="pipe-sub" id="s-dur-af-sub" style="margin-top:6px;text-align:left">Última corrida</div>
       </div>
-      <div class="status-card">
-        <div class="status-label">SQL tradicional</div>
+      <div class="status-card solo-rendimiento">
+        <div class="status-label">SQL</div>
         <div class="status-val amber" id="s-sql-ms" style="font-size:18px">-</div>
-        <div class="pipe-sub" style="margin-top:6px;text-align:left">ms (carga+SELECT)</div>
+        <div class="pipe-sub" style="margin-top:6px;text-align:left">Tiempo total</div>
       </div>
-      <div class="status-card">
-        <div class="status-label">Columnar Parquet</div>
+      <div class="status-card solo-rendimiento">
+        <div class="status-label">Parquet</div>
         <div class="status-val green" id="s-pq-ms" style="font-size:18px">-</div>
         <div class="pipe-sub" id="s-bench-cmp" style="margin-top:6px;text-align:left">vs SQL</div>
       </div>
     </div>
 
-    <div class="panel" id="bench-panel" style="margin-bottom:14px;padding:16px 18px;display:none">
-      <div class="panel-title" style="margin-bottom:8px">Resultado benchmark (clase: BDR/SQL vs columnar)</div>
+    <div class="panel solo-rendimiento" id="bench-panel" style="margin-bottom:14px;padding:16px 18px;display:none">
+      <div class="panel-title" style="margin-bottom:8px">Comparación de rendimiento</div>
       <pre id="bench-out" style="font-size:11px;font-family:var(--mono);white-space:pre-wrap;margin:0;color:var(--text2);max-height:220px;overflow:auto"></pre>
     </div>
 
-    <div class="orch-embed" id="orch-airflow-embed">
+    <div class="orch-embed solo-proceso detalle-tecnico" id="orch-airflow-embed" hidden>
       <div class="orch-embed-bar">
-        <strong>Airflow · vista DAG</strong>
+        <strong>Airflow - vista DAG</strong>
         <span id="orch-embed-status">Cargando vista…</span>
         <button type="button" class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="recargarAirflowEmbed()">↺ Recargar vista</button>
       </div>
@@ -191,7 +235,7 @@
         <iframe
           id="airflow-embed"
           title="Apache Airflow embebido"
-          src="http://localhost:8080/dags/diabcare_elt/grid"
+          data-src="http://localhost:8081/dags/diabcare_elt/grid"
           loading="lazy"
           referrerpolicy="no-referrer-when-downgrade"
         ></iframe>
@@ -204,7 +248,7 @@
 
     <div class="panel" style="margin-bottom:14px;padding:18px 20px;display:none" id="legacy-orch-control"></div>
 
-    <div class="pipe-flow">
+    <div class="pipe-flow solo-proceso detalle-tecnico" hidden>
       <div class="pipe-node">
         <div class="pipe-icon purple" data-icon="storage" data-icon-size="22"></div>
         <div class="pipe-label">PocketBase</div>
@@ -216,7 +260,7 @@
         <div class="pipe-icon amber" data-icon="configuracion" data-icon-size="22"></div>
         <div class="pipe-label">Apache Airflow</div>
         <div class="pipe-sub" id="pipe-airflow-sub">Orquestador ELT</div>
-        <div class="pipe-sub">localhost:8080</div>
+        <div class="pipe-sub">localhost:8081</div>
       </div>
       <div class="pipe-arrow" data-icon="chevron" data-icon-size="14"></div>
       <div class="pipe-node">
@@ -242,14 +286,14 @@
     </div>
 
     <!-- KPI estado -->
-    <div class="status-grid">
+    <div class="status-grid solo-proceso detalle-tecnico" hidden>
       <div class="status-card"><div class="status-label">MinIO</div><div class="status-val" id="s-min">-</div></div>
       <div class="status-card"><div class="status-label">Registros en stage</div><div class="status-val green" id="s-registros">-</div></div>
       <div class="status-card"><div class="status-label">Archivos Parquet</div><div class="status-val blue" id="s-archivos">-</div></div>
       <div class="status-card"><div class="status-label">Última carga</div><div class="status-val" id="s-fecha" style="font-size:12px">-</div></div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div class="solo-proceso detalle-tecnico" hidden style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
 
       <!-- Archivos en MinIO -->
       <div class="archivos-tabla">
@@ -271,7 +315,7 @@
           <div class="step-row" id="step-row-1">
             <div class="step-num" id="step-num-1">1</div>
             <div style="flex:1">
-              <div class="step-title">E — Extracción (PocketBase)</div>
+              <div class="step-title">E - Extracción (PocketBase)</div>
               <div class="step-desc">Solo registros con <code>updated</code> posterior a la última sync (incremental).</div>
               <div class="step-tech">GET /api/collections/diabetes_dataset/records</div>
               <div class="step-status pending" id="step-status-1">- En espera</div>
@@ -280,7 +324,7 @@
           <div class="step-row" id="step-row-2">
             <div class="step-num" id="step-num-2">2</div>
             <div style="flex:1">
-              <div class="step-title">L — Carga (MinIO landing/)</div>
+              <div class="step-title">L - Carga (MinIO landing/)</div>
               <div class="step-desc">Datos <strong>crudos</strong> al almacén: <code>diabetes-data/landing/</code> (antes de transformar).</div>
               <div class="step-tech">raw.parquet → minio.put_object(landing/)</div>
               <div class="step-status pending" id="step-status-2">- En espera</div>
@@ -289,7 +333,7 @@
           <div class="step-row" id="step-row-3">
             <div class="step-num" id="step-num-3">3</div>
             <div style="flex:1">
-              <div class="step-title">T — Transformación (stage + DWH)</div>
+              <div class="step-title">T - Transformación (stage + DWH)</div>
               <div class="step-desc">Normalización pandas en el almacén → <code>stage/</code> limpio + hechos/dimensiones/agg_*.</div>
               <div class="step-tech">transformar → stage/pocketbase_elt_*.parquet → materializar_dwh()</div>
               <div class="step-status pending" id="step-status-3">- En espera</div>
@@ -298,18 +342,18 @@
           <div class="step-row" id="step-row-4">
             <div class="step-num" id="step-num-4">4</div>
             <div style="flex:1">
-              <div class="step-title">T — Hecho-Dimensión</div>
+              <div class="step-title">T - Hecho-Dimensión</div>
               <div class="step-desc">Parte de la transformación: tablas para informes compuestos y KPIs.</div>
-              <div class="step-tech">hechos/ · dimensiones/ · agregados/</div>
+              <div class="step-tech">hechos/ - dimensiones/ - agregados/</div>
               <div class="step-status pending" id="step-status-4">- En espera</div>
             </div>
           </div>
           <div class="step-row" id="step-row-5">
             <div class="step-num" id="step-num-5">5</div>
             <div style="flex:1">
-              <div class="step-title">Consumo — FastAPI / dashboards</div>
+              <div class="step-title">Consumo - FastAPI / dashboards</div>
               <div class="step-desc">Invalidación de caché; dashboards leen stage/DWH (no el landing crudo).</div>
-              <div class="step-tech">GET /api/registros/estadisticas · /api/dataset/kpis</div>
+              <div class="step-tech">GET /api/registros/estadisticas - /api/dataset/kpis</div>
               <div class="step-status pending" id="step-status-5">- En espera</div>
             </div>
           </div>
@@ -327,6 +371,41 @@ DiabCareNav.init();
 DiabCareNav.guardRol(['administrador', 'analista']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
+const DAGS_LOCALES = [
+  { dag_id: 'diabcare_elt', activo: true },
+  { dag_id: 'diabcare_elt_historico', activo: true },
+  { dag_id: 'diabcare_benchmark_sql', activo: true },
+];
+
+function cambiarVista(vista) {
+  const rendimiento = vista === 'rendimiento';
+  document.body.classList.toggle('vista-rendimiento', rendimiento);
+  document.body.classList.toggle('vista-procesos', !rendimiento);
+  document.querySelectorAll('[data-pipe-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.pipeTab === vista);
+  });
+  const titulo = document.getElementById('pipe-control-title');
+  if (titulo) titulo.textContent = rendimiento ? 'Comparación de rendimiento' : 'Procesos disponibles';
+}
+
+async function mostrarDetallesTecnicos() {
+  document.querySelectorAll('.detalle-tecnico').forEach(el => { el.hidden = false; });
+  const box = document.getElementById('orch-airflow-embed');
+  if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  recargarAirflowEmbed();
+  try {
+    const r = await fetch(`${API}/api/pipeline/airflow`, {
+      headers: { Authorization: 'Bearer ' + token },
+      credentials: 'include',
+      silent: true,
+      skeleton: false,
+    });
+    if (r.ok) {
+      const af = await r.json();
+      pintarDags(af.dags || DAGS_LOCALES, !!af.conectado);
+    }
+  } catch { /* El detalle embebido conserva su propio estado. */ }
+}
 
 function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
 
@@ -425,7 +504,7 @@ async function ejecutarPipeline(historico = false) {
     toast('Error de conexión con el backend', 'error');
     resetSteps();
   } finally {
-    btn.textContent = '↻ Sync directo (sin Airflow)';
+    btn.textContent = 'Sincronizar';
     btn.disabled = false;
   }
 }
@@ -459,7 +538,7 @@ async function dispararAirflow() {
     toast('Error al contactar Airflow', 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '▶ Ejecutar DAG elegido';
+    btn.textContent = 'Ejecutar';
   }
 }
 
@@ -468,8 +547,8 @@ function recargarAirflowEmbed(dagId) {
   const st = document.getElementById('orch-embed-status');
   if (!iframe) return;
   const id = dagId || document.getElementById('dagSelect')?.value || 'diabcare_elt';
-  iframe.src = `http://localhost:8080/dags/${id}/grid?t=${Date.now()}`;
-  if (st) st.textContent = `${id} · ${new Date().toLocaleTimeString('es-ES')}`;
+  iframe.src = `http://localhost:8081/dags/${id}/grid?t=${Date.now()}`;
+  if (st) st.textContent = `${id} - ${new Date().toLocaleTimeString('es-ES')}`;
 }
 
 async function correrBenchmark() {
@@ -489,12 +568,12 @@ async function correrBenchmark() {
       return;
     }
     pintarBenchmark(d);
-    toast(`Benchmark OK · SQL ${d.tiempos_ms?.sql_total} ms vs Parquet ${d.tiempos_ms?.columnar_pandas} ms`, 'success');
+    toast(`Benchmark OK - SQL ${d.tiempos_ms?.sql_total} ms vs Parquet ${d.tiempos_ms?.columnar_pandas} ms`, 'success');
   } catch {
     toast('Error de conexión en benchmark', 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '⏱ Benchmark SQL vs Parquet';
+    btn.textContent = 'Comparar';
   }
 }
 
@@ -508,7 +587,7 @@ function pintarBenchmark(d) {
   if (elPq) elPq.textContent = (t.columnar_pandas != null) ? `${t.columnar_pandas} ms` : '-';
   if (elCmp) {
     elCmp.textContent = cmp.factor_sql_vs_columnar
-      ? `SQL ×${cmp.factor_sql_vs_columnar} vs columnar · gana ${cmp.ganador}`
+      ? `SQL ×${cmp.factor_sql_vs_columnar} vs columnar - gana ${cmp.ganador}`
       : (cmp.leccion || 'vs SQL');
   }
   const panel = document.getElementById('bench-panel');
@@ -516,10 +595,10 @@ function pintarBenchmark(d) {
   if (panel && out) {
     panel.style.display = 'block';
     out.textContent = [
-      `Registros: ${d.registros} · ${d.motor_sql} vs ${d.motor_columnar}`,
-      `SQL carga tabla: ${t.sql_carga_tabla} ms · consultas: ${t.sql_consultas} ms · total: ${t.sql_total} ms`,
+      `Registros: ${d.registros} - ${d.motor_sql} vs ${d.motor_columnar}`,
+      `SQL carga tabla: ${t.sql_carga_tabla} ms - consultas: ${t.sql_consultas} ms - total: ${t.sql_total} ms`,
       `Columnar pandas: ${t.columnar_pandas} ms`,
-      `Diferencia: ${cmp.diferencia_ms} ms · ganador: ${cmp.ganador}`,
+      `Diferencia: ${cmp.diferencia_ms} ms - ganador: ${cmp.ganador}`,
       '',
       cmp.leccion || '',
       '',
@@ -535,29 +614,43 @@ function pintarDags(dags, conectado) {
     box.innerHTML = '<div style="font-size:12px;color:var(--text3)">Sin DAGs configurados</div>';
     return;
   }
+  const nombres = {
+    diabcare_elt: 'Actualización incremental',
+    diabcare_elt_historico: 'Carga histórica',
+    diabcare_benchmark_sql: 'Comparación de rendimiento',
+  };
+  const descripciones = {
+    diabcare_elt: 'Actualiza únicamente los datos nuevos.',
+    diabcare_elt_historico: 'Reconstruye todo el historial disponible.',
+    diabcare_benchmark_sql: 'Compara el rendimiento de SQL y Parquet.',
+  };
   box.innerHTML = dags.map(g => {
     const run = g.ultima_corrida || {};
-    const act = g.activo === false ? '⏸' : (conectado ? '✓' : '·');
-    const dur = run.duracion_seg != null ? `${run.duracion_seg}s` : (g.duracion_seg != null ? `${g.duracion_seg}s` : '—');
-    return `<div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg2)">
-      <div style="font-size:16px;margin-top:2px">${act}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600;font-family:var(--mono)">${g.dag_id}</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:2px">${g.descripcion || ''}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--mono)">
-          schedule: ${g.schedule_airflow || g.schedule || '-'} · modo: ${g.modo || '-'} · última: ${run.estado || 'sin corridas'} · ${dur}
-        </div>
+    const act = g.activo === false ? 'Pausado' : (conectado ? 'Activo' : 'Disponible');
+    const dur = run.duracion_seg != null ? `${run.duracion_seg}s` : (g.duracion_seg != null ? `${g.duracion_seg}s` : '-');
+    const icono = g.dag_id === 'diabcare_benchmark_sql' ? 'benchmarking'
+      : g.dag_id === 'diabcare_elt_historico' ? 'storage' : 'pipeline';
+    const estadoClase = g.activo === false ? 'is-paused' : (conectado ? 'is-active' : '');
+    return `<div class="dag-card">
+      <div class="dag-icon">${DiabCareIcons.svg(icono, 18)}</div>
+      <div class="dag-main">
+        <div class="dag-name">${nombres[g.dag_id] || g.dag_id}</div>
+        <div class="dag-desc">${descripciones[g.dag_id] || g.descripcion || ''}</div>
+        <div class="dag-meta">${run.estado || 'Sin ejecuciones'}${dur !== '-' ? ` - ${dur}` : ''}</div>
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('dagSelect').value='${g.dag_id}';recargarAirflowEmbed('${g.dag_id}')">Ver</button>
+      <span class="dag-status ${estadoClase}">${act}</span>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('dagSelect').value='${g.dag_id}';mostrarDetallesTecnicos()">Ver</button>
     </div>`;
   }).join('');
 }
 
 async function cargar() {
   try {
-    const r = await fetch(`${API}/api/pipeline/estado`, {
+    const r = await fetch(`${API}/api/pipeline/estado-ligero`, {
       headers: { Authorization: 'Bearer ' + token },
       credentials: 'include',
+      silent: true,
+      skeleton: false,
     });
     if (r.status === 401) { window.location.href = '/'; return; }
     if (r.status === 403) { toast('Sin permiso para Pipeline ELT', 'error'); return; }
@@ -569,7 +662,6 @@ async function cargar() {
     document.getElementById('s-min').className = 'status-val ' + (minOk ? 'green' : 'amber');
 
     const af = d.airflow || {};
-    pintarDags(af.dags || d.dags_configurados || [], !!af.conectado);
 
     const uc = d.ultima_corrida_elt || {};
     const elDur = document.getElementById('s-dur-elt');
@@ -578,7 +670,7 @@ async function cargar() {
     if (elDurSub) {
       const t = uc.tiempos || {};
       elDurSub.textContent = t.extraer_seg != null
-        ? `E ${t.extraer_seg}s · L ${t.cargar_seg}s · T ${t.transformar_seg}s`
+        ? `E ${t.extraer_seg}s - L ${t.cargar_seg}s - T ${t.transformar_seg}s`
         : (uc.mensaje ? String(uc.mensaje).slice(0, 48) : 'API FastAPI');
     }
 
@@ -587,7 +679,7 @@ async function cargar() {
     const elAfSub = document.getElementById('s-dur-af-sub');
     if (elAf) elAf.textContent = runAf.duracion_seg != null ? `${runAf.duracion_seg} s` : (runAf.estado || '-');
     if (elAfSub) elAfSub.textContent = runAf.inicio
-      ? `${af.dag_id || 'DAG'} · ${String(runAf.inicio).slice(0, 19).replace('T', ' ')}`
+      ? `${af.dag_id || 'DAG'} - ${String(runAf.inicio).slice(0, 19).replace('T', ' ')}`
       : 'Última corrida';
 
     if (d.benchmark_sql && d.benchmark_sql.tiempos_ms) {
@@ -602,10 +694,10 @@ async function cargar() {
     const gen = d.total_generador ?? 0;
     const elt = d.total_elt ?? 0;
     const syncTxt = sync.ultima
-      ? `ELT: ${sync.registros_acumulados || 0} reg. · últ. sync ${sync.ultima.slice(0, 19).replace('T', ' ')}`
+      ? `ELT: ${sync.registros_acumulados || 0} reg. - últ. sync ${sync.ultima.slice(0, 19).replace('T', ' ')}`
       : 'ELT: sin sincronizar';
     document.getElementById('a-count').textContent =
-      `${gen} generador · ${elt} ELT · ${syncTxt}`;
+      `${gen} generador - ${elt} ELT - ${syncTxt}`;
 
     if (!d.archivos || d.archivos.length === 0) {
       document.getElementById('archivos-list').innerHTML = '<div class="loading">Sin archivos en stage/</div>';
@@ -634,6 +726,7 @@ async function cargar() {
 }
 
 setTimeout(aplicarRoles, 50);
+pintarDags(DAGS_LOCALES, false);
 cargar();
 </script>
 </body>

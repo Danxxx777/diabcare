@@ -109,15 +109,23 @@ $null = Wait-Puerto 8090 "PocketBase" 60
 
 # --- 3. Airflow (DAGs ELT E-L-T) ---
 Write-Host "[3/5] Apache Airflow (orquestador ELT)..." -ForegroundColor Cyan
-if (Test-Path ".\docker-compose.airflow.yml") {
-    docker compose -f docker-compose.airflow.yml up -d
+if (Test-Puerto 8081) {
+    Write-Host "      Airflow ya estaba activo (:8081). Se omite la inicializacion." -ForegroundColor Green
+} elseif (Test-Path ".\docker-compose.airflow.yml") {
+    $estadoInit = docker inspect --format '{{.State.Status}}:{{.State.ExitCode}}' diabcare-airflow-init-1 2>$null
+    if ($estadoInit -eq "exited:0") {
+        Write-Host "      Inicializacion previa valida. Levantando servicios existentes..." -ForegroundColor DarkGray
+        docker compose -f docker-compose.airflow.yml up -d --no-deps airflow-webserver airflow-scheduler
+    } else {
+        docker compose -f docker-compose.airflow.yml up -d
+    }
     if ($LASTEXITCODE -ne 0) {
         Write-Host "      AVISO: compose Airflow devolvio error; se intenta seguir." -ForegroundColor Yellow
     }
 } else {
     Write-Host "      AVISO: falta docker-compose.airflow.yml" -ForegroundColor Yellow
 }
-$null = Wait-Puerto 8080 "Airflow UI" 120
+$null = Wait-Puerto 8081 "Airflow UI" 120
 
 # --- 4. Resumen URLs ---
 Write-Host "[4/5] URLs del stack..." -ForegroundColor Cyan
@@ -126,7 +134,7 @@ Write-Host "  App DiabCare   http://localhost:8000" -ForegroundColor White
 Write-Host "  API / docs     http://localhost:8000/docs" -ForegroundColor White
 Write-Host "  MinIO          http://localhost:9001" -ForegroundColor White
 Write-Host "  PocketBase     http://localhost:8090/_/" -ForegroundColor White
-Write-Host "  Airflow        http://localhost:8080   (admin / admin)" -ForegroundColor White
+Write-Host "  Airflow        http://localhost:8081   (admin / admin)" -ForegroundColor White
 Write-Host ""
 Write-Host '  DAGs: diabcare_elt (hourly E-L-T) | diabcare_elt_historico | diabcare_benchmark_sql' -ForegroundColor DarkGray
 Write-Host '  UI:   Datos -> Orquestador  |  carpeta etl/ + dags/' -ForegroundColor DarkGray
@@ -188,7 +196,7 @@ $env:PYTHONPATH = "$PSScriptRoot;$PSScriptRoot\backend"
 
 if (Test-Puerto 8000) {
     Write-Host "      Ya habia un proceso en :8000. Stack listo (no se relanzo el backend)." -ForegroundColor Green
-    Write-Host "      Si cambiaste codigo, detener con .\detener.ps1 y vuelve a arrancar." -ForegroundColor Yellow
+    Write-Host "      Si cambiaste codigo, usa .\detener.ps1 -SoloBackend y vuelve a arrancar." -ForegroundColor Yellow
     if ($ConTunel -and $env:DIABCARE_PUBLIC_URL) {
         # El backend en marcha arranco sin esa variable y no la va a releer.
         Write-Host ""

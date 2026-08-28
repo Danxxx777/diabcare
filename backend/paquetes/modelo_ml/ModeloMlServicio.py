@@ -57,6 +57,41 @@ def historial() -> dict:
     return {"total": len(items), "entrenamientos": items}
 
 
+def resumen() -> dict:
+    """Carga el panel sin descargar ni deserializar el modelo completo."""
+    items = _leer_historial()
+    items.sort(key=lambda x: x.get("fecha", ""), reverse=True)
+    try:
+        get_cliente().stat_object(BUCKET_APP, PrediccionServicio.MODELO_PATH)
+        disponible = True
+    except Exception:
+        disponible = False
+
+    ultima = items[0] if items else {}
+    metricas = {
+        clave: ultima.get(clave)
+        for clave in (
+            "accuracy", "precision", "recall", "f1",
+            "registros_entrenamiento", "registros_prueba",
+        )
+        if ultima.get(clave) is not None
+    }
+    if disponible and not metricas:
+        cargadas = PrediccionServicio.obtener_metricas()
+        metricas = {} if "error" in cargadas else cargadas
+
+    return {
+        "algoritmo": ALGORITMO,
+        "n_estimators": N_ESTIMATORS,
+        "features": PrediccionServicio.FEATURES,
+        "split": SPLIT,
+        "disponible": disponible,
+        "metricas": metricas or None,
+        "total": len(items),
+        "entrenamientos": items,
+    }
+
+
 def reentrenar(usuario: str = "sistema") -> dict:
     resultado = PrediccionServicio.entrenar()
     if "error" in resultado:

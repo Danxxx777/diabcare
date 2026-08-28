@@ -9,9 +9,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-2"></script>
-<script src="/estaticos/api.js?v=contrast-1"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 <script src="/estaticos/graficas.js?v=contrast-1"></script>
 <style>
 .an-hero {
@@ -89,7 +89,7 @@
   </div>
   <div class="content">
     <div class="an-hero">
-      <h1>Calidad clínica · diabetes</h1>
+      <h1>Calidad clínica - diabetes</h1>
       <p>
         Medición de control glucémico, estratificación de riesgo y puente hacia
         dataset, pipeline, modelo y reportes. Vista de análisis; sin editar expedientes.
@@ -106,22 +106,22 @@
     <div class="dash-row dash-4">
       <div class="kpi-card cyan">
         <div class="kpi-label">Cohorte DM</div>
-        <div class="kpi-val cyan" id="k-dm">—</div>
+        <div class="kpi-val cyan" id="k-dm">-</div>
         <div class="kpi-sub" id="k-prev">prevalencia</div>
       </div>
       <div class="kpi-card green">
         <div class="kpi-label">Control HbA1c &lt; 7%</div>
-        <div class="kpi-val green" id="k-ctrl">—</div>
+        <div class="kpi-val green" id="k-ctrl">-</div>
         <div class="kpi-sub" id="k-ctrl-n">meta ADA</div>
       </div>
       <div class="kpi-card amber">
-        <div class="kpi-label">Subóptimo 7–9%</div>
-        <div class="kpi-val amber" id="k-sub">—</div>
+        <div class="kpi-label">Subóptimo 7-9%</div>
+        <div class="kpi-val amber" id="k-sub">-</div>
         <div class="kpi-sub">requiere seguimiento</div>
       </div>
       <div class="kpi-card red">
         <div class="kpi-label">Descontrol ≥ 9%</div>
-        <div class="kpi-val red" id="k-des">—</div>
+        <div class="kpi-val red" id="k-des">-</div>
         <div class="kpi-sub" id="k-des-n">prioridad clínica</div>
       </div>
     </div>
@@ -137,26 +137,26 @@
         <div class="an-legend">
           <span>● Controlado</span><span>● Subóptimo</span><span>● Descontrol</span>
         </div>
-        <div class="sys-row" style="margin-top:14px"><span class="sys-label">HbA1c promedio (DM)</span><span class="sys-badge ok" id="p-hba">—</span></div>
-        <div class="sys-row"><span class="sys-label">Glucosa promedio (DM)</span><span class="sys-badge ok" id="p-glc">—</span></div>
-        <div class="sys-row"><span class="sys-label">Glucosa ≥ 250</span><span class="sys-badge warn" id="p-glc-crit">—</span></div>
+        <div class="sys-row" style="margin-top:14px"><span class="sys-label">HbA1c promedio (DM)</span><span class="sys-badge ok" id="p-hba">-</span></div>
+        <div class="sys-row"><span class="sys-label">Glucosa promedio (DM)</span><span class="sys-badge ok" id="p-glc">-</span></div>
+        <div class="sys-row"><span class="sys-label">Glucosa ≥ 250</span><span class="sys-badge warn" id="p-glc-crit">-</span></div>
       </div>
 
       <div class="panel">
         <div class="panel-title">Estrato de riesgo (DM)</div>
         <div class="donut-wrap" style="height:160px"><canvas id="c-riesgo"></canvas></div>
-        <div class="sys-row"><span class="sys-label">Alto</span><span class="sys-badge warn" id="r-alto">—</span></div>
-        <div class="sys-row"><span class="sys-label">Medio</span><span class="sys-badge ok" id="r-medio">—</span></div>
-        <div class="sys-row"><span class="sys-label">Controlado</span><span class="sys-badge ok" id="r-bajo">—</span></div>
+        <div class="sys-row"><span class="sys-label">Alto</span><span class="sys-badge warn" id="r-alto">-</span></div>
+        <div class="sys-row"><span class="sys-label">Medio</span><span class="sys-badge ok" id="r-medio">-</span></div>
+        <div class="sys-row"><span class="sys-label">Controlado</span><span class="sys-badge ok" id="r-bajo">-</span></div>
       </div>
 
       <div class="panel">
         <div class="panel-title">Comorbilidades en DM</div>
-        <div class="sys-row"><span class="sys-label">Hipertensión</span><span class="sys-badge ok" id="c-hip">—</span></div>
-        <div class="sys-row"><span class="sys-label">Cardiopatía</span><span class="sys-badge ok" id="c-card">—</span></div>
-        <div class="sys-row"><span class="sys-label">Ambas</span><span class="sys-badge warn" id="c-ambas">—</span></div>
-        <div class="sys-row"><span class="sys-label">Obesidad (BMI ≥ 30)</span><span class="sys-badge ok" id="c-obe">—</span></div>
-        <div class="sys-row"><span class="sys-label">BMI promedio</span><span class="sys-badge ok" id="c-bmi">—</span></div>
+        <div class="sys-row"><span class="sys-label">Hipertensión</span><span class="sys-badge ok" id="c-hip">-</span></div>
+        <div class="sys-row"><span class="sys-label">Cardiopatía</span><span class="sys-badge ok" id="c-card">-</span></div>
+        <div class="sys-row"><span class="sys-label">Ambas</span><span class="sys-badge warn" id="c-ambas">-</span></div>
+        <div class="sys-row"><span class="sys-label">Obesidad (BMI ≥ 30)</span><span class="sys-badge ok" id="c-obe">-</span></div>
+        <div class="sys-row"><span class="sys-label">BMI promedio</span><span class="sys-badge ok" id="c-bmi">-</span></div>
       </div>
     </div>
 
@@ -185,11 +185,11 @@ DiabCareNav.init();
 DiabCareNav.guardRol(['administrador', 'analista', 'medico']);
 
 function pct(n) {
-  return (n == null || !Number.isFinite(Number(n))) ? '—' : `${Number(n).toFixed(1)}%`;
+  return (n == null || !Number.isFinite(Number(n))) ? '-' : `${Number(n).toFixed(1)}%`;
 }
 
 function num(n) {
-  return (n == null) ? '—' : Number(n).toLocaleString('es-ES');
+  return (n == null) ? '-' : Number(n).toLocaleString('es-ES');
 }
 
 function pintar(d) {
@@ -200,7 +200,7 @@ function pintar(d) {
   const r = d.riesgo || {};
 
   document.getElementById('k-dm').textContent = num(d.con_diabetes);
-  document.getElementById('k-prev').textContent = `prevalencia ${pct(d.prevalencia_pct)} · ${num(d.total_registros)} registros`;
+  document.getElementById('k-prev').textContent = `prevalencia ${pct(d.prevalencia_pct)} - ${num(d.total_registros)} registros`;
   document.getElementById('k-ctrl').textContent = pct(h.pct_controlado);
   document.getElementById('k-ctrl-n').textContent = `${num(h.controlado_lt7)} de ${num(h.con_dato)} con HbA1c`;
   document.getElementById('k-sub').textContent = pct(h.pct_suboptimo);
@@ -212,19 +212,19 @@ function pintar(d) {
   document.getElementById('bar-mid').style.width = `${(h.pct_suboptimo || 0) / sum * 100}%`;
   document.getElementById('bar-bad').style.width = `${(h.pct_descontrol || 0) / sum * 100}%`;
 
-  document.getElementById('p-hba').textContent = h.promedio != null ? h.promedio : '—';
-  document.getElementById('p-glc').textContent = g.promedio != null ? g.promedio : '—';
+  document.getElementById('p-hba').textContent = h.promedio != null ? h.promedio : '-';
+  document.getElementById('p-glc').textContent = g.promedio != null ? g.promedio : '-';
   document.getElementById('p-glc-crit').textContent = `${num(g.critica_gte250)} (${pct(g.pct_critica)})`;
 
-  document.getElementById('r-alto').textContent = `${num(r.alto)} · ${pct(r.pct_alto)}`;
-  document.getElementById('r-medio').textContent = `${num(r.medio)} · ${pct(r.pct_medio)}`;
-  document.getElementById('r-bajo').textContent = `${num(r.controlado)} · ${pct(r.pct_controlado)}`;
+  document.getElementById('r-alto').textContent = `${num(r.alto)} - ${pct(r.pct_alto)}`;
+  document.getElementById('r-medio').textContent = `${num(r.medio)} - ${pct(r.pct_medio)}`;
+  document.getElementById('r-bajo').textContent = `${num(r.controlado)} - ${pct(r.pct_controlado)}`;
 
-  document.getElementById('c-hip').textContent = `${num(c.hipertension)} · ${pct(c.pct_hipertension)}`;
-  document.getElementById('c-card').textContent = `${num(c.cardiopatia)} · ${pct(c.pct_cardiopatia)}`;
-  document.getElementById('c-ambas').textContent = `${num(c.ambas)} · ${pct(c.pct_ambas)}`;
-  document.getElementById('c-obe').textContent = `${num(o.bmi_gte30)} · ${pct(o.pct_obesidad)}`;
-  document.getElementById('c-bmi').textContent = o.promedio_bmi != null ? o.promedio_bmi : '—';
+  document.getElementById('c-hip').textContent = `${num(c.hipertension)} - ${pct(c.pct_hipertension)}`;
+  document.getElementById('c-card').textContent = `${num(c.cardiopatia)} - ${pct(c.pct_cardiopatia)}`;
+  document.getElementById('c-ambas').textContent = `${num(c.ambas)} - ${pct(c.pct_ambas)}`;
+  document.getElementById('c-obe').textContent = `${num(o.bmi_gte30)} - ${pct(o.pct_obesidad)}`;
+  document.getElementById('c-bmi').textContent = o.promedio_bmi != null ? o.promedio_bmi : '-';
 
   if (window.DiabCareGraf) {
     DiabCareGraf.doughnut(document.getElementById('c-riesgo'),

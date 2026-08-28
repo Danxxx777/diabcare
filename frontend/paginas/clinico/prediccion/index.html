@@ -10,9 +10,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 <style>
 .pred-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
 
@@ -102,6 +102,7 @@
 .modelo-status-hint { font-size:11px; color:var(--muted); flex:1; min-width:200px; }
 .link-gestion { font-size:11px; color:var(--cyan); text-decoration:none; white-space:nowrap; }
 .link-gestion:hover { text-decoration:underline; }
+.model-tabs{display:flex;gap:8px;margin-bottom:14px;padding:6px;border:1px solid var(--border);border-radius:12px;background:var(--surface2)}.model-tabs .btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 </style>
 </head>
 <body class="dc-uv">
@@ -116,10 +117,15 @@
   <div class="content">
     <div class="page-header">
       <div>
-        <div class="page-title">Consulta <span>clínica</span></div>
-        <div class="page-sub">Predice el riesgo de diabetes con variables clínicas del paciente</div>
+        <div class="page-title">Modelo <span>Predictivo</span></div>
+        <div class="page-sub">Inferencia clínica con las variables del paciente</div>
       </div>
     </div>
+
+    <nav class="model-tabs" aria-label="Modelo Predictivo">
+      <a class="btn btn-ghost btn-sm" href="/paginas/datos/modelo_ml/index.html">Entrenamiento y Métricas</a>
+      <a class="btn btn-sm active" href="/paginas/clinico/prediccion/index.html">Inferencia Clínica</a>
+    </nav>
 
     <div class="alert-banner no-modelo" id="noModelo">
       <span data-icon="alert" data-icon-size="14"></span>
@@ -190,7 +196,7 @@
           <div class="info-row"><span class="info-label">HbA1c &gt; 6.5%</span><span class="info-val" style="color:rgba(248,113,113,0.8)">Indica diabetes</span></div>
           <div class="info-row"><span class="info-label">Glucosa &gt; 200 mg/dL</span><span class="info-val" style="color:rgba(248,113,113,0.8)">Indica diabetes</span></div>
           <div class="info-row"><span class="info-label">BMI &gt; 30</span><span class="info-val" style="color:rgba(251,191,36,0.8)">Factor de riesgo</span></div>
-          <div class="info-row"><span class="info-label">HbA1c 5.7–6.4%</span><span class="info-val" style="color:rgba(251,191,36,0.8)">Pre-diabetes</span></div>
+          <div class="info-row"><span class="info-label">HbA1c 5.7-6.4%</span><span class="info-val" style="color:rgba(251,191,36,0.8)">Pre-diabetes</span></div>
       </div>
     </div>
   </div>

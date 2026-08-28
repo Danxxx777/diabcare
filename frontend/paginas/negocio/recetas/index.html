@@ -10,10 +10,18 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
+<script src="/estaticos/crud-modulo.js?v=text-36"></script>
+<style>
+.rx-lines { display:grid; gap:8px; margin-top:7px; }
+.rx-line { display:grid; grid-template-columns:1.7fr 1fr 1fr 1fr .65fr auto; gap:7px; align-items:end; padding:9px; border:1px solid var(--border); border-radius:10px; background:var(--bg2); }
+.rx-line label { min-width:0; font-size:9px; }
+.rx-line input,.rx-line select { width:100%; }
+.rx-remove { min-width:34px !important; padding-inline:8px !important; }
+@media(max-width:850px){.rx-line{grid-template-columns:1fr 1fr}.rx-line label:first-child{grid-column:1/-1}}
+</style>
 </head>
 <body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
@@ -31,20 +39,20 @@
         <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nueva receta</button>
       </div>
     </div>
-    <div class="dash-row dash-3" style="margin-bottom:14px">
+    <div class="dash-row dash-3" style="display:none!important">
       <div class="kpi-card cyan">
         <div class="kpi-label">Recetas</div>
-        <div class="kpi-val cyan" id="k-rec-total">—</div>
+        <div class="kpi-val cyan" id="k-rec-total">-</div>
         <div class="kpi-sub">registradas</div>
       </div>
       <div class="kpi-card amber">
         <div class="kpi-label">Pendientes</div>
-        <div class="kpi-val amber" id="k-rec-pend">—</div>
+        <div class="kpi-val amber" id="k-rec-pend">-</div>
         <div class="kpi-sub">por dispensar</div>
       </div>
       <div class="kpi-card green">
         <div class="kpi-label">Dispensadas</div>
-        <div class="kpi-val green" id="k-rec-disp">—</div>
+        <div class="kpi-val green" id="k-rec-disp">-</div>
         <div class="kpi-sub">completadas en farmacia</div>
       </div>
     </div>
@@ -65,7 +73,14 @@
         <div id="m-id_paciente-res" class="pac-suggest" hidden></div>
         <div id="m-id_paciente-chip" class="pac-chip" style="display:none"></div>
       </label>
-      <label class="span-full">Indicaciones
+      <div class="span-full">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <strong>Medicamentos indicados</strong>
+          <button class="btn btn-ghost btn-sm" type="button" onclick="agregarLineaReceta()">+ Agregar medicamento</button>
+        </div>
+        <div class="rx-lines" id="rxLineas"></div>
+      </div>
+      <label class="span-full">Indicaciones generales
         <textarea id="m-indicaciones" rows="3" required placeholder="Ej. Metformina 850 mg cada 12 h × 30 días"></textarea>
       </label>
       <label>Fecha<input id="m-fecha" type="date"></label>
@@ -79,11 +94,55 @@
 <script>
 DiabCareNav.init();
 DiabCareNav.guardRol(['administrador', 'medico']);
-DiabCareCrud.mount({
+let catalogoReceta = [];
+const recetaContexto = new URLSearchParams(location.search);
+
+function opcionesMedicamentos(valor) {
+  return '<option value="">Seleccione...</option>' + catalogoReceta.map(m =>
+    `<option value="${m.id_medicamento}"${String(m.id_medicamento) === String(valor || '') ? ' selected' : ''}>${m.nombre}</option>`
+  ).join('');
+}
+
+function agregarLineaReceta(linea = {}) {
+  const host = document.getElementById('rxLineas');
+  if (!host) return;
+  const row = document.createElement('div');
+  row.className = 'rx-line';
+  row.innerHTML = `
+    <label>Medicamento<select data-rx="id_medicamento" required>${opcionesMedicamentos(linea.id_medicamento)}</select></label>
+    <label>Dosis<input data-rx="dosis" value="${linea.dosis || ''}" placeholder="850 mg"></label>
+    <label>Frecuencia<input data-rx="frecuencia" value="${linea.frecuencia || ''}" placeholder="Cada 12 h"></label>
+    <label>Duración<input data-rx="duracion" value="${linea.duracion || ''}" placeholder="30 días"></label>
+    <label>Cantidad<input data-rx="cantidad" type="number" min="1" value="${linea.cantidad || 1}"></label>
+    <button class="btn btn-ghost btn-sm rx-remove" type="button" title="Quitar medicamento">×</button>`;
+  row.querySelector('.rx-remove').onclick = () => row.remove();
+  host.appendChild(row);
+}
+
+function leerLineasReceta() {
+  return [...document.querySelectorAll('#rxLineas .rx-line')].map(row => {
+    const val = key => row.querySelector(`[data-rx="${key}"]`)?.value || '';
+    return {
+      id_medicamento: val('id_medicamento'), dosis: val('dosis'),
+      frecuencia: val('frecuencia'), duracion: val('duracion'),
+      cantidad: Number(val('cantidad') || 0),
+    };
+  }).filter(x => x.id_medicamento);
+}
+
+async function cargarCatalogoReceta() {
+  try {
+    const r = await DiabCareAPI.json('/api/medicamentos?limit=300', { skeleton:false, silent:true });
+    catalogoReceta = r.ok ? (r.data?.medicamentos || []) : [];
+  } catch (_) { catalogoReceta = []; }
+}
+
+const recetasCrud = DiabCareCrud.mount({
   listUrl: '/api/recetas', listKey: 'recetas', idField: 'id_receta',
   itemUrl: id => '/api/recetas/' + id,
   createTitle: 'Nueva receta',
   editTitle: 'Editar receta',
+  hideEdit: true,
   listLimit: 100,
   searchPlaceholder: 'Buscar por paciente, cédula o indicaciones…',
   lookups: [{
@@ -91,24 +150,43 @@ DiabCareCrud.mount({
     idKey: 'id_paciente', typeahead: true,
     label: p => {
       const n = (p.nombre_completo || ((p.nombre||'') + ' ' + (p.apellido||'')).trim() || 'Paciente');
-      return p.documento ? `${n} · ${p.documento}` : n;
+      return p.documento ? `${n} - ${p.documento}` : n;
     }
   }],
   columns: [
-    { key: 'paciente_nombre', label: 'Paciente', title: true, render: r => r.paciente_nombre || '—' },
-    { key: 'estado', label: 'Estado', badge: true, render: r => r.estado_label || r.estado || '—' },
-    { key: 'documento', label: 'Cédula', render: r => r.documento || r.paciente_documento || '—' },
+    { key: 'paciente_nombre', label: 'Paciente', title: true, render: r => r.paciente_nombre || '-' },
+    { key: 'estado', label: 'Estado', badge: true, render: r => r.estado_label || r.estado || '-' },
+    { key: 'documento', label: 'Cédula', render: r => r.documento || r.paciente_documento || '-' },
+    { key: 'medicamentos', label: 'Medicamentos', render: r => (r.medicamentos || []).map(x => x.medicamento_nombre).join(', ') || 'Receta anterior' },
     { key: 'indicaciones', label: 'Indicaciones' },
     { key: 'fecha', label: 'Fecha' }
   ],
   fields: [
     { key: 'id_paciente', required: true, labelUi: 'Paciente' },
-    { key: 'indicaciones', required: true, labelUi: 'Indicaciones' },
+    { key: 'indicaciones', labelUi: 'Indicaciones generales' },
     { key: 'fecha' }
   ],
   beforeSave(b) {
+    b.medicamentos = leerLineasReceta();
+    if (!b.medicamentos.length) return { error: 'Agregue al menos un medicamento a la receta' };
     b.estado = 'emitida';
+    b.encounter_id = recetaContexto.get('encounter_id') || '';
     if (!b.fecha) b.fecha = new Date().toISOString().slice(0, 10);
+  }
+});
+
+Promise.all([cargarCatalogoReceta(), recetasCrud]).then(() => {
+  const abrirBase = window.abrirModal;
+  window.abrirModal = () => {
+    document.getElementById('rxLineas').innerHTML = '';
+    agregarLineaReceta();
+    abrirBase();
+  };
+  const pid = recetaContexto.get('id_paciente');
+  if (pid) {
+    window.abrirModal();
+    document.getElementById('m-id_paciente').value = pid;
+    document.getElementById('m-id_paciente-q').value = recetaContexto.get('paciente') || pid;
   }
 });
 

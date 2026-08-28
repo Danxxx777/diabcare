@@ -2,6 +2,7 @@
 AuditoriaServicio — P11 Auditoría y trazabilidad.
 """
 
+import json
 import uuid
 from datetime import datetime
 
@@ -14,7 +15,7 @@ BUCKET_APP = "diabcare-app"
 ARCHIVO = "auditoria/eventos.parquet"
 COLUMNAS = [
     "id", "fecha", "usuario", "tipo", "modulo", "detalle",
-    "ip", "user_agent", "sesion_id", "resultado",
+    "ip", "user_agent", "sesion_id", "resultado", "antes", "despues",
 ]
 
 
@@ -39,6 +40,8 @@ def registrar(
     user_agent: str = "",
     sesion_id: str = "",
     resultado: str = "ok",
+    antes=None,
+    despues=None,
 ) -> None:
     try:
         df = _extraer()
@@ -53,6 +56,8 @@ def registrar(
             "user_agent": str(user_agent or "")[:200],
             "sesion_id": str(sesion_id or "")[:64],
             "resultado": str(resultado or "ok"),
+            "antes": json.dumps(antes, ensure_ascii=False, default=str) if antes is not None else "",
+            "despues": json.dumps(despues, ensure_ascii=False, default=str) if despues is not None else "",
         }
         _cargar(pd.concat([df, pd.DataFrame([evento])], ignore_index=True))
     except Exception as e:

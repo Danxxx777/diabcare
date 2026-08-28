@@ -57,7 +57,9 @@ window.DiabCareCrud = {
       const type = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text');
       const step = f.type === 'number' ? ' step="0.01"' : '';
       const def = f.default != null ? ` value="${f.default}"` : '';
-      return `<label${span}>${label}<input id="m-${f.key}" type="${type}"${step}${def}${ph}${req}>${hint}</label>`;
+      const min = f.min != null ? ` min="${f.min}"` : '';
+      const max = f.max != null ? ` max="${f.max}"` : '';
+      return `<label${span}>${label}<input id="m-${f.key}" type="${type}"${step}${def}${ph}${req}${min}${max}>${hint}</label>`;
     }).join('\n');
   },
 
@@ -492,6 +494,9 @@ window.DiabCareCrud = {
               : `Busque y seleccione ${f.labelUi || f.label || f.key} por cédula`)
             : `Seleccione ${f.labelUi || f.label || f.key}`;
         }
+        if (el.type === 'date' && v && ((el.min && v < el.min) || (el.max && v > el.max))) {
+          body.__err = `Revise la fecha de ${f.labelUi || f.label || f.key}`;
+        }
         body[f.key] = v;
       });
       if (body.__err) { toast(body.__err, 'error'); delete body.__err; return; }
@@ -562,14 +567,16 @@ window.DiabCareCrud = {
     }
 
     const readOnly = !!cfg.readOnly;
+    const saveBtn = document.querySelector('#modal .modal-footer .btn-primary');
     if (readOnly) {
       cfg.hideEdit = true;
       cfg.hideDelete = true;
       cfg.hideCreate = true;
       const newBtn = document.querySelector('.page-header .btn-primary');
       if (newBtn) newBtn.style.display = 'none';
-      const saveBtn = document.querySelector('#modal .modal-footer .btn-primary');
       if (saveBtn) saveBtn.style.display = 'none';
+    } else if (saveBtn) {
+      saveBtn.style.display = '';
     }
 
     if (!sigueActivo()) return { cargar, toast, lookups, abrir, aplicarFiltroLocal, stale: true, mountId };

@@ -968,7 +968,7 @@ body {
 /* ── DATA GRID (cuadrícula visual) ── */
 .data-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   padding: 14px;
 }
@@ -1087,6 +1087,9 @@ body {
   gap: 6px;
   margin-top: auto;
   padding-top: 4px;
+}
+@media (max-width: 1050px) {
+  .data-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
   .data-grid { grid-template-columns: 1fr; padding: 10px; }
@@ -2549,5 +2552,33 @@ html[data-tema="claro"] .dc-panel {
   background: #0a181c;
 }
 
+/* Cambio de tema rápido y compuesto desde el control de tema. */
+html.dc-theme-changing::view-transition-old(root),
+html.dc-theme-changing::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.dc-theme-changing::view-transition-old(root) { z-index: 1; }
+html.dc-theme-changing::view-transition-new(root) {
+  z-index: 9999;
+  transform-origin: var(--dc-theme-x, calc(100% - 152px)) var(--dc-theme-y, 32px);
+  will-change: transform, opacity;
+  animation: dcThemeReveal .55s cubic-bezier(.2,.75,.3,1) both;
+}
+@keyframes dcThemeReveal {
+  from {
+    opacity: .35;
+    transform: scale(.992);
+  }
+  to { opacity: 1; transform: scale(1); }
+}
+html.dc-theme-changing body {
+  transition: background-color .42s ease, color .32s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none !important; }
+  html.dc-theme-changing body { transition: none !important; }
+}
 
 

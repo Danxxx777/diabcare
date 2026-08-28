@@ -1,5 +1,6 @@
 ﻿from fastapi import APIRouter, Query, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
+from datetime import date
 from typing import Optional
 
 from nucleo.utilidades.Dependencias import require_modulo, require_auth
@@ -41,29 +42,59 @@ def _auditar(usuario: str, tipo: str, detalle: str):
 class RegistroEntrada(BaseModel):
     year: int
     gender: str
-    age: int
+    age: int = Field(ge=1, le=120)
     location: str
     hypertension: int = 0
     heart_disease: int = 0
     smoking_history: str = "never"
-    bmi: float = 0.0
-    hbA1c_level: float = 0.0
-    blood_glucose_level: int = 0
+    bmi: float = Field(ge=10, le=100)
+    hbA1c_level: float = Field(ge=2, le=25)
+    blood_glucose_level: int = Field(ge=20, le=1000)
     diabetes: int = 0
     id_paciente: Optional[str] = None
+    motivo_consulta: str = ""
+    sintomas: str = ""
+    diagnostico: str = ""
+    tratamiento: str = ""
+    observaciones: str = ""
+    medico_nombre: str = ""
+    proximo_control: Optional[str] = None
+
+    @validator("proximo_control")
+    def validar_proximo_control(cls, valor):
+        if not valor:
+            return valor
+        try:
+            fecha = date.fromisoformat(valor)
+        except ValueError:
+            raise ValueError("El próximo control debe tener una fecha válida")
+        if fecha < date.today():
+            raise ValueError("El próximo control no puede estar en una fecha pasada")
+        return valor
 
 
 class ActualizarEntrada(BaseModel):
     gender: Optional[str] = None
-    age: Optional[int] = None
+    age: Optional[int] = Field(default=None, ge=1, le=120)
     location: Optional[str] = None
-    bmi: Optional[float] = None
-    hbA1c_level: Optional[float] = None
-    blood_glucose_level: Optional[int] = None
+    bmi: Optional[float] = Field(default=None, ge=10, le=100)
+    hbA1c_level: Optional[float] = Field(default=None, ge=2, le=25)
+    blood_glucose_level: Optional[int] = Field(default=None, ge=20, le=1000)
     diabetes: Optional[int] = None
     hypertension: Optional[int] = None
     heart_disease: Optional[int] = None
     id_paciente: Optional[str] = None
+    motivo_consulta: Optional[str] = None
+    sintomas: Optional[str] = None
+    diagnostico: Optional[str] = None
+    tratamiento: Optional[str] = None
+    observaciones: Optional[str] = None
+    medico_nombre: Optional[str] = None
+    proximo_control: Optional[str] = None
+
+    @validator("proximo_control")
+    def validar_proximo_control(cls, valor):
+        return RegistroEntrada.validar_proximo_control(valor)
 
 
 @router.get("/estadisticas")
@@ -108,6 +139,7 @@ def listar_registros(
     age_min: Optional[float] = None,
     age_max: Optional[float] = None,
     q: Optional[str] = None,
+    solo_vinculados: bool = False,
     payload: dict = Depends(require_modulo("registros")),
 ):
     filtros = {}
@@ -120,6 +152,8 @@ def listar_registros(
     filtros.update(_filtros_edad(age_min, age_max))
     if q:
         filtros["q"] = q.strip()
+    if solo_vinculados:
+        filtros["solo_vinculados"] = True
     if filtros:
         _auditar(_usuario(payload), "read",
                  f"Consulta filtrada ({len(filtros)} criterios), offset={offset}")
@@ -134,7 +168,10 @@ def obtener_registro(encounter_id: int, payload: dict = Depends(require_modulo("
 @router.post("/")
 def crear_registro(datos: RegistroEntrada, payload: dict = Depends(require_modulo("registros"))):
     from fastapi import HTTPException
-    res = crear(datos.dict())
+    contenido = datos.dict()
+    if not contenido.get("medico_nombre"):
+        contenido["medico_nombre"] = _usuario(payload)
+    res = crear(contenido)
     if "error" in res:
         raise HTTPException(status_code=400, detail=res["error"])
     _auditar(_usuario(payload), "create", f"Registro creado id={res.get('encounter_id')}")

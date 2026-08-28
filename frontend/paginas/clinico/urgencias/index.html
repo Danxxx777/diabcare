@@ -10,10 +10,10 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
+<script src="/estaticos/crud-modulo.js?v=text-36"></script>
 <style>
 #modalAtender .at-meta {
   font-size: 12px; color: var(--text2); margin-bottom: 12px;
@@ -21,6 +21,10 @@
   background: rgba(0,0,0,0.25);
 }
 #modalAtender .at-meta b { color: var(--text); }
+.urgencias-workspace{display:grid;gap:12px;align-items:start}.urgencias-rail{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}.urgencias-rail .stats-grid{margin:0!important}.triage-legend{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:8px 12px}.triage-legend span{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-muted);white-space:nowrap}.triage-legend i{width:8px;height:8px;border-radius:50%}.triage-i{background:#d43d4f}.triage-ii{background:#ef7b45}.triage-iii{background:#e8b23f}.triage-iv{background:#5e9ed6}.triage-v{background:#62a879}
+.urgencias-board .board-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.urgencias-board .board-title h2{margin:0;font-size:15px}.urgencias-board .board-title small{color:var(--text-muted)}.urgencias-board .data-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.urgencias-board .data-tile{border-radius:16px;border-top:3px solid #e8b23f;background:linear-gradient(150deg,var(--surface),color-mix(in srgb,#e35d6a 4%,var(--surface)))}
+.triage-pill{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800;background:color-mix(in srgb,currentColor 14%,transparent)}.triage-pill.triage-i{color:#e45b69}.triage-pill.triage-ii{color:#ef8b52}.triage-pill.triage-iii{color:#d6a12e}.triage-pill.triage-iv{color:#65a6df}.triage-pill.triage-v{color:#69b184}
+@media(max-width:1050px){.urgencias-board .data-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.urgencias-rail{grid-template-columns:1fr}.triage-legend{justify-content:flex-start}}@media(max-width:700px){.urgencias-board .data-grid{grid-template-columns:1fr}.triage-legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body class="dc-uv">
@@ -39,13 +43,19 @@
         <button class="btn btn-primary btn-sm" id="btnNuevo" onclick="abrirModal()">+ Nuevo triage</button>
       </div>
     </div>
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Casos activos</div><div class="stat-value blue" id="st-total">-</div></div>
-      <div class="stat-card"><div class="stat-label">En triage / espera</div><div class="stat-value amber" id="st-espera">-</div></div>
-      <div class="stat-card"><div class="stat-label">Atendidas</div><div class="stat-value green" id="st-atendidas">-</div></div>
-    </div>
-    <div class="tabla-card">
+    <div class="urgencias-workspace">
+      <aside class="urgencias-rail">
+        <div class="stats-grid" style="display:none!important">
+          <div class="stat-card"><div class="stat-label">Casos activos</div><div class="stat-value blue" id="st-total">-</div></div>
+          <div class="stat-card"><div class="stat-label">En triage / espera</div><div class="stat-value amber" id="st-espera">-</div></div>
+          <div class="stat-card"><div class="stat-label">Atendidas</div><div class="stat-value green" id="st-atendidas">-</div></div>
+        </div>
+        <div class="triage-legend"><span><i class="triage-i"></i>I Crítico</span><span><i class="triage-ii"></i>II Emergencia</span><span><i class="triage-iii"></i>III Urgente</span><span><i class="triage-iv"></i>IV Menos urgente</span><span><i class="triage-v"></i>V No urgente</span></div>
+      </aside>
+    <div class="tabla-card urgencias-board">
+      <div class="board-title"><h2>Tablero de atención</h2><small>Casos ordenados por prioridad</small></div>
       <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
+    </div>
     </div>
   </div>
 </div>
@@ -64,11 +74,11 @@
       </label>
       <label class="span-full">Prioridad (triage)
         <select id="m-triage">
-          <option value="I">I · Crítico</option>
-          <option value="II">II · Emergencia</option>
-          <option value="III" selected>III · Urgente</option>
-          <option value="IV">IV · Menos urgente</option>
-          <option value="V">V · No urgente</option>
+          <option value="I">I - Crítico</option>
+          <option value="II">II - Emergencia</option>
+          <option value="III" selected>III - Urgente</option>
+          <option value="IV">IV - Menos urgente</option>
+          <option value="V">V - No urgente</option>
         </select>
       </label>
       <label class="span-full">Vía de llegada
@@ -76,6 +86,9 @@
           <option value="propia">Por sus propios medios</option>
           <option value="ambulancia">Ambulancia</option>
           <option value="referido">Referido de otro centro</option>
+          <option value="traslado_interno">Traslado interno</option>
+          <option value="rescate">Rescate o bomberos</option>
+          <option value="autoridad">Policía o autoridad</option>
         </select>
       </label>
       <p class="span-full field-hint" id="urg-via-hint">Si llega en ambulancia y está grave, elija prioridad I o II: se atiende igual por Urgencias.</p>
@@ -93,7 +106,7 @@
     <div class="modal-header"><span>Atender urgencia</span></div>
     <div class="modal-body form-modal-grid">
       <input type="hidden" id="at-id">
-      <div class="span-full at-meta" id="at-meta">—</div>
+      <div class="span-full at-meta" id="at-meta">-</div>
       <label class="span-full">Desenlace clínico
         <select id="at-desenlace">
           <option value="alta">Alta (se va a casa)</option>
@@ -111,11 +124,11 @@
 
 <script>
 DiabCareNav.init();
-DiabCareNav.guardRol(['administrador','medico','enfermero','farmaceutico']);
+DiabCareNav.guardRol(['administrador','medico','enfermero']);
 
 const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
 const rol = usuario.rol || '';
-const puedeTriage = ['administrador', 'enfermero', 'farmaceutico'].includes(rol);
+const puedeTriage = ['administrador', 'enfermero'].includes(rol);
 const puedeAtender = ['administrador', 'medico'].includes(rol);
 let _atCtx = null;
 
@@ -128,10 +141,10 @@ function abrirModalAtender(row, ctx) {
   _atCtx = ctx;
   document.getElementById('at-id').value = row.id_urgencia || '';
   document.getElementById('at-meta').innerHTML =
-    `<div><b>Paciente:</b> ${row.paciente_nombre || row.paciente_label || '—'}</div>` +
+    `<div><b>Paciente:</b> ${row.paciente_nombre || row.paciente_label || '-'}</div>` +
     (row.documento ? `<div style="margin-top:4px"><b>Cédula:</b> ${row.documento}</div>` : '') +
     `<div style="margin-top:4px"><b>Prioridad:</b> ${fmtTriage(row)}</div>` +
-    `<div style="margin-top:4px"><b>Motivo:</b> ${row.motivo || '—'}</div>`;
+    `<div style="margin-top:4px"><b>Motivo:</b> ${row.motivo || '-'}</div>`;
   document.getElementById('at-desenlace').value = 'alta';
   document.getElementById('modalAtender').style.display = 'flex';
 }
@@ -166,6 +179,7 @@ async function guardarAtencion() {
 }
 
 async function cargarResumenUrgencias() {
+  if (document.querySelector('.urgencias-rail .stats-grid')?.style.display === 'none') return;
   const API = DiabCareNav.getApi();
   const token = localStorage.getItem('token');
   const r = await fetch(`${API}/api/urgencias/resumen`, { headers: { Authorization: 'Bearer '+token } });
@@ -190,10 +204,10 @@ DiabCareCrud.mount({
     label: p => (p.nombre_completo || ((p.nombre||'') + ' ' + (p.apellido||'')).trim() || 'Paciente')
   }],
   columns: [
-    { key: 'paciente_nombre', label: 'Paciente', render: r => r.paciente_nombre || r.paciente_label || (r.id_paciente ? String(r.id_paciente).slice(0, 8) + '…' : '—') },
-    { key: 'documento', label: 'Cédula', render: r => r.documento || '—' },
+    { key: 'paciente_nombre', label: 'Paciente', render: r => r.paciente_nombre || r.paciente_label || (r.id_paciente ? String(r.id_paciente).slice(0, 8) + '…' : '-') },
+    { key: 'documento', label: 'Cédula', render: r => r.documento || '-' },
     { key: 'triage', label: 'Prioridad', render: r => fmtTriage(r) },
-    { key: 'via_llegada', label: 'Llegada', render: r => ({ propia: 'Por sus medios', ambulancia: 'Ambulancia', referido: 'Referido' }[r.via_llegada] || '—') },
+    { key: 'via_llegada', label: 'Llegada', render: r => r.via_llegada_label || '-' },
     { key: 'motivo', label: 'Motivo' },
     { key: 'estado', label: 'Estado', render: r => fmtEstado(r) },
     { key: 'desenlace', label: 'Desenlace', render: r => fmtDesenlace(r) },
@@ -205,6 +219,9 @@ DiabCareCrud.mount({
       { value: 'propia', label: 'Por sus propios medios' },
       { value: 'ambulancia', label: 'Ambulancia' },
       { value: 'referido', label: 'Referido de otro centro' },
+      { value: 'traslado_interno', label: 'Traslado interno' },
+      { value: 'rescate', label: 'Rescate o bomberos' },
+      { value: 'autoridad', label: 'Policía o autoridad' },
     ]},
     { key: 'motivo', required: true, labelUi: 'Motivo' },
   ],
@@ -218,8 +235,8 @@ DiabCareCrud.mount({
 });
 
 const TRIAGE_UI = {
-  I: 'I · Crítico', II: 'II · Emergencia', III: 'III · Urgente',
-  IV: 'IV · Menos urgente', V: 'V · No urgente'
+  I: 'I - Crítico', II: 'II - Emergencia', III: 'III - Urgente',
+  IV: 'IV - Menos urgente', V: 'V - No urgente'
 };
 const ESTADO_UI = {
   triage: 'En triage', en_espera: 'En espera', registrado: 'Registrado',
@@ -232,17 +249,18 @@ const DESENLACE_UI = {
 function fmtTriage(r) {
   const t = String(r.triage_label || r.triage || '').trim();
   const key = String(r.triage || '').toUpperCase();
-  return TRIAGE_UI[key] || t || '—';
+  const label = TRIAGE_UI[key] || t || '-';
+  return `<span class="triage-pill triage-${key.toLowerCase()}">${label}</span>`;
 }
 function fmtEstado(r) {
   if (r.estado_label) return r.estado_label;
   const k = String(r.estado || '').toLowerCase();
-  return ESTADO_UI[k] || (k ? k.charAt(0).toUpperCase() + k.slice(1) : '—');
+  return ESTADO_UI[k] || (k ? k.charAt(0).toUpperCase() + k.slice(1) : '-');
 }
 function fmtDesenlace(r) {
   if (r.desenlace_label) return r.desenlace_label;
   const k = String(r.desenlace || '').toLowerCase();
-  return DESENLACE_UI[k] || (k ? k.replace(/_/g, ' ') : '—');
+  return DESENLACE_UI[k] || (k ? k.replace(/_/g, ' ') : '-');
 }
 </script>
 </body>

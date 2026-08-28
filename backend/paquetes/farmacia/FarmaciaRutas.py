@@ -32,6 +32,7 @@ class RecetaIn(BaseModel):
     indicaciones: str = ""
     estado: str = "emitida"
     fecha: str = ""
+    medicamentos: list[dict[str, Any]] = []
 
 class InventarioIn(BaseModel):
     id_medicamento: str
@@ -45,6 +46,9 @@ class DispensarIn(BaseModel):
     id_receta: str = ""
     id_medicamento: str
     cantidad: float
+
+class CobrarRecetaIn(BaseModel):
+    metodo: str = "efectivo"
 
 class ProveedorIn(BaseModel):
     nombre: str = ""
@@ -141,7 +145,7 @@ def post_rec(d: RecetaIn, payload=Depends(require_modulo("recetas"))):
         data["estado"] = "emitida"
     if not data.get("fecha"):
         data["fecha"] = date.today().isoformat()
-    r = _ok(S.recetas.crear(data))
+    r = _ok(S.crear_receta(data))
     S.recetas.auditar(_u(payload), "create", f"Receta {r.get('id_receta')}", "farmacia")
     try:
         from paquetes.notificaciones.NotificacionesServicio import emitir_a_roles
@@ -160,7 +164,7 @@ def post_rec(d: RecetaIn, payload=Depends(require_modulo("recetas"))):
 
 @router.put("/recetas/{id_receta}")
 def put_rec(id_receta: str, d: RecetaIn, payload=Depends(require_modulo("recetas"))):
-    r = _nf(S.recetas.actualizar(id_receta, d.dict(exclude_none=True)))
+    r = _nf(S.actualizar_receta(id_receta, d.dict(exclude_none=True)))
     S.recetas.auditar(_u(payload), "update", f"Receta {id_receta}", "farmacia"); return r
 
 @router.delete("/recetas/{id_receta}")
@@ -178,7 +182,7 @@ def list_rec_mostrador(
 
 @router.get("/farmacia/recetas/{id_receta}")
 def get_rec_mostrador(id_receta: str, payload=Depends(require_modulo("farmacia"))):
-    return _nf(S.recetas.obtener(id_receta))
+    return _nf(S.obtener_receta_completa(id_receta))
 
 # Inventario
 @router.get("/farmacia/inventario")
@@ -209,6 +213,18 @@ def del_inv(id_inventario: str, payload=Depends(require_escritura("farmacia_caja
 def post_disp(d: DispensarIn, payload=Depends(require_modulo("farmacia"))):
     r = _ok(S.dispensar(d.dict()))
     S.dispensaciones.auditar(_u(payload), "create", "Dispensación", "farmacia"); return r
+
+@router.post("/farmacia/recetas/{id_receta}/dispensar")
+def post_disp_receta(id_receta: str, payload=Depends(require_modulo("farmacia"))):
+    r = _ok(S.dispensar_receta(id_receta))
+    S.dispensaciones.auditar(_u(payload), "create", f"Receta completa {id_receta}", "farmacia")
+    return r
+
+@router.post("/farmacia/recetas/{id_receta}/dispensar-cobrar")
+def post_disp_cobrar_receta(id_receta: str, d: CobrarRecetaIn, payload=Depends(require_escritura("farmacia_caja"))):
+    r = _ok(S.dispensar_y_cobrar_receta(id_receta, d.metodo))
+    S.dispensaciones.auditar(_u(payload), "create", f"Receta cobrada {id_receta}", "farmacia")
+    return r
 
 @router.get("/farmacia/dispensaciones")
 def list_disp(offset: int = 0, limit: int = 50, payload=Depends(require_modulo("farmacia"))):

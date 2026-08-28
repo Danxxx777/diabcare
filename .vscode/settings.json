@@ -1,5 +1,9 @@
 {
   "files.exclude": {
+    ".claude": true,
+    ".cursor": true,
+    ".vscode": true,
+    "graphify-out": true,
     "_futuro": true,
     "**/__init__.py": true,
     "**/__pycache__": true,
@@ -24,7 +28,16 @@
     "**/*.pyc": true,
     "frontend/estaticos/_backup_diseno_pre_glass": true
   },
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "arrancar.ps1": "detener.ps1, arrancar-airflow.ps1, servidor.py, docker-compose*.yml, .env, .env.example"
+  },
   "search.exclude": {
+    ".claude": true,
+    ".cursor": true,
+    ".vscode": true,
+    "graphify-out": true,
     "_futuro": true,
     "**/__init__.py": true,
     "**/__pycache__": true,

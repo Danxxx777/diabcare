@@ -88,36 +88,54 @@
 }
 .expediente-header {
   display: flex;
-  gap: 16px;
+  gap: 18px;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(145deg,color-mix(in srgb,var(--primary) 11%,var(--surface)),var(--surface));
 }
 .expediente-foto {
-  width: 72px;
-  height: 72px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
   object-fit: cover;
-  background: var(--border);
+  background: var(--surface);
+  border: 3px solid color-mix(in srgb,var(--primary) 55%,var(--border));
   flex-shrink: 0;
 }
-.expediente-meta h3 { margin: 0 0 4px; font-size: 18px; }
-.expediente-meta p { margin: 0; font-size: 13px; color: var(--muted); }
+.expediente-meta h3 { margin: 0 0 6px; font-size: 23px; line-height:1.1; }
+.expediente-meta p { margin: 0; font-size: 12px; color: var(--text-muted); }
 .expediente-datos {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px 16px;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 10px;
   font-size: 13px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
-.expediente-datos span { color: var(--muted); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
-.expediente-seccion { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin: 12px 0 8px; }
+.expediente-dato{min-width:0;padding:11px 12px;border-left:3px solid var(--primary);background:color-mix(in srgb,var(--surface) 94%,transparent);border-radius:0 10px 10px 0;overflow-wrap:anywhere}.expediente-dato.notas{grid-column:1 / -1}.expediente-datos span { color: var(--text-muted); display: block; margin-bottom:3px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+.expediente-seccion { display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:9px;border-bottom:1px solid var(--border);font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); margin: 4px 0 10px; }
+.expediente-seccion span{min-width:24px;padding:3px 8px;border-radius:999px;background:var(--ia-subtle);color:var(--text);text-align:center;font:700 10px/1.2 var(--mono)}
+#modal-expediente .modal-card{width:min(980px,96vw);max-height:min(92vh,820px);border-radius:22px;clip-path:none}
+#modal-expediente .modal-header{padding:17px 22px}
+#modal-expediente .modal-body{padding:20px 22px;overflow-y:auto}
+#modal-expediente .modal-footer{padding:14px 22px}
+.exp-consultas-list{display:grid}.consulta-expediente{border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent;overflow:hidden}.consulta-expediente:first-child{border-top:1px solid var(--border)}.consulta-expediente summary{display:grid;grid-template-columns:105px minmax(150px,1.15fr) minmax(170px,1.4fr) minmax(120px,.8fr) auto;gap:12px;align-items:center;padding:14px 10px;cursor:pointer;list-style:none;user-select:none;outline:0;transition:background .15s ease}.consulta-expediente summary::-webkit-details-marker{display:none}.consulta-expediente summary:hover{background:var(--ia-subtle)}.consulta-expediente summary:focus,.consulta-expediente summary:focus-visible{outline:0;box-shadow:inset 3px 0 0 var(--primary);background:var(--ia-subtle)}.consulta-expediente summary:after{content:"Ver";min-width:48px;padding:5px 9px;border-radius:999px;background:var(--ia-subtle);color:var(--text);font-size:10px;font-weight:800;text-align:center}.consulta-expediente[open]{background:color-mix(in srgb,var(--surface) 96%,transparent)}.consulta-expediente[open] summary:after{content:"Ocultar"}.consulta-resumen-dato{min-width:0}.consulta-resumen-dato span,.consulta-bloque h4,.consulta-medicion span{display:block;margin:0 0 3px;color:var(--text-muted);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}.consulta-resumen-dato strong{display:block;color:var(--text);font-size:12px;overflow-wrap:anywhere}.consulta-cuerpo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:15px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--bg) 24%,transparent)}.consulta-bloque{min-width:0}.consulta-bloque h4{margin-bottom:5px}.consulta-bloque p{margin:0;color:var(--text2);font-size:12px;line-height:1.5;white-space:pre-wrap}.consulta-mediciones{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:8px;padding-top:12px;border-top:1px dashed var(--border)}.consulta-medicion{min-width:92px;padding:8px 10px;border-radius:9px;background:var(--ia-subtle)}.consulta-medicion strong{font:700 12px/1.2 var(--mono);color:var(--text)}.expediente-vacio{padding:26px 16px;border:1px dashed var(--border);border-radius:12px;text-align:center;color:var(--text-muted);font-size:12px}
+@media(max-width:760px){.expediente-datos{grid-template-columns:repeat(2,minmax(0,1fr))}.consulta-expediente summary{grid-template-columns:1fr auto}.consulta-expediente summary .consulta-resumen-dato{grid-column:1}.consulta-expediente summary:after{grid-column:2;grid-row:1 / span 4}.consulta-cuerpo{grid-template-columns:1fr}}
+@media(max-width:520px){#modal-expediente .modal-body{padding:16px}.expediente-header{align-items:flex-start;padding:14px}.expediente-foto{width:64px;height:64px}.expediente-meta h3{font-size:18px}.expediente-datos{grid-template-columns:1fr}.modal-footer{flex-wrap:wrap}}
+.pacientes-workspace{display:grid;gap:16px;align-items:start}
+.pacientes-directorio{min-width:0}.pacientes-directorio-head{display:grid;grid-template-columns:minmax(220px,1fr) auto auto;align-items:center;gap:18px;padding:16px 18px 0}.pacientes-directorio-head h2{margin:0;font-size:16px}.pacientes-directorio-head p{margin:3px 0 0;color:var(--text-muted);font-size:12px}.pacientes-contadores{display:flex;align-items:center;gap:16px}.paciente-contador{display:grid;gap:1px;min-width:58px}.paciente-contador strong{font:700 17px/1 var(--mono);color:var(--text)}.paciente-contador span{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}.pacientes-directorio .tabla-top{grid-template-columns:minmax(220px,1fr) auto;padding-top:12px}.pacientes-directorio .data-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.pacientes-directorio .data-tile{position:relative;border-left:3px solid var(--primary);border-radius:16px;background:linear-gradient(145deg,var(--surface),color-mix(in srgb,var(--primary) 5%,var(--surface)));box-shadow:0 8px 22px rgba(0,0,0,.08)}
+.pacientes-directorio .data-tile-head{padding-bottom:10px;border-bottom:1px solid var(--border)}.pacientes-directorio .data-tile-meta{grid-template-columns:repeat(2,minmax(0,1fr))}.pacientes-directorio .data-tile-actions{padding-top:10px;border-top:1px dashed var(--border)}
+@media(max-width:1050px){.pacientes-directorio .data-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:820px){.pacientes-directorio-head{grid-template-columns:1fr auto}.pacientes-contadores{grid-column:1 / -1;grid-row:2}}
+@media(max-width:560px){.pacientes-directorio-head,.pacientes-directorio .tabla-top,.pacientes-directorio .data-grid{grid-template-columns:1fr}.pacientes-contadores{grid-column:1;grid-row:auto;justify-content:space-between}.pacientes-directorio-head .btn{width:100%}}
 </style>
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 </head>
 <body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
@@ -128,19 +146,21 @@
   <div class="content">
     <div class="page-header">
       <div>
-        <div class="page-title">Expedientes <span>clínicos</span></div>
-        <div class="page-sub">Expedientes de pacientes</div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nuevo paciente</button>
+        <div class="page-title">Gestión de <span>pacientes</span></div>
+        <div class="page-sub">Registro, expediente y continuidad de la atención clínica</div>
       </div>
     </div>
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="st-total">-</div></div>
-      <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value green" id="st-activos">-</div></div>
-      <div class="stat-card"><div class="stat-label">Inactivos</div><div class="stat-value" id="st-inactivos">-</div></div>
-    </div>
-    <div class="tabla-card">
+    <div class="pacientes-workspace">
+    <section class="tabla-card pacientes-directorio" aria-labelledby="pacientes-directorio-titulo">
+      <div class="pacientes-directorio-head">
+        <div><h2 id="pacientes-directorio-titulo">Directorio clínico</h2><p>Busca un paciente y continúa su atención desde el expediente.</p></div>
+        <div class="pacientes-contadores" aria-label="Estado del directorio" style="display:none!important">
+          <div class="paciente-contador"><strong id="st-total">-</strong><span>Total</span></div>
+          <div class="paciente-contador"><strong id="st-activos">-</strong><span>Activos</span></div>
+          <div class="paciente-contador"><strong id="st-inactivos">-</strong><span>Inactivos</span></div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Registrar paciente</button>
+      </div>
       <div class="tabla-top">
         <input class="search" id="f-q" type="search" autocomplete="off"
           placeholder="Escribe cédula, nombre o H. clínica…">
@@ -148,6 +168,7 @@
       </div>
       <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
       <div id="dataPager" class="data-pager" hidden></div>
+    </section>
     </div>
   </div>
 </div>
@@ -159,15 +180,20 @@
       <input type="hidden" id="f-id">
       <label>Nombre<input id="m-nombre" required></label>
       <label>Apellido<input id="m-apellido"></label>
-      <label>Cédula<input id="m-documento" placeholder="Ej. 1712345678 (provincia 01–24)" maxlength="10" inputmode="numeric"></label>
+      <label>Cédula<input id="m-documento" placeholder="Ej. 1712345678 (provincia 01-24)" maxlength="10" inputmode="numeric"></label>
       <label>Edad<input id="m-edad" type="number" min="0" max="120"></label>
       <label>Género<select id="m-genero"><option>Femenino</option><option>Masculino</option><option>Otro</option></select></label>
       <label>Teléfono<input id="m-telefono"></label>
       <label>Email<input id="m-email" type="email"></label>
       <label class="span-full">Notas<textarea id="m-notas" rows="2"></textarea></label>
       <label class="span-full">Foto del paciente
-        <input type="file" id="m-foto" accept="image/jpeg,image/png,image/webp" onchange="previewFoto(this)">
+        <input type="file" id="m-foto" accept="image/jpeg,image/png,image/webp" capture="environment" onchange="previewFoto(this)">
       </label>
+      <div class="span-full" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="conectarFotoCelular()">Tomar foto con el celular</button>
+        <span class="muted" id="foto-movil-estado"></span>
+      </div>
+      <div class="span-full" id="foto-movil-qr" style="display:none;text-align:center"></div>
       <div class="span-full" id="foto-preview-wrap" style="display:none;text-align:center;">
         <img id="foto-preview" alt="Vista previa" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--border);">
       </div>
@@ -190,7 +216,7 @@
         </div>
       </div>
       <div class="expediente-datos" id="exp-datos"></div>
-      <div class="expediente-seccion">Historial de consultas</div>
+      <div class="expediente-seccion">Historial de consultas <span id="exp-consultas-total">0</span></div>
       <div id="exp-consultas"><div class="loading">Cargando consultas…</div></div>
     </div>
     <div class="modal-footer">
@@ -215,14 +241,23 @@ DiabCareNav.guardRol(['administrador', 'medico', 'enfermero', 'farmaceutico']);
 const API = DiabCareNav.getApi();
 let pag = 1, _rows = [];
 let _totalRows = 0;
-const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 12;
+const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 9;
 let _expedienteId = '';
+const _consultasExpedienteCache = new Map();
 const _fotoBust = {};
 const _fotoLocal = {};
+let _fotoMovilToken = '';
+let _fotoMovilTimer = null;
 
 function authHdr(extra = {}) {
   const t = localStorage.getItem('token');
   return t ? { ...extra, Authorization: 'Bearer ' + t } : extra;
+}
+
+function textoSeguro(valor) {
+  return String(valor ?? '-').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
 }
 
 function urlFoto(id) {
@@ -254,15 +289,15 @@ function renderTabla() {
     columns: [
       {
         key: 'nombre_completo', label: 'Paciente', title: true,
-        render: p => p.nombre_completo || p.nombre || '—',
+        render: p => p.nombre_completo || p.nombre || '-',
       },
       {
         key: 'estado', label: 'Estado', badge: true,
-        render: p => (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(p.estado) : p.estado) || '—',
+        render: p => (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(p.estado) : p.estado) || '-',
       },
-      { key: 'documento', label: 'Cédula', render: p => p.documento || '—' },
-      { key: 'codigo', label: 'H. clínica', render: p => p.codigo || '—' },
-      { key: 'edad', label: 'Edad', render: p => p.edad ?? '—' },
+      { key: 'documento', label: 'Cédula', render: p => p.documento || '-' },
+      { key: 'codigo', label: 'H. clínica', render: p => p.codigo || '-' },
+      { key: 'edad', label: 'Edad', render: p => p.edad ?? '-' },
     ],
     actionsHtml: (_p, id) =>
       `<button type="button" class="btn btn-primary btn-sm" data-exp="${id}">Expediente</button>` +
@@ -398,8 +433,44 @@ function previewFoto(input) {
   wrap.style.display = 'block';
 }
 
+async function conectarFotoCelular() {
+  clearInterval(_fotoMovilTimer);
+  const estado = document.getElementById('foto-movil-estado');
+  estado.textContent = 'Generando conexión...';
+  const r = await fetch(`${API}/api/pacientes/foto-movil/sesiones`, { method:'POST', headers:authHdr() });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { estado.textContent = d.detail || 'No se pudo generar el QR'; return; }
+  _fotoMovilToken = d.token;
+  const alcance = d.alcance?.internet ? 'Funciona con datos móviles' : 'El celular debe estar en la misma red Wi-Fi';
+  const host = document.getElementById('foto-movil-qr');
+  host.innerHTML = `<img src="${d.qr_png}" alt="QR para tomar foto" style="width:180px;height:180px;background:#fff;padding:6px;border-radius:10px"><p class="muted">Escanea el QR y toma la foto. ${alcance}.</p>`;
+  host.style.display = 'block';
+  estado.textContent = 'Esperando foto del celular...';
+  _fotoMovilTimer = setInterval(comprobarFotoCelular, 1500);
+}
+
+async function comprobarFotoCelular() {
+  if (!_fotoMovilToken) return;
+  const r = await fetch(`${API}/api/pacientes/foto-movil/${encodeURIComponent(_fotoMovilToken)}/estado`, { headers:authHdr() });
+  if (!r.ok) return;
+  const d = await r.json();
+  if (!d.recibida) return;
+  clearInterval(_fotoMovilTimer);
+  document.getElementById('foto-movil-estado').textContent = 'Foto recibida desde el celular';
+  document.getElementById('foto-preview').src = d.foto;
+  document.getElementById('foto-preview-wrap').style.display = 'block';
+  document.getElementById('foto-movil-qr').style.display = 'none';
+}
+
 async function subirFoto(idPaciente) {
   const f = document.getElementById('m-foto').files?.[0];
+  if (!f && _fotoMovilToken && idPaciente) {
+    const r = await fetch(`${API}/api/pacientes/foto-movil/${encodeURIComponent(_fotoMovilToken)}/asignar/${encodeURIComponent(idPaciente)}`, { method:'POST', headers:authHdr() });
+    if (!r.ok) return { ok:false, subida:true };
+    marcarFotoLocal(idPaciente, document.getElementById('foto-preview').src);
+    _fotoMovilToken = '';
+    return { ok:true, subida:true };
+  }
   if (!f || !idPaciente) return { ok: true, subida: false };
   const preview = document.getElementById('foto-preview').src;
   const fd = new FormData();
@@ -419,11 +490,15 @@ async function subirFoto(idPaciente) {
 }
 
 function abrirModal(p) {
+  clearInterval(_fotoMovilTimer);
+  _fotoMovilToken = '';
   document.getElementById('modal').style.display = 'flex';
   document.getElementById('modal-titulo').textContent = p ? 'Editar paciente' : 'Nuevo paciente';
   document.getElementById('f-id').value = p?.id_paciente || '';
   document.getElementById('m-foto').value = '';
   document.getElementById('foto-preview-wrap').style.display = 'none';
+  document.getElementById('foto-movil-qr').style.display = 'none';
+  document.getElementById('foto-movil-estado').textContent = '';
   document.getElementById('m-nombre').value = p?.nombre || '';
   document.getElementById('m-apellido').value = p?.apellido || '';
   document.getElementById('m-documento').value = p?.documento || '';
@@ -455,7 +530,7 @@ function renderExpedienteDatos(p) {
     foto.style.display = 'none';
   }
   document.getElementById('exp-nombre').textContent = p.nombre_completo || `${p.nombre || ''} ${p.apellido || ''}`.trim() || '-';
-  document.getElementById('exp-codigo').textContent = `Cédula ${p.documento || '-'} · H. clínica ${p.codigo || '-'} · ${p.estado || '-'}`;
+  document.getElementById('exp-codigo').textContent = `Cédula ${p.documento || '-'} - H. clínica ${p.codigo || '-'} - ${p.estado || '-'}`;
   const campos = [
     ['Edad', p.edad ?? '-'],
     ['Género', p.genero || '-'],
@@ -464,50 +539,96 @@ function renderExpedienteDatos(p) {
     ['Notas', p.notas || '-'],
   ];
   document.getElementById('exp-datos').innerHTML = campos.map(([k, v]) =>
-    `<div><span>${k}</span>${v}</div>`).join('');
+    `<div class="expediente-dato ${k === 'Notas' ? 'notas' : ''}"><span>${k}</span>${textoSeguro(v)}</div>`).join('');
 }
 
 async function cargarConsultasExpediente(id) {
   const box = document.getElementById('exp-consultas');
+  const total = document.getElementById('exp-consultas-total');
+  const cached = _consultasExpedienteCache.get(String(id));
+  if (cached) {
+    total.textContent = cached.total;
+    box.innerHTML = cached.html;
+    return;
+  }
   box.innerHTML = '<div class="loading">Cargando consultas…</div>';
-  const r = await fetch(`${API}/api/pacientes/${id}/consultas?limit=20`, { headers: authHdr() });
-  if (!r.ok) {
-    box.innerHTML = '<div class="loading">No se pudo cargar el historial</div>';
-    return;
+  total.textContent = '-';
+  try {
+    const r = await fetch(`${API}/api/pacientes/${id}/consultas?limit=20`, { headers: authHdr() });
+    if (!r.ok) throw new Error('historial no disponible');
+    const data = await r.json();
+    const rows = data.consultas || [];
+    total.textContent = rows.length;
+    if (!rows.length) {
+      box.innerHTML = '<div class="expediente-vacio">Sin consultas registradas. Usa Nueva consulta para documentar la atención.</div>';
+      _consultasExpedienteCache.set(String(id), { total: 0, html: box.innerHTML });
+      return;
+    }
+    box.innerHTML = `<div class="exp-consultas-list">${rows.map(c => {
+      const d = c.diabetes;
+      const diabetes = (d === 1 || d === '1' || d === true || d === 'Sí' || d === 'si') ? 'Sí'
+        : (d === 0 || d === '0' || d === false || d === 'No' || d === 'no') ? 'No' : (d ?? '-');
+      const motivo = c.motivo_consulta || 'Consulta clínica';
+      const diagnostico = c.diagnostico || 'Sin diagnóstico documentado';
+      const medico = c.medico_nombre || 'No registrado';
+      return `<details class="consulta-expediente">
+        <summary>
+          <div class="consulta-resumen-dato"><span>Fecha</span><strong>${textoSeguro(c.fecha || c.encounter_date)}</strong></div>
+          <div class="consulta-resumen-dato"><span>Motivo</span><strong>${textoSeguro(motivo)}</strong></div>
+          <div class="consulta-resumen-dato"><span>Diagnóstico</span><strong>${textoSeguro(diagnostico)}</strong></div>
+          <div class="consulta-resumen-dato"><span>Profesional</span><strong>${textoSeguro(medico)}</strong></div>
+        </summary>
+        <div class="consulta-cuerpo">
+          <section class="consulta-bloque"><h4>Síntomas y evolución</h4><p>${textoSeguro(c.sintomas || 'No documentados')}</p></section>
+          <section class="consulta-bloque"><h4>Diagnóstico o impresión clínica</h4><p>${textoSeguro(diagnostico)}</p></section>
+          <section class="consulta-bloque"><h4>Plan y tratamiento</h4><p>${textoSeguro(c.tratamiento || 'No documentado')}</p></section>
+          <section class="consulta-bloque"><h4>Observaciones</h4><p>${textoSeguro(c.observaciones || 'Sin observaciones')}</p></section>
+          <div class="consulta-mediciones">
+            <div class="consulta-medicion"><span>Diabetes</span><strong>${textoSeguro(diabetes)}</strong></div>
+            <div class="consulta-medicion"><span>HbA1c</span><strong>${textoSeguro(c.hba1c ?? c.HbA1c)}</strong></div>
+            <div class="consulta-medicion"><span>Glucosa</span><strong>${textoSeguro(c.glucosa ?? c.glucose)}</strong></div>
+            <div class="consulta-medicion"><span>IMC</span><strong>${textoSeguro(c.imc ?? c.bmi)}</strong></div>
+            <div class="consulta-medicion"><span>Próximo control</span><strong>${textoSeguro(c.proximo_control || 'No programado')}</strong></div>
+          </div>
+        </div>
+      </details>`;
+    }).join('')}</div>`;
+    _consultasExpedienteCache.set(String(id), { total: rows.length, html: box.innerHTML });
+  } catch (_) {
+    total.textContent = '0';
+    box.innerHTML = '<div class="expediente-vacio">No se pudo cargar el historial clínico.</div>';
   }
-  const data = await r.json();
-  const rows = data.consultas || [];
-  if (!rows.length) {
-    box.innerHTML = '<div class="loading">Sin consultas registradas. Use «Nueva consulta» para documentar la atención.</div>';
-    return;
-  }
-  box.innerHTML = DiabCareAPI.buildDataGrid({
-    rows,
-    showAvatar: false,
-    columns: [
-      { key: 'fecha', label: 'Fecha', title: true, render: c => c.fecha || c.encounter_date || '—' },
-      { key: 'diabetes', label: 'Diabetes', badge: true, render: c => {
-        const d = c.diabetes;
-        if (d === 1 || d === '1' || d === true || d === 'Sí' || d === 'si') return 'Sí';
-        if (d === 0 || d === '0' || d === false || d === 'No' || d === 'no') return 'No';
-        return d ?? '—';
-      }},
-      { key: 'hba1c', label: 'HbA1c', render: c => c.hba1c ?? c.HbA1c ?? '—' },
-      { key: 'glucosa', label: 'Glucosa', render: c => c.glucosa ?? c.glucose ?? '—' },
-      { key: 'imc', label: 'IMC', render: c => c.imc ?? c.bmi ?? '—' },
-    ],
-  });
 }
 
 async function verExpediente(id) {
   _expedienteId = id;
-  let p = _rows.find(x => x.id_paciente === id);
-  const r = await fetch(`${API}/api/pacientes/${id}`, { headers: authHdr() });
-  if (r.ok) p = await r.json();
-  if (!p) { toast('Paciente no encontrado', 'error'); return; }
-  renderExpedienteDatos(p);
+  let p = _rows.find(x => String(x.id_paciente) === String(id));
+  if (p) {
+    renderExpedienteDatos(p);
+  } else {
+    document.getElementById('exp-foto').style.display = 'none';
+    document.getElementById('exp-nombre').textContent = 'Abriendo expediente';
+    document.getElementById('exp-codigo').textContent = 'Cargando datos del paciente';
+    document.getElementById('exp-datos').innerHTML = '';
+  }
   document.getElementById('modal-expediente').style.display = 'flex';
   cargarConsultasExpediente(id);
+  if (p) return;
+  try {
+    const r = await fetch(`${API}/api/pacientes/${id}`, { headers: authHdr() });
+    if (r.ok) {
+      p = await r.json();
+      if (_expedienteId === id) renderExpedienteDatos(p);
+    } else if (!p) {
+      cerrarExpediente();
+      toast('Paciente no encontrado', 'error');
+    }
+  } catch (_) {
+    if (!p) {
+      cerrarExpediente();
+      toast('No se pudo abrir el expediente', 'error');
+    }
+  }
 }
 
 function editarDesdeExpediente() {

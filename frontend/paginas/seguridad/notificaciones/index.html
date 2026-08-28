@@ -10,9 +10,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 <style>
 .badge-tipo { font-size:10px; padding:2px 8px; border-radius:999px; font-family:var(--mono); text-transform:uppercase; }
 .badge-warning { background:rgba(251,191,36,.15); color:var(--dc-alerta); }
@@ -36,6 +36,9 @@
   font-size:12px; color:var(--text2);
 }
 .notif-rol-banner strong { color:var(--cyan); }
+.notif-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--border)}
+.notif-tools .search{flex:1;min-width:220px}.notif-filter.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.notif-action{margin-top:8px;display:inline-flex}.notif-empty{padding:34px 18px;text-align:center;color:var(--text3)}
 </style>
 </head>
 <body class="dc-uv">
@@ -51,7 +54,7 @@
     <div class="page-header">
       <div>
         <div class="page-title">Alertas y <span>notificaciones</span></div>
-        <div class="page-sub" id="page-sub-notif">Avisos filtrados por tu rol · correo (Brevo)</div>
+        <div class="page-sub" id="page-sub-notif">Avisos filtrados por tu rol - correo (Brevo)</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="evaluar()">⚡ Evaluar umbrales</button>
@@ -60,7 +63,7 @@
       </div>
     </div>
 
-    <div class="stats-grid">
+    <div class="stats-grid" style="display:none!important">
       <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="st-total">-</div></div>
       <div class="stat-card"><div class="stat-label">No leídas</div><div class="stat-value" id="st-unread">-</div></div>
       <div class="stat-card"><div class="stat-label">Hoy</div><div class="stat-value green" id="st-hoy">-</div></div>
@@ -77,6 +80,13 @@
         </label>
         <span class="tabla-info" id="info">-</span>
       </div>
+      <div class="notif-tools">
+        <input class="search" id="f-buscar" type="search" placeholder="Buscar por título, mensaje o referencia..." oninput="renderNotificaciones()">
+        <button class="btn btn-ghost btn-sm notif-filter active" data-tipo="" onclick="filtrarTipo(this)">Todas</button>
+        <button class="btn btn-ghost btn-sm notif-filter" data-tipo="critico" onclick="filtrarTipo(this)">Críticas</button>
+        <button class="btn btn-ghost btn-sm notif-filter" data-tipo="warning" onclick="filtrarTipo(this)">Advertencias</button>
+        <button class="btn btn-ghost btn-sm notif-filter" data-tipo="info" onclick="filtrarTipo(this)">Informativas</button>
+      </div>
       <div id="lista"><div class="loading"><div class="spinner"></div>Cargando...</div></div>
     </div>
   </div>
@@ -91,6 +101,8 @@ const API = DiabCareNav.getApi();
 const token = (DiabCareNav.haySesionLocal && DiabCareNav.haySesionLocal()) ? 'sesion' : '';
 const _usuario = JSON.parse(localStorage.getItem('usuario') || sessionStorage.getItem('usuario') || '{}');
 const _rolLabel = DiabCareNav.etiquetaRol(_usuario.rol);
+let notificaciones = [];
+let filtroTipo = '';
 
 (function pintarBannerRol() {
   const ban = document.getElementById('rol-banner');
@@ -99,9 +111,9 @@ const _rolLabel = DiabCareNav.etiquetaRol(_usuario.rol);
       + `Si otro rol completa una acción (p. ej. cobro de cita), tú recibes el aviso correspondiente.`;
   }
   const tit = document.getElementById('tabla-title-notif');
-  if (tit) tit.textContent = `Bandeja · ${_rolLabel}`;
+  if (tit) tit.textContent = `Bandeja - ${_rolLabel}`;
   const sub = document.getElementById('page-sub-notif');
-  if (sub) sub.textContent = `Filtrado para ${_rolLabel} · alertas clínicas y correo (Brevo)`;
+  if (sub) sub.textContent = `Filtrado para ${_rolLabel} - alertas clínicas y correo (Brevo)`;
 })();
 
 function toast(msg, type = 'success') {
@@ -152,11 +164,37 @@ async function cargar() {
     if (!r.ok) throw new Error(d.detail || 'Error');
     document.getElementById('info').textContent = `${d.total} notificación(es)`;
     pintarStatsDesdeLista(d);
-    if (!d.notificaciones?.length) {
-      lista.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">Sin notificaciones</div>';
-      return;
-    }
-    lista.innerHTML = d.notificaciones.map(n => `
+    notificaciones = d.notificaciones || [];
+    renderNotificaciones();
+  } catch (e) {
+    lista.innerHTML = `<div style="padding:16px;color:var(--red);">${e.message}</div>`;
+  }
+}
+
+function rutaReferencia(n) {
+  const rutas = {
+    cita: '/paginas/clinico/agenda/index.html', factura: '/paginas/negocio/facturacion/index.html',
+    receta: '/paginas/negocio/farmacia/index.html', laboratorio: '/paginas/clinico/laboratorio/index.html',
+    paciente: '/paginas/clinico/pacientes/index.html', dataset: '/paginas/datos/dataset/index.html',
+  };
+  return rutas[String(n.referencia_tipo || '').toLowerCase()] || '';
+}
+function renderNotificaciones() {
+  const lista = document.getElementById('lista');
+  const q = (document.getElementById('f-buscar')?.value || '').trim().toLowerCase();
+  const filas = notificaciones.filter(n => {
+    const tipo = String(n.tipo || 'info').toLowerCase();
+    const coincideTipo = !filtroTipo || tipo === filtroTipo || (filtroTipo === 'critico' && ['error','critico'].includes(tipo));
+    const texto = `${n.titulo || ''} ${n.mensaje || ''} ${n.referencia_tipo || ''} ${n.referencia_id || ''}`.toLowerCase();
+    return coincideTipo && (!q || texto.includes(q));
+  });
+  if (!filas.length) {
+    lista.innerHTML = '<div class="notif-empty">No hay avisos que coincidan con este filtro.</div>';
+    return;
+  }
+  lista.innerHTML = filas.map(n => {
+    const ruta = rutaReferencia(n);
+    return `
       <div class="notif-row ${n.leida ? '' : 'unread'}" data-id="${n.id}">
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;">
           ${badgeTipo(n.tipo)}
@@ -165,13 +203,17 @@ async function cargar() {
         <div class="notif-body">
           <div class="notif-title">${n.titulo || '-'}</div>
           <div class="notif-msg">${n.mensaje || ''}</div>
-          <div class="notif-meta">Para: ${n.destinatario_label || DiabCareNav.etiquetaRol(n.destinatario) || '-'} · ${(n.creado_en || '').replace('T',' ').slice(0,19)}${n.email_enviado ? ' · ✉ enviado' : ''}</div>
+          <div class="notif-meta">Para: ${n.destinatario_label || DiabCareNav.etiquetaRol(n.destinatario) || '-'} - ${(n.creado_en || '').replace('T',' ').slice(0,19)}${n.email_enviado ? ' - ✉ enviado' : ''}</div>
+          ${ruta ? `<a class="btn btn-ghost btn-sm notif-action" href="${ruta}">Abrir ${n.referencia_tipo}</a>` : ''}
         </div>
         ${n.leida ? '' : `<button class="btn btn-ghost btn-sm" onclick="marcar('${n.id}')">Leída</button>`}
-      </div>`).join('');
-  } catch (e) {
-    lista.innerHTML = `<div style="padding:16px;color:var(--red);">${e.message}</div>`;
-  }
+      </div>`;
+  }).join('');
+}
+function filtrarTipo(btn) {
+  filtroTipo = btn.dataset.tipo || '';
+  document.querySelectorAll('.notif-filter').forEach(b => b.classList.toggle('active', b === btn));
+  renderNotificaciones();
 }
 
 async function marcar(id) {
@@ -195,7 +237,7 @@ async function evaluar() {
       method: 'POST', headers: { Authorization: 'Bearer ' + token }
     });
     const d = await r.json();
-    toast(`Evaluados ${d.evaluadas || 0} registros · ${d.alertas_nuevas || 0} alertas nuevas`);
+    toast(`Evaluados ${d.evaluadas || 0} registros - ${d.alertas_nuevas || 0} alertas nuevas`);
     cargar();
   } catch {
     toast('Error al evaluar', 'error');

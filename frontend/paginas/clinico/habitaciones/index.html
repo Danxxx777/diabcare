@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabCare - Habitaciones</title>
+<link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
+<link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
+<script src="/estaticos/iconos.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
+<style>
+  /* ── Distribucion: mapa a la izquierda, espera y detalle a la derecha ── */
+  .hab-workspace{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}
+  .hospital-tabs{display:flex;gap:8px;margin-bottom:12px;padding:6px;border:1px solid var(--border);border-radius:12px;background:var(--surface2)}.hospital-tabs .btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .hab-workspace .tabla-card{margin:0;min-width:0}
+  .hab-lateral{display:grid;gap:16px;position:sticky;top:14px}
+
+  /* ── Barra de control ── */
+  .hab-control{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
+  .hab-control input.search{flex:1 1 200px;min-width:0}
+  .hab-control select.search{flex:0 0 auto;width:auto}
+  .hab-auto{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text4);white-space:nowrap}
+  .hab-auto input{accent-color:var(--accent)}
+  .hab-reloj{margin-left:auto;font:11px/1 var(--mono);color:var(--text4);display:flex;align-items:center;gap:7px}
+  .hab-vivo{width:8px;height:8px;border-radius:50%;background:var(--green);animation:habLatido 2s ease-in-out infinite}
+  .hab-vivo.pausa{background:var(--text4);animation:none}
+  @keyframes habLatido{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* ── Medidor ── */
+  .hab-medidor{padding:14px 16px;border-bottom:1px solid var(--border);display:grid;gap:10px}
+  .hab-cifras{display:flex;flex-wrap:wrap;gap:18px}
+  .hab-cifra{display:grid;gap:2px}
+  .hab-cifra b{font:700 19px/1 var(--mono);color:var(--text)}
+  .hab-cifra span{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text4);display:flex;align-items:center;gap:5px}
+  .hab-cifra i{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .hab-barra{height:8px;border-radius:999px;background:var(--bg3);overflow:hidden}
+  .hab-barra i{display:block;height:100%;width:0;background:var(--green);transition:width .35s ease}
+  .hab-barra.alta i{background:var(--amber)}
+  .hab-barra.llena i{background:var(--red)}
+  .pt-ocupada{background:var(--red)}.pt-libre{background:var(--green)}
+  .pt-limpieza{background:var(--accent)}.pt-mantenimiento{background:var(--amber)}.pt-bloqueada{background:var(--text4)}
+
+  /* ── Mapa por piso ── */
+  .piso{padding:14px 16px 0}
+  .piso + .piso{border-top:1px dashed var(--border)}
+  .piso-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;margin-bottom:11px}
+  .piso-head h4{margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text4)}
+  .piso-barra{height:4px;border-radius:999px;background:var(--bg3);overflow:hidden}
+  .piso-barra i{display:block;height:100%;background:var(--accent)}
+  .piso-head span{font:600 11px/1 var(--mono);color:var(--text4)}
+  .piso-camas{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:11px;padding-bottom:15px}
+
+  /* ── Cama ── */
+  .cama{position:relative;display:grid;gap:4px;text-align:left;width:100%;font:inherit;color:var(--text);padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--card);cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}
+  .cama:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .cama.sel{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 45%,transparent)}
+  .cama-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .cama-codigo{font:700 13px/1 var(--mono)}
+  .cama-dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .cama-nombre{font-size:12px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cama-meta{font:11px/1.35 var(--mono);color:var(--text4)}
+  .cama-equipos{margin-top:3px;padding-top:5px;border-top:1px dashed var(--border);font-size:10px;line-height:1.35;color:var(--text3)}
+  .cama.ocupada{border-left:3px solid var(--red)}
+  .cama.ocupada .cama-dot{background:var(--red)}
+  .cama.ocupada[draggable="true"]{cursor:grab}
+  .cama.larga{border-left-color:var(--amber)}
+  .cama.larga .cama-dot{background:var(--amber)}
+  .cama.libre{border-style:dashed;background:transparent;color:var(--text4)}
+  .cama.libre .cama-dot{background:var(--green)}
+  .cama.limpieza{border-left:3px solid var(--accent);background:transparent}
+  .cama.limpieza .cama-dot{background:var(--accent)}
+  .cama.mantenimiento{border-left:3px solid var(--amber);background:transparent}
+  .cama.mantenimiento .cama-dot{background:var(--amber)}
+  .cama.bloqueada{border-left:3px solid var(--text4);background:transparent;opacity:.75}
+  .cama.bloqueada .cama-dot{background:var(--text4)}
+  .cama.arrastrando{opacity:.4}
+  .cama.destino{border-style:solid;border-color:var(--green);box-shadow:0 0 0 2px color-mix(in srgb,var(--green) 45%,transparent);color:var(--text)}
+  .cama.apagada{opacity:.28}
+  .cama-hint{font-size:10px;color:var(--accent)}
+
+  /* ── Lista de espera ── */
+  .espera-lista{display:grid;gap:9px;padding:12px 14px}
+  .espera-item{display:grid;gap:3px;padding:10px 11px;border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:11px;background:var(--card);cursor:grab}
+  .espera-item strong{font-size:12px;font-weight:600}
+  .espera-item span{font:11px/1.35 var(--mono);color:var(--text4)}
+  .espera-item.arrastrando{opacity:.4}
+  .espera-vacio{padding:14px;font-size:12px;color:var(--text4);line-height:1.45}
+
+  /* ── Simulacion de la habitacion (planta) ── */
+  .escena{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--border);background:var(--bg2)}
+  .escena-pie{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;font-size:10px;color:var(--text4)}
+  .escena-pie button{background:none;border:0;color:var(--accent);font:inherit;cursor:pointer;padding:0}
+  .escena-muro{fill:none;stroke:var(--border2);stroke-width:2}
+  .escena-piso{fill:var(--bg3);opacity:.45}
+  .escena-mueble{fill:var(--card);stroke:var(--border2);stroke-width:1}
+  .escena-cama-marco{stroke:var(--border2);stroke-width:1.5}
+  .escena-sabana{fill:var(--bg2)}
+  .escena-rotulo{fill:var(--text4);font:600 9.5px var(--mono);letter-spacing:.04em}
+  .escena-nombre{fill:var(--text);font:700 14px var(--display)}
+  .escena-linea{stroke:var(--border2);stroke-width:1.2;fill:none}
+  .escena-equipo rect{fill:var(--card);stroke:var(--border2);stroke-width:1}
+  .escena-equipo text{fill:var(--text3);font:9px var(--mono)}
+  .escena-equipo .pantalla{fill:var(--bg);stroke:none}
+  .escena-equipo .trazo{stroke:var(--green);stroke-width:1.2;fill:none}
+  .modal-escena .modal-card{max-width:820px}
+  .modal-escena .modal-body{padding:18px}
+
+  /* ── Detalle ── */
+  .detalle-cuerpo{padding:14px 16px;display:grid;gap:12px}
+  .detalle-titulo{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .detalle-titulo b{font:700 17px/1 var(--mono)}
+  .detalle-estado{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--text3)}
+  .detalle-datos{display:grid;gap:7px;font-size:12px}
+  .detalle-datos div{display:grid;grid-template-columns:78px 1fr;gap:8px}
+  .detalle-datos dt{color:var(--text4);font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding-top:2px}
+  .detalle-datos dd{margin:0;line-height:1.35}
+  .detalle-acciones{display:grid;gap:8px;padding-top:4px;border-top:1px dashed var(--border)}
+  .detalle-acciones .btn{width:100%;justify-content:center}
+  .detalle-acciones select{width:100%}
+  .detalle-vacio{padding:22px 16px;text-align:center;font-size:12px;color:var(--text4);line-height:1.5}
+  .hab-nota{padding:0 16px 14px;font-size:11px;color:var(--text4);line-height:1.45}
+  .solo-lectura{margin:0;font-size:11px;color:var(--amber);line-height:1.4}
+
+  @media(max-width:1260px){.hab-workspace{grid-template-columns:1fr}.hab-lateral{position:static}}
+  @media(max-width:620px){.piso-camas{grid-template-columns:repeat(2,minmax(0,1fr))}.hab-control input.search,.hab-control select.search{flex:1 1 100%;width:100%}}
+</style>
+</head>
+<body class="dc-uv">
+<aside class="sidebar" id="diabcare-sidebar"></aside>
+<div class="main">
+  <div class="topbar">
+    <span class="tb-crumb">DiabCare</span><span class="tb-sep">/</span><span class="tb-page">Habitaciones</span>
+  </div>
+  <div class="content">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Gestión <span>Hospitalaria</span></div>
+        <div class="page-sub">Mapa de camas, ocupación y traslados</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="btn-ingresar" onclick="abrirIngreso()" hidden>+ Ingresar paciente</button>
+      </div>
+    </div>
+
+    <nav class="hospital-tabs" aria-label="Gestión Hospitalaria">
+      <a class="btn btn-ghost btn-sm" href="/paginas/clinico/admisiones/index.html">Admisiones</a>
+      <a class="btn btn-sm active" href="/paginas/clinico/habitaciones/index.html">Mapa de Camas</a>
+      <a class="btn btn-ghost btn-sm" href="/paginas/clinico/instrumental/index.html">Equipos</a>
+    </nav>
+    <div class="hab-workspace">
+      <div class="tabla-card">
+        <div class="hab-medidor">
+          <div class="hab-cifras" id="hab-cifras"></div>
+          <div class="hab-barra" id="hab-barra"><i></i></div>
+        </div>
+        <div class="hab-control">
+          <input class="search" id="f-q" type="search" autocomplete="off" placeholder="Buscar paciente o cama…">
+          <select class="search" id="f-piso" aria-label="Piso"><option value="">Todos los pisos</option></select>
+          <select class="search" id="f-estado" aria-label="Estado de la cama">
+            <option value="">Todo estado</option>
+            <option value="ocupada">Ocupadas</option>
+            <option value="libre">Libres</option>
+            <option value="limpieza">En limpieza</option>
+            <option value="mantenimiento">En mantenimiento</option>
+            <option value="bloqueada">Bloqueadas</option>
+          </select>
+          <label class="hab-auto" title="Refresca el mapa en segundo plano"><input type="checkbox" id="f-auto"> Auto</label>
+          <button class="btn btn-ghost btn-sm" id="btn-refrescar" title="Actualizar ahora">Actualizar</button>
+          <span class="hab-reloj"><i class="hab-vivo pausa" id="hab-vivo"></i><span id="hab-actualizado">-</span></span>
+        </div>
+        <div id="mapa"><div class="loading"><div class="spinner"></div>Cargando mapa…</div></div>
+        <div class="hab-nota" id="hab-nota" hidden></div>
+      </div>
+
+      <div class="hab-lateral">
+        <div class="tabla-card">
+          <div class="tabla-top">
+            <div>
+              <strong>Esperando cama</strong>
+              <div class="muted" style="font-size:12px">Arrástralos sobre una cama libre</div>
+            </div>
+            <span class="tabla-info" id="espera-info"></span>
+          </div>
+          <div id="espera"></div>
+        </div>
+
+        <div class="tabla-card">
+          <div class="tabla-top"><strong>Detalle de la cama</strong></div>
+          <div id="detalle"><div class="detalle-vacio">Haz clic en cualquier cama del mapa para ver quién la ocupa y actuar sobre ella.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<div id="modal-escena" class="modal-overlay modal-escena" style="display:none">
+  <div class="modal-card">
+    <div class="modal-header"><span id="escena-titulo">Habitación</span></div>
+    <div class="modal-body"><div id="escena-grande"></div></div>
+    <div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="cerrarEscena()">Cerrar</button></div>
+  </div>
+</div>
+
+<div id="modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-md">
+    <div class="modal-header"><span>Ingresar paciente a hospitalización</span></div>
+    <div class="modal-body form-modal-grid">
+      <label class="span-full pac-typeahead-wrap">Paciente (cédula o nombre)
+        <input type="hidden" id="m-paciente" value="">
+        <input class="pac-typeahead-q" type="search" id="m-paciente-q" placeholder="Escribe cédula o nombre…" autocomplete="off">
+        <div id="m-paciente-res" class="pac-suggest" hidden></div>
+        <div id="m-paciente-chip" class="pac-chip" style="display:none"></div>
+      </label>
+      <label>Cama<select id="m-cama"></select></label>
+      <label>Vía de llegada<select id="m-via">
+        <option value="propia">Por sus propios medios</option>
+        <option value="ambulancia">Ambulancia</option>
+        <option value="referido">Referido de otro centro</option>
+        <option value="traslado_interno">Traslado interno</option>
+        <option value="rescate">Rescate o bomberos</option>
+        <option value="autoridad">Policía o autoridad</option>
+      </select></label>
+      <label>Servicio<input id="m-servicio" value="Medicina interna"></label>
+      <label>Fecha de ingreso<input id="m-ingreso" type="date"></label>
+      <label class="span-full">Médico tratante<select id="m-medico" required></select></label>
+      <label class="span-full">Motivo del ingreso<input id="m-motivo"></label>
+      <label class="span-full">Notas<textarea id="m-notas" rows="2"></textarea></label>
+      <p class="span-full field-hint">Queda registrado como una admisión de hospitalización activa. Si no eliges cama, entra a la lista de espera.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cerrarIngreso()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarIngreso()">Ingresar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+DiabCareNav.init();
+DiabCareNav.guardRol(['administrador', 'medico', 'enfermero']);
+const API = DiabCareNav.getApi();
+
+const ROLES_ESCRITURA = ['administrador', 'enfermero'];
+const REFRESCO_MS = 90000;
+
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? '').replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+
+let _mapa = { camas: [], esperando: [], pisos: [] };
+let _seleccion = '';
+let _arrastre = null;      // { tipo:'cama'|'espera', origen, id_admision, paciente }
+let _timer = null;
+let _ultimo = null;
+let _firma = '';
+
+function toast(msg, tipo = 'success') {
+  if (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.toast) { DiabCareAPI.toast(msg, tipo); return; }
+  const t = $('toast');
+  $('t-msg').textContent = msg;
+  $('t-icon').textContent = tipo === 'success' ? '✓' : '✗';
+  t.className = `toast ${tipo} show`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function apiFetch(path, opts = {}) {
+  const headers = new Headers(opts.headers || {});
+  if (opts.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  return fetch(path.startsWith('http') ? path : `${API}${path}`, {
+    ...opts, headers, credentials: 'include', cache: 'no-store',
+  });
+}
+
+function rolActual() {
+  try { return String(JSON.parse(localStorage.getItem('usuario') || '{}').rol || '').toLowerCase(); }
+  catch { return ''; }
+}
+const puedeEscribir = () => ROLES_ESCRITURA.includes(rolActual());
+
+/* ══ Carga ══ */
+async function cargar({ silencioso = false } = {}) {
+  if (!silencioso) $('mapa').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando mapa…</div>';
+  // silent: le pide a navegacion.js que NO pinte el esqueleto de carga; si no,
+  // cada refresco automatico hace parpadear la pagina entera.
+  const r = await apiFetch('/api/habitaciones/mapa', silencioso ? { silent: true } : {});
+  if (r.status === 401) { window.location.href = '/'; return; }
+  if (!r.ok) { if (!silencioso) toast('No se pudo leer el mapa de camas', 'error'); return; }
+  const datos = await r.json();
+  _ultimo = new Date();
+  // Sin cambios reales: no se repinta nada (la firma ignora la marca de tiempo)
+  const firma = JSON.stringify({ ...datos, generado_en: '' });
+  if (silencioso && firma === _firma) { pintarReloj(); return; }
+  _firma = firma;
+  _mapa = datos;
+  pintarMedidor();
+  pintarPisosFiltro();
+  pintarMapa();
+  pintarEspera();
+  pintarDetalle();
+  pintarReloj();
+}
+
+/* ══ Medidor ══ */
+function pintarMedidor() {
+  const grupos = [
+    ['Ocupadas', _mapa.ocupadas, 'pt-ocupada'],
+    ['Libres', _mapa.libres, 'pt-libre'],
+    ['Limpieza', _mapa.limpieza, 'pt-limpieza'],
+    ['Mantenimiento', _mapa.mantenimiento, 'pt-mantenimiento'],
+    ['Bloqueadas', _mapa.bloqueadas, 'pt-bloqueada'],
+  ];
+  $('hab-cifras').innerHTML = grupos
+    .map(([et, n, pt]) => `<div class="hab-cifra"><b>${n ?? 0}</b><span><i class="${pt}"></i>${et}</span></div>`)
+    .join('') + `<div class="hab-cifra"><b>${_mapa.porcentaje ?? 0}%</b><span>Ocupación</span></div>`;
+  const pct = _mapa.porcentaje ?? 0;
+  const barra = $('hab-barra');
+  barra.className = `hab-barra ${pct >= 100 ? 'llena' : pct >= 75 ? 'alta' : ''}`;
+  barra.firstElementChild.style.width = `${pct}%`;
+
+  const nota = $('hab-nota');
+  if (_mapa.fuera_catalogo) {
+    nota.textContent = `${_mapa.fuera_catalogo} internado(s) tienen una cama que no está en este catálogo (datos históricos o de otra sede): no aparecen en el mapa.`;
+    nota.hidden = false;
+  } else nota.hidden = true;
+}
+
+function pintarPisosFiltro() {
+  const sel = $('f-piso');
+  const actual = sel.value;
+  const pisos = (_mapa.pisos || []).map((p) => p.piso);
+  sel.innerHTML = '<option value="">Todos los pisos</option>' +
+    pisos.map((p) => `<option value="${esc(p)}">Piso ${esc(p)}</option>`).join('');
+  if (pisos.includes(actual)) sel.value = actual;
+}
+
+/* ══ Mapa ══ */
+const ETIQUETA_ESTADO = {
+  ocupada: 'Ocupada', libre: 'Libre', limpieza: 'En limpieza',
+  mantenimiento: 'En mantenimiento', bloqueada: 'Bloqueada',
+};
+
+function coincide(cama, q) {
+  if (!q) return true;
+  const aguja = q.toLowerCase();
+  return [cama.codigo, cama.paciente, cama.servicio, cama.documento]
+    .some((v) => String(v || '').toLowerCase().includes(aguja));
+}
+
+function tarjetaCama(cama, q) {
+  const apagada = !coincide(cama, q) ? ' apagada' : '';
+  const sel = cama.codigo === _seleccion ? ' sel' : '';
+  const larga = cama.estancia_larga ? ' larga' : '';
+  const arrastrable = cama.estado === 'ocupada' && puedeEscribir();
+  const cuerpo = cama.estado === 'ocupada'
+    ? `<span class="cama-nombre">${esc(cama.paciente || 'Paciente')}</span>
+       <span class="cama-meta">${cama.dias ? `${cama.dias} día${cama.dias === 1 ? '' : 's'}` : 'ingresó hoy'}${cama.servicio ? ` - ${esc(cama.servicio)}` : ''}</span>
+       ${cama.instrumental_total ? `<span class="cama-equipos">${cama.instrumental_total} equipo(s): ${esc((cama.instrumental || []).join(', '))}</span>` : ''}`
+    : `<span class="cama-nombre">${ETIQUETA_ESTADO[cama.estado] || cama.estado}</span>
+       ${cama.nota ? `<span class="cama-meta">${esc(cama.nota)}</span>` : ''}
+       ${cama.estado === 'libre' && puedeEscribir() ? '<span class="cama-hint">Suelta aquí un paciente</span>' : ''}`;
+  return `<div class="cama ${cama.estado}${larga}${sel}${apagada}" role="button" tabindex="0"
+      data-cama="${esc(cama.codigo)}" ${arrastrable ? 'draggable="true"' : ''}>
+    <span class="cama-top"><span class="cama-codigo">${esc(cama.codigo)}</span><span class="cama-dot"></span></span>
+    ${cuerpo}
+  </div>`;
+}
+
+function pintarMapa() {
+  const q = $('f-q').value.trim();
+  const fPiso = $('f-piso').value;
+  const fEstado = $('f-estado').value;
+  const visibles = (_mapa.camas || []).filter((c) =>
+    (!fPiso || String(c.piso) === fPiso) && (!fEstado || c.estado === fEstado));
+
+  if (!visibles.length) {
+    $('mapa').innerHTML = '<div class="loading">Ninguna cama cumple ese filtro</div>';
+    return;
+  }
+  const pisos = new Map();
+  visibles.forEach((c) => {
+    if (!pisos.has(c.piso)) pisos.set(c.piso, []);
+    pisos.get(c.piso).push(c);
+  });
+  $('mapa').innerHTML = [...pisos.entries()].map(([piso, lista]) => {
+    const ocupadas = lista.filter((c) => c.estado === 'ocupada').length;
+    const pct = Math.round((ocupadas / lista.length) * 100);
+    return `<section class="piso">
+      <div class="piso-head">
+        <h4>Piso ${esc(piso)}</h4>
+        <div class="piso-barra"><i style="width:${pct}%"></i></div>
+        <span>${ocupadas}/${lista.length}</span>
+      </div>
+      <div class="piso-camas">${lista.map((c) => tarjetaCama(c, q)).join('')}</div>
+    </section>`;
+  }).join('');
+  cablearCamas();
+}
+
+function cablearCamas() {
+  $('mapa').querySelectorAll('[data-cama]').forEach((el) => {
+    const codigo = el.getAttribute('data-cama');
+    el.onclick = () => seleccionar(codigo);
+    el.onkeydown = (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); seleccionar(codigo); }
+    };
+    el.ondragstart = (ev) => {
+      const cama = buscarCama(codigo);
+      _arrastre = { tipo: 'cama', origen: codigo, id_admision: cama.id_admision, paciente: cama.paciente };
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', codigo);
+      el.classList.add('arrastrando');
+      pausarRefresco();
+    };
+    el.ondragend = () => { el.classList.remove('arrastrando'); _arrastre = null; limpiarDestinos(); reanudarRefresco(); };
+    el.ondragover = (ev) => {
+      if (!_arrastre || !esDestinoValido(codigo)) return;
+      ev.preventDefault();
+      el.classList.add('destino');
+    };
+    el.ondragleave = () => el.classList.remove('destino');
+    el.ondrop = (ev) => {
+      ev.preventDefault();
+      el.classList.remove('destino');
+      if (esDestinoValido(codigo)) soltarEn(codigo);
+    };
+  });
+}
+
+const buscarCama = (codigo) => (_mapa.camas || []).find((c) => c.codigo === codigo) || {};
+const limpiarDestinos = () => $('mapa').querySelectorAll('.destino').forEach((e) => e.classList.remove('destino'));
+
+function esDestinoValido(codigo) {
+  if (!_arrastre) return false;
+  if (_arrastre.origen === codigo) return false;
+  return buscarCama(codigo).estado === 'libre';
+}
+
+async function soltarEn(destino) {
+  const mov = _arrastre;
+  _arrastre = null;
+  if (!mov) return;
+  if (mov.tipo === 'cama') {
+    if (!confirm(`¿Trasladar a ${mov.paciente || 'el paciente'} de ${mov.origen} a ${destino}?`)) return;
+    await accion(`/api/habitaciones/traslado`, { origen: mov.origen, destino });
+  } else {
+    if (!confirm(`¿Asignar la cama ${destino} a ${mov.paciente || 'este paciente'}?`)) return;
+    await accion(`/api/habitaciones/${encodeURIComponent(destino)}/asignar`, { id_admision: mov.id_admision });
+  }
+}
+
+/* ══ Lista de espera ══ */
+function pintarEspera() {
+  const lista = _mapa.esperando || [];
+  $('espera-info').textContent = lista.length ? `${lista.length}` : '';
+  if (!lista.length) {
+    $('espera').innerHTML = '<div class="espera-vacio">Nadie espera cama: todas las hospitalizaciones activas ya tienen una asignada.</div>';
+    return;
+  }
+  $('espera').innerHTML = `<div class="espera-lista">${lista.map((p) => `
+    <div class="espera-item" data-espera="${esc(p.id_admision)}" ${puedeEscribir() ? 'draggable="true"' : ''}>
+      <strong>${esc(p.paciente || 'Paciente')}</strong>
+      <span>${esc(p.servicio || 'Sin servicio')}${p.dias_espera ? ` - espera ${p.dias_espera} día${p.dias_espera === 1 ? '' : 's'}` : ''}</span>
+    </div>`).join('')}</div>`;
+  $('espera').querySelectorAll('[data-espera]').forEach((el) => {
+    const id = el.getAttribute('data-espera');
+    el.ondragstart = (ev) => {
+      const p = (_mapa.esperando || []).find((x) => x.id_admision === id) || {};
+      _arrastre = { tipo: 'espera', origen: '', id_admision: id, paciente: p.paciente };
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', id);
+      el.classList.add('arrastrando');
+      pausarRefresco();
+    };
+    el.ondragend = () => { el.classList.remove('arrastrando'); _arrastre = null; limpiarDestinos(); reanudarRefresco(); };
+  });
+}
+
+/* ══ Simulación de la habitación ══════════════════════════════════════
+   Planta cenital dibujada con los datos que ya devuelve /mapa: quién está
+   en la cama, cuánto lleva y qué equipos tiene conectados.            */
+
+const COLOR_ESTADO = {
+  ocupada: 'var(--red)', libre: 'var(--green)', limpieza: 'var(--accent)',
+  mantenimiento: 'var(--amber)', bloqueada: 'var(--text4)',
+};
+
+// Cada equipo real se dibuja segun lo que diga su nombre
+function dibujoEquipo(nombre, x, y) {
+  const n = String(nombre || '').toLowerCase();
+  const etiqueta = esc(String(nombre || 'Equipo').slice(0, 16));
+  let cuerpo;
+  if (n.includes('monitor') || n.includes('cardio')) {
+    cuerpo = `<rect class="pantalla" x="${x + 7}" y="${y + 7}" width="38" height="24" rx="3"/>
+      <polyline class="trazo" points="${x + 10},${y + 22} ${x + 17},${y + 22} ${x + 21},${y + 12} ${x + 25},${y + 28} ${x + 29},${y + 18} ${x + 42},${y + 18}"/>`;
+  } else if (n.includes('bomba') || n.includes('infus') || n.includes('suero')) {
+    cuerpo = `<rect class="pantalla" x="${x + 9}" y="${y + 7}" width="34" height="13" rx="3"/>
+      <circle cx="${x + 18}" cy="${y + 27}" r="3.5" fill="var(--accent)"/>
+      <circle cx="${x + 33}" cy="${y + 27}" r="3.5" fill="var(--accent)"/>`;
+  } else if (n.includes('oxi') || n.includes('satur')) {
+    cuerpo = `<rect class="pantalla" x="${x + 13}" y="${y + 8}" width="26" height="21" rx="9"/>
+      <text x="${x + 26}" y="${y + 23}" text-anchor="middle" style="fill:var(--green);font:600 11px var(--mono)">%</text>`;
+  } else if (n.includes('gluco')) {
+    cuerpo = `<rect class="pantalla" x="${x + 15}" y="${y + 7}" width="22" height="23" rx="3"/>
+      <circle cx="${x + 26}" cy="${y + 19}" r="4.5" fill="var(--red)"/>`;
+  } else if (n.includes('ventil') || n.includes('respir')) {
+    cuerpo = `<rect class="pantalla" x="${x + 8}" y="${y + 7}" width="36" height="16" rx="3"/>
+      <path class="trazo" d="M${x + 12} ${y + 30} q9 -7 18 0 t18 0"/>`;
+  } else {
+    cuerpo = `<rect class="pantalla" x="${x + 13}" y="${y + 8}" width="26" height="21" rx="3"/>
+      <circle cx="${x + 26}" cy="${y + 18}" r="3" fill="var(--accent)"/>`;
+  }
+  return `<g class="escena-equipo">
+    <rect x="${x}" y="${y}" width="52" height="38" rx="6"/>
+    ${cuerpo}
+    <text x="${x + 26}" y="${y + 50}" text-anchor="middle">${etiqueta}</text>
+  </g>`;
+}
+
+function escenaHabitacion(cama) {
+  const color = COLOR_ESTADO[cama.estado] || 'var(--text4)';
+  const ocupada = cama.estado === 'ocupada';
+  const equipos = (cama.instrumental || []).slice(0, 4);
+  const conVia = equipos.some((e) => /bomba|infus|suero/i.test(e));
+
+  // Que hay sobre la cama, segun el estado
+  const enCama = ocupada
+    ? `<rect x="80" y="104" width="86" height="98" rx="9" fill="${color}" opacity=".26"/>
+       <circle cx="123" cy="90" r="14" fill="${color}" opacity=".62"/>
+       <path d="M100 138 h46" class="escena-linea"/>
+       <text x="123" y="192" text-anchor="middle" class="escena-rotulo">${cama.dias ? `DÍA ${cama.dias}` : 'INGRESÓ HOY'}</text>`
+    : cama.estado === 'libre'
+      ? `<rect x="80" y="104" width="86" height="98" rx="9" fill="${color}" opacity=".12"/>
+         <text x="123" y="156" text-anchor="middle" class="escena-rotulo">CAMA LISTA</text>`
+      : `<rect x="80" y="104" width="86" height="98" rx="9" fill="none" stroke="${color}" stroke-dasharray="5 5" opacity=".85"/>
+         <text x="123" y="148" text-anchor="middle" class="escena-rotulo">${(ETIQUETA_ESTADO[cama.estado] || '').toUpperCase()}</text>
+         <text x="123" y="163" text-anchor="middle" class="escena-rotulo">SIN USO</text>`;
+
+  // Portasueros junto a la cabecera cuando hay bomba o infusion
+  const via = conVia
+    ? `<rect x="48" y="68" width="16" height="22" rx="4" fill="var(--accent)" opacity=".55"/>
+       <line x1="56" y1="90" x2="56" y2="152" class="escena-linea"/>
+       <path d="M56 92 q10 20 22 26" class="escena-linea"/>`
+    : '';
+
+  return `<svg class="escena" viewBox="0 0 380 272" role="img"
+      aria-label="Planta de la habitación ${esc(cama.codigo)}, ${ETIQUETA_ESTADO[cama.estado] || ''}">
+    <rect x="12" y="12" width="356" height="248" rx="10" class="escena-piso"/>
+    <rect x="12" y="12" width="356" height="248" rx="10" class="escena-muro"/>
+
+    <!-- ventana al fondo y puerta con su barrido -->
+    <line x1="138" y1="12" x2="242" y2="12" stroke="var(--accent)" stroke-width="5"/>
+    <text x="190" y="30" text-anchor="middle" class="escena-rotulo">VENTANA</text>
+    <line x1="46" y1="260" x2="104" y2="260" stroke="var(--bg2)" stroke-width="6"/>
+    <path d="M46 260 a58 58 0 0 0 58 -58" class="escena-linea" stroke-dasharray="4 4"/>
+    <text x="75" y="248" text-anchor="middle" class="escena-rotulo">PUERTA</text>
+
+    <!-- cama: marco, cabecera y almohada -->
+    <rect x="74" y="66" width="98" height="146" rx="11" class="escena-cama-marco" fill="var(--card)"/>
+    <rect x="74" y="66" width="98" height="22" rx="11" class="escena-sabana"/>
+    <rect x="98" y="72" width="50" height="15" rx="6" class="escena-mueble"/>
+    ${enCama}
+    ${via}
+
+    <!-- mobiliario -->
+    <rect x="188" y="66" width="34" height="34" rx="5" class="escena-mueble"/>
+    <text x="205" y="112" text-anchor="middle" class="escena-rotulo">MESA</text>
+    <rect x="188" y="168" width="38" height="38" rx="8" class="escena-mueble"/>
+    <text x="207" y="218" text-anchor="middle" class="escena-rotulo">VISITA</text>
+
+    <!-- equipos realmente conectados -->
+    ${equipos.map((e, i) => dibujoEquipo(e, 246 + (i % 2) * 58, 58 + Math.floor(i / 2) * 76)).join('')}
+    ${!equipos.length ? '<text x="302" y="140" text-anchor="middle" class="escena-rotulo">SIN EQUIPOS</text>' : ''}
+
+    <!-- placa de la cama -->
+    <rect x="234" y="206" width="124" height="44" rx="9" class="escena-mueble"/>
+    <circle cx="248" cy="228" r="5" fill="${color}"/>
+    <text x="300" y="226" text-anchor="middle" class="escena-nombre">${esc(cama.codigo)}</text>
+    <text x="300" y="243" text-anchor="middle" class="escena-rotulo">${ocupada ? esc(String(cama.paciente || 'Paciente').slice(0, 20)).toUpperCase() : (ETIQUETA_ESTADO[cama.estado] || '').toUpperCase()}</text>
+  </svg>`;
+}
+
+function abrirEscena(codigo) {
+  const cama = buscarCama(codigo);
+  if (!cama.codigo) return;
+  $('escena-grande').innerHTML = escenaHabitacion(cama);
+  $('escena-titulo').textContent = `Habitación ${cama.codigo} - ${ETIQUETA_ESTADO[cama.estado] || ''}`;
+  $('modal-escena').style.display = 'flex';
+  pausarRefresco();
+}
+function cerrarEscena() { $('modal-escena').style.display = 'none'; reanudarRefresco(); }
+
+/* ══ Detalle ══ */
+function seleccionar(codigo) {
+  _seleccion = _seleccion === codigo ? '' : codigo;
+  pintarMapa();
+  pintarDetalle();
+}
+
+function filaDato(dt, dd) {
+  return dd ? `<div><dt>${dt}</dt><dd>${esc(dd)}</dd></div>` : '';
+}
+
+function pintarDetalle() {
+  const cama = buscarCama(_seleccion);
+  if (!_seleccion || !cama.codigo) {
+    $('detalle').innerHTML = '<div class="detalle-vacio">Haz clic en cualquier cama del mapa para ver quién la ocupa y actuar sobre ella.</div>';
+    return;
+  }
+  const libres = (_mapa.camas || []).filter((c) => c.estado === 'libre' && c.codigo !== cama.codigo);
+  const espera = _mapa.esperando || [];
+  const escritura = puedeEscribir();
+
+  let datos = '';
+  let acciones = '';
+
+  if (cama.estado === 'ocupada') {
+    datos = `<dl class="detalle-datos">
+      ${filaDato('Paciente', cama.paciente)}
+      ${filaDato('Documento', cama.documento)}
+      ${filaDato('Servicio', cama.servicio)}
+      ${filaDato('Médico', cama.medico)}
+      ${filaDato('Ingreso', cama.fecha_ingreso)}
+      ${filaDato('Estancia', `${cama.dias} día${cama.dias === 1 ? '' : 's'}${cama.estancia_larga ? ' (larga)' : ''}`)}
+      ${filaDato('Motivo', cama.motivo)}
+      ${filaDato('Equipos', (cama.instrumental || []).join(', '))}
+    </dl>`;
+    acciones = escritura ? `
+      <select id="d-destino">
+        <option value="">Trasladar a…</option>
+        ${libres.map((c) => `<option value="${esc(c.codigo)}">${esc(c.codigo)} - piso ${esc(c.piso)}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost btn-sm" id="d-trasladar">Trasladar</button>
+      <button class="btn btn-ghost btn-sm" id="d-liberar">Liberar cama (sigue internado)</button>
+      <button class="btn btn-primary btn-sm" id="d-alta">Dar de alta</button>`
+      : '<p class="solo-lectura">Tu rol puede consultar el mapa, pero no mover camas.</p>';
+  } else if (cama.estado === 'libre') {
+    datos = `<dl class="detalle-datos">${filaDato('Estado', 'Lista para recibir paciente')}${filaDato('Nota', cama.nota)}</dl>`;
+    acciones = escritura ? `
+      ${espera.length ? `<select id="d-espera">
+        <option value="">Asignar paciente en espera…</option>
+        ${espera.map((p) => `<option value="${esc(p.id_admision)}">${esc(p.paciente)} - ${esc(p.servicio || 'sin servicio')}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost btn-sm" id="d-asignar">Asignar el seleccionado</button>` : ''}
+      <button class="btn btn-primary btn-sm" id="d-ingresar">Ingresar paciente aquí</button>
+      <button class="btn btn-ghost btn-sm" id="d-mantenimiento">Marcar mantenimiento</button>
+      <button class="btn btn-ghost btn-sm" id="d-bloquear">Bloquear</button>`
+      : '<p class="solo-lectura">Tu rol puede consultar el mapa, pero no mover camas.</p>';
+  } else {
+    datos = `<dl class="detalle-datos">
+      ${filaDato('Estado', ETIQUETA_ESTADO[cama.estado])}
+      ${filaDato('Nota', cama.nota)}
+      ${filaDato('Actualizó', cama.actualizado_por)}
+    </dl>`;
+    acciones = escritura
+      ? `<button class="btn btn-primary btn-sm" id="d-lista">Marcar como lista</button>
+         <button class="btn btn-ghost btn-sm" id="d-bloquear">Bloquear</button>`
+      : '<p class="solo-lectura">Tu rol puede consultar el mapa, pero no mover camas.</p>';
+  }
+
+  $('detalle').innerHTML = `<div class="detalle-cuerpo">
+    <div class="detalle-titulo">
+      <b>${esc(cama.codigo)}</b>
+      <span class="detalle-estado">${ETIQUETA_ESTADO[cama.estado] || cama.estado}</span>
+    </div>
+    <div>
+      ${escenaHabitacion(cama)}
+      <div class="escena-pie">
+        <span>Planta de la habitación</span>
+        <button type="button" id="d-escena">Ver en grande</button>
+      </div>
+    </div>
+    ${datos}
+    <div class="detalle-acciones">${acciones}</div>
+  </div>`;
+  cablearDetalle(cama);
+}
+
+function cablearDetalle(cama) {
+  const codigo = encodeURIComponent(cama.codigo);
+  const al = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+
+  al('d-trasladar', () => {
+    const destino = $('d-destino').value;
+    if (!destino) { toast('Elige la cama destino', 'error'); return; }
+    if (!confirm(`¿Trasladar a ${cama.paciente || 'el paciente'} de ${cama.codigo} a ${destino}?`)) return;
+    accion('/api/habitaciones/traslado', { origen: cama.codigo, destino });
+  });
+  al('d-liberar', () => {
+    if (!confirm(`¿Sacar a ${cama.paciente || 'el paciente'} de ${cama.codigo}? Seguirá internado, pero sin cama.`)) return;
+    accion(`/api/habitaciones/${codigo}/liberar`, { dar_alta: false });
+  });
+  al('d-alta', () => {
+    if (!confirm(`¿Dar de alta a ${cama.paciente || 'el paciente'}? Se cierra la admisión y la cama pasa a limpieza.`)) return;
+    accion(`/api/habitaciones/${codigo}/liberar`, { dar_alta: true });
+  });
+  al('d-escena', () => abrirEscena(cama.codigo));
+  al('d-ingresar', () => abrirIngreso(cama.codigo));
+  al('d-asignar', () => {
+    const id = $('d-espera').value;
+    if (!id) { toast('Elige un paciente de la lista de espera', 'error'); return; }
+    accion(`/api/habitaciones/${codigo}/asignar`, { id_admision: id });
+  });
+  al('d-mantenimiento', () => accion(`/api/habitaciones/${codigo}/estado`, { estado: 'mantenimiento', nota: 'Mantenimiento programado' }));
+  al('d-bloquear', () => accion(`/api/habitaciones/${codigo}/estado`, { estado: 'bloqueada', nota: 'Bloqueada por operaciones' }));
+  al('d-lista', () => accion(`/api/habitaciones/${codigo}/estado`, { estado: 'disponible', nota: '' }));
+}
+
+/* ══ Acciones ══ */
+async function accion(ruta, cuerpo) {
+  const r = await apiFetch(ruta, { method: 'POST', body: JSON.stringify(cuerpo) });
+  let d = {};
+  try { d = await r.json(); } catch (_) { /* sin cuerpo */ }
+  if (!r.ok) { toast(d.detail || d.error || 'No se pudo completar la acción', 'error'); return; }
+  toast(d.mensaje || 'Listo');
+  await cargar({ silencioso: true });
+}
+
+/* ══ Ingreso: el alta hospitalaria empieza y termina en este modulo ══ */
+let _medicos = [];
+let _pacTA = null;
+
+async function cargarMedicos() {
+  const r = await apiFetch('/api/usuarios/medicos');
+  if (r.ok) _medicos = (await r.json()).medicos || [];
+  const sel = $('m-medico');
+  sel.innerHTML = _medicos.length
+    ? _medicos.map((m) => `<option value="${esc(m.nombre || '')}">${esc(m.nombre || m.email)}</option>`).join('')
+    : '<option value="">- Registre un usuario con rol Médico -</option>';
+}
+
+function abrirIngreso(camaPreferida = '') {
+  const libres = (_mapa.camas || []).filter((c) => c.estado === 'libre');
+  $('m-cama').innerHTML = '<option value="">Sin cama (lista de espera)</option>' +
+    libres.map((c) => `<option value="${esc(c.codigo)}">${esc(c.codigo)} - piso ${esc(c.piso)}</option>`).join('');
+  $('m-cama').value = libres.some((c) => c.codigo === camaPreferida) ? camaPreferida : '';
+  if (!_pacTA) _pacTA = DiabCareAPI.mountPacienteTypeahead({ field: 'paciente' });
+  else _pacTA.clear();
+  $('m-servicio').value = 'Medicina interna';
+  $('m-via').value = 'propia';
+  $('m-ingreso').value = new Date().toISOString().slice(0, 10);
+  $('m-motivo').value = '';
+  $('m-notas').value = '';
+  $('modal').style.display = 'flex';
+  pausarRefresco();
+  setTimeout(() => $('m-paciente-q').focus(), 50);
+}
+
+function cerrarIngreso() {
+  $('modal').style.display = 'none';
+  reanudarRefresco();
+}
+
+async function guardarIngreso() {
+  const cuerpo = {
+    id_paciente: $('m-paciente').value.trim(),
+    tipo: 'hospitalizacion',
+    estado: 'activa',
+    via_llegada: $('m-via').value,
+    servicio: $('m-servicio').value.trim(),
+    medico_nombre: $('m-medico').value.trim(),
+    fecha_ingreso: $('m-ingreso').value,
+    habitacion: $('m-cama').value,
+    motivo: $('m-motivo').value.trim(),
+    notas: $('m-notas').value.trim(),
+  };
+  if (!cuerpo.id_paciente) { toast('Busca y selecciona un paciente por cédula', 'error'); return; }
+  if (!cuerpo.medico_nombre) { toast('Selecciona un médico tratante', 'error'); return; }
+  const r = await apiFetch('/api/admisiones/', { method: 'POST', body: JSON.stringify(cuerpo) });
+  let d = {};
+  try { d = await r.json(); } catch (_) { /* sin cuerpo */ }
+  if (!r.ok) { toast(d.detail || d.error || 'No se pudo registrar el ingreso', 'error'); return; }
+  toast(cuerpo.habitacion ? `Paciente ingresado en ${cuerpo.habitacion}` : 'Paciente ingresado, pendiente de cama');
+  cerrarIngreso();
+  await cargar({ silencioso: true });
+}
+
+/* ══ Auto-refresco ══ */
+function pintarReloj() {
+  if (!_ultimo) return;
+  const seg = Math.round((Date.now() - _ultimo.getTime()) / 1000);
+  $('hab-actualizado').textContent = seg < 5 ? 'al día' : `hace ${seg}s`;
+}
+function pausarRefresco() { clearInterval(_timer); _timer = null; $('hab-vivo').classList.add('pausa'); }
+
+function reanudarRefresco() {
+  if (_timer || !$('f-auto').checked) return;
+  $('hab-vivo').classList.remove('pausa');
+  _timer = setInterval(() => { if (!document.hidden && !_arrastre) cargar({ silencioso: true }); }, REFRESCO_MS);
+}
+
+function alternarAuto() {
+  const activo = $('f-auto').checked;
+  localStorage.setItem('hab_auto', activo ? '1' : '0');
+  if (activo) reanudarRefresco();
+  else pausarRefresco();
+}
+
+if (puedeEscribir()) {
+  $('btn-ingresar').hidden = false;
+  cargarMedicos();
+}
+
+['f-q', 'f-piso', 'f-estado'].forEach((id) => {
+  const el = $(id);
+  el.addEventListener(id === 'f-q' ? 'input' : 'change', pintarMapa);
+});
+$('f-auto').checked = localStorage.getItem('hab_auto') === '1';
+$('f-auto').addEventListener('change', alternarAuto);
+$('btn-refrescar').addEventListener('click', () => cargar({ silencioso: true }));
+setInterval(pintarReloj, 15000);
+cargar().then(reanudarRefresco);
+</script>
+</body>
+</html>

@@ -3,18 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DiabCare - RRHH / Costeo</title>
+<title>DiabCare - RRHH</title>
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
+<script src="/estaticos/crud-modulo.js?v=rrhh-save-1"></script>
 <style>
 .crud-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.rrhh-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:10px; }
+.rrhh-kpi { background:var(--card,#fff); border:1px solid var(--border,#d9e2e3); border-radius:11px; padding:8px 12px; display:flex; align-items:center; gap:9px; min-height:38px; }
+.rrhh-kpi strong { color:var(--text,#173d43); font-size:19px; line-height:1; flex:0 0 auto; }
+.rrhh-kpi span { color:var(--muted,#60777b); font-size:11px; line-height:1.15; }
+@media(max-width:900px){.rrhh-kpis{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body class="dc-uv">
@@ -26,34 +31,28 @@
   <div class="content">
     <div class="page-header">
       <div>
-        <div class="page-title">RRHH <span>/ costeo clínico</span></div>
-        <div class="page-sub" id="pageSub">Cargos, turnos y productividad</div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
-        <button class="btn btn-primary btn-sm" id="btnNuevoRrhh" onclick="abrirModal()">+ Nuevo</button>
+        <div class="page-title">Recursos Humanos</div>
+        <div class="page-sub">Directorio y acceso del personal</div>
       </div>
     </div>
-    <div class="dash-row dash-4" style="margin-bottom:14px">
-      <div class="kpi-card cyan">
-        <div class="kpi-label">Personal costeado</div>
-        <div class="kpi-val cyan" id="k-rh-personal">—</div>
-        <div class="kpi-sub">colaboradores con costo/hora</div>
+    <div class="rrhh-kpis" aria-label="Resumen del personal">
+      <div class="rrhh-kpi"><strong id="rh-total">0</strong><span>Empleados Registrados</span></div>
+      <div class="rrhh-kpi"><strong id="rh-activos">0</strong><span>Personal Activo</span></div>
+      <div class="rrhh-kpi"><strong id="rh-sin-cuenta">0</strong><span>Sin Cuenta de Acceso</span></div>
+      <div class="rrhh-kpi"><strong id="rh-revision">0</strong><span>Roles por Revisar</span></div>
+    </div>
+    <div class="page-header">
+      <div>
+        <div class="page-title" style="font-size:18px">Gestión del Personal</div>
+        <div class="page-sub" id="pageSub">Empleados importados desde RR. HH.</div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Turnos asignados</div>
-        <div class="kpi-val" id="k-rh-turnos">—</div>
-        <div class="kpi-sub">asignaciones vigentes</div>
-      </div>
-      <div class="kpi-card amber">
-        <div class="kpi-label">Costo hora prom.</div>
-        <div class="kpi-val amber" id="k-rh-costo">—</div>
-        <div class="kpi-sub">promedio del personal</div>
-      </div>
-      <div class="kpi-card green">
-        <div class="kpi-label">Consultas periodo</div>
-        <div class="kpi-val green" id="k-rh-consultas">—</div>
-        <div class="kpi-sub" id="k-rh-ingreso">ingreso generado</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="file" id="csvEmpleados" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
+        <button class="btn btn-ghost btn-sm" id="btnPlantilla" onclick="descargarPlantilla()">Descargar plantilla Excel</button>
+        <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
+        <button class="btn btn-primary btn-sm" id="btnNuevoRrhh" onclick="abrirModal()">+ Nuevo</button>
+        <button class="btn btn-ghost btn-sm" id="btnImportar" onclick="document.getElementById('csvEmpleados').click()">Importar Archivo</button>
+        <button class="btn btn-primary btn-sm" id="btnActivar" style="display:none" onclick="activarSeleccionados()">Activar Seleccionados</button>
       </div>
     </div>
     <div class="crud-tabs" id="crudTabs"></div>
@@ -80,42 +79,128 @@ DiabCareNav.guardRol(['administrador','analista']);
 const u = JSON.parse(localStorage.getItem('usuario') || '{}');
 const readOnly = (u.rol || '') === 'analista';
 
-// Informe simple: costeo, turnos y productividad
-(async function kpisRrhh() {
-  try {
-    const r = await fetch(`${DiabCareNav.getApi()}/api/rrhh/resumen`, {
-      headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }, cache: 'no-store'
-    });
-    if (!r.ok) return;
-    const d = await r.json();
-    const money = n => '$' + Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: 2 });
-    document.getElementById('k-rh-personal').textContent = d.personal_costeado ?? '—';
-    document.getElementById('k-rh-turnos').textContent = d.asignaciones_turno ?? '—';
-    document.getElementById('k-rh-costo').textContent = money(d.costo_hora_promedio);
-    document.getElementById('k-rh-consultas').textContent = d.consultas_periodo ?? '—';
-    document.getElementById('k-rh-ingreso').textContent = money(d.ingreso_generado) + ' generado';
-  } catch (_) { /* sin datos */ }
-})();
 if (readOnly) {
-  document.getElementById('negocioHint').textContent =
-    'Vista de consulta para analista: cargos, turnos, costeo y productividad (sin editar).';
+  document.getElementById('pageSub').textContent =
+    'Vista de consulta del directorio, cargos y turnos.';
   document.getElementById('btnNuevoRrhh').style.display = 'none';
   document.getElementById('btnSeed').style.display = 'none';
+  document.getElementById('btnImportar').style.display = 'none';
 }
 
-const colabLookup = {
-  field: 'id_personal', url: '/api/rrhh/colaboradores', listKey: 'colaboradores',
-  idKey: 'id',
-  label: u => (u.nombre || 'Usuario') + (u.rol ? ' · ' + u.rol : '')
-};
-const cargoLookup = {
-  field: 'id_cargo', url: '/api/rrhh/cargos?limit=100', listKey: 'cargos',
-  idKey: 'id_cargo',
-  label: c => (c.nombre || 'Cargo').replaceAll('_', ' ')
-};
+function descargarPlantilla() {
+  const enlace = document.createElement('a');
+  enlace.href = '/estaticos/plantillas/plantilla_empleados_diabcare.xlsx';
+  enlace.download = 'plantilla_empleados_diabcare.xlsx';
+  enlace.click();
+}
+
+document.getElementById('csvEmpleados').addEventListener('change', async function () {
+  if (!this.files[0]) return;
+  const datos = new FormData();
+  datos.append('archivo', this.files[0]);
+  const boton = document.getElementById('btnImportar');
+  boton.disabled = true; boton.textContent = 'Importando…';
+  try {
+    const respuesta = await fetch(`${DiabCareNav.getApi()}/api/rrhh/empleados/importar`, {
+      method:'POST', headers:{Authorization:'Bearer ' + localStorage.getItem('token')}, body:datos
+    });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok) throw new Error(resultado.detail || 'No se pudo importar');
+    DiabCareAPI.toast(`Importación: ${resultado.creados} creados, ${resultado.actualizados} actualizados y ${resultado.rechazados} rechazados.`);
+    setTimeout(() => location.reload(), 900);
+  } catch (error) { DiabCareAPI.toast(error.message, 'error'); }
+  finally { boton.disabled = false; boton.textContent = 'Importar Archivo'; this.value = ''; }
+});
+
+async function actualizarResumen() {
+  try {
+    const respuesta = await fetch(`${DiabCareNav.getApi()}/api/rrhh/empleados/resumen`, {
+      headers:{Authorization:'Bearer ' + localStorage.getItem('token')}, cache:'no-store'
+    });
+    if (!respuesta.ok) return;
+    const datos = await respuesta.json();
+    document.getElementById('rh-total').textContent = datos.total || 0;
+    document.getElementById('rh-activos').textContent = datos.activos || 0;
+    document.getElementById('rh-sin-cuenta').textContent = datos.sin_cuenta || 0;
+    document.getElementById('rh-revision').textContent = datos.roles_por_revisar || 0;
+  } catch (_) { /* El directorio conserva sus valores iniciales. */ }
+}
+
+const cuentasSeleccionadas = new Set();
+function seleccionarCuenta(id, marcado) {
+  if (marcado) cuentasSeleccionadas.add(id); else cuentasSeleccionadas.delete(id);
+  document.getElementById('btnActivar').textContent = `Activar Seleccionados (${cuentasSeleccionadas.size})`;
+}
+
+async function activarSeleccionados() {
+  if (!cuentasSeleccionadas.size) return DiabCareAPI.toast('Seleccione al menos un empleado', 'error');
+  const aceptado = await DiabCareAPI.confirm({
+    title:'Activar cuentas',
+    message:`Se crearán ${cuentasSeleccionadas.size} cuentas y se enviarán credenciales temporales por correo.`,
+    confirmLabel:'Crear y enviar', cancelLabel:'Cancelar'
+  });
+  if (!aceptado) return;
+  const boton = document.getElementById('btnActivar');
+  boton.disabled = true; boton.textContent = 'Activando...';
+  try {
+    const respuesta = await fetch(`${DiabCareNav.getApi()}/api/rrhh/empleados/provisionar`, {
+      method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer ' + localStorage.getItem('token')},
+      body:JSON.stringify({ids:[...cuentasSeleccionadas]})
+    });
+    const datos = await respuesta.json();
+    if (!respuesta.ok) throw new Error(datos.detail || 'No se pudieron crear las cuentas');
+    DiabCareAPI.toast(`${datos.cuentas_creadas} cuentas creadas y ${datos.correos_enviados} correos enviados${datos.fallidos ? `; ${datos.fallidos} requieren revisión` : ''}.`, datos.fallidos ? 'error' : 'success');
+    cuentasSeleccionadas.clear();
+    setTimeout(() => location.reload(), 1200);
+  } catch (error) { DiabCareAPI.toast(error.message, 'error'); }
+  finally { boton.disabled = false; }
+}
 
 DiabCareCrud.mountTabs({
   tabs: [
+    {
+      id: 'empleados', label: 'Directorio', sub: 'Empleados importados desde RR. HH.',
+      listUrl: '/api/rrhh/empleados?limit=100', listKey: 'empleados', idField: 'id_empleado',
+      itemUrl: id => '/api/rrhh/empleados/' + id, createUrl: '/api/rrhh/empleados',
+      hideDelete: true, readOnly,
+      onLoaded: actualizarResumen,
+      columns: [
+        {key:'codigo', label:'Código'}, {key:'nombre', label:'Nombre'},
+        {key:'apellido', label:'Apellido'}, {key:'cargo', label:'Cargo'},
+        {key:'area', label:'Área'}, {key:'rol_sugerido', label:'Rol sugerido'},
+        {key:'estado_cuenta', label:'Cuenta'}
+      ],
+      fields: [
+        {key:'codigo', required:true, labelUi:'Código'},
+        {key:'documento', labelUi:'Documento'},
+        {key:'nombre', required:true, labelUi:'Nombre'},
+        {key:'apellido', labelUi:'Apellido'},
+        {key:'email', labelUi:'Correo institucional', full:true},
+        {key:'telefono', labelUi:'Teléfono'},
+        {key:'fecha_ingreso', type:'date', labelUi:'Fecha de ingreso'},
+        {key:'cargo', labelUi:'Cargo'},
+        {key:'area', labelUi:'Área'},
+        {key:'sede', labelUi:'Sede'},
+        {key:'estado_laboral', as:'select', labelUi:'Estado laboral', options:['activo','inactivo','desvinculado']},
+        {key:'rol_sugerido', as:'select', labelUi:'Rol sugerido', options:[
+          {value:'',label:'Sugerir automáticamente'},
+          {value:'administrador',label:'Administrador'}, {value:'medico',label:'Médico'},
+          {value:'enfermero',label:'Enfermero'}, {value:'farmaceutico',label:'Farmacéutico'},
+          {value:'analista',label:'Analista'}, {value:'pendiente_revision',label:'Pendiente de revisión'}
+        ]}
+      ]
+    },
+    {
+      id: 'cuentas', label: 'Cuentas Pendientes', sub: 'Revise y active únicamente los empleados seleccionados.',
+      listUrl: '/api/rrhh/empleados?limit=100', listKey: 'empleados', idField: 'id_empleado',
+      hideCreate:true, hideEdit:true, hideDelete:true, readOnly:true,
+      rowFilter:r => r.estado_cuenta === 'sin_cuenta' || r.estado_cuenta === 'pendiente_envio',
+      columns: [
+        {key:'seleccion', label:'', render:r => `<input type="checkbox" aria-label="Seleccionar empleado" onchange="seleccionarCuenta('${r.id_empleado}',this.checked)">`},
+        {key:'codigo', label:'Código'}, {key:'nombre', label:'Nombre'}, {key:'apellido', label:'Apellido'},
+        {key:'email', label:'Correo'}, {key:'rol_sugerido', label:'Rol'}, {key:'estado_cuenta', label:'Estado'}
+      ], fields:[]
+    },
     {
       id: 'cargos', label: 'Cargos', sub: 'Catálogo de cargos clínicos / administrativos',
       listUrl: '/api/rrhh/cargos', listKey: 'cargos', idField: 'id_cargo',
@@ -144,39 +229,31 @@ DiabCareCrud.mountTabs({
       ]
     },
     {
-      id: 'personal', label: 'Personal / costo', sub: 'USD por hora por colaborador y cargo',
-      listUrl: '/api/rrhh/personal', listKey: 'personal', idField: 'id_personal_costo',
-      itemUrl: id => '/api/rrhh/personal/' + id, createUrl: '/api/rrhh/personal',
-      readOnly,
-      lookups: [colabLookup, cargoLookup],
-      columns: [
-        {key:'id_personal', label:'Colaborador', lookup:'id_personal'},
-        {key:'id_cargo', label:'Cargo', lookup:'id_cargo'},
-        {key:'costo_hora', label:'USD/h'}, {key:'fecha_vigencia', label:'Vigencia'}, {key:'activo', label:'Activo'}
+      id:'asignaciones', label:'Asignaciones', sub:'Vincule al personal con su turno y fecha.',
+      listUrl:'/api/rrhh/asignaciones', listKey:'asignaciones', idField:'id_bridge',
+      itemUrl:id => '/api/rrhh/asignaciones/' + id, createUrl:'/api/rrhh/asignaciones', readOnly,
+      lookups:[
+        {field:'id_personal',url:'/api/rrhh/empleados?limit=500',listKey:'empleados',idKey:'id_empleado',label:e => `${e.nombre} ${e.apellido || ''} - ${e.codigo}`},
+        {field:'id_turno',url:'/api/rrhh/turnos?limit=100',listKey:'turnos',idKey:'id_turno',label:t => `${t.nombre} (${t.hora_inicio}-${t.hora_fin})`}
       ],
-      fields: [
-        {key:'id_personal', required:true, labelUi:'Colaborador', full:true},
-        {key:'id_cargo', required:true, labelUi:'Cargo', full:true},
-        {key:'costo_hora', type:'number', labelUi:'Costo por hora (USD)', default:0},
-        {key:'fecha_vigencia', type:'date', labelUi:'Vigencia desde'}
+      columns:[
+        {key:'id_personal',label:'Empleado',lookup:'id_personal'},
+        {key:'id_turno',label:'Turno',lookup:'id_turno'}, {key:'fecha',label:'Fecha'}, {key:'activo',label:'Activo'}
+      ],
+      fields:[
+        {key:'id_personal',required:true,labelUi:'Empleado',full:true},
+        {key:'id_turno',required:true,labelUi:'Turno',full:true},
+        {key:'fecha',type:'date',required:true,labelUi:'Fecha'}
       ]
-    },
-    {
-      id: 'productividad', label: 'Productividad', sub: 'Agregado de consultas / ingresos (solo lectura)',
-      listUrl: '/api/rrhh/productividad', listKey: 'productividad', idField: 'id_agg',
-      itemUrl: id => '/api/rrhh/productividad',
-      hideCreate: true, hideEdit: true, hideDelete: true, readOnly: true,
-      lookups: [colabLookup],
-      columns: [
-        {key:'id_personal', label:'Colaborador', lookup:'id_personal'},
-        {key:'periodo', label:'Periodo'},
-        {key:'num_consultas', label:'Consultas'},
-        {key:'num_procedimientos', label:'Proc.'},
-        {key:'ingreso_generado', label:'Ingreso'}
-      ],
-      fields: []
     }
-  ]
+  ],
+  onTab: tab => {
+    const directorio = tab.id === 'empleados';
+    const cuentas = tab.id === 'cuentas';
+    document.getElementById('btnPlantilla').style.display = directorio ? '' : 'none';
+    document.getElementById('btnImportar').style.display = directorio && !readOnly ? '' : 'none';
+    document.getElementById('btnActivar').style.display = cuentas && !readOnly ? '' : 'none';
+  }
 });
 </script>
 </body>

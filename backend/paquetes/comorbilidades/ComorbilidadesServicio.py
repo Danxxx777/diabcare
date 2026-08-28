@@ -15,6 +15,8 @@ TIPOS_LABEL = {
 ESTADOS_LABEL = {
     "activa": "Activa",
     "activo": "Activa",
+    "controlada": "Controlada",
+    "resuelta": "Resuelta",
     "anulado": "Anulada",
     "anulada": "Anulada",
     "inactiva": "Inactiva",
@@ -23,7 +25,7 @@ ESTADOS_LABEL = {
 comorbilidades = ParquetStore(
     "negocio/oper_comorbilidades_paciente.parquet",
     ["id_comorbilidad", "id_paciente", "tipo", "fecha_deteccion", "id_medico",
-     "notas", "estado", "creado_en", "actualizado_en"],
+     "severidad", "proximo_control", "notas", "estado", "creado_en", "actualizado_en"],
     "id_comorbilidad", "comorbilidades", modo_borrado="estado",
 )
 
@@ -49,6 +51,8 @@ def enriquecer(filas: list) -> list:
         x["tipo_label"] = TIPOS_LABEL.get(tipo, tipo.replace("_", " ").title() or "—")
         est = str(x.get("estado") or "").lower()
         x["estado_label"] = ESTADOS_LABEL.get(est, (est[:1].upper() + est[1:]) if est else "—")
+        sev = str(x.get("severidad") or "moderada").lower()
+        x["severidad_label"] = sev[:1].upper() + sev[1:]
         out.append(x)
     return out
 
@@ -130,6 +134,8 @@ def crear(datos: dict) -> dict:
         "tipo": tipo_n,
         "fecha_deteccion": str(datos["fecha_deteccion"]),
         "id_medico": str(datos["id_medico"]),
+        "severidad": str(datos.get("severidad") or "moderada").lower(),
+        "proximo_control": str(datos.get("proximo_control") or ""),
         "notas": str(datos.get("notas") or ""),
-        "estado": "activa",
+        "estado": str(datos.get("estado") or "activa").lower(),
     })

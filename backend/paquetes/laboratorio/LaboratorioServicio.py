@@ -140,6 +140,10 @@ def cargar_resultado(id_orden: str, datos: dict) -> dict:
     valor = str(datos.get("valor") or "").strip()
     if not valor:
         return {"error": "Indique el valor del resultado"}
+    fecha_resultado = str(datos.get("fecha") or _now()[:10])
+    fecha_orden = str(o.get("fecha") or "")[:10]
+    if fecha_orden and fecha_resultado < fecha_orden:
+        return {"error": "La fecha del resultado no puede ser anterior a la orden"}
     pr = pruebas.obtener(str(o.get("id_prueba") or ""))
     if pr.get("error"):
         pr = {}
@@ -149,7 +153,7 @@ def cargar_resultado(id_orden: str, datos: dict) -> dict:
         "id_paciente": o.get("id_paciente") or "",
         "id_prueba": o.get("id_prueba") or "",
         "valor": valor, "unidad": unidad,
-        "fecha": str(datos.get("fecha") or _now()[:10]),
+        "fecha": fecha_resultado,
         "estado": "registrado",
     })
     ordenes.actualizar(id_orden, {"estado": "completada"})

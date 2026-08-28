@@ -22,6 +22,7 @@ ARCHIVO_PRINCIPAL = f"{MINIO_STAGE_PATH}diabcare_registros.parquet"
 ARCHIVO_DELTA = f"{MINIO_STAGE_PATH}diabcare_registros_delta.parquet"
 ARCHIVO_META = f"{MINIO_STAGE_PATH}.crud_meta.json"
 STATS_SNAPSHOT = f"{MINIO_STAGE_PATH}.diabcare_estadisticas_v3.json"
+CALIDAD_SNAPSHOT = f"{MINIO_STAGE_PATH}.diabcare_calidad_v1.json"
 RAZAS = ["race_AfricanAmerican", "race_Asian", "race_Caucasian", "race_Hispanic", "race_Other"]
 EDAD_BINS = [0, 20, 30, 40, 50, 60, 70, 200]
 EDAD_LABELS = ["<20", "20-30", "31-40", "41-50", "51-60", "61-70", "70+"]
@@ -38,7 +39,15 @@ STATS_COLS = [
 ] + RAZAS
 CHUNK_STATS = 250_000
 
-_cache = {"df": None, "fp": None, "stats": None, "stats_fp": None, "calidad": None, "calidad_fp": None}
+_cache = {
+    "df": None,
+    "fp": None,
+    "stats": None,
+    "stats_fp": None,
+    "calidad": None,
+    "calidad_fp": None,
+    "pacientes": {},
+}
 
 _GENERO_MAP: dict[str, str] = {}
 for _canon, _aliases in GENERO_CANON.items():
@@ -54,9 +63,11 @@ def invalidar_cache():
     _cache["stats_fp"] = None
     _cache["calidad"] = None
     _cache["calidad_fp"] = None
+    _cache["pacientes"] = {}
     # Snapshot de MinIO: borrar para que stats no resuciten con fingerprint viejo
     for snap in (
         STATS_SNAPSHOT,
+        CALIDAD_SNAPSHOT,
         f"{MINIO_STAGE_PATH}.diabcare_estadisticas_v2.json",
         f"{MINIO_STAGE_PATH}.diabcare_estadisticas.json",
     ):
@@ -158,8 +169,32 @@ def _guardar_snapshot(fp: str, payload: dict) -> None:
         pass
 
 
+def _leer_snapshot_calidad(fp: str) -> dict | None:
+    try:
+        obj = get_cliente().get_object(MINIO_BUCKET, CALIDAD_SNAPSHOT)
+        data = json.loads(obj.read())
+        if data.get("fp") == fp and isinstance(data.get("payload"), dict):
+            return data["payload"]
+    except Exception:
+        pass
+    return None
+
+
+def _guardar_snapshot_calidad(fp: str, payload: dict) -> None:
+    try:
+        body = json.dumps({"fp": fp, "payload": payload}, ensure_ascii=False).encode("utf-8")
+        get_cliente().put_object(MINIO_BUCKET, CALIDAD_SNAPSHOT, io.BytesIO(body), len(body))
+    except Exception:
+        pass
+
+
 def _extraer(force: bool = False) -> pd.DataFrame:
     from paquetes.dataset.DatasetServicio import fusionar_stage_dataframes
+
+    # Las escrituras del CRUD actualizan o invalidan esta caché. No consultar
+    # MinIO otra vez cuando el conjunto clínico ya está disponible en memoria.
+    if not force and _cache["df"] is not None:
+        return _cache["df"]
 
     fp = _fingerprint()
     if not fp:
@@ -296,6 +331,10 @@ def _cache_aplicar_upsert(rows: list[dict]) -> None:
     """Actualiza caché en memoria sin re-descargar MinIO."""
     if not rows:
         return
+    pacientes = _cache.setdefault("pacientes", {})
+    afectados = {str(row.get("id_paciente") or "").strip() for row in rows}
+    for key in [key for key in pacientes if key[0] in afectados]:
+        pacientes.pop(key, None)
     df = _cache.get("df")
     if df is None:
         # Evitar caché parcial (1 fila) que haría listar devolver total=1
@@ -318,6 +357,7 @@ def _cache_aplicar_upsert(rows: list[dict]) -> None:
 
 
 def _cache_aplicar_delete(encounter_id: int) -> None:
+    _cache["pacientes"] = {}
     df = _cache.get("df")
     if df is None:
         _cache["fp"] = None
@@ -454,6 +494,12 @@ def listar(limit: int = 50, offset: int = 0, filtros: dict = None) -> dict:
         for k in ("diabetes", "gender", "location", "age_min", "age_max", "q")
     )
     if filtros:
+        if filtros.get("solo_vinculados"):
+            if "id_paciente" not in df.columns:
+                df = df.iloc[0:0]
+            else:
+                ids = df["id_paciente"].fillna("").astype(str).str.strip()
+                df = df[ids.ne("") & ids.str.lower().ne("nan")]
         if filtros.get("diabetes") is not None:
             df = df[df["diabetes"] == filtros["diabetes"]]
         if filtros.get("gender"):
@@ -565,18 +611,29 @@ def crear(datos: dict) -> dict:
 
 
 def listar_por_paciente(id_paciente: str, limit: int = 50) -> dict:
+    pid = str(id_paciente)
+    cache_key = (pid, int(limit))
+    pacientes_cache = _cache.setdefault("pacientes", {})
+    if cache_key in pacientes_cache:
+        return pacientes_cache[cache_key]
+
     df = _extraer()
     if df.empty or "id_paciente" not in df.columns:
-        return {"consultas": [], "total": 0}
-    pid = str(id_paciente)
+        resultado = {"consultas": [], "total": 0}
+        pacientes_cache[cache_key] = resultado
+        return resultado
     sub = df[df["id_paciente"].astype(str) == pid]
     if sub.empty:
-        return {"consultas": [], "total": 0}
+        resultado = {"consultas": [], "total": 0}
+        pacientes_cache[cache_key] = resultado
+        return resultado
     total = len(sub)
     if total > 1:
         sub = sub.sort_values("encounter_id", ascending=False)
     rows = sub.head(limit).fillna("").to_dict(orient="records")
-    return {"consultas": [_serializar_registro(traducir_registro(r)) for r in rows], "total": total}
+    resultado = {"consultas": [_serializar_registro(traducir_registro(r)) for r in rows], "total": total}
+    pacientes_cache[cache_key] = resultado
+    return resultado
 
 def actualizar(encounter_id: int, cambios: dict) -> dict:
     df = _extraer()
@@ -908,6 +965,12 @@ def calidad_diabetes() -> dict:
     if _cache.get("calidad") is not None and _cache.get("calidad_fp") == fp:
         return _cache["calidad"]
 
+    snap = _leer_snapshot_calidad(fp)
+    if snap is not None:
+        _cache["calidad"] = snap
+        _cache["calidad_fp"] = fp
+        return snap
+
     df = _extraer()
     if df.empty or "diabetes" not in df.columns:
         out = {"total_registros": 0, "con_diabetes": 0}
@@ -1068,6 +1131,7 @@ def calidad_diabetes() -> dict:
     }
     _cache["calidad"] = out
     _cache["calidad_fp"] = fp
+    _guardar_snapshot_calidad(fp, out)
     return out
 
 

@@ -12,9 +12,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 </head>
 <body class="dc-uv">
 
@@ -28,13 +28,13 @@
   <div class="content">
     <div class="page-header">
       <div>
-        <div class="page-title">Registro <span>clínico</span></div>
-        <div class="page-sub">Consultas vinculadas a un paciente del expediente (HCE)</div>
+        <div class="page-title">Consultas <span>clínicas</span></div>
+        <div class="page-sub">Atención documentada y vinculada al expediente del paciente</div>
       </div>
       <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nueva consulta</button>
     </div>
 
-    <div class="stats-grid">
+    <div class="stats-grid" style="display:none!important">
       <div class="stat-card"><div class="stat-label">Total registros</div><div class="stat-value blue" id="st-total">-</div></div>
       <div class="stat-card"><div class="stat-label">Con diabetes</div><div class="stat-value red" id="st-con">-</div></div>
       <div class="stat-card"><div class="stat-label">Sin diabetes</div><div class="stat-value green" id="st-sin">-</div></div>
@@ -43,22 +43,13 @@
 
     <div class="tabla-card">
       <div class="tabla-top">
-        <span class="tabla-title">Registros</span>
+        <span class="tabla-title">Historial de consultas</span>
         <select class="search" id="f-diabetes" style="width:160px" onchange="cargar()">
           <option value="">Todos</option>
           <option value="1">Con diabetes</option>
           <option value="0">Sin diabetes</option>
         </select>
-        <select class="search" id="f-genero" style="width:130px" onchange="pag=1;cargar()">
-          <option value="">Género</option>
-          <option value="Femenino">Femenino</option>
-          <option value="Masculino">Masculino</option>
-          <option value="Otro">Otro</option>
-        </select>
-        <input class="search" id="f-paciente" type="search" autocomplete="off" placeholder="Escribe paciente…" style="width:180px">
-        <input class="search" id="f-ubicacion" type="search" autocomplete="off" placeholder="Ubicación" style="width:140px">
-        <input class="search" id="f-edad-min" type="number" placeholder="Edad min" style="width:90px" min="0">
-        <input class="search" id="f-edad-max" type="number" placeholder="Edad max" style="width:90px" min="0">
+        <input class="search" id="f-paciente" type="search" autocomplete="off" placeholder="Buscar paciente, cédula o consulta…" style="min-width:280px;flex:1">
         <button class="btn btn-primary btn-sm" onclick="pag=1;cargar()">Filtrar</button>
         <span class="tabla-info" id="info">-</span>
       </div>
@@ -94,14 +85,20 @@
         </select>
       </label>
       <label class="span-full">Ubicación / sede<input id="m-location"></label>
-      <label>BMI<input id="m-bmi" type="number" step="0.1"></label>
-      <label>HbA1c<input id="m-hba" type="number" step="0.1"></label>
-      <label>Glucosa<input id="m-glc" type="number"></label>
+      <label class="span-full">Motivo de consulta<input id="m-motivo" maxlength="240" placeholder="Ej. control metabólico, mareos, dolor de pie"></label>
+      <label class="span-full">Síntomas y evolución<textarea id="m-sintomas" rows="2" placeholder="Síntomas referidos y tiempo de evolución"></textarea></label>
+      <label class="span-full">Diagnóstico o impresión clínica<textarea id="m-diagnostico" rows="2" placeholder="Diagnóstico principal y condiciones relacionadas"></textarea></label>
+      <label class="span-full">Plan y tratamiento<textarea id="m-tratamiento" rows="2" placeholder="Indicaciones, medicación, cuidados y seguimiento"></textarea></label>
+      <label>BMI<input id="m-bmi" type="number" min="10" max="100" step="0.1"></label>
+      <label>HbA1c (%)<input id="m-hba" type="number" min="2" max="25" step="0.1"></label>
+      <label>Glucosa (mg/dL)<input id="m-glc" type="number" min="20" max="1000" step="1"></label>
       <label>Diabetes
         <select id="m-diabetes"><option value="0">No</option><option value="1">Sí</option></select>
       </label>
+      <label>Próximo control<input id="m-proximo-control" type="date"></label>
+      <label class="span-full">Observaciones<textarea id="m-observaciones" rows="2" placeholder="Alertas, acuerdos y datos adicionales"></textarea></label>
       <p class="span-full" style="margin:0;font-size:12px;color:var(--text2);line-height:1.4">
-        La consulta queda ligada al expediente del paciente. Edad, género y sede se rellenan al elegirlo; puedes ajustar BMI, HbA1c y glucosa de esta visita.
+        La consulta queda ligada al expediente del paciente y aparecerá en su historial clínico.
       </p>
     </div>
     <div class="modal-footer">
@@ -117,7 +114,7 @@ DiabCareNav.guardRol(['administrador', 'medico']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 let pag = 1, totalPags = 1;
-const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 12;
+const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 9;
 let _rowsCache = [];
 let _totalRows = 0;
 let _pacTA = null;
@@ -141,13 +138,13 @@ function toast(msg, type = 'success') {
 
 function fmtFecha(r) {
   const raw = r.fecha ?? r.created_at ?? r.encounter_date ?? r.year ?? '';
-  if (raw === null || raw === undefined || raw === '') return '—';
+  if (raw === null || raw === undefined || raw === '') return '-';
   if (typeof raw === 'number' && Number.isFinite(raw)) {
     const n = Math.round(raw);
-    return (n >= 1900 && n <= 2100) ? String(n) : '—';
+    return (n >= 1900 && n <= 2100) ? String(n) : '-';
   }
   const s = String(raw).trim();
-  if (!s || s === 'nan' || s === 'None' || s === 'NaT' || s === 'NaN') return '—';
+  if (!s || s === 'nan' || s === 'None' || s === 'NaT' || s === 'NaN') return '-';
   const num = Number(s);
   if (Number.isFinite(num) && num >= 1900 && num <= 2100) return String(Math.round(num));
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
@@ -155,19 +152,19 @@ function fmtFecha(r) {
   return s.length >= 10 ? s.slice(0, 10) : s;
 }
 function fmtEntero(v) {
-  if (v === null || v === undefined || v === '') return '—';
+  if (v === null || v === undefined || v === '') return '-';
   const n = Number(v);
-  return Number.isFinite(n) ? String(Math.round(n)) : '—';
+  return Number.isFinite(n) ? String(Math.round(n)) : '-';
 }
 function fmtDecimal(v, d = 1) {
-  if (v === null || v === undefined || v === '') return '—';
+  if (v === null || v === undefined || v === '') return '-';
   const n = Number(v);
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '-';
   return (Math.round(n * 10 ** d) / 10 ** d).toFixed(d);
 }
 function fmtTitulo(v) {
   const s = String(v || '').trim();
-  if (!s) return '—';
+  if (!s) return '-';
   return s.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
 
@@ -175,24 +172,10 @@ async function cargar() {
   document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
   try {
     const diabetes = document.getElementById('f-diabetes').value;
-    const genero   = document.getElementById('f-genero').value;
-    const ubicacion = document.getElementById('f-ubicacion').value.trim();
     const paciente = document.getElementById('f-paciente').value.trim();
-    const edadMin  = document.getElementById('f-edad-min').value;
-    const edadMax  = document.getElementById('f-edad-max').value;
-    if (edadMin && Number(edadMin) < 0) { toast('La edad mínima no puede ser negativa.', 'error'); return; }
-    if (edadMax && Number(edadMax) < 0) { toast('La edad máxima no puede ser negativa.', 'error'); return; }
-    if (edadMin && edadMax && Number(edadMax) < Number(edadMin)) {
-      toast('La edad máxima no puede ser menor que la mínima.', 'error');
-      return;
-    }
-    let url = `${API}/api/registros/?offset=${(pag-1)*LIMIT}&limit=${LIMIT}`;
+    let url = `${API}/api/registros/?offset=${(pag-1)*LIMIT}&limit=${LIMIT}&solo_vinculados=true`;
     if (diabetes !== '') url += `&diabetes=${diabetes}`;
-    if (genero)          url += `&gender=${encodeURIComponent(genero)}`;
-    if (ubicacion)       url += `&location=${encodeURIComponent(ubicacion)}`;
     if (paciente)        url += `&q=${encodeURIComponent(paciente)}`;
-    if (edadMin)         url += `&age_min=${edadMin}`;
-    if (edadMax)         url += `&age_max=${edadMax}`;
 
     const rData = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
     if (rData.status === 401) { window.location.href = '/'; return; }
@@ -206,14 +189,19 @@ async function cargar() {
     const from = _totalRows ? (pag - 1) * LIMIT + 1 : 0;
     const to = Math.min(pag * LIMIT, _totalRows);
     document.getElementById('pagInfo').textContent  = _totalRows
-      ? `${from}–${to} de ${_totalRows.toLocaleString('es-ES')} · Pág ${pag} / ${totalPags}`
+      ? `${from}-${to} de ${_totalRows.toLocaleString('es-ES')} - Pág ${pag} / ${totalPags}`
       : `Pág ${pag} / ${totalPags}`;
     document.getElementById('info').textContent     = `${_totalRows.toLocaleString('es-ES')} coincidencias`;
 
     const rows = data.registros || [];
     _rowsCache = rows;
     if (!rows.length) {
-      document.getElementById('tablaBody').innerHTML = '<div class="loading">Sin registros con esos filtros</div>';
+      document.getElementById('tablaBody').innerHTML = `
+        <div class="loading" style="min-height:150px;display:grid;place-content:center;gap:10px;text-align:center">
+          <strong>${paciente || diabetes !== '' ? 'No hay consultas que coincidan' : 'Aún no hay consultas clínicas'}</strong>
+          <span>${paciente || diabetes !== '' ? 'Prueba con otra búsqueda.' : 'Registra la primera atención y quedará vinculada al expediente.'}</span>
+          ${paciente || diabetes !== '' ? '' : '<button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nueva consulta</button>'}
+        </div>`;
       return;
     }
     const body = document.getElementById('tablaBody');
@@ -221,15 +209,13 @@ async function cargar() {
       rows,
       idField: 'encounter_id',
       columns: [
-        { key: 'paciente_nombre', label: 'Paciente', title: true, render: r => r.paciente_nombre || '—' },
-        { key: 'diabetes', label: 'Diabetes', badge: true, render: r => r.diabetes == 1 ? 'Sí' : 'No' },
+        { key: 'paciente_nombre', label: 'Paciente', title: true, render: r => r.paciente_nombre || '-' },
         { key: 'fecha', label: 'Fecha', render: r => fmtFecha(r) },
-        { key: 'age', label: 'Edad', render: r => fmtEntero(r.age) },
-        { key: 'gender', label: 'Género', render: r => fmtTitulo(r.gender) },
-        { key: 'location', label: 'Ubicación', render: r => fmtTitulo(r.location).substring(0, 24) },
-        { key: 'bmi', label: 'BMI', render: r => fmtDecimal(r.bmi, 1) },
-        { key: 'hbA1c_level', label: 'HbA1c', render: r => fmtDecimal(r.hbA1c_level, 1) },
-        { key: 'blood_glucose_level', label: 'Glucosa', render: r => fmtEntero(r.blood_glucose_level) },
+        { key: 'motivo_consulta', label: 'Motivo', render: r => r.motivo_consulta || '-' },
+        { key: 'diagnostico', label: 'Diagnóstico', render: r => r.diagnostico || '-' },
+        { key: 'medico_nombre', label: 'Profesional', render: r => r.medico_nombre || '-' },
+        { key: 'proximo_control', label: 'Próximo control', render: r => fmtFecha({ fecha: r.proximo_control }) },
+        { key: 'diabetes', label: 'Estado', badge: true, render: r => r.diabetes == 1 ? 'Diabetes' : 'Sin diabetes' },
       ],
       actionsHtml: (_r, id) =>
         `<button type="button" class="btn btn-ghost btn-sm" data-edit="${id}">Editar</button>` +
@@ -247,6 +233,7 @@ async function cargar() {
 }
 
 async function cargarEstadisticas() {
+  if (document.querySelector('.stats-grid')?.style.display === 'none') return;
   try {
     const r = await fetch(`${API}/api/registros/estadisticas`, { headers: { 'Authorization': 'Bearer ' + token } });
     if (!r.ok) return;
@@ -260,6 +247,10 @@ function prevPag() { if (pag > 1) { pag--; cargar(); } }
 function nextPag() { if (pag < totalPags) { pag++; cargar(); } }
 
 function abrirModal(reg) {
+  if (reg && !reg.id_paciente) {
+    toast('Esta consulta no está vinculada a un paciente y no puede editarse desde la HCE.', 'error');
+    return;
+  }
   document.getElementById('modal-reg').style.display = 'flex';
   document.getElementById('modal-titulo').textContent = reg ? 'Editar consulta' : 'Nueva consulta';
   document.getElementById('f-id').value = reg?.encounter_id || '';
@@ -277,10 +268,17 @@ function abrirModal(reg) {
   document.getElementById('m-age').value = reg?.age != null ? Math.round(Number(reg.age)) : '';
   document.getElementById('m-gender').value = reg?.gender || 'Femenino';
   document.getElementById('m-location').value = reg?.location ? fmtTitulo(reg.location) : '';
+  document.getElementById('m-motivo').value = reg?.motivo_consulta || '';
+  document.getElementById('m-sintomas').value = reg?.sintomas || '';
+  document.getElementById('m-diagnostico').value = reg?.diagnostico || '';
+  document.getElementById('m-tratamiento').value = reg?.tratamiento || '';
   document.getElementById('m-bmi').value = reg?.bmi != null ? Number(reg.bmi).toFixed(1) : '';
   document.getElementById('m-hba').value = reg?.hbA1c_level != null ? Number(reg.hbA1c_level).toFixed(1) : '';
   document.getElementById('m-glc').value = reg?.blood_glucose_level != null ? Math.round(Number(reg.blood_glucose_level)) : '';
   document.getElementById('m-diabetes').value = String(reg?.diabetes ?? 0);
+  document.getElementById('m-proximo-control').value = reg?.proximo_control || '';
+  document.getElementById('m-proximo-control').min = new Date().toISOString().slice(0, 10);
+  document.getElementById('m-observaciones').value = reg?.observaciones || '';
   if (!reg?.id_paciente) setTimeout(() => document.getElementById('m-paciente-q').focus(), 50);
 }
 function cerrarModal() { document.getElementById('modal-reg').style.display = 'none'; }
@@ -299,10 +297,18 @@ async function guardarRegistro() {
   const bmi = Math.round((parseFloat(document.getElementById('m-bmi').value) || 0) * 10) / 10;
   const hba = Math.round((parseFloat(document.getElementById('m-hba').value) || 0) * 10) / 10;
   const glc = Math.round(parseFloat(document.getElementById('m-glc').value) || 0);
+  const motivo = document.getElementById('m-motivo').value.trim();
+  const diagnostico = document.getElementById('m-diagnostico').value.trim();
+  const proximoControl = document.getElementById('m-proximo-control').value;
   if (!age || age < 1) { toast('Indique la edad', 'error'); return; }
-  if (!(bmi > 0) || !(hba > 0) || !(glc > 0)) {
-    toast('Complete BMI, HbA1c y glucosa de esta visita', 'error');
-    return;
+  if (age > 120) { toast('La edad debe estar entre 1 y 120 años', 'error'); return; }
+  if (!motivo) { toast('Indique el motivo de la consulta', 'error'); return; }
+  if (!diagnostico) { toast('Documente el diagnóstico o impresión clínica', 'error'); return; }
+  if (bmi < 10 || bmi > 100) { toast('El BMI debe estar entre 10 y 100', 'error'); return; }
+  if (hba < 2 || hba > 25) { toast('La HbA1c debe estar entre 2 y 25%', 'error'); return; }
+  if (glc < 20 || glc > 1000) { toast('La glucosa debe estar entre 20 y 1000 mg/dL', 'error'); return; }
+  if (proximoControl && proximoControl < new Date().toISOString().slice(0, 10)) {
+    toast('El próximo control no puede quedar en una fecha pasada', 'error'); return;
   }
   const body = {
     id_paciente: idPaciente,
@@ -313,6 +319,12 @@ async function guardarRegistro() {
     hbA1c_level: hba,
     blood_glucose_level: glc,
     diabetes: parseInt(document.getElementById('m-diabetes').value, 10),
+    motivo_consulta: motivo,
+    sintomas: document.getElementById('m-sintomas').value.trim(),
+    diagnostico,
+    tratamiento: document.getElementById('m-tratamiento').value.trim(),
+    observaciones: document.getElementById('m-observaciones').value.trim(),
+    proximo_control: proximoControl || null,
     year: new Date().getFullYear(),
     hypertension: 0, heart_disease: 0, smoking_history: 'never',
   };
@@ -332,7 +344,15 @@ async function guardarRegistro() {
       return;
     }
     cerrarModal();
-    toast(id ? 'Consulta actualizada' : `Consulta guardada${d.paciente_nombre ? ' · ' + d.paciente_nombre : ''}`);
+    toast(id ? 'Consulta actualizada' : `Consulta guardada${d.paciente_nombre ? ' - ' + d.paciente_nombre : ''}`);
+    if (!id && d.encounter_id) {
+      const qs = new URLSearchParams({
+        encounter_id: String(d.encounter_id), id_paciente: idPaciente,
+        paciente: d.paciente_nombre || document.getElementById('m-paciente-q').value || 'Paciente'
+      });
+      location.href = `/paginas/negocio/recetas/index.html?${qs.toString()}`;
+      return;
+    }
     cargar(); cargarEstadisticas();
   } catch {
     toast('Error de conexión. ¿Está el backend / MinIO activos?', 'error');
@@ -363,10 +383,6 @@ async function eliminarReg(id) {
 cargarEstadisticas();
 DiabCareAPI.bindLiveSearch({
   input: document.getElementById('f-paciente'),
-  onSearch: () => { pag = 1; cargar(); },
-});
-DiabCareAPI.bindLiveSearch({
-  input: document.getElementById('f-ubicacion'),
   onSearch: () => { pag = 1; cargar(); },
 });
 cargar();

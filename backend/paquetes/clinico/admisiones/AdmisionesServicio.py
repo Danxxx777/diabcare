@@ -15,6 +15,74 @@ COLUMNAS = [
 ESTADOS = {"programada", "activa", "alta", "cancelada"}
 TIPOS = {"ambulatoria", "urgencia", "hospitalizacion"}
 VIAS = {"propia", "ambulancia", "referido"}
+CAMAS = [f"H-{piso}{numero:02d}" for piso in (1, 2) for numero in range(1, 7)]
+
+
+def listar_camas() -> dict:
+    df = _extraer(copiar=False)
+    ocupadas = {}
+    por_admision = {}
+    try:
+        from paquetes.instrumental import InstrumentalServicio as instrumental
+        for item in instrumental.listar(limit=500, estado="asignado").get("instrumentos", []):
+            aid = str(item.get("id_admision") or "")
+            if aid:
+                por_admision.setdefault(aid, []).append(str(item.get("nombre") or item.get("codigo") or "Equipo"))
+    except Exception:
+        pass
+    fuera_catalogo = 0
+    if not df.empty:
+        activas = df[(df["estado"].astype(str) == "activa") & df["habitacion"].astype(str).ne("")]
+        for _, fila in activas.iterrows():
+            codigo = str(fila.get("habitacion") or "").strip()
+            if codigo not in CAMAS:
+                # Camas historicas o de otra sede: no restan al catalogo local
+                fuera_catalogo += 1
+                continue
+            aid = str(fila.get("id_admision") or "")
+            equipos = por_admision.get(aid, [])
+            ocupadas[codigo] = {
+                "id_admision": aid, "id_paciente": str(fila.get("id_paciente") or ""),
+                "paciente": str(fila.get("paciente_nombre") or ""),
+                "servicio": str(fila.get("servicio") or ""),
+                "medico": str(fila.get("medico_nombre") or ""),
+                "dias": _dias_estancia(fila.get("fecha_ingreso")),
+                "instrumental_total": len(equipos), "instrumental": equipos,
+            }
+    camas = [{"codigo": c, "piso": c[2], "estado": "ocupada" if c in ocupadas else "disponible", **ocupadas.get(c, {})} for c in CAMAS]
+    return {
+        "total": len(camas), "ocupadas": len(ocupadas),
+        "disponibles": len(camas) - len(ocupadas),
+        "fuera_catalogo": fuera_catalogo, "camas": camas,
+    }
+
+
+def _dias_estancia(fecha_ingreso) -> int:
+    texto = str(fecha_ingreso or "")[:10]
+    try:
+        return max(0, (datetime.now().date() - datetime.strptime(texto, "%Y-%m-%d").date()).days)
+    except ValueError:
+        return 0
+
+
+def _validar_cama(datos: dict, df: pd.DataFrame, excluir_id: str = "") -> str:
+    tipo = str(datos.get("tipo") or "ambulatoria")
+    estado = str(datos.get("estado") or "activa")
+    cama = str(datos.get("habitacion") or "").strip()
+    # Una hospitalizacion activa SI puede estar sin cama: queda "pendiente de cama"
+    # y aparece en la lista de espera del modulo de habitaciones, que es quien
+    # asigna. Obligar aqui a elegir cama repartia el flujo entre dos pantallas.
+    if cama and tipo != "hospitalizacion":
+        return "Solo una hospitalización puede tener una cama asignada"
+    if cama and cama not in CAMAS:
+        return "La cama seleccionada no pertenece al catálogo"
+    if cama and estado == "activa" and not df.empty:
+        ocupada = df[(df["estado"].astype(str) == "activa") & (df["habitacion"].astype(str) == cama)]
+        if excluir_id:
+            ocupada = ocupada[ocupada["id_admision"].astype(str) != str(excluir_id)]
+        if not ocupada.empty:
+            return f"La cama {cama} ya está ocupada"
+    return ""
 
 
 def _extraer(copiar: bool = True) -> pd.DataFrame:
@@ -43,15 +111,22 @@ def _enriquecer_paciente(datos: dict) -> dict:
 
 
 def resumen() -> dict:
+    vacio = {"total": 0, "activas": 0, "internados": 0, "altas": 0, "ingresos_hoy": 0}
     df = _extraer(copiar=False)
     if df.empty:
-        return {"total": 0, "activas": 0, "altas": 0}
+        return vacio
     activas = int((df["estado"] == "activa").sum()) if "estado" in df.columns else 0
     altas = int((df["estado"] == "alta").sum()) if "estado" in df.columns else 0
-    return {"total": len(df), "activas": activas, "altas": altas}
+    internados = int(((df["estado"] == "activa") & (df["tipo"] == "hospitalizacion")).sum()) if "tipo" in df.columns else 0
+    hoy = datetime.now().strftime("%Y-%m-%d")
+    ingresos_hoy = int(df["fecha_ingreso"].astype(str).str[:10].eq(hoy).sum()) if "fecha_ingreso" in df.columns else 0
+    return {
+        "total": len(df), "activas": activas, "internados": internados,
+        "altas": altas, "ingresos_hoy": ingresos_hoy,
+    }
 
 
-def listar(offset: int = 0, limit: int = 50, estado: str = "", q: str = "") -> dict:
+def listar(offset: int = 0, limit: int = 50, estado: str = "", q: str = "", tipo: str = "") -> dict:
     from nucleo.utilidades.Busqueda import rankear_dataframe
 
     df = _extraer(copiar=False)
@@ -59,6 +134,8 @@ def listar(offset: int = 0, limit: int = 50, estado: str = "", q: str = "") -> d
         return {"total": 0, "admisiones": []}
     if estado:
         df = df[df["estado"] == estado]
+    if tipo:
+        df = df[df["tipo"] == tipo]
     if q:
         df = rankear_dataframe(
             df, q,
@@ -116,6 +193,10 @@ def crear(datos: dict) -> dict:
     estado = str(datos.get("estado") or "activa")
     if estado not in ESTADOS:
         return {"error": f"estado inválido. Use: {', '.join(sorted(ESTADOS))}"}
+    df = _extraer()
+    error_cama = _validar_cama({**datos, "tipo": tipo, "estado": estado}, df)
+    if error_cama:
+        return {"error": error_cama}
     now = datetime.utcnow().isoformat()
     ingreso = str(datos.get("fecha_ingreso") or now[:10])
     egreso = str(datos.get("fecha_egreso") or "")
@@ -142,7 +223,6 @@ def crear(datos: dict) -> dict:
         "creado_en": now,
         "actualizado_en": now,
     }
-    df = _extraer()
     _cargar(pd.concat([df, pd.DataFrame([nuevo])], ignore_index=True))
     try:
         from paquetes.notificaciones.NotificacionesServicio import emitir_a_roles
@@ -183,9 +263,29 @@ def actualizar(id_admision: str, cambios: dict) -> dict:
     err_f = rango_fechas_ok(ingreso, egreso)
     if err_f:
         return {"error": err_f}
+    actual = df.fillna("").loc[idx[0]].to_dict()
+    candidato = {**actual, **cambios}
+    if str(candidato.get("estado")) in ("alta", "cancelada"):
+        from paquetes.instrumental import InstrumentalServicio as instrumental
+        equipos = instrumental.asignados_admision(id_admision).get("instrumentos", [])
+        if equipos:
+            return {"error": f"Devuelva el instrumental asignado antes de cerrar la hospitalización ({len(equipos)} pendiente(s))"}
+    if str(candidato.get("estado")) in ("alta", "cancelada") or str(candidato.get("tipo")) != "hospitalizacion":
+        cambios["habitacion"] = ""
+        if str(candidato.get("estado")) == "alta" and not cambios.get("fecha_egreso"):
+            cambios["fecha_egreso"] = datetime.utcnow().date().isoformat()
+        candidato = {**candidato, **cambios}
+    error_cama = _validar_cama(candidato, df, excluir_id=id_admision)
+    if error_cama:
+        return {"error": error_cama}
     for k, v in cambios.items():
         if k in COLUMNAS and k not in ("id_admision", "creado_en"):
             df.at[idx[0], k] = v
     df.at[idx[0], "actualizado_en"] = datetime.utcnow().isoformat()
     _cargar(df)
+    habitacion_anterior = str(actual.get("habitacion") or "")
+    habitacion_nueva = str(candidato.get("habitacion") or "")
+    if habitacion_nueva and habitacion_nueva != habitacion_anterior:
+        from paquetes.instrumental import InstrumentalServicio as instrumental
+        instrumental.reubicar_por_admision(id_admision, habitacion_nueva)
     return {"mensaje": "Admisión actualizada", "id_admision": id_admision}

@@ -2,6 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional
+import base64
+import io
+import secrets
+import time
 
 from nucleo.utilidades.Dependencias import require_modulo, auth_desde_request, PERMISOS_MODULOS
 from paquetes.clinico.pacientes.PacientesServicio import (
@@ -10,6 +14,13 @@ from paquetes.clinico.pacientes.PacientesServicio import (
 from paquetes.registros_clinicos.RegistrosClinicosServicio import listar_por_paciente
 
 router = APIRouter(prefix="/api/pacientes", tags=["Pacientes"])
+_foto_movil: dict[str, dict] = {}
+
+
+def _limpiar_fotos_moviles() -> None:
+    ahora = time.time()
+    for token in [k for k, v in _foto_movil.items() if ahora - v.get("creado", 0) > 900]:
+        _foto_movil.pop(token, None)
 
 
 def _usuario(payload: dict) -> str:
@@ -61,6 +72,74 @@ class PacienteActualizar(BaseModel):
     sede: Optional[str] = None
     estado: Optional[str] = None
     notas: Optional[str] = None
+
+
+@router.post("/foto-movil/sesiones")
+def crear_sesion_foto_movil(request: Request, payload: dict = Depends(require_modulo("pacientes"))):
+    from nucleo.utilidades.UrlPublica import base_publica, alcance_url
+    import qrcode
+
+    _limpiar_fotos_moviles()
+    token = secrets.token_urlsafe(24)
+    _foto_movil[token] = {"creado": time.time(), "contenido": None, "mime_type": ""}
+    base = base_publica(str(request.base_url).rstrip("/"))
+    url = f"{base}/paginas/clinico/pacientes/foto-movil.html?token={token}"
+    qr = qrcode.QRCode(version=3, box_size=5, border=2)
+    qr.add_data(url)
+    qr.make(fit=True)
+    salida = io.BytesIO()
+    qr.make_image(fill_color="black", back_color="white").save(salida, format="PNG")
+    return {
+        "token": token,
+        "url": url,
+        "qr_png": "data:image/png;base64," + base64.b64encode(salida.getvalue()).decode("ascii"),
+        "alcance": alcance_url(base),
+    }
+
+
+@router.post("/foto-movil/{token}")
+async def recibir_foto_movil(token: str, archivo: UploadFile = File(...)):
+    _limpiar_fotos_moviles()
+    sesion = _foto_movil.get(token)
+    if not sesion:
+        raise HTTPException(status_code=404, detail="Enlace vencido")
+    contenido = await archivo.read()
+    if not contenido or len(contenido) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Foto vacía o mayor a 8 MB")
+    mime = archivo.content_type or "image/jpeg"
+    if mime not in ("image/jpeg", "image/png", "image/webp"):
+        raise HTTPException(status_code=400, detail="Formato de imagen no permitido")
+    sesion.update({"contenido": contenido, "mime_type": mime})
+    return {"mensaje": "Foto recibida"}
+
+
+@router.get("/foto-movil/{token}/estado")
+def estado_foto_movil(token: str, payload: dict = Depends(require_modulo("pacientes"))):
+    _limpiar_fotos_moviles()
+    sesion = _foto_movil.get(token)
+    if not sesion:
+        raise HTTPException(status_code=404, detail="Enlace vencido")
+    contenido = sesion.get("contenido")
+    return {
+        "recibida": bool(contenido),
+        "foto": (f"data:{sesion['mime_type']};base64," + base64.b64encode(contenido).decode("ascii")) if contenido else "",
+    }
+
+
+@router.post("/foto-movil/{token}/asignar/{id_paciente}")
+def asignar_foto_movil(token: str, id_paciente: str, payload: dict = Depends(require_modulo("pacientes"))):
+    from paquetes.clinico.pacientes.FotosEntidadServicio import guardar_foto
+    _limpiar_fotos_moviles()
+    sesion = _foto_movil.get(token)
+    if not sesion or not sesion.get("contenido"):
+        raise HTTPException(status_code=400, detail="El celular todavía no envió la foto")
+    if "error" in obtener(id_paciente):
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    res = guardar_foto("paciente", id_paciente, sesion["contenido"], sesion["mime_type"], _usuario(payload))
+    if res.get("error"):
+        raise HTTPException(status_code=400, detail=res["error"])
+    _foto_movil.pop(token, None)
+    return res
 
 
 @router.get("/resumen")

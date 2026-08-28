@@ -7,11 +7,11 @@
 <link rel="icon" href="/estaticos/img/favicon.ico" sizes="32x32">
 <link rel="icon" href="/estaticos/img/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
-<link rel="stylesheet" href="/estaticos/uiverse-app.css?v=contrast-1">
+<link rel="stylesheet" href="/estaticos/uiverse-app.css?v=home-focus-21">
 <script src="/estaticos/iconos.js?v=uv-13"></script>
-<script src="/estaticos/i18n.js?v=uv-13"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js?v=uv-13"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 </head>
 <body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
@@ -23,27 +23,36 @@
   <div class="content">
     <div class="uv-home">
       <header class="uv-mast">
-        <div class="mod-clinico uv-hero-art" id="home-art" aria-hidden="true"></div>
         <div class="uv-hero-copy">
-          <p class="uv-kicker"><span id="home-rol">—</span><span class="uv-kicker-dot" aria-hidden="true"></span><span id="home-fecha"></span></p>
+          <p class="uv-kicker"><span id="home-rol">-</span><span class="uv-kicker-dot" aria-hidden="true"></span><span id="home-fecha"></span></p>
           <h1 id="home-greet">Hoy</h1>
           <p class="uv-lead" id="home-lead" data-i18n="home_lead">Turno de hoy: agenda, cola y avisos.</p>
         </div>
         <div class="uv-pulse" id="home-pulse" hidden aria-live="polite"></div>
       </header>
+      <section class="uv-guide" aria-labelledby="home-actions-title">
+        <header class="uv-guide-head">
+          <div>
+            <p class="uv-guide-kicker" data-i18n="home_actions_kicker">Empieza por aquí</p>
+            <h2 id="home-actions-title" data-i18n="home_actions_title">¿Qué necesitas hacer?</h2>
+          </div>
+          <p data-i18n="home_actions_help">Elige una tarea y DiabCare te llevará al lugar correcto.</p>
+        </header>
+        <div class="uv-actions" id="home-actions"></div>
+      </section>
       <div class="uv-cols">
         <div class="uv-stack">
           <section class="uv-panel" id="panel-agenda">
             <header>
               <h2><span class="uv-panel-ico" id="home-ico-citas" aria-hidden="true"></span><span data-i18n="home_hoy_agenda">Agenda de hoy</span><span class="uv-count" id="home-n-citas" hidden></span></h2>
-              <a id="home-citas-link" href="/paginas/clinico/agenda/index.html" data-i18n="home_ver">Abrir</a>
+              <a id="home-citas-link" href="/paginas/clinico/agenda/index.html" data-i18n="home_ver_agenda">Ver agenda</a>
             </header>
             <div class="uv-list" id="home-citas"></div>
           </section>
           <section class="uv-panel uv-panel--fill" id="panel-cola">
             <header>
               <h2><span class="uv-panel-ico" id="home-ico-cola" aria-hidden="true"></span><span data-i18n="home_hoy_cola">Cola de urgencias</span><span class="uv-count" id="home-n-cola" hidden></span></h2>
-              <a href="/paginas/clinico/urgencias/index.html" data-i18n="home_ver">Abrir</a>
+              <a href="/paginas/clinico/urgencias/index.html" data-i18n="home_ver_urgencias">Atender cola</a>
             </header>
             <div class="uv-list" id="home-cola"></div>
           </section>
@@ -51,7 +60,7 @@
         <section class="uv-panel uv-panel--fill">
           <header>
             <h2><span class="uv-panel-ico" id="home-ico-avisos" aria-hidden="true"></span><span data-i18n="home_hoy_avisos">Avisos</span><span class="uv-count" id="home-n-avisos" hidden></span></h2>
-            <a href="/paginas/seguridad/notificaciones/index.html" data-i18n="home_ver">Abrir</a>
+            <a href="/paginas/seguridad/notificaciones/index.html" data-i18n="home_ver_avisos">Revisar avisos</a>
           </header>
           <div class="uv-list" id="home-avisos"></div>
         </section>
@@ -111,12 +120,20 @@ function pintarCabecera() {
   try {
     const u = JSON.parse(localStorage.getItem('usuario') || '{}');
     const nombre = String(u.nombre || u.usuario || '').trim().split(/\s+/)[0] || 'DiabCare';
+    const rol = String(u.rol || '').toLowerCase();
     const rolEl = document.getElementById('home-rol');
     if (rolEl) rolEl.textContent = DiabCareNav.etiquetaRol(u.rol || '');
     const greet = document.getElementById('home-greet');
     if (greet) greet.innerHTML = `${t(saludoClave())}, <em>${esc(nombre)}</em>`;
-    const art = document.getElementById('home-art');
-    if (art && window.DiabCareIcons) art.innerHTML = DiabCareIcons.ilustracion('diabetes');
+    const lead = document.getElementById('home-lead');
+    if (lead) {
+      const leadKey = rol === 'farmaceutico' ? 'home_lead_farm'
+        : rol === 'analista' ? 'home_lead_analista'
+          : rol === 'medico' ? 'home_lead_medico'
+            : rol === 'enfermero' ? 'home_lead_enfermero'
+              : 'home_lead';
+      lead.textContent = t(leadKey);
+    }
     const icoCitas = document.getElementById('home-ico-citas');
     const icoAvisos = document.getElementById('home-ico-avisos');
     const icoCola = document.getElementById('home-ico-cola');
@@ -133,6 +150,25 @@ function pintarCabecera() {
   } catch (err) {
     console.error('cabecera', err);
   }
+}
+
+function pintarAcciones() {
+  const host = document.getElementById('home-actions');
+  if (!host) return;
+  const acciones = (DiabCareNav.accionesEscritorio() || []).slice(0, 4);
+  if (!acciones.length) {
+    host.innerHTML = `<p class="uv-actions-empty">${esc(t('home_actions_empty'))}</p>`;
+    return;
+  }
+  host.innerHTML = acciones.map((a, i) => `
+    <a class="uv-action${i === 0 ? ' is-primary' : ''}" href="${esc(a.href)}">
+      <span class="uv-action-ico" aria-hidden="true">${ico(a.icon)}</span>
+      <span class="uv-action-copy">
+        <strong>${esc(t(a.labelKey))}</strong>
+        <small>${esc(t(a.hintKey))}</small>
+      </span>
+      <span class="uv-action-go" aria-hidden="true">›</span>
+    </a>`).join('');
 }
 
 function ico(name) {
@@ -213,8 +249,8 @@ function pintarCitas(datos) {
   }
   if (panel) panel.classList.remove('is-compact');
   host.innerHTML = rows.map((c) => {
-    const hora = esc(c.hora || '—');
-    const nom = esc(c.paciente_nombre || c.id_paciente || '—');
+    const hora = esc(c.hora || '-');
+    const nom = esc(c.paciente_nombre || c.id_paciente || '-');
     const est = esc(c.estado || '');
     return `<a class="uv-row" href="${esc(datos.citasHref)}">
       <span class="uv-row-ico">${ico('citas')}</span>
@@ -247,8 +283,8 @@ function pintarCola(datos) {
   }
   const href = '/paginas/clinico/urgencias/index.html';
   host.innerHTML = crudas.map((u) => {
-    const tri = esc(String(u.triage || '—').toUpperCase());
-    const nom = esc(u.paciente_nombre || u.documento || '—');
+    const tri = esc(String(u.triage || '-').toUpperCase());
+    const nom = esc(u.paciente_nombre || u.documento || '-');
     const mot = esc(u.motivo || u.estado_label || u.estado || '');
     return `<a class="uv-row uv-aviso" href="${href}">
       <span class="uv-badge">${tri}</span>
@@ -327,6 +363,7 @@ async function cargarHoy() {
 
 function pintarEscritorio() {
   pintarCabecera();
+  pintarAcciones();
 }
 
 pintarEscritorio();

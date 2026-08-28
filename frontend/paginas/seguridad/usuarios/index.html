@@ -10,9 +10,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 <style>
 .u-tabla-wrap { background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
 .u-tabla-top  { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
@@ -75,13 +75,13 @@ html[data-tema="claro"] .fi, html[data-tema="claro"] .fs { background:var(--uv-c
   <div class="content">
     <div class="page-header">
       <div>
-        <div class="page-title">Gestin de <span>usuarios</span></div>
-        <div class="page-sub">Administra usuarios, roles y accesos del sistema</div>
+        <div class="page-title">Cuentas y <span>Accesos</span></div>
+        <div class="page-sub">RR. HH. registra al personal; aquí se revisan cuentas, roles y sesiones</div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Nuevo usuario</button>
+      <a class="btn btn-primary btn-sm" href="/paginas/negocio/rrhh/index.html">Abrir RR. HH.</a>
     </div>
 
-    <div class="stats-grid" style="margin-bottom:18px;">
+    <div class="stats-grid" style="display:none!important">
       <div class="stat-card"><div class="stat-label">Total usuarios</div><div class="stat-value blue" id="k-total">-</div></div>
       <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value green" id="k-activos">-</div></div>
       <div class="stat-card"><div class="stat-label">Inactivos</div><div class="stat-value red" id="k-inactivos">-</div></div>
@@ -90,8 +90,8 @@ html[data-tema="claro"] .fi, html[data-tema="claro"] .fs { background:var(--uv-c
 
     <div class="u-tabla-wrap solicitudes-wrap">
       <div class="u-tabla-top">
-        <strong style="font-size:13px;color:var(--text)">Solicitudes de acceso pendientes</strong>
-        <button class="btn btn-ghost btn-sm" onclick="cargarSolicitudes()">? Recargar</button>
+        <strong style="font-size:13px;color:var(--text)">Solicitudes Externas Pendientes</strong>
+        <button class="btn btn-ghost btn-sm" onclick="cargarSolicitudes()">Recargar</button>
         <span class="u-info" id="sol-info">-</span>
       </div>
       <div id="solicitudesBody">
@@ -101,8 +101,8 @@ html[data-tema="claro"] .fi, html[data-tema="claro"] .fs { background:var(--uv-c
 
     <div class="u-tabla-wrap" style="margin-bottom:18px;">
       <div class="u-tabla-top">
-        <strong style="font-size:13px;color:var(--text)">Sesiones activas</strong>
-        <button class="btn btn-ghost btn-sm" onclick="cargarSesionesAdmin()">? Recargar</button>
+        <strong style="font-size:13px;color:var(--text)">Sesiones Activas</strong>
+        <button class="btn btn-ghost btn-sm" onclick="cargarSesionesAdmin()">Recargar</button>
         <span class="u-info" id="ses-info">-</span>
       </div>
       <div id="sesionesAdminBody">
@@ -112,8 +112,8 @@ html[data-tema="claro"] .fi, html[data-tema="claro"] .fs { background:var(--uv-c
 
     <div class="u-tabla-wrap">
       <div class="u-tabla-top">
-        <input class="u-search" id="busqueda" type="search" autocomplete="off" placeholder="Escribe nombre, email o rol">
-        <button class="btn btn-ghost btn-sm" onclick="cargar()">? Recargar</button>
+        <input class="u-search" id="busqueda" type="search" autocomplete="off" placeholder="Buscar nombre, correo o rol...">
+        <button class="btn btn-ghost btn-sm" onclick="cargar()">Recargar</button>
         <span class="u-info" id="u-info">-</span>
       </div>
       <div id="tablaBody">
@@ -129,14 +129,14 @@ html[data-tema="claro"] .fi, html[data-tema="claro"] .fs { background:var(--uv-c
     <div id="camposCrear">
       <div class="fg"><label class="fl">Nombre completo</label><input class="fi" id="f-nombre" autocomplete="off" placeholder="ej. Byron Loor"></div>
       <div class="fg"><label class="fl">Email</label><input class="fi" id="f-email" type="email" autocomplete="off" placeholder="usuario@diabcare.com"></div>
-      <div class="fg"><label class="fl">Contrasea</label><input class="fi" id="f-pass" type="password" autocomplete="new-password" placeholder=""></div>
+      <div class="fg"><label class="fl">Contraseña</label><input class="fi" id="f-pass" type="password" autocomplete="new-password" placeholder=""></div>
     </div>
     <div class="fg">
       <label class="fl">Rol</label>
       <select class="fs" id="f-rol">
-        <option value="medico">Mdico</option>
+        <option value="medico">Médico</option>
         <option value="enfermero">Enfermero</option>
-        <option value="farmaceutico">Farmacutico (admin. clnica)</option>
+        <option value="farmaceutico">Farmacéutico (admin. clínica)</option>
         <option value="analista">Analista</option>
         <option value="administrador">Admin de sistema (app)</option>
       </select>
@@ -162,7 +162,7 @@ html[data-tema="claro"] .fi, html[data-tema="claro"] .fs { background:var(--uv-c
         <option value="administrador">Admin de sistema (app)</option>
       </select>
     </div>
-    <p style="font-size:11px;color:var(--muted);margin:0 0 8px">Se generar una contrasea temporal y se enviar por correo (o se mostrar aqu si el correo est desactivado).</p>
+    <p style="font-size:11px;color:var(--muted);margin:0 0 8px">Se generar una contraseña temporal y se enviar por correo (o se mostrar aqu si el correo est desactivado).</p>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="cerrarAprobar()">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="btnConfirmarAprobar" onclick="confirmarAprobar()">Aprobar y enviar credenciales</button>

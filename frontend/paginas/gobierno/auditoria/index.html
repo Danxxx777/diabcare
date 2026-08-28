@@ -10,9 +10,15 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
+<style>
+.audit-modal{position:fixed;inset:0;z-index:1200;display:none;align-items:center;justify-content:center;background:rgba(15,23,25,.58);backdrop-filter:blur(5px)}
+.audit-modal.show{display:flex}.audit-dialog{width:min(760px,92vw);max-height:82vh;overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:18px}
+.audit-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.audit-compare{display:grid;grid-template-columns:1fr 1fr;gap:10px}.audit-pane{padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);min-width:0}.audit-pane h3{font-size:11px;margin:0 0 8px;color:var(--text2)}.audit-pane pre{margin:0;white-space:pre-wrap;word-break:break-word;font:11px/1.5 var(--mono);color:var(--text)}
+@media(max-width:680px){.audit-compare{grid-template-columns:1fr}}
+</style>
 </head>
 <body class="dc-uv">
 
@@ -32,7 +38,7 @@
       <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Recargar</button>
     </div>
 
-    <div class="stats-grid">
+    <div class="stats-grid" style="display:none!important">
       <div class="stat-card"><div class="stat-label">Total eventos</div><div class="stat-value blue" id="st-total">-</div></div>
       <div class="stat-card"><div class="stat-label">Hoy</div><div class="stat-value" id="st-hoy">-</div></div>
       <div class="stat-card"><div class="stat-label">Errores</div><div class="stat-value red" id="st-errores">-</div></div>
@@ -74,6 +80,12 @@
 </div>
 
 <div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+<div class="audit-modal" id="auditModal" onclick="if(event.target===this)cerrarDetalle()">
+  <div class="audit-dialog">
+    <div class="audit-head"><strong id="auditTitle">Detalle del cambio</strong><button class="btn btn-ghost btn-sm" onclick="cerrarDetalle()">Cerrar</button></div>
+    <div class="audit-compare"><section class="audit-pane"><h3>Antes</h3><pre id="auditAntes">Sin datos</pre></section><section class="audit-pane"><h3>Después</h3><pre id="auditDespues">Sin datos</pre></section></div>
+  </div>
+</div>
 
 <script>
 DiabCareNav.init();
@@ -81,8 +93,9 @@ DiabCareNav.guardRol(['administrador']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 let pag = 1;
-const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 12;
+const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 9;
 let _totalRows = 0;
+let eventosPagina = new Map();
 
 function toggle(h) { h.classList.toggle('open'); const s = h.nextElementSibling; if (s) s.classList.toggle('open'); }
 
@@ -136,6 +149,7 @@ async function cargar() {
 
     const data = await r.json();
     const eventos = Array.isArray(data) ? data : (data.eventos || data.items || []);
+    eventosPagina = new Map(eventos.map(e => [String(e.id), e]));
     _totalRows = data.total != null ? Number(data.total) : ((pag - 1) * LIMIT + eventos.length);
     const total = _totalRows;
     const totalPags = Math.max(1, Math.ceil(total / LIMIT) || 1);
@@ -155,7 +169,7 @@ async function cargar() {
     const from = total ? (pag - 1) * LIMIT + 1 : 0;
     const to = Math.min(pag * LIMIT, total);
     document.getElementById('pagInfo').textContent = total
-      ? `${from}–${to} de ${total} · Pág ${pag} / ${totalPags}`
+      ? `${from}-${to} de ${total} - Pág ${pag} / ${totalPags}`
       : `Pág ${pag}`;
     const prevBtn = document.querySelector('#dataPager [onclick="prevPag()"]');
     const nextBtn = document.querySelector('#dataPager [onclick="nextPag()"]');
@@ -173,7 +187,7 @@ async function cargar() {
       columns: [
         {
           key: 'tipo', label: 'Tipo', title: true,
-          render: e => e.tipo || e.modulo || e.endpoint || '—',
+          render: e => e.tipo || e.modulo || e.endpoint || '-',
         },
         {
           key: 'resultado', label: 'Resultado', badge: true,
@@ -181,14 +195,18 @@ async function cargar() {
         },
         {
           key: 'fecha', label: 'Fecha',
-          render: e => (e.fecha || e.timestamp || e.creado_en || '—').replace('T', ' ').split('.')[0],
+          render: e => (e.fecha || e.timestamp || e.creado_en || '-').replace('T', ' ').split('.')[0],
         },
-        { key: 'usuario', label: 'Usuario', render: e => e.usuario || e.user_id || '—' },
-        { key: 'modulo', label: 'Módulo', render: e => e.modulo || e.endpoint || '—' },
-        { key: 'ip', label: 'IP', render: e => e.ip || '—' },
+        { key: 'usuario', label: 'Usuario', render: e => e.usuario || e.user_id || '-' },
+        { key: 'modulo', label: 'Módulo', render: e => e.modulo || e.endpoint || '-' },
+        { key: 'ip', label: 'IP', render: e => e.ip || '-' },
         {
           key: 'detalle', label: 'Detalle',
-          render: e => e.detalle || e.descripcion || e.mensaje || '—',
+          render: e => {
+            const texto = e.detalle || e.descripcion || e.mensaje || '-';
+            const tieneCambio = Boolean(e.antes || e.despues);
+            return `${texto}${tieneCambio ? ` <button class="btn btn-ghost btn-sm" onclick="verDetalle('${String(e.id).replace(/'/g, '')}')">Ver cambio</button>` : ''}`;
+          },
         },
       ],
     });
@@ -196,6 +214,20 @@ async function cargar() {
     document.getElementById('tablaBody').innerHTML = '<div class="loading">Error de conexión</div>';
   }
 }
+
+function datoAuditoria(valor) {
+  if (!valor) return 'Sin datos registrados';
+  try { return JSON.stringify(JSON.parse(valor), null, 2); } catch { return String(valor); }
+}
+function verDetalle(id) {
+  const e = eventosPagina.get(String(id));
+  if (!e) return;
+  document.getElementById('auditTitle').textContent = `${e.tipo || 'Evento'} - ${e.modulo || 'Sistema'}`;
+  document.getElementById('auditAntes').textContent = datoAuditoria(e.antes);
+  document.getElementById('auditDespues').textContent = datoAuditoria(e.despues);
+  document.getElementById('auditModal').classList.add('show');
+}
+function cerrarDetalle() { document.getElementById('auditModal').classList.remove('show'); }
 
 function prevPag() { if (pag > 1) { pag--; cargar(); } }
 function nextPag() {

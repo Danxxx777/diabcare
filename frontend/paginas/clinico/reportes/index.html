@@ -10,9 +10,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js?v=uv-11"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 <style>
 .rep-shell { width:100%; max-width:100%; min-width:0; }
 .rep-tipos { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:18px; align-items:stretch; }
@@ -296,9 +296,6 @@
 .rep-shell.modo-completo .rep-seccion-body strong { font-size:11px; }
 .rep-shell.modo-completo .rep-seccion-body span { display:none; }
 .rep-shell.modo-completo .rep-note { margin-top:8px; font-size:10px; }
-.rep-shell.modo-completo .panel-preview { min-height:0; }
-.rep-shell.modo-completo .prev-stage { min-height:360px; padding:12px; }
-.rep-shell.modo-completo .pdf-sheet { width:min(100%, 300px); gap:7px; padding:14px 12px 10px; }
 @media(max-width:720px){
   .rep-shell.modo-completo .form-grid,
   .rep-shell.modo-completo .rep-secciones { grid-template-columns:1fr; }
@@ -328,19 +325,19 @@
 
     <div class="rep-tipos" id="tipoGrid">
       <button type="button" class="tipo-pick active" data-tipo="simple">
-        <div class="tp-kicker">Paso 1 · Tipo</div>
+        <div class="tp-kicker">Paso 1 - Tipo</div>
         <div class="tp-title">Informe simple</div>
         <div class="tp-desc">Listado o ficha del día a día: filtros, detalle y búsqueda por paciente o estado.</div>
         <span class="tp-tag">listado</span>
       </button>
       <button type="button" class="tipo-pick" data-tipo="compuesto">
-        <div class="tp-kicker">Paso 1 · Tipo</div>
+        <div class="tp-kicker">Paso 1 - Tipo</div>
         <div class="tp-title">Informe compuesto</div>
         <div class="tp-desc">Totales, rankings y cruces alimentados por el pipeline ELT en MinIO.</div>
         <span class="tp-tag">agregado</span>
       </button>
       <button type="button" class="tipo-pick" data-tipo="completo">
-        <div class="tp-kicker">Paso 1 · Tipo</div>
+        <div class="tp-kicker">Paso 1 - Tipo</div>
         <div class="tp-title">Informe completo</div>
         <div class="tp-desc">Combina listados, agregados, panorama del dataset, modelo ML y filtros clínicos.</div>
         <span class="tp-tag">completo</span>
@@ -397,7 +394,7 @@
           Se generará un <strong>informe simple</strong> de <strong>todos los departamentos</strong>.
         </div>
         <div class="rep-secciones" id="prevSecciones"></div>
-        <p class="rep-note">El PDF solo incluye datos agregados (sin nombres ni documentos). El QR abre una página de verificación. Para escanearlo desde datos móviles (no solo tu Wi‑Fi), configura la URL pública en Configuración → Sistema o ejecuta <code>.\scripts\tunel-publico.ps1</code>. Genera un PDF <strong>nuevo</strong> después de guardar esa URL.</p>
+        <p class="rep-note">El PDF solo incluye datos agregados (sin nombres ni documentos). El QR abre una página de verificación. Para escanearlo desde datos móviles (no solo tu Wi-Fi), configura la URL pública en Configuración → Sistema o ejecuta <code>.\scripts\tunel-publico.ps1</code>. Genera un PDF <strong>nuevo</strong> después de guardar esa URL.</p>
       </div>
 
       <div class="panel panel-preview">
@@ -417,14 +414,14 @@
             <h3 id="pdfTitle">Informe simple</h3>
             <div class="sub" id="pdfSub">Departamento: Todos</div>
             <div class="kpi-row">
-              <div class="kpi"><b id="pdfK1">—</b><span>Cobertura</span></div>
-              <div class="kpi"><b id="pdfK2">—</b><span>Indicadores</span></div>
+              <div class="kpi"><b id="pdfK1">-</b><span>Cobertura</span></div>
+              <div class="kpi"><b id="pdfK2">-</b><span>Indicadores</span></div>
               <div class="kpi"><b id="pdfK3">QR</b><span>Verificación</span></div>
             </div>
             <div class="bars" id="pdfBars"></div>
             <div id="pdfBlocks"></div>
             <div class="foot">
-              <small id="pdfFoot">Documento agregado · sin datos personales<br>Código de verificación en pie</small>
+              <small id="pdfFoot">Documento agregado - sin datos personales<br>Código de verificación en pie</small>
               <div class="qr" title="QR de verificación"></div>
             </div>
           </div>
@@ -578,7 +575,7 @@ function actualizarMaquetaPdf() {
   const badge = ({ simple: 'Operativo', compuesto: 'ELT', completo: 'Completo' })[estado.tipo];
   document.getElementById('pdfBadge').textContent = badge;
   document.getElementById('pdfTitle').textContent = labelTipoTitle(estado.tipo);
-  document.getElementById('pdfSub').textContent = `Departamento: ${labelDepto(estado.departamento)} · datos agregados`;
+  document.getElementById('pdfSub').textContent = `Departamento: ${labelDepto(estado.departamento)} - datos agregados`;
   const onSecs = seccionesActuales().filter(s => s.on);
   document.getElementById('pdfK1').textContent = estado.departamento === 'todos' ? 'Global' : 'Área';
   document.getElementById('pdfK2').textContent = String(Math.max(onSecs.length - 1, 1));
@@ -591,7 +588,7 @@ function actualizarMaquetaPdf() {
       <span>${s.d}</span>
     </div>`).join('');
   document.getElementById('pdfFoot').innerHTML =
-    `DiabCare · ${labelTipoTitle(estado.tipo)}<br>Código QR de verificación en el pie`;
+    `DiabCare - ${labelTipoTitle(estado.tipo)}<br>Código QR de verificación en el pie`;
 }
 
 function actualizarPreview() {
@@ -718,7 +715,7 @@ async function generar() {
     const d = await r.json();
     if (!r.ok) { toast(d.detail || 'No se pudo generar', 'error'); return; }
     const cod = d.codigo_verificacion ? ` (${d.codigo_verificacion})` : '';
-    const urlV = d.url_verificacion ? ` · QR: ${d.url_verificacion}` : '';
+    const urlV = d.url_verificacion ? ` - QR: ${d.url_verificacion}` : '';
     toast(`Reporte generado${cod}${urlV}`, 'success');
     await cargarReportes();
     if (d.nombre) await mostrarPdfReal(d.nombre);

@@ -6,10 +6,10 @@ from datetime import datetime, time
 
 # Valores de reserva. El horario real sale de Configuración → Sistema: estaba
 # quemado aquí y cambiarlo obligaba a tocar Python y reiniciar el backend.
-HORARIO_CONSULTA_INICIO = time(7, 0)
-HORARIO_CONSULTA_FIN = time(19, 0)
-# 0=lunes … 6=domingo. Domingo no hay consulta programada (urgencias sí).
-DIAS_CONSULTA = {0, 1, 2, 3, 4, 5}
+HORARIO_CONSULTA_INICIO = time(8, 0)
+HORARIO_CONSULTA_FIN = time(18, 0)
+# 0=lunes ... 6=domingo. La consulta programada funciona de lunes a viernes.
+DIAS_CONSULTA = {0, 1, 2, 3, 4}
 
 
 def horario_configurado() -> tuple[time, time, set[int]]:
@@ -22,6 +22,8 @@ def horario_configurado() -> tuple[time, time, set[int]]:
 
     ini = parse_hora(cfg.get("horario_apertura")) or HORARIO_CONSULTA_INICIO
     fin = parse_hora(cfg.get("horario_cierre")) or HORARIO_CONSULTA_FIN
+    ini = max(ini, HORARIO_CONSULTA_INICIO)
+    fin = min(fin, HORARIO_CONSULTA_FIN)
     if fin <= ini:  # rango invertido en Configuración: no dejar la agenda muerta
         ini, fin = HORARIO_CONSULTA_INICIO, HORARIO_CONSULTA_FIN
 
@@ -37,6 +39,7 @@ def horario_configurado() -> tuple[time, time, set[int]]:
                 continue
             if 0 <= n <= 6:
                 dias.add(n)
+    dias = (dias or DIAS_CONSULTA) & DIAS_CONSULTA
     return ini, fin, (dias or DIAS_CONSULTA)
 
 
@@ -78,6 +81,8 @@ def horario_consulta_ok(fecha: str, hora: str) -> str:
         dia = datetime.strptime(f, "%Y-%m-%d").date()
     except ValueError:
         return "La fecha no es válida."
+    if dia < datetime.now().date():
+        return "No se puede reservar un turno en una fecha pasada."
     ini, fin, dias = horario_configurado()
     if dia.weekday() not in dias:
         return "Ese día la clínica no tiene consulta programada. Use Urgencias si es un caso agudo."

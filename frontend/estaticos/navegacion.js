@@ -12,7 +12,155 @@
   } catch (_) { /* ignore */ }
 })();
 
-/** Motion clínico (ECG / pulso) + pantallas de carga — siempre fresco */
+/* No mostrar la base antigua mientras termina de cargar el chasis actual. */
+(function _esperarEstiloActual() {
+  const root = document.documentElement;
+  root.classList.add('dc-style-pending');
+  const guard = document.createElement('style');
+  guard.id = 'dc-style-guard';
+  guard.textContent = `
+    html.dc-style-pending,
+    html.dc-style-pending body { background:#1E2A2E; }
+    html[data-tema="claro"].dc-style-pending,
+    html[data-tema="claro"].dc-style-pending body { background:#E6E2DC; }
+    html.dc-style-pending body.dc-uv { visibility:hidden !important; }
+  `;
+  (document.head || root).appendChild(guard);
+  window.__dcStyleReady = () => {
+    root.classList.remove('dc-style-pending');
+    if (guard.parentNode) guard.parentNode.removeChild(guard);
+  };
+  window.setTimeout(window.__dcStyleReady, 350);
+})();
+
+/* Transición entre módulos sin superponer instantáneas de dos páginas. */
+(function _coordinarNavegacionModulos() {
+  let incomingModule = false;
+  let incomingLabel = 'MÓDULO';
+  try {
+    const enInicio = /\/paginas\/inicio\//i.test(location.pathname || '');
+    if (sessionStorage.getItem('dc_entry_splash') === '1') {
+      document.documentElement.classList.add('dc-entry-splash-pending');
+    }
+    incomingModule = sessionStorage.getItem('dc_module_loading') === '1';
+    if (enInicio) {
+      incomingModule = false;
+      sessionStorage.removeItem('dc_module_loading');
+      document.documentElement.classList.remove('dc-module-loading-pending', 'dc-module-loading-leaving');
+      document.documentElement.removeAttribute('data-dc-module-label');
+    }
+    if (incomingModule) {
+      sessionStorage.removeItem('dc_module_loading');
+      const root = document.documentElement;
+      const label = String(document.title || 'Módulo')
+        .replace(/^DiabCare\s*[-|]\s*/i, '')
+        .trim() || 'Módulo';
+      incomingLabel = label.toUpperCase();
+      root.setAttribute('data-dc-module-label', label.toUpperCase());
+      root.classList.add('dc-module-loading-pending');
+    }
+  } catch (_) { /* ignore */ }
+
+  if (!incomingModule) {
+    const limpiarOverlayViejo = () => document.getElementById('dc-module-loader-ui')?.remove();
+    limpiarOverlayViejo();
+    document.addEventListener('DOMContentLoaded', limpiarOverlayViejo, { once: true });
+  }
+
+  if (incomingModule) {
+    const finishIncoming = () => {
+      const overlay = document.createElement('div');
+      overlay.id = 'dc-module-loader-ui';
+      overlay.setAttribute('role', 'status');
+      overlay.setAttribute('aria-live', 'polite');
+      overlay.innerHTML = `
+        <div class="dc-neon-loader">
+          <div class="dc-neon-loader__pulse" aria-hidden="true">
+            <span></span>
+            <svg viewBox="0 0 96 64" focusable="false">
+              <path d="M2 34h19l7-12 10 25 12-42 13 29h31" />
+            </svg>
+          </div>
+          <div class="dc-neon-loader__copy">
+            <span>DIABCARE / CARGA CLÍNICA</span>
+            <strong></strong>
+            <small>Sincronizando entorno médico</small>
+          </div>
+          <div class="dc-neon-loader__bars" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i>
+          </div>
+        </div>`;
+      const moduleName = overlay.querySelector('.dc-neon-loader__copy strong');
+      if (moduleName) moduleName.textContent = incomingLabel;
+      document.body.appendChild(overlay);
+      window.setTimeout(() => {
+        document.documentElement.classList.add('dc-module-loading-leaving');
+        overlay.classList.add('is-leaving');
+      }, 680);
+      window.setTimeout(() => {
+        overlay.remove();
+        document.documentElement.classList.remove('dc-module-loading-pending', 'dc-module-loading-leaving');
+        document.documentElement.removeAttribute('data-dc-module-label');
+      }, 1000);
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', finishIncoming, { once: true });
+    } else {
+      finishIncoming();
+    }
+  }
+
+  let leaving = false;
+  window.DiabCareNavigate = (href) => {
+    if (leaving) return true;
+    let next;
+    try { next = new URL(href, location.href); } catch (_) { return false; }
+    if (next.origin !== location.origin || !next.pathname.startsWith('/paginas/')) return false;
+    if (next.href === location.href) return false;
+    leaving = true;
+    try { sessionStorage.setItem('dc_module_loading', '1'); } catch (_) { /* ignore */ }
+    location.assign(next.href);
+    return true;
+  };
+
+  document.addEventListener('click', (event) => {
+    if (leaving || event.defaultPrevented || event.button !== 0) return;
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const anchor = event.target && event.target.closest ? event.target.closest('a[href]') : null;
+    if (!anchor || anchor.target || anchor.hasAttribute('download')) return;
+    if (document.body && document.body.classList.contains('dc-auth')) return;
+    let next;
+    try { next = new URL(anchor.href, location.href); } catch (_) { return; }
+    if (next.origin !== location.origin || !next.pathname.startsWith('/paginas/')) return;
+    if (next.href === location.href) return;
+
+    event.preventDefault();
+    window.DiabCareNavigate(next.href);
+  });
+})();
+
+/* Activa la transición entre documentos antes de pintar cualquier módulo. */
+(function _habilitarTransicionModulos() {
+  if (typeof document === 'undefined' || document.getElementById('dc-navigation-motion')) return;
+  const style = document.createElement('style');
+  style.id = 'dc-navigation-motion';
+  style.textContent = `
+    @view-transition { navigation: auto; }
+    html::view-transition,
+    html::view-transition-group(root),
+    html::view-transition-image-pair(root),
+    html::view-transition-old(root),
+    html::view-transition-new(root) { background:#1E2A2E; }
+    html[data-tema="claro"]::view-transition,
+    html[data-tema="claro"]::view-transition-group(root),
+    html[data-tema="claro"]::view-transition-image-pair(root),
+    html[data-tema="claro"]::view-transition-old(root),
+    html[data-tema="claro"]::view-transition-new(root) { background:#E6E2DC; }
+  `;
+  (document.head || document.documentElement).appendChild(style);
+})();
+
+/** Motion clínico (ECG / pulso) + pantallas de carga - siempre fresco */
 (function _inyectarAnimaciones() {
   if (typeof document === 'undefined') return;
   if (document.getElementById('dc-animaciones-css')) return;
@@ -24,7 +172,7 @@
   (document.head || document.documentElement).appendChild(link);
 })();
 
-/** Interruptor clínico (tema + on/off) — pulso tipo SpO2, no holograma */
+/** Interruptor clínico (tema + on/off) - pulso tipo SpO2, no holograma */
 (function _inyectarHoloCss() {
   if (typeof document === 'undefined') return;
   let link = document.getElementById('dc-holo-css');
@@ -37,7 +185,7 @@
   link.href = '/estaticos/holo-toggle.css?v=contrast-1';
 })();
 
-/** Chasis Uiverse (dock + cristal) — último CSS para ganar a lo anterior */
+/** Chasis Uiverse (dock + cristal) - último CSS para ganar a lo anterior */
 (function _inyectarUiverse() {
   if (typeof document === 'undefined') return;
   document.documentElement.classList.add('dc-uv-html');
@@ -52,17 +200,24 @@
     const existing = document.querySelector('link[href*="uiverse-app.css"]');
     if (existing) {
       existing.id = 'dc-uiverse-css';
+      existing.setAttribute('blocking', 'render');
+      existing.addEventListener('load', window.__dcStyleReady, { once: true });
+      existing.href = '/estaticos/uiverse-app.css?v=compact-37';
+      if (existing.sheet) window.__dcStyleReady();
       return;
     }
     link = document.createElement('link');
     link.id = 'dc-uiverse-css';
     link.rel = 'stylesheet';
+    link.setAttribute('blocking', 'render');
+    link.addEventListener('load', window.__dcStyleReady, { once: true });
+    link.addEventListener('error', window.__dcStyleReady, { once: true });
     (document.head || document.documentElement).appendChild(link);
   }
-  link.href = '/estaticos/uiverse-app.css?v=contrast-1';
+  link.href = '/estaticos/uiverse-app.css?v=compact-37';
 })();
 
-/** Pantalla de carga — fantasma del chasis (mismas radios que la app) */
+/** Pantalla de carga - fantasma del chasis (mismas radios que la app) */
 (function _pantallaCarga() {
   let depth = 0;
   let hideTimer = null;
@@ -73,23 +228,26 @@
     [/\/laboratorio\//i, 'Laboratorio'],
     [/\/pacientes\//i, 'Pacientes'],
     [/\/admisiones\//i, 'Admisiones'],
+    [/\/habitaciones\//i, 'Habitaciones'],
     [/\/comorbilidades\//i, 'Comorbilidades'],
     [/\/urgencias\//i, 'Urgencias'],
-    [/\/agenda\//i, 'Agenda'],
+    [/\/agenda\//i, 'Agenda médica'],
     [/\/mis_citas\//i, 'Mis citas'],
-    [/\/registros_clinicos\//i, 'Consultas'],
-    [/\/analisis\/diabetes\//i, 'Calidad DM'],
-    [/\/analisis\/estadisticas\//i, 'Estadísticas'],
-    [/\/analisis\/informes\//i, 'Panel'],
-    [/\/prediccion\//i, 'Predicción'],
+    [/\/registros_clinicos\//i, 'Consultas clínicas'],
+    [/\/analisis\/diabetes\//i, 'Control de diabetes'],
+    [/\/analisis\/estadisticas\//i, 'Estadísticas clínicas'],
+    [/\/analisis\/informes\//i, 'Panel de análisis'],
+    [/\/prediccion\//i, 'Predicción de diabetes'],
     [/\/reportes\//i, 'Reportes'],
-    [/\/dataset\//i, 'Dataset'],
-    [/\/pipeline_elt\//i, 'Orquestador'],
-    [/\/modelo_ml\//i, 'Modelo ML'],
+    [/\/dataset\/generador\.html/i, 'Generador de datos'],
+    [/\/dataset\//i, 'Dataset clínico'],
+    [/\/pipeline_elt\//i, 'Pipeline ELT'],
+    [/\/modelo_ml\//i, 'Modelo predictivo'],
     [/\/farmacia\//i, 'Farmacia'],
     [/\/facturacion\//i, 'Facturación'],
-    [/\/recetas\//i, 'Recetas'],
-    [/\/rrhh\//i, 'RRHH'],
+    [/\/recetas\//i, 'Recetas médicas'],
+    [/\/rrhh\//i, 'Recursos humanos'],
+    [/\/instrumental\//i, 'Instrumental clínico'],
     [/\/usuarios\//i, 'Usuarios'],
     [/\/perfil\//i, 'Perfil'],
     [/\/configuracion\//i, 'Configuración'],
@@ -175,7 +333,7 @@
     if (t) {
       t.textContent = msg || ('Cargando ' + mod);
     }
-    if (s) s.textContent = sub || (mod + ' · consultando datos…');
+    if (s) s.textContent = sub || (mod + ' - consultando datos…');
     clearTimeout(hideTimer);
     depth += 1;
     if (el.hidden) shownAt = Date.now();
@@ -212,7 +370,10 @@
     } catch (_) { /* ignore */ }
     if (!show) return;
     mostrar('Bienvenido a DiabCare', 'Entrando a la plataforma…');
-    setTimeout(() => ocultar(true), 1100);
+    setTimeout(() => {
+      ocultar(true);
+      document.documentElement.classList.remove('dc-entry-splash-pending');
+    }, 1100);
   }
   if (document.body) splash();
   else document.addEventListener('DOMContentLoaded', splash);
@@ -455,7 +616,7 @@
     el._dcSkAt = Date.now();
   }
 
-  /** Oculta hijos (salvo keepSel) y pone un slot skeleton encima — no rompe IDs al terminar. */
+  /** Oculta hijos (salvo keepSel) y pone un slot skeleton encima - no rompe IDs al terminar. */
   function paintKeepChildren(host, html, keepSel) {
     if (!host) return null;
     ensureCss();
@@ -538,7 +699,7 @@
       return host;
     }
     if (host.classList && host.classList.contains('panel')) {
-      // Si el panel ya tiene tabla, skeleton solo en el cuerpo — no ocultar todo el panel
+      // Si el panel ya tiene tabla, skeleton solo en el cuerpo - no ocultar todo el panel
       const tb = cuerpoLista(host);
       if (tb) return paintTablaCuerpo(tb);
       paintPanelKeepTitle(host);
@@ -847,9 +1008,51 @@ window.DiabCareNav = {
     analista: '/paginas/inicio/index.html',
   },
 
+  /** Nombre único mostrado en pestaña, barra superior y encabezado. */
+  NOMBRES_RUTA: [
+    [/\/analisis\/estadisticas\//i, 'Estadísticas clínicas'],
+    [/\/analisis\/diabetes\//i, 'Control de diabetes'],
+    [/\/analisis\/informes\//i, 'Panel de análisis'],
+    [/\/dataset\/generador\.html/i, 'Generador de datos'],
+    [/\/registros_clinicos\//i, 'Consultas clínicas'],
+    [/\/pipeline_elt\//i, 'Pipeline ELT'],
+    [/\/modelo_ml\//i, 'Modelo predictivo'],
+    [/\/instrumental\//i, 'Instrumental clínico'],
+    [/\/comorbilidades\//i, 'Comorbilidades'],
+    [/\/habitaciones\//i, 'Habitaciones'],
+    [/\/admisiones\//i, 'Admisiones'],
+    [/\/mis_citas\//i, 'Mis citas'],
+    [/\/pacientes\//i, 'Pacientes'],
+    [/\/agenda\//i, 'Agenda médica'],
+    [/\/urgencias\//i, 'Urgencias'],
+    [/\/laboratorio\//i, 'Laboratorio'],
+    [/\/prediccion\//i, 'Predicción de diabetes'],
+    [/\/reportes\//i, 'Reportes'],
+    [/\/recetas\//i, 'Recetas médicas'],
+    [/\/farmacia\//i, 'Farmacia'],
+    [/\/facturacion\//i, 'Facturación'],
+    [/\/rrhh\//i, 'Recursos humanos'],
+    [/\/dataset\//i, 'Dataset clínico'],
+    [/\/usuarios\//i, 'Usuarios'],
+    [/\/notificaciones\//i, 'Notificaciones'],
+    [/\/auditoria\//i, 'Auditoría'],
+    [/\/configuracion\//i, 'Configuración'],
+    [/\/perfil\//i, 'Mi perfil'],
+    [/\/inicio\//i, 'Inicio'],
+  ],
+
+  /** Familia visual de cada pantalla. Inicio queda fuera del rediseño. */
+  LAYOUT_RUTAS: [
+    [/\/habitaciones\//i, 'board'],
+    [/\/(laboratorio|farmacia|facturacion|rrhh|configuracion)\//i, 'tabs'],
+    [/\/(analisis|prediccion|reportes|dataset|pipeline_elt|modelo_ml)\//i, 'insights'],
+    [/\/(pacientes|agenda|mis_citas|registros_clinicos|admisiones|urgencias|instrumental|comorbilidades|recetas|usuarios|notificaciones|auditoria|perfil)\//i, 'records'],
+  ],
+
   /** Icono del rail por categoría */
   ICONO_AREA: {
     clinico: 'estetoscopio',
+    hospitalizacion: 'admisiones',
     farmacia_rx: 'farmacia',
     negocio: 'facturacion',
     analisis: 'analisis',
@@ -864,11 +1067,11 @@ window.DiabCareNav = {
    */
   ESCRITORIO_POR_ROL: {
     administrador: [
-      { modulo: 'analisis', href: '/paginas/clinico/analisis/informes/index.html', labelKey: 'home_panel', icon: 'panel', hintKey: 'home_panel_h' },
       { modulo: 'pacientes', href: '/paginas/clinico/pacientes/index.html', labelKey: 'home_pacientes', icon: 'pacientes', hintKey: 'home_pacientes_h' },
       { modulo: 'citas', href: '/paginas/clinico/agenda/index.html', labelKey: 'home_agenda', icon: 'citas', hintKey: 'home_agenda_h' },
-      { modulo: 'farmacia', href: '/paginas/negocio/farmacia/index.html', labelKey: 'home_farmacia', icon: 'farmacia', hintKey: 'home_farmacia_h' },
+      { modulo: 'analisis', href: '/paginas/clinico/analisis/informes/index.html', labelKey: 'home_panel', icon: 'panel', hintKey: 'home_panel_h' },
       { modulo: 'facturacion', href: '/paginas/negocio/facturacion/index.html', labelKey: 'home_caja', icon: 'facturacion', hintKey: 'home_caja_h' },
+      { modulo: 'farmacia', href: '/paginas/negocio/farmacia/index.html', labelKey: 'home_farmacia', icon: 'farmacia', hintKey: 'home_farmacia_h' },
       { modulo: 'reportes', href: '/paginas/clinico/reportes/index.html', labelKey: 'home_pdf', icon: 'pdf', hintKey: 'home_pdf_h' },
     ],
     medico: [
@@ -876,7 +1079,6 @@ window.DiabCareNav = {
       { modulo: 'pacientes', href: '/paginas/clinico/pacientes/index.html', labelKey: 'home_pacientes', icon: 'pacientes', hintKey: 'home_pacientes_h' },
       { modulo: 'registros', href: '/paginas/clinico/registros_clinicos/index.html', labelKey: 'home_consulta', icon: 'registros', hintKey: 'home_consulta_h' },
       { modulo: 'laboratorio', href: '/paginas/clinico/laboratorio/index.html', labelKey: 'home_lab', icon: 'laboratorio', hintKey: 'home_lab_h' },
-      { modulo: 'recetas', href: '/paginas/negocio/recetas/index.html', labelKey: 'home_recetas', icon: 'recetas', hintKey: 'home_recetas_h' },
       { modulo: 'prediccion', href: '/paginas/clinico/prediccion/index.html', labelKey: 'home_riesgo', icon: 'prediccion', hintKey: 'home_riesgo_h' },
     ],
     enfermero: [
@@ -896,7 +1098,7 @@ window.DiabCareNav = {
       { modulo: 'analisis', href: '/paginas/clinico/analisis/informes/index.html', labelKey: 'home_panel', icon: 'panel', hintKey: 'home_panel_h' },
       { modulo: 'analisis', href: '/paginas/clinico/analisis/estadisticas/index.html', labelKey: 'estadisticas', icon: 'stats', hintKey: 'sub_estadisticas' },
       { modulo: 'analisis', href: '/paginas/clinico/analisis/diabetes/index.html', labelKey: 'calidad_dm', icon: 'analisis', hintKey: 'sub_calidad' },
-      { modulo: 'dataset', href: '/paginas/datos/dataset/generador.html', labelKey: 'home_dataset', icon: 'dataset', hintKey: 'home_dataset_h' },
+      { modulo: 'dataset', href: '/paginas/datos/dataset/index.html', labelKey: 'home_dataset', icon: 'dataset', hintKey: 'home_dataset_h' },
       { modulo: 'pipeline', href: '/paginas/datos/pipeline_elt/index.html', labelKey: 'home_elt', icon: 'pipeline', hintKey: 'home_elt_h' },
       { modulo: 'modelo', href: '/paginas/datos/modelo_ml/index.html', labelKey: 'home_modelo', icon: 'modelo', hintKey: 'home_modelo_h' },
       { modulo: 'reportes', href: '/paginas/clinico/reportes/index.html', labelKey: 'home_pdf', icon: 'pdf', hintKey: 'home_pdf_h' },
@@ -905,7 +1107,7 @@ window.DiabCareNav = {
 
   MODULOS_NAVEGABLES: [
     'pacientes', 'admisiones', 'urgencias', 'citas', 'mis_citas', 'registros',
-    'laboratorio', 'comorbilidades',
+    'laboratorio', 'comorbilidades', 'instrumental',
     'recetas', 'farmacia', 'facturacion', 'rrhh',
     'analisis', 'prediccion', 'reportes',
     'dataset', 'pipeline', 'modelo',
@@ -924,32 +1126,29 @@ window.DiabCareNav = {
       id: 'clinico',
       labelKey: 'cat_clinico',
       items: [
-        { modulo: 'pacientes', labelKey: 'pacientes', subs: [
-          { href: '/paginas/clinico/pacientes/index.html', labelKey: 'sub_expedientes' },
-        ]},
-        { modulo: 'admisiones', labelKey: 'admisiones', subs: [
-          { href: '/paginas/clinico/admisiones/index.html', labelKey: 'sub_ingresos' },
-        ]},
-        { modulo: 'citas', labelKey: 'citas', subs: [
-          { href: '/paginas/clinico/agenda/index.html', labelKey: 'sub_agenda' },
-        ]},
-        { modulo: 'mis_citas', labelKey: 'mis_citas', subs: [
-          { href: '/paginas/clinico/mis_citas/index.html', labelKey: 'sub_turnos' },
+        { modulo: 'pacientes', modulos: ['pacientes', 'citas', 'mis_citas', 'registros', 'comorbilidades'], label: 'Atención del paciente', icon: 'pacientes', subs: [
+          { modulo: 'pacientes', href: '/paginas/clinico/pacientes/index.html', labelKey: 'sub_expedientes' },
+          { modulo: 'citas', href: '/paginas/clinico/agenda/index.html', labelKey: 'sub_agenda' },
+          { modulo: 'mis_citas', href: '/paginas/clinico/mis_citas/index.html', labelKey: 'sub_turnos' },
+          { modulo: 'registros', href: '/paginas/clinico/registros_clinicos/index.html', labelKey: 'sub_registro' },
+          { modulo: 'comorbilidades', href: '/paginas/clinico/comorbilidades/index.html', labelKey: 'sub_complicaciones' },
         ]},
         { modulo: 'urgencias', labelKey: 'urgencias', subs: [
           { href: '/paginas/clinico/urgencias/index.html', labelKey: 'sub_triage' },
         ]},
-        { modulo: 'registros', labelKey: 'registros', subs: [
-          { href: '/paginas/clinico/registros_clinicos/index.html', labelKey: 'sub_registro' },
-        ]},
         { modulo: 'laboratorio', labelKey: 'laboratorio', subs: [
           { href: '/paginas/clinico/laboratorio/index.html', labelKey: 'sub_ordenes' },
         ]},
-        { modulo: 'comorbilidades', labelKey: 'comorbilidades', subs: [
-          { href: '/paginas/clinico/comorbilidades/index.html', labelKey: 'sub_complicaciones' },
-        ]},
-        { modulo: 'recetas', labelKey: 'recetas', subs: [
-          { href: '/paginas/negocio/recetas/index.html', labelKey: 'sub_prescripciones' },
+      ],
+    },
+    {
+      id: 'hospitalizacion',
+      labelKey: 'cat_hospitalizacion',
+      items: [
+        { modulo: 'habitaciones', modulos: ['admisiones', 'habitaciones', 'instrumental'], label: 'Gestión hospitalaria', icon: 'admisiones', subs: [
+          { modulo: 'admisiones', href: '/paginas/clinico/admisiones/index.html', labelKey: 'sub_ingresos' },
+          { modulo: 'habitaciones', href: '/paginas/clinico/habitaciones/index.html', labelKey: 'sub_mapa_camas' },
+          { modulo: 'instrumental', href: '/paginas/clinico/instrumental/index.html', labelKey: 'sub_instrumental' },
         ]},
       ],
     },
@@ -958,7 +1157,7 @@ window.DiabCareNav = {
       labelKey: 'cat_farmacia_rx',
       items: [
         { modulo: 'farmacia', labelKey: 'farmacia', subs: [
-          { href: '/paginas/negocio/farmacia/index.html', labelKey: 'sub_inventario' },
+          { href: '/paginas/negocio/farmacia/index.html', labelKey: 'sub_dispensacion' },
         ]},
       ],
     },
@@ -966,11 +1165,10 @@ window.DiabCareNav = {
       id: 'negocio',
       labelKey: 'cat_negocio',
       items: [
-        { modulo: 'facturacion', labelKey: 'facturacion', subs: [
-          { href: '/paginas/negocio/facturacion/index.html', labelKey: 'sub_facturacion' },
-        ]},
-        { modulo: 'rrhh', labelKey: 'rrhh', subs: [
-          { href: '/paginas/negocio/rrhh/index.html', labelKey: 'sub_costeo' },
+        { modulo: 'facturacion', modulos: ['farmacia', 'facturacion', 'rrhh'], label: 'Gestión administrativa', icon: 'facturacion', subs: [
+          { modulo: 'facturacion', href: '/paginas/negocio/facturacion/index.html', labelKey: 'sub_facturacion' },
+          { modulo: 'farmacia', href: '/paginas/negocio/farmacia/index.html?area=gestion', labelKey: 'sub_operaciones' },
+          { modulo: 'rrhh', href: '/paginas/negocio/rrhh/index.html', labelKey: 'sub_costeo' },
         ]},
       ],
     },
@@ -978,20 +1176,10 @@ window.DiabCareNav = {
       id: 'analisis',
       labelKey: 'cat_analisis',
       items: [
-        { modulo: 'analisis', icon: 'panel', labelKey: 'panel', subs: [
-          { href: '/paginas/clinico/analisis/informes/index.html', labelKey: 'sub_panel' },
-        ]},
-        { modulo: 'analisis', icon: 'stats', labelKey: 'estadisticas', subs: [
-          { href: '/paginas/clinico/analisis/estadisticas/index.html', labelKey: 'sub_estadisticas' },
-        ]},
-        { modulo: 'analisis', icon: 'analisis', labelKey: 'calidad_dm', subs: [
-          { href: '/paginas/clinico/analisis/diabetes/index.html', labelKey: 'sub_calidad', roles: ['administrador', 'medico', 'analista'] },
-        ]},
-        { modulo: 'prediccion', labelKey: 'prediccion', subs: [
-          { href: '/paginas/clinico/prediccion/index.html', labelKey: 'sub_inferencia' },
-        ]},
-        { modulo: 'reportes', icon: 'pdf', labelKey: 'reportes', subs: [
-          { href: '/paginas/clinico/reportes/index.html', labelKey: 'sub_pdf' },
+        { modulo: 'analisis', modulos: ['analisis', 'reportes'], label: 'Análisis clínico', icon: 'analisis', subs: [
+          { modulo: 'analisis', href: '/paginas/clinico/analisis/informes/index.html', labelKey: 'sub_panel' },
+          { modulo: 'analisis', href: '/paginas/clinico/analisis/estadisticas/index.html', labelKey: 'sub_estadisticas' },
+          { modulo: 'reportes', href: '/paginas/clinico/reportes/index.html', labelKey: 'sub_pdf' },
         ]},
       ],
     },
@@ -999,15 +1187,11 @@ window.DiabCareNav = {
       id: 'datos',
       labelKey: 'cat_datos',
       items: [
-        { modulo: 'dataset', labelKey: 'dataset', subs: [
-          { href: '/paginas/datos/dataset/generador.html', labelKey: 'sub_generador' },
-          { href: '/paginas/datos/dataset/index.html', labelKey: 'sub_hechos' },
-        ]},
-        { modulo: 'pipeline', labelKey: 'pipeline', subs: [
-          { href: '/paginas/datos/pipeline_elt/index.html', labelKey: 'sub_estado' },
-        ]},
-        { modulo: 'modelo', labelKey: 'modelo', subs: [
-          { href: '/paginas/datos/modelo_ml/index.html', labelKey: 'sub_entrenamiento' },
+        { modulo: 'dataset', modulos: ['dataset', 'pipeline', 'modelo', 'prediccion'], label: 'Plataforma de datos', icon: 'dataset', subs: [
+          { modulo: 'dataset', href: '/paginas/datos/dataset/index.html', labelKey: 'sub_hechos' },
+          { modulo: 'pipeline', href: '/paginas/datos/pipeline_elt/index.html', labelKey: 'sub_estado' },
+          { modulo: 'modelo', href: '/paginas/datos/modelo_ml/index.html', labelKey: 'sub_entrenamiento' },
+          { modulo: 'prediccion', href: '/paginas/clinico/prediccion/index.html', labelKey: 'sub_inferencia' },
         ]},
       ],
     },
@@ -1015,25 +1199,11 @@ window.DiabCareNav = {
       id: 'gobierno',
       labelKey: 'cat_gobierno',
       items: [
-        { modulo: 'auditoria', labelKey: 'auditoria', subs: [
-          { href: '/paginas/gobierno/auditoria/index.html', labelKey: 'sub_eventos' },
-        ]},
-        { modulo: 'configuracion', labelKey: 'configuracion', subs: [
-          { href: '/paginas/gobierno/configuracion/index.html#sistema', labelKey: 'sub_sistema' },
-          { href: '/paginas/gobierno/configuracion/index.html#correo', labelKey: 'sub_correo' },
-          { href: '/paginas/gobierno/configuracion/index.html#minio', labelKey: 'sub_minio' },
-        ]},
-      ],
-    },
-    {
-      id: 'seguridad',
-      labelKey: 'cat_seguridad',
-      items: [
-        { modulo: 'notificaciones', labelKey: 'notificaciones', subs: [
-          { href: '/paginas/seguridad/notificaciones/index.html', labelKey: 'sub_bandeja' },
-        ]},
-        { modulo: 'usuarios', labelKey: 'usuarios', subs: [
-          { href: '/paginas/seguridad/usuarios/index.html', labelKey: 'sub_cuentas' },
+        { modulo: 'notificaciones', modulos: ['usuarios', 'notificaciones', 'auditoria', 'configuracion'], label: 'Administración del sistema', icon: 'configuracion', subs: [
+          { modulo: 'notificaciones', href: '/paginas/seguridad/notificaciones/index.html', labelKey: 'sub_bandeja' },
+          { modulo: 'usuarios', href: '/paginas/seguridad/usuarios/index.html', labelKey: 'sub_cuentas' },
+          { modulo: 'auditoria', href: '/paginas/gobierno/auditoria/index.html', labelKey: 'sub_eventos' },
+          { modulo: 'configuracion', href: '/paginas/gobierno/configuracion/index.html', labelKey: 'sub_sistema' },
         ]},
       ],
     },
@@ -1071,21 +1241,21 @@ window.DiabCareNav = {
   ACCESO: {
     administrador: [
       'pacientes', 'admisiones', 'citas', 'mis_citas', 'registros', 'comorbilidades',
-      'laboratorio', 'urgencias', 'recetas', 'farmacia', 'facturacion', 'rrhh',
+      'laboratorio', 'urgencias', 'instrumental', 'habitaciones', 'recetas', 'farmacia', 'facturacion', 'rrhh',
       'analisis', 'prediccion', 'reportes',
       'dataset', 'pipeline', 'modelo',
       'usuarios', 'notificaciones', 'auditoria', 'configuracion',
     ],
     medico: [
       'pacientes', 'mis_citas', 'registros', 'comorbilidades',
-      'laboratorio', 'urgencias', 'recetas',
+      'laboratorio', 'urgencias', 'recetas', 'habitaciones',
       'analisis', 'prediccion', 'reportes', 'notificaciones',
     ],
     enfermero: [
-      'pacientes', 'admisiones', 'citas', 'laboratorio', 'urgencias', 'notificaciones',
+      'pacientes', 'admisiones', 'citas', 'laboratorio', 'urgencias', 'instrumental', 'habitaciones', 'notificaciones',
     ],
     farmaceutico: [
-      'pacientes', 'admisiones', 'citas', 'urgencias',
+      'pacientes', 'admisiones', 'citas', 'urgencias', 'instrumental', 'habitaciones',
       'farmacia', 'facturacion',
       'analisis', 'reportes', 'notificaciones',
     ],
@@ -1108,8 +1278,9 @@ window.DiabCareNav = {
 
   _itemVisibleParaRol(item, permitidos) {
     if (!permitidos) return true;
-    if (!permitidos.includes(item.modulo)) return false;
-    const subs = this._subsVisibles(item.subs);
+    const modulos = item.modulos || [item.modulo];
+    if (!modulos.some(modulo => permitidos.includes(modulo))) return false;
+    const subs = this._subsVisibles(item.subs, permitidos);
     return subs.length > 0;
   },
 
@@ -1117,6 +1288,8 @@ window.DiabCareNav = {
     const mapa = [
       ['/paginas/clinico/pacientes/', 'pacientes'],
       ['/paginas/clinico/admisiones/', 'admisiones'],
+      ['/paginas/clinico/habitaciones/', 'habitaciones'],
+      ['/paginas/clinico/instrumental/', 'instrumental'],
       ['/paginas/clinico/agenda/', 'citas'],
       ['/paginas/clinico/mis_citas/', 'mis_citas'],
       ['/paginas/clinico/registros_clinicos/', 'registros'],
@@ -1149,7 +1322,7 @@ window.DiabCareNav = {
     const mod = this._moduloDesdeRuta(activeHref);
     if (!mod) return this.CATEGORIAS[0]?.id || null;
     for (const cat of this.CATEGORIAS) {
-      if (cat.items.some(it => it.modulo === mod)) return cat.id;
+      if (cat.items.some(it => (it.modulos || [it.modulo]).includes(mod))) return cat.id;
     }
     return null;
   },
@@ -1169,9 +1342,12 @@ window.DiabCareNav = {
   },
 
   /** Filtra subenlaces con restricción opcional `roles: [...]` según el rol actual */
-  _subsVisibles(subs) {
+  _subsVisibles(subs, permitidos = this._permitidosRol()) {
     const rol = String((JSON.parse(localStorage.getItem('usuario') || '{}').rol || '')).toLowerCase();
-    return (subs || []).filter(s => !s.roles || s.roles.includes(rol));
+    return (subs || []).filter(s =>
+      (!s.roles || s.roles.includes(rol)) &&
+      (!s.modulo || !permitidos || permitidos.includes(s.modulo))
+    );
   },
 
   _itemHtml(item, activeHref) {
@@ -1201,12 +1377,12 @@ window.DiabCareNav = {
     html += `<span class="nav-group-label">${label}</span>`;
     if (proximo) html += '<span class="nav-badge">próximo</span>';
     html += `<span class="nav-chevron">${DiabCareIcons.svg('chevron', 12)}</span></div>`;
-    html += `<div class="nav-sub${isActiveGroup ? ' open' : ''}">`;
+    html += `<div class="nav-sub-compact${isActiveGroup ? ' open' : ''}">`;
     for (const sub of subs) {
       const active = this._mismoEnlace(sub.href, activeHref);
       const h = String(sub.href).replace(/'/g, "\\'");
       html += `<a class="nav-sub-item${active ? ' active' : ''}" href="${sub.href}" onclick="return DiabCareNav.irModulo(event,'${h}')">`;
-      html += `<div class="nav-dot"></div><span class="nav-sub-label">${this._txt(sub)}</span></a>`;
+      html += `<span class="nav-sub-icon">${DiabCareIcons.nav(sub.modulo || item.modulo)}</span><span class="nav-sub-label">${this._txt(sub)}</span></a>`;
     }
     html += '</div></div>';
     return html;
@@ -1235,10 +1411,46 @@ window.DiabCareNav = {
     this.montarHolos();
     this.initUser();
     if (window.DiabCareI18n) DiabCareI18n.aplicarPagina();
-    this.pintarArteModulo();
+    this.normalizarNombrePagina();
+    this.aplicarLayoutModulo();
     if (typeof DiabCareAPI !== 'undefined') {
       DiabCareAPI.actualizarEstadoTopbar();
     }
+  },
+
+  normalizarNombrePagina() {
+    const path = window.location.pathname || '';
+    const hit = this.NOMBRES_RUTA.find(([re]) => re.test(path));
+    if (!hit) return;
+    const nombre = hit[1];
+    document.title = `DiabCare - ${nombre}`;
+    const topbar = document.querySelector('.tb-page');
+    if (topbar) topbar.textContent = nombre;
+    const titulo = document.querySelector('.page-title');
+    if (!titulo) return;
+    const partes = nombre.split(' ');
+    titulo.textContent = partes.shift() || nombre;
+    if (partes.length) {
+      titulo.appendChild(document.createTextNode(' '));
+      const destacado = document.createElement('span');
+      destacado.textContent = partes.join(' ');
+      titulo.appendChild(destacado);
+    }
+  },
+
+  aplicarLayoutModulo() {
+    const path = window.location.pathname || '';
+    if (/\/paginas\/inicio\//i.test(path)) return;
+    const hit = this.LAYOUT_RUTAS.find(([re]) => re.test(path));
+    if (!hit) return;
+    document.body.classList.add('dc-module-page', `dc-layout-${hit[1]}`);
+    const content = document.querySelector('.content');
+    if (content) content.classList.add('dc-module-content');
+    const header = content?.querySelector(':scope > .page-header, :scope > .gen-hero, :scope > .an-hero');
+    if (header) header.classList.add('dc-module-header');
+    content?.querySelectorAll(':scope > .tabla-card, :scope > .panel-card, :scope > .card, :scope > .cfg-layout').forEach((el) => {
+      el.classList.add('dc-module-primary');
+    });
   },
 
   /** Ilustración clínica junto al título del módulo. */
@@ -1360,7 +1572,7 @@ window.DiabCareNav = {
 
   syncTemaDesdeHolo(ev) {
     const on = !!(ev && ev.target && ev.target.checked);
-    this.aplicarTema(on ? 'claro' : 'oscuro');
+    this.cambiarTemaAnimado(on ? 'claro' : 'oscuro', ev && ev.target);
   },
 
   accionesEscritorio() {
@@ -1394,7 +1606,7 @@ window.DiabCareNav = {
       const nombres = modules.map((m) => m.label);
       const preview = nombres.slice(0, 4);
       const hint = preview.length
-        ? (preview.join(' · ') + (nombres.length > 4 ? '…' : ''))
+        ? (preview.join(' - ') + (nombres.length > 4 ? '…' : ''))
         : this.t('home_area_h');
       return {
         area: cat.id,
@@ -1550,7 +1762,7 @@ window.DiabCareNav = {
         return false;
       }
     } catch (_) { /* seguir */ }
-    window.location.assign(dest);
+    if (!window.DiabCareNavigate || !window.DiabCareNavigate(dest)) window.location.assign(dest);
     return false;
   },
 
@@ -1566,7 +1778,9 @@ window.DiabCareNav = {
     if (area === 'inicio') {
       this.irInicio();
       if (!/\/paginas\/inicio\//i.test(window.location.pathname || '')) {
-        window.location.href = '/paginas/inicio/index.html';
+        if (!window.DiabCareNavigate || !window.DiabCareNavigate('/paginas/inicio/index.html')) {
+          window.location.href = '/paginas/inicio/index.html';
+        }
       }
       return;
     }
@@ -1789,7 +2003,7 @@ window.DiabCareNav = {
       } catch (_) { /* seguir */ }
       ev.preventDefault();
       ev.stopPropagation();
-      window.location.assign(href);
+      if (!window.DiabCareNavigate || !window.DiabCareNavigate(href)) window.location.assign(href);
     }, true);
   },
 
@@ -1863,24 +2077,44 @@ window.DiabCareNav = {
     document.documentElement.setAttribute('data-tema', t);
     try { localStorage.setItem('diabcare_tema', t); } catch (_) { /* ignore */ }
     const title = this.t(t === 'oscuro' ? 'tb_tema_claro' : 'tb_tema_oscuro');
-    document.querySelectorAll('#tb-tema, #btn-tema').forEach((wrap) => {
+    document.querySelectorAll('#tb-tema, #btn-tema, #tb-tema-btn').forEach((wrap) => {
       wrap.title = title;
+      wrap.setAttribute('aria-label', title);
       const inp = wrap.querySelector ? wrap.querySelector('.dc-holo-input') : null;
       if (inp) {
         inp.checked = t === 'claro';
         inp.setAttribute('aria-label', title);
       }
     });
+    const btn = document.getElementById('tb-tema-btn');
+    if (btn && window.DiabCareIcons) {
+      const lab = t === 'claro'
+        ? (this.idiomaActual() === 'en' ? 'Dark' : 'Oscuro')
+        : (this.idiomaActual() === 'en' ? 'Light' : 'Claro');
+      btn.innerHTML = `${DiabCareIcons.svg(t === 'claro' ? 'luna' : 'sol', 16)}<span class="tb-idioma-lab">${lab}</span>`;
+    }
     window.dispatchEvent(new CustomEvent('diabcare:tema', { detail: { tema: t } }));
-    this.montarTopbarAcciones(true);
+  },
+
+  cambiarTemaAnimado(tema, origen) {
+    const next = tema === 'claro' ? 'claro' : 'oscuro';
+    const root = document.documentElement;
+    if (this.temaActual() === next) return;
+    if (!document.startViewTransition) {
+      this.aplicarTema(next);
+      return;
+    }
+    root.classList.add('dc-theme-changing');
+    const transition = document.startViewTransition(() => this.aplicarTema(next));
+    transition.finished.finally(() => root.classList.remove('dc-theme-changing'));
   },
 
   toggleTema(ev) {
     if (ev && ev.target && ev.target.classList && ev.target.classList.contains('dc-holo-input')) {
-      this.aplicarTema(ev.target.checked ? 'claro' : 'oscuro');
+      this.cambiarTemaAnimado(ev.target.checked ? 'claro' : 'oscuro', ev.target);
       return;
     }
-    this.aplicarTema(this.temaActual() === 'oscuro' ? 'claro' : 'oscuro');
+    this.cambiarTemaAnimado(this.temaActual() === 'oscuro' ? 'claro' : 'oscuro');
   },
 
   /** Lee un token CSS resuelto del tema activo. Para dibujar en canvas. */
@@ -1929,6 +2163,20 @@ window.DiabCareNav = {
   montarTopbarAcciones(forzar) {
     const topbar = document.querySelector('.main .topbar');
     if (!topbar) return;
+
+    let route = Array.from(topbar.children).find((el) => el.classList.contains('tb-route'));
+    if (!route) {
+      const routeNodes = Array.from(topbar.children).filter((el) => (
+        el.matches('.tb-crumb, .tb-sep, .tb-page')
+      ));
+      if (routeNodes.length) {
+        route = document.createElement('div');
+        route.className = 'tb-route';
+        topbar.insertBefore(route, routeNodes[0]);
+        routeNodes.forEach((el) => route.appendChild(el));
+      }
+    }
+
     if (!forzar && topbar.querySelector('#tb-acciones')) return;
 
     let right = topbar.querySelector('.tb-right');
@@ -1939,7 +2187,8 @@ window.DiabCareNav = {
     }
 
     // Quitar chip MinIO / acciones previas: el perfil ocupa ese lugar
-    right.querySelectorAll('.tb-online, #tb-acciones, .tb-user-wrap').forEach(el => el.remove());
+    topbar.querySelectorAll('.dc-vitals-card').forEach(el => el.remove());
+    right.querySelectorAll('.tb-online, #tb-acciones, .tb-user-wrap, .dc-clinic-brand').forEach(el => el.remove());
 
     const acciones = document.createElement('div');
     acciones.id = 'tb-acciones';
@@ -1947,6 +2196,8 @@ window.DiabCareNav = {
 
     const tema = this.temaActual();
     const idi = this.idiomaActual();
+    const clinicTitle = 'DiabCare';
+    const clinicSub = idi === 'en' ? 'Metabolic care unit' : 'Unidad de atención metabólica';
     const u = JSON.parse(localStorage.getItem('usuario') || '{}');
     const rol = (u.rol || '').toLowerCase();
     const permitidos = this.ACCESO[rol] || [];
@@ -1959,9 +2210,9 @@ window.DiabCareNav = {
     const titleTema = this.t(tema === 'oscuro' ? 'tb_tema_claro' : 'tb_tema_oscuro');
     const letra = ((u.nombre || 'U')[0] || 'U').toUpperCase();
     const labTema = tema === 'claro'
-      ? (this.idiomaActual() === 'en' ? 'Light' : 'Claro')
-      : (this.idiomaActual() === 'en' ? 'Dark' : 'Oscuro');
-    const icoTema = DiabCareIcons.svg(tema === 'claro' ? 'sol' : 'luna', 16);
+      ? (this.idiomaActual() === 'en' ? 'Dark' : 'Oscuro')
+      : (this.idiomaActual() === 'en' ? 'Light' : 'Claro');
+    const icoTema = DiabCareIcons.svg(tema === 'claro' ? 'luna' : 'sol', 16);
 
     acciones.innerHTML = `
       <button type="button" class="tb-icon-btn" id="tb-tema-btn" title="${titleTema}" onclick="DiabCareNav.toggleTema()">
@@ -2002,6 +2253,27 @@ window.DiabCareNav = {
         ${DiabCareIcons.svg('configuracion', 16)}
       </a>
     `;
+    const vitalsCard = document.createElement('div');
+    vitalsCard.className = 'dc-vitals-card';
+    vitalsCard.setAttribute('aria-label', `${clinicTitle}. ${clinicSub}`);
+    vitalsCard.innerHTML = `
+      <span class="dc-vitals-orbit" aria-hidden="true">
+        <span class="dc-vitals-ring"></span>
+        <span class="dc-vitals-core">${DiabCareIcons.svg('diabetes', 19)}</span>
+      </span>
+      <span class="dc-vitals-copy">
+        <strong>${clinicTitle}</strong>
+        <small>${clinicSub}</small>
+      </span>
+      <span class="dc-vitals-monitor" aria-hidden="true">
+        <svg viewBox="0 0 86 32" preserveAspectRatio="none">
+          <path class="dc-vitals-grid" d="M0 8H86M0 16H86M0 24H86M18 0V32M36 0V32M54 0V32M72 0V32"/>
+          <path class="dc-vitals-wave" d="M1 18h12l5-9 7 18 8-15 6 6h10l5-8 7 16 7-12 5 4h12"/>
+        </svg>
+        <span class="dc-vitals-scan"></span>
+      </span>
+    `;
+    topbar.insertBefore(vitalsCard, right);
     right.appendChild(acciones);
 
     const userWrap = document.createElement('div');
@@ -2184,7 +2456,7 @@ window.DiabCareNav = {
         return `<button type="button" class="tb-notif-item${n.leida ? '' : ' unread'}" onclick="DiabCareNav.abrirNotif('${n.id}', ${n.leida ? 'true' : 'false'})">
           <div class="n-title">${titulo}</div>
           <div class="n-msg">${msg}</div>
-          <div class="n-meta">${para ? `${this.t('tb_notif_para')}: ${para} · ` : ''}${fecha}</div>
+          <div class="n-meta">${para ? `${this.t('tb_notif_para')}: ${para} - ` : ''}${fecha}</div>
         </button>`;
       }).join('');
     } catch (_) {

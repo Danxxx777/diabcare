@@ -9,10 +9,10 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js?v=cobro-1"></script>
-<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
+<script src="/estaticos/crud-modulo.js?v=text-36"></script>
 <style>
 .caja-shell { width: 100%; max-width: none; box-sizing: border-box; }
 .content.caja-shell { padding: 16px 18px 20px; }
@@ -105,7 +105,7 @@
   <div class="content caja-shell">
     <div class="caja-top">
       <div class="caja-brand">
-        <div class="caja-kicker">Negocio hospitalario · caja</div>
+        <div class="caja-kicker">Negocio hospitalario - caja</div>
         <div class="page-title">Caja <span>y facturación</span></div>
         <div class="page-sub" id="pageSub">Cobros y cartera</div>
       </div>
@@ -115,14 +115,12 @@
         </span>
         <button class="btn btn-ghost btn-sm" id="btnTurno" onclick="alternarTurno()">Caja…</button>
         <button class="btn btn-ghost btn-sm" id="btnSeed" onclick="seedModulo()">Cargar catálogo</button>
-        <a class="btn btn-ghost btn-sm" href="/paginas/clinico/agenda/index.html">Agenda (turnos)</a>
-        <a class="btn btn-ghost btn-sm" href="/paginas/negocio/farmacia/index.html">Mostrador farmacia</a>
         <button class="btn btn-primary btn-sm" id="btnNuevoFac" onclick="abrirModal()">+ Emitir / cobrar</button>
       </div>
     </div>
-    <p class="analista-note" id="analistaNote" style="display:none">Solo consulta · sin emitir ni cobrar</p>
+    <p class="analista-note" id="analistaNote" style="display:none">Solo consulta - sin emitir ni cobrar</p>
 
-    <div class="kpi-row" id="kpisCaja">
+    <div class="kpi-row" id="kpisCaja" style="display:none!important">
       <div class="kpi-card cyan">
         <div class="kpi-label">Facturado</div>
         <div class="kpi-val cyan money" id="k-emitido">$0.00</div>
@@ -214,7 +212,7 @@ function cellPaciente(row) {
   const raw = row.paciente_nombre && row.paciente_nombre !== '-'
     ? row.paciente_nombre
     : (row.paciente_label || 'Paciente');
-  const nom = esc(String(raw).split(' · ')[0]);
+  const nom = esc(String(raw).split(' - ')[0]);
   const doc = esc(row.paciente_documento || '');
   return `<div class="pac-cell"><strong>${nom}</strong>${doc ? `<span>CI ${doc}</span>` : ''}</div>`;
 }
@@ -245,6 +243,7 @@ async function abrirComprobanteFactura(idFactura) {
 }
 
 async function cargarKpis() {
+  if (document.getElementById('kpisCaja')?.style.display === 'none') return;
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 12000);
@@ -263,7 +262,7 @@ async function cargarKpis() {
     document.getElementById('k-pagadas-n').textContent = `${d.pagadas ?? 0} pagadas`;
     document.getElementById('k-emitidas-n').textContent = `${d.emitidas ?? 0} por cobrar`;
   } catch (_) {
-    document.getElementById('k-total-n').textContent = 'reintente · API/MinIO';
+    document.getElementById('k-total-n').textContent = 'reintente - API/MinIO';
   }
 }
 
@@ -284,9 +283,9 @@ async function cargarTurno() {
   if (_caja.abierta) {
     chip.classList.add('abierta');
     const t = _caja.totales || {};
-    txt.textContent = `Caja abierta · ${money(_caja.esperado_efectivo)} en efectivo`;
-    chip.title = `Fondo ${money(_caja.fondo_inicial)} · ${_caja.num_pagos} cobros · `
-      + `tarjeta ${money(t.tarjeta)} · transferencia ${money(t.transferencia)}`;
+    txt.textContent = `Caja abierta - ${money(_caja.esperado_efectivo)} en efectivo`;
+    chip.title = `Fondo ${money(_caja.fondo_inicial)} - ${_caja.num_pagos} cobros - `
+      + `tarjeta ${money(t.tarjeta)} - transferencia ${money(t.transferencia)}`;
     btn.textContent = 'Cerrar caja';
   } else {
     chip.classList.remove('abierta');
@@ -347,7 +346,7 @@ async function cerrarCaja() {
     + `Esperado en cajón : ${money(d.esperado_efectivo)}\n`
     + `Contado           : ${money(d.contado_efectivo)}\n`
     + `Diferencia        : ${dif > 0 ? '+' : ''}${money(dif)}\n\n`
-    + `Cobros: ${d.num_pagos} · tarjeta ${money((d.totales || {}).tarjeta)}`
+    + `Cobros: ${d.num_pagos} - tarjeta ${money((d.totales || {}).tarjeta)}`
   );
   DiabCareAPI.toast(d.mensaje, d.cuadrada ? 'success' : 'error');
   cargarTurno();
@@ -374,7 +373,7 @@ const pacLookup = {
   idKey: 'id_paciente', typeahead: true,
   label: p => {
     const nom = p.nombre_completo || ((p.nombre||'') + ' ' + (p.apellido||'')).trim() || 'Paciente';
-    return p.documento ? `${nom} · ${p.documento}` : nom;
+    return p.documento ? `${nom} - ${p.documento}` : nom;
   }
 };
 const segLookup = {
@@ -408,7 +407,7 @@ DiabCareCrud.mountTabs({
         { key: 'paciente_nombre', label: 'Paciente' },
         { key: 'medico', label: 'Médico' },
         { key: 'motivo', label: 'Motivo' },
-        { key: 'estado', label: 'Estado', render: r => esc(r.estado_label || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(r.estado) : r.estado) || '—') },
+        { key: 'estado', label: 'Estado', render: r => esc(r.estado_label || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(r.estado) : r.estado) || '-') },
         {
           key: 'pago', label: 'Cobro',
           render: r => r.consulta_pagada
@@ -419,9 +418,9 @@ DiabCareCrud.mountTabs({
       fields: [],
       rowActions: esAnalista ? [] : [{
         id: 'cobrar',
-        label: 'Cobrar consulta',
+        label: 'Facturar atención',
         show: (row) => !row.consulta_pagada
-          && !['cancelada', 'atendida', 'no_asistio'].includes(String(row.estado || '').toLowerCase()),
+          && ['atendida'].includes(String(row.estado || '').toLowerCase()),
         async onClick(row, ctx) {
           const paid = typeof DiabCareAPI !== 'undefined' && DiabCareAPI.cobrarConsulta
             ? await DiabCareAPI.cobrarConsulta(row.id_cita, { onPaid: () => { cargarKpis(); if (ctx.cargar) ctx.cargar(); } })
@@ -437,7 +436,7 @@ DiabCareCrud.mountTabs({
           if (body) {
             body.innerHTML = `<div class="empty-caja">
               <strong>Sin turnos</strong>
-              <a href="/paginas/clinico/agenda/index.html">Agenda</a>
+              <span>No hay atenciones listas para facturar.</span>
             </div>`;
           }
         }
@@ -567,7 +566,7 @@ DiabCareCrud.mountTabs({
       lookups: [{
         field: 'id_factura', url: '/api/facturas?limit=150', listKey: 'facturas',
         idKey: 'id_factura',
-        label: f => `${f.paciente_label || 'Paciente'} · ${money(f.total)} · ${f.estado || ''}`
+        label: f => `${f.paciente_label || 'Paciente'} - ${money(f.total)} - ${f.estado || ''}`
       }],
       rowActions: [{
         id: 'ver-pagos', label: 'Ver cobros',

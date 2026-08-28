@@ -10,7 +10,7 @@ ROLES_VALIDOS = ["administrador", "medico", "enfermero", "farmaceutico", "analis
 MODULOS_POR_CATEGORIA = {
     "Atención clínica": [
         "pacientes", "admisiones", "citas", "mis_citas", "registros", "comorbilidades",
-        "laboratorio", "urgencias",
+        "laboratorio", "urgencias", "instrumental",
     ],
     "Farmacia y recetas": ["recetas", "farmacia"],
     "Negocio hospitalario": ["facturacion", "rrhh"],
@@ -26,7 +26,8 @@ PERMISOS_MODULOS = {
     "configuracion":    ["administrador"],
     "auditoria":        ["administrador"],
     "pacientes":        ["administrador", "medico", "enfermero", "farmaceutico"],
-    "admisiones":       ["administrador", "farmaceutico", "enfermero"],
+    "admisiones":       ["administrador", "enfermero"],
+    "habitaciones":     ["administrador", "medico", "enfermero"],
     "citas":            ["administrador", "farmaceutico", "enfermero"],
     "mis_citas":        ["administrador", "medico"],
     "registros":        ["administrador", "medico"],
@@ -45,9 +46,10 @@ PERMISOS_MODULOS = {
     "laboratorio_ordenar": ["administrador", "medico"],
     "laboratorio_resultado": ["administrador", "enfermero"],
     "urgencias":        ["administrador", "medico", "enfermero", "farmaceutico"],
-    "urgencias_triage": ["administrador", "enfermero", "farmaceutico"],
+    "urgencias_triage": ["administrador", "enfermero"],
     "urgencias_atender": ["administrador", "medico"],
     "rrhh":             ["administrador", "analista"],
+    "instrumental":     ["administrador", "enfermero"],
 }
 
 # Escritura (POST/PUT/DELETE). Lectura sigue en PERMISOS_MODULOS.
@@ -56,6 +58,7 @@ PERMISOS_ESCRITURA = {
     "facturacion": ["administrador", "farmaceutico"],
     "rrhh": ["administrador"],
     "farmacia_caja": ["administrador", "farmaceutico"],
+    "habitaciones": ["administrador", "enfermero"],
 }
 
 _MARCAS_INVALIDAS = frozenset({"", "null", "undefined", "sesion", "cookie", "none"})

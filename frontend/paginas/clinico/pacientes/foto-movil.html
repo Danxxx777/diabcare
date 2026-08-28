@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DiabCare - Foto del paciente</title>
+<style>body{margin:0;background:#edf3f3;color:#17353b;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh}.card{width:min(420px,calc(100% - 32px));background:#fff;border-radius:18px;padding:24px;box-shadow:0 16px 45px #17353b25;text-align:center}input,button{width:100%;box-sizing:border-box;margin-top:14px;padding:14px;border-radius:10px;border:1px solid #9fb2b6}button{background:#285f69;color:#fff;font-weight:700}img{max-width:100%;max-height:340px;border-radius:12px;margin-top:14px}</style></head>
+<body><main class="card"><h1>Foto del paciente</h1><p>Toma una foto frontal y bien iluminada.</p><input id="foto" type="file" accept="image/jpeg,image/png,image/webp" capture="user"><img id="preview" hidden alt="Vista previa"><button id="enviar" type="button">Enviar foto a DiabCare</button><p id="estado"></p></main>
+<script>
+const token=new URLSearchParams(location.search).get('token')||'';
+const foto=document.getElementById('foto'),preview=document.getElementById('preview'),estado=document.getElementById('estado');
+foto.onchange=()=>{const f=foto.files[0];if(f){preview.src=URL.createObjectURL(f);preview.hidden=false;}};
+document.getElementById('enviar').onclick=async()=>{const f=foto.files[0];if(!f){estado.textContent='Primero toma la foto';return;}estado.textContent='Enviando...';const fd=new FormData();fd.append('archivo',f);const r=await fetch(`/api/pacientes/foto-movil/${encodeURIComponent(token)}`,{method:'POST',body:fd});const d=await r.json().catch(()=>({}));estado.textContent=r.ok?'Foto enviada. Puedes volver a la computadora.':(d.detail||'No se pudo enviar');};
+</script></body></html>

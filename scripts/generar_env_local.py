@@ -49,7 +49,7 @@ POCKETBASE_COLLECTION={prev.get('POCKETBASE_COLLECTION', 'diabetes_dataset')}
 MINIO_BUCKET={prev.get('MINIO_BUCKET', 'diabetes-data')}
 MINIO_STAGE_PATH={prev.get('MINIO_STAGE_PATH', 'stage/')}
 
-AIRFLOW_URL={prev.get('AIRFLOW_URL', 'http://localhost:8080')}
+AIRFLOW_URL={prev.get('AIRFLOW_URL', 'http://localhost:8081')}
 AIRFLOW_USER={prev.get('AIRFLOW_USER', 'admin')}
 AIRFLOW_PASSWORD={prev.get('AIRFLOW_PASSWORD', 'admin')}
 AIRFLOW_DAG_ID={prev.get('AIRFLOW_DAG_ID', 'diabcare_elt')}

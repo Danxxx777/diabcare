@@ -10,9 +10,9 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 <style>
 .gen-shell {
   width: 100%;
@@ -255,7 +255,7 @@
 
         <div class="gen-qty">
           <input type="number" id="g-cantidad" value="1000" min="1" max="10000000" aria-label="Cantidad de registros">
-          <div class="gen-qty-meta" id="hint-cantidad">1.000 · máx. 10M</div>
+          <div class="gen-qty-meta" id="hint-cantidad">1.000 - máx. 10M</div>
         </div>
         <div class="preset-strip" id="presetStrip" role="group" aria-label="Presets">
           <button type="button" class="preset-chip on" data-n="1000">1K</button>
@@ -353,8 +353,8 @@
         <div class="status-card">
           <div class="label">Stage en MinIO</div>
           <div class="status-metrics">
-            <div class="metric"><span>Archivos</span><b id="m-archivos">—</b></div>
-            <div class="metric"><span>Registros</span><b id="m-regs">—</b></div>
+            <div class="metric"><span>Archivos</span><b id="m-archivos">-</b></div>
+            <div class="metric"><span>Registros</span><b id="m-regs">-</b></div>
             <div class="metric"><span>Formato</span><b style="font-size:14px">Parquet</b></div>
             <div class="metric"><span>Máx. lote</span><b id="infoMaxReg" style="font-size:14px;display:block">10M</b></div>
           </div>
@@ -375,7 +375,7 @@
     <div class="files-card">
       <div class="files-head">
         <h2>Archivos stage/</h2>
-        <span class="tabla-info" id="archivosInfo">—</span>
+        <span class="tabla-info" id="archivosInfo">-</span>
         <button class="btn btn-ghost btn-sm" onclick="cargarArchivos()">Actualizar</button>
         <button class="btn btn-danger btn-sm" onclick="eliminarTodos()">Vaciar todo</button>
       </div>
@@ -434,7 +434,7 @@ function actualizarHintCantidad(v) {
     hint.textContent = `Excede máx. ${maxRegistros.toLocaleString('es-ES')}`;
     hint.style.color = 'var(--red)';
   } else {
-    hint.textContent = `${n.toLocaleString('es-ES')} · máx. ${maxRegistros >= 1e6 ? (maxRegistros / 1e6) + 'M' : maxRegistros.toLocaleString('es-ES')}`;
+    hint.textContent = `${n.toLocaleString('es-ES')} - máx. ${maxRegistros >= 1e6 ? (maxRegistros / 1e6) + 'M' : maxRegistros.toLocaleString('es-ES')}`;
     hint.style.color = '';
   }
   syncPresetChips(n);
@@ -524,11 +524,11 @@ async function cargarArchivos() {
     const d = await r.json();
     const archivos = d.archivos || [];
     totalRegistrosStage = d.total_registros ?? archivos.reduce((s, a) => s + (a.registros || 0), 0);
-    info.textContent = `${archivos.length} · ${totalRegistrosStage.toLocaleString('es-ES')} reg.`;
+    info.textContent = `${archivos.length} - ${totalRegistrosStage.toLocaleString('es-ES')} reg.`;
     document.getElementById('m-archivos').textContent = String(archivos.length);
     document.getElementById('m-regs').textContent = totalRegistrosStage.toLocaleString('es-ES');
     if (!archivos.length) {
-      box.innerHTML = '<div style="padding:20px 16px;font-size:12px;color:var(--muted)">Vacío — aún no hay Parquet en stage/</div>';
+      box.innerHTML = '<div style="padding:20px 16px;font-size:12px;color:var(--muted)">Vacío - aún no hay Parquet en stage/</div>';
       return;
     }
     box.innerHTML = `<table>
@@ -607,7 +607,7 @@ async function eliminarRegistros() {
       document.getElementById('del-cantidad').value = '';
       totalRegistrosStage = Math.max(0, (d.restantes ?? totalRegistrosStage - cantidad));
       document.getElementById('archivosInfo').textContent =
-        `Actualizando… · ${totalRegistrosStage.toLocaleString('es-ES')} reg.`;
+        `Actualizando… - ${totalRegistrosStage.toLocaleString('es-ES')} reg.`;
       cargarArchivos();
     } else {
       toast(d.error || d.detail || 'No se pudo eliminar', 'error');
@@ -686,7 +686,18 @@ async function generar() {
 
   document.getElementById('progressWrap').classList.add('visible');
   document.getElementById('resultBox').classList.remove('show');
-  setProgress(40, 'Generando y subiendo…', 2);
+  setProgress(12, 'Generando registros clínicos…', 1);
+  const etapas = [
+    [34, 'Construyendo archivos Parquet…', 2],
+    [62, 'Poblando tablas hospitalarias…', 3],
+    [84, 'Verificando cobertura de tablas…', 3],
+  ];
+  let etapaActual = 0;
+  const progresoTimer = window.setInterval(() => {
+    if (etapaActual >= etapas.length) return;
+    setProgress(...etapas[etapaActual]);
+    etapaActual += 1;
+  }, 900);
 
   try {
     const r = await fetch(`${API}/api/dataset/generar`, {
@@ -705,14 +716,20 @@ async function generar() {
       const nCitas = flujo.citas ?? hosp.citas ?? '-';
       const nAdm = flujo.admisiones ?? hosp.admisiones ?? '-';
       const nReg = flujo.registros_clinicos ?? hosp.registros_clinicos ?? '-';
+      const cobertura = d.cobertura_tablas || {};
+      const coberturaTexto = cobertura.total
+        ? `${cobertura.pobladas}/${cobertura.total}`
+        : '-';
       showResult(true, 'Listo', new Date().toLocaleString('es-ES'), `
         <div class="stat-card"><div class="stat-label">Stage</div><div class="stat-value green">${total}</div></div>
         <div class="stat-card"><div class="stat-label">Pacientes</div><div class="stat-value blue">${nPac}</div></div>
         <div class="stat-card"><div class="stat-label">Citas / adm.</div><div class="stat-value">${nCitas} / ${nAdm}</div></div>
+        <div class="stat-card"><div class="stat-label">Tablas pobladas</div><div class="stat-value ${cobertura.completa ? 'green' : ''}">${coberturaTexto}</div></div>
       `, `<span>Archivo:</span> ${d.archivo || '-'}
          ${hosp.ok === false ? `<div style="margin-top:8px;color:var(--red)">Flujo: ${hosp.error || 'error'}</div>` : ''}
-         ${hosp.ok ? `<div style="margin-top:8px">${nPac} pacientes · ${nReg} registros clínicos</div>` : ''}`);
-        toast(`${total} en stage` + (nPac && nPac !== '-' ? ` · ${nPac} pacientes` : ''), 'success');
+         ${hosp.ok ? `<div style="margin-top:8px">${nPac} pacientes - ${nReg} registros clínicos</div>` : ''}
+         ${cobertura.vacias?.length ? `<div style="margin-top:8px;color:var(--red)">Sin registros: ${cobertura.vacias.join(', ')}</div>` : ''}`);
+        toast(`${total} en stage` + (nPac && nPac !== '-' ? ` - ${nPac} pacientes` : ''), 'success');
         invalidarCacheStatsUi();
         cargarArchivos();
     } else {
@@ -725,6 +742,7 @@ async function generar() {
     showResult(false, 'Error de conexión con el servidor', '', '', '');
     toast('Error de conexión', 'error');
   } finally {
+    window.clearInterval(progresoTimer);
     btn.disabled = false;
     btn.innerHTML = '<span data-icon="generador" data-icon-size="14"></span> Generar y subir';
     if (window.DiabCareIcons) DiabCareIcons.aplicarEnPagina();

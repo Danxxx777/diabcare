@@ -1,7 +1,7 @@
 # Apache Airflow — orquestación del Pipeline ELT (demo académica)
 # Uso:
 #   docker compose -f docker-compose.airflow.yml up -d
-# UI: http://localhost:8080  (admin / admin)
+# UI: http://localhost:8081  (admin / admin)
 # El DAG "diabcare_elt" llama a FastAPI en el host (:8000).
 #
 # Requisito: backend DiabCare corriendo en localhost:8000 y MinIO/PocketBase disponibles.
@@ -52,7 +52,7 @@ services:
     <<: *airflow-common
     command: webserver
     ports:
-      - "8080:8080"
+      - "8081:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 20s

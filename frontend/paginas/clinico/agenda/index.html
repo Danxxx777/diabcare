@@ -8,10 +8,15 @@
 <link rel="stylesheet" href="/estaticos/estilos.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
+<style>
+.agenda-workspace{display:grid;gap:12px;align-items:start}.agenda-control{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}.agenda-control .stats-grid{margin:0!important}.agenda-filtros{display:flex;align-items:end;gap:9px}.agenda-filtros label{display:grid;gap:5px;color:var(--text-muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}.agenda-filtros .search{width:170px}.agenda-lista .tabla-top{grid-template-columns:minmax(220px,1fr);margin-bottom:12px}
+.agenda-lista .data-grid{display:grid;gap:9px}.agenda-lista .data-tile{position:relative;padding-left:22px;border-radius:15px;border-left:0;background:linear-gradient(90deg,color-mix(in srgb,var(--primary) 9%,var(--surface)),var(--surface) 35%)}.agenda-lista .data-tile:before{content:"";position:absolute;left:8px;top:17px;bottom:17px;width:3px;border-radius:3px;background:var(--primary)}.agenda-lista .data-tile-meta{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:900px){.agenda-control{grid-template-columns:1fr}.agenda-filtros{justify-content:flex-start}}@media(max-width:650px){.agenda-filtros{display:grid;grid-template-columns:1fr;width:100%}.agenda-filtros .search,.agenda-lista .data-tile-meta{width:100%}.agenda-lista .data-tile-meta{grid-template-columns:1fr}}
+</style>
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js?v=cobro-1"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
 </head>
 <body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
@@ -23,32 +28,31 @@
     <div class="page-header">
       <div>
         <div class="page-title">Recepción <span>/ turnos</span></div>
-        <div class="page-sub">Turnos y cobro de consulta</div>
+        <div class="page-sub">Programación y asignación de turnos médicos</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <a class="btn btn-ghost btn-sm" href="/paginas/negocio/facturacion/index.html">Ir a Facturación</a>
         <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Separar turno</button>
       </div>
     </div>
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Turnos (día)</div><div class="stat-value blue" id="st-hoy">-</div></div>
-      <div class="stat-card"><div class="stat-label">Cobro pendiente</div><div class="stat-value amber" id="st-cobro">-</div></div>
-      <div class="stat-card"><div class="stat-label">Consultas cobradas</div><div class="stat-value green" id="st-pagado">-</div></div>
-    </div>
-    <div class="tabla-card">
+    <div class="agenda-workspace">
+      <aside class="agenda-control">
+        <div class="stats-grid" style="display:none!important">
+          <div class="stat-card"><div class="stat-label">Turnos (día)</div><div class="stat-value blue" id="st-hoy">-</div></div>
+          <div class="stat-card"><div class="stat-label">Cobro pendiente</div><div class="stat-value amber" id="st-cobro">-</div></div>
+          <div class="stat-card"><div class="stat-label">Consultas cobradas</div><div class="stat-value green" id="st-pagado">-</div></div>
+        </div>
+        <div class="agenda-filtros">
+          <label>Fecha<input class="search" id="f-fecha" type="date" onchange="pag=1;cargarHoy();cargar()"></label>
+          <label>Estado<select class="search" id="f-estado" onchange="pag=1;cargar()"><option value="">Todos los estados</option><option value="programada">Programada</option><option value="confirmada">Confirmada</option><option value="atendida">Atendida</option><option value="cancelada">Cancelada</option></select></label>
+        </div>
+      </aside>
+    <div class="tabla-card agenda-lista">
       <div class="tabla-top">
         <input class="search" id="f-q" type="search" autocomplete="off" placeholder="Paciente, médico o motivo referido…">
-        <input class="search" id="f-fecha" type="date" onchange="pag=1;cargarHoy();cargar()">
-        <select class="search" id="f-estado" onchange="pag=1;cargar()">
-          <option value="">Todos los estados</option>
-          <option value="programada">Programada</option>
-          <option value="confirmada">Confirmada</option>
-          <option value="atendida">Atendida</option>
-          <option value="cancelada">Cancelada</option>
-        </select>
       </div>
       <div class="tabla-wrap"><div id="tablaBody"><div class="loading"><div class="spinner"></div>Cargando…</div></div></div>
       <div id="dataPager" class="data-pager" hidden></div>
+    </div>
     </div>
   </div>
 </div>
@@ -68,8 +72,8 @@
         <select id="m-medico" required></select>
       </label>
       <label>Fecha<input id="m-fecha" type="date"></label>
-      <label>Hora<input id="m-hora" type="time" value="09:00" min="07:00" max="18:59" step="300"></label>
-      <p class="span-full field-hint">Consulta programada: lunes a sábado, 07:00–19:00. Fuera de horario o domingo: registre en Urgencias.</p>
+      <label>Hora<input id="m-hora" type="time" value="09:00" min="08:00" max="17:59" step="300"></label>
+      <p class="span-full field-hint">Consulta programada: lunes a viernes, 08:00-18:00. Fuera de ese horario, registre en Urgencias.</p>
       <label class="span-full">Qué refiere el paciente (aprox.)
         <input id="m-motivo" placeholder="Ej. control glucosa, dolor de pie, mareos…">
       </label>
@@ -87,10 +91,9 @@ DiabCareNav.guardRol(['administrador', 'farmaceutico', 'enfermero']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
 const _rol = String((JSON.parse(localStorage.getItem('usuario') || '{}').rol || '')).toLowerCase();
-const _puedeCobrar = ['administrador', 'farmaceutico'].includes(_rol);
 let pag = 1;
 let _totalRows = 0;
-const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 12;
+const LIMIT = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.GRID_PAGE_SIZE) || 9;
 let _rows = [];
 let _medicos = [];
 let _pacTA = null;
@@ -109,6 +112,7 @@ async function cargarMedicos() {
 }
 
 async function cargarHoy() {
+  if (document.querySelector('.agenda-control .stats-grid')?.style.display === 'none') return;
   const fecha = document.getElementById('f-fecha').value || '';
   const qs = fecha ? `?fecha=${encodeURIComponent(fecha)}` : '';
   const r = await fetch(`${API}/api/citas/resumen${qs}`, { headers: { Authorization: 'Bearer '+token } });
@@ -152,25 +156,19 @@ async function cargar() {
     columns: [
       { key: 'paciente_nombre', label: 'Paciente', title: true },
       { key: 'estado', label: 'Estado', badge: true, render: c =>
-        c.estado_label || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(c.estado) : c.estado) || '—' },
+        c.estado_label || (typeof DiabCareAPI !== 'undefined' ? DiabCareAPI.capLabel(c.estado) : c.estado) || '-' },
       { key: 'fecha', label: 'Fecha' },
       { key: 'hora', label: 'Hora' },
       { key: 'medico', label: 'Médico' },
       { key: 'motivo', label: 'Motivo' },
-      { key: 'pago_label', label: 'Cobro', render: c =>
-        c.pago_label || (c.consulta_pagada ? 'Cobrada' : 'Pendiente cobro') },
     ],
     actionsHtml: (c, id) => {
       const acciones = [
         `<button type="button" class="btn btn-ghost btn-sm" data-edit="${id}">Editar</button>`,
         `<button type="button" class="btn btn-ghost btn-sm" data-cancel="${id}">Cancelar</button>`,
       ];
-      if (!c.consulta_pagada && c.estado !== 'cancelada' && c.estado !== 'atendida') {
-        if (_puedeCobrar) {
-          acciones.unshift(`<button type="button" class="btn btn-primary btn-sm" data-cobrar="${id}">Cobrar consulta</button>`);
-        } else {
-          acciones.unshift(`<span class="muted" style="font-size:12px">Pasar a caja</span>`);
-        }
+      if (_rol === 'administrador' && !['cancelada', 'atendida'].includes(c.estado)) {
+        acciones.unshift(`<button type="button" class="btn btn-primary btn-sm" data-reasignar="${id}">Reasignar médico</button>`);
       }
       return acciones.join(' ');
     },
@@ -181,8 +179,8 @@ async function cargar() {
   body.querySelectorAll('[data-cancel]').forEach(btn => {
     btn.onclick = () => cancelar(btn.getAttribute('data-cancel'));
   });
-  body.querySelectorAll('[data-cobrar]').forEach(btn => {
-    btn.onclick = () => cobrarConsulta(btn.getAttribute('data-cobrar'));
+  body.querySelectorAll('[data-reasignar]').forEach(btn => {
+    btn.onclick = () => reasignarMedico(btn.getAttribute('data-reasignar'));
   });
   DiabCareAPI.renderPager(document.getElementById('dataPager'), {
     page: pag, pageSize: LIMIT, total: _totalRows,
@@ -190,22 +188,10 @@ async function cargar() {
   });
 }
 
-async function cobrarConsulta(id) {
-  if (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.cobrarConsulta) {
-    const paid = await DiabCareAPI.cobrarConsulta(id);
-    if (paid) {
-      cargarHoy();
-      cargar();
-    }
-    return;
-  }
-  toast('No se pudo abrir el cobro', 'error');
-}
-
 function llenarMedicos(selected) {
   const sel = document.getElementById('m-medico');
   sel.innerHTML = _medicos.length
-    ? _medicos.map(m => `<option value="${(m.nombre || '').replace(/"/g, '&quot;')}">${m.nombre || m.email}${m.email ? ` (${m.email})` : ''}</option>`).join('')
+    ? _medicos.map(m => `<option value="${(m.nombre || '').replace(/"/g, '&quot;')}">${m.nombre || 'Médico sin nombre'}</option>`).join('')
     : '<option value="">- Registre un usuario con rol Médico -</option>';
   if (selected) {
     const match = [...sel.options].find(o => o.value === selected);
@@ -233,6 +219,14 @@ async function abrirModal(c) {
   document.getElementById('m-motivo').value = c?.motivo || '';
   document.getElementById('m-notas').value = c?.notas || '';
   if (!c?.id_paciente) setTimeout(() => document.getElementById('m-paciente-q').focus(), 50);
+}
+
+async function reasignarMedico(id) {
+  const cita = _rows.find(c => String(c.id_cita) === String(id));
+  if (!cita) return;
+  await abrirModal(cita);
+  document.getElementById('modal-titulo').textContent = 'Reasignar médico';
+  setTimeout(() => document.getElementById('m-medico').focus(), 50);
 }
 function cerrarModal() { document.getElementById('modal').style.display = 'none'; }
 function editar(id) { abrirModal(_rows.find(x => x.id_cita === id)); }
@@ -280,8 +274,10 @@ async function cancelar(id) {
 }
 
 document.getElementById('f-fecha').value = new Date().toISOString().slice(0, 10);
+document.getElementById('m-fecha').min = new Date().toISOString().slice(0, 10);
 DiabCareAPI.bindLiveSearch({ input: document.getElementById('f-q'), onSearch: () => { pag = 1; return cargar(); } });
-cargarMedicos().then(() => { cargarHoy(); cargar(); });
+cargarMedicos();
+cargar();
 </script>
 </body>
 </html>

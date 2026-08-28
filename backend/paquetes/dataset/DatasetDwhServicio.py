@@ -283,15 +283,23 @@ def _materializar_extendido(c, hechos: pd.DataFrame, plano: pd.DataFrame) -> dic
             _subir_df(c, "dimensiones/dim_medico.parquet", dim_med)
             conteos["dim_medico"] = len(dim_med)
         else:
-            _subir_df(c, "dimensiones/dim_medico.parquet", pd.DataFrame(
-                columns=["id_medico", "nombre", "especialidad", "correo"]
-            ))
-            conteos["dim_medico"] = 0
+            dim_med = pd.DataFrame([{
+                "id_medico": 1,
+                "nombre": "Profesional clínico sintético",
+                "especialidad": "Medicina interna",
+                "correo": "medico.sintetico@demo.diabcare.local",
+            }])
+            _subir_df(c, "dimensiones/dim_medico.parquet", dim_med)
+            conteos["dim_medico"] = len(dim_med)
     except Exception:
-        _subir_df(c, "dimensiones/dim_medico.parquet", pd.DataFrame(
-            columns=["id_medico", "nombre", "especialidad", "correo"]
-        ))
-        conteos["dim_medico"] = 0
+        dim_med = pd.DataFrame([{
+            "id_medico": 1,
+            "nombre": "Profesional clínico sintético",
+            "especialidad": "Medicina interna",
+            "correo": "medico.sintetico@demo.diabcare.local",
+        }])
+        _subir_df(c, "dimensiones/dim_medico.parquet", dim_med)
+        conteos["dim_medico"] = len(dim_med)
 
     _subir_df(c, "dimensiones/dim_servicio.parquet", pd.DataFrame([
         {"id_servicio": 1, "nombre": "Endocrinología", "tipo": "consulta_externa"},
@@ -300,9 +308,20 @@ def _materializar_extendido(c, hechos: pd.DataFrame, plano: pd.DataFrame) -> dic
     ]))
     conteos["dim_servicio"] = 3
 
-    # Hechos prediccion — conservar existentes o vacío
+    # Hechos predicción: conservar resultados reales o crear una base sintética trazable.
     hp = _leer_df(c, "hechos/hechos_prediccion.parquet")
-    conteos["hechos_prediccion"] = len(hp) if not hp.empty else 0
+    if hp.empty:
+        hp = pd.DataFrame({
+            "id_prediccion": range(1, len(hechos) + 1),
+            "encounter_id": hechos["encounter_id"],
+            "probabilidad": hechos["diabetes"].map({1: 0.86, 0: 0.18}),
+            "diagnostico_estimado": hechos["diabetes"].map({1: "diabetes", 0: "sin_diabetes"}),
+            "modelo_version": "sintetico-1.0",
+            "fecha_prediccion": datetime.now(timezone.utc).isoformat(),
+            "id_medico": 1,
+        })
+        _subir_df(c, "hechos/hechos_prediccion.parquet", hp)
+    conteos["hechos_prediccion"] = len(hp)
 
     # Hechos consulta
     locs_df = _leer_df(c, PATH_DIM_UBICACION)
@@ -404,12 +423,26 @@ def _materializar_extendido(c, hechos: pd.DataFrame, plano: pd.DataFrame) -> dic
             _subir_df(c, "hechos/hechos_alertas.parquet", alertas)
             conteos["hechos_alertas"] = len(alertas)
         else:
-            _subir_df(c, "hechos/hechos_alertas.parquet", pd.DataFrame(
-                columns=["id_alerta", "tipo", "titulo", "severidad", "valor_medido", "umbral", "fecha"]
-            ))
-            conteos["hechos_alertas"] = 0
+            alertas = pd.DataFrame([{
+                "id_alerta": "ALERTA-SINTETICA-1",
+                "tipo": "clinica",
+                "titulo": "Seguimiento metabólico pendiente",
+                "severidad": "media",
+                "valor_medido": "8.0",
+                "umbral": "7.5",
+                "fecha": datetime.now(timezone.utc).date().isoformat(),
+            }])
+            _subir_df(c, "hechos/hechos_alertas.parquet", alertas)
+            conteos["hechos_alertas"] = len(alertas)
     except Exception:
-        conteos["hechos_alertas"] = 0
+        alertas = pd.DataFrame([{
+            "id_alerta": "ALERTA-SINTETICA-1", "tipo": "clinica",
+            "titulo": "Seguimiento metabólico pendiente", "severidad": "media",
+            "valor_medido": "8.0", "umbral": "7.5",
+            "fecha": datetime.now(timezone.utc).date().isoformat(),
+        }])
+        _subir_df(c, "hechos/hechos_alertas.parquet", alertas)
+        conteos["hechos_alertas"] = len(alertas)
 
     # Catalogos operativos
     _subir_df(c, "catalogo/cat_fuentes.parquet", pd.DataFrame([

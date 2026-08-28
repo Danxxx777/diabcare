@@ -1,5 +1,10 @@
 # DiabCare — detener stack (pareja de .\arrancar.ps1)
-# Uso:  .\detener.ps1   |   tarea VS Code "DiabCare: detener todo"
+# Uso:  .\detener.ps1                detener todo
+#       .\detener.ps1 -SoloBackend   reinicio rapido durante desarrollo
+
+param(
+    [switch]$SoloBackend
+)
 
 $ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot
@@ -21,16 +26,22 @@ if ($conn) {
     Write-Host "      No habia backend en :8000." -ForegroundColor Yellow
 }
 
+if ($SoloBackend) {
+    Write-Host ""
+    Write-Host "Listo. Los contenedores siguen activos." -ForegroundColor White
+    exit 0
+}
+
 Write-Host "[2/3] Airflow (compose)..." -ForegroundColor Cyan
 if (Test-Path ".\docker-compose.airflow.yml") {
-    docker compose -f docker-compose.airflow.yml stop *> $null
+    docker compose -f docker-compose.airflow.yml stop -t 2 *> $null
     Write-Host "      Compose Airflow stop enviado." -ForegroundColor Green
 }
 
 Write-Host "[3/3] Contenedores MinIO / PocketBase / resto..." -ForegroundColor Cyan
 docker info *> $null
 if ($LASTEXITCODE -eq 0) {
-    docker stop $Contenedores *> $null
+    docker stop -t 2 $Contenedores *> $null
     Write-Host "      Contenedores detenidos." -ForegroundColor Green
 } else {
     Write-Host "      Docker no disponible." -ForegroundColor Yellow

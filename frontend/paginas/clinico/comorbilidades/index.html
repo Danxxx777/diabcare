@@ -9,10 +9,10 @@
 <link rel="stylesheet" href="/estaticos/dashboard.css?v=contrast-1">
 <link rel="stylesheet" href="/estaticos/animaciones.css?v=contrast-1">
 <script src="/estaticos/iconos.js"></script>
-<script src="/estaticos/i18n.js"></script>
-<script src="/estaticos/navegacion.js?v=contrast-1"></script>
-<script src="/estaticos/api.js"></script>
-<script src="/estaticos/crud-modulo.js?v=20260802ab"></script>
+<script src="/estaticos/i18n.js?v=text-36"></script>
+<script src="/estaticos/navegacion.js?v=text-36"></script>
+<script src="/estaticos/api.js?v=text-36"></script>
+<script src="/estaticos/crud-modulo.js?v=text-36"></script>
 </head>
 <body class="dc-uv">
 <aside class="sidebar" id="diabcare-sidebar"></aside>
@@ -24,26 +24,26 @@
     <div class="page-header">
       <div>
         <div class="page-title">Comorbilidades</div>
-        <div class="page-sub">Complicaciones asociadas a diabetes</div>
+        <div class="page-sub">Detección, severidad y seguimiento de complicaciones asociadas</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Registrar complicación</button>
       </div>
     </div>
-    <div class="dash-row dash-3" style="margin-bottom:14px">
+    <div class="dash-row dash-3" style="display:none!important">
       <div class="kpi-card red">
         <div class="kpi-label">Complicaciones</div>
-        <div class="kpi-val red" id="k-com-total">—</div>
+        <div class="kpi-val red" id="k-com-total">-</div>
         <div class="kpi-sub">activas registradas</div>
       </div>
       <div class="kpi-card cyan">
         <div class="kpi-label">Pacientes afectados</div>
-        <div class="kpi-val cyan" id="k-com-pac">—</div>
+        <div class="kpi-val cyan" id="k-com-pac">-</div>
         <div class="kpi-sub">con al menos una complicación</div>
       </div>
       <div class="kpi-card amber">
         <div class="kpi-label">Más frecuente</div>
-        <div class="kpi-val amber" id="k-com-tipo" style="font-size:20px">—</div>
+        <div class="kpi-val amber" id="k-com-tipo" style="font-size:20px">-</div>
         <div class="kpi-sub">tipo predominante</div>
       </div>
     </div>
@@ -74,6 +74,13 @@
         </select>
       </label>
       <label>Fecha de detección<input id="m-fecha_deteccion" type="date" required></label>
+      <label>Severidad
+        <select id="m-severidad"><option value="leve">Leve</option><option value="moderada">Moderada</option><option value="severa">Severa</option></select>
+      </label>
+      <label>Estado
+        <select id="m-estado"><option value="activa">Activa</option><option value="controlada">Controlada</option><option value="resuelta">Resuelta</option></select>
+      </label>
+      <label>Próximo seguimiento<input id="m-proximo_control" type="date"></label>
       <label class="span-full">Notas clínicas<textarea id="m-notas" rows="2" placeholder="Hallazgo, gravedad, seguimiento…"></textarea></label>
     </div>
     <div class="modal-footer">
@@ -88,14 +95,15 @@ DiabCareNav.guardRol(['administrador', 'medico']);
 
 // Informe simple: complicaciones por tipo y pacientes afectados
 (async function kpisComorbilidades() {
+  if (document.querySelector('.dash-row')?.style.display === 'none') return;
   try {
     const r = await fetch(`${DiabCareNav.getApi()}/api/comorbilidades/resumen`, {
       headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }, cache: 'no-store'
     });
     if (!r.ok) return;
     const d = await r.json();
-    document.getElementById('k-com-total').textContent = d.total ?? '—';
-    document.getElementById('k-com-pac').textContent = d.pacientes_afectados ?? '—';
+    document.getElementById('k-com-total').textContent = d.total ?? '-';
+    document.getElementById('k-com-pac').textContent = d.pacientes_afectados ?? '-';
     document.getElementById('k-com-tipo').textContent = d.tipo_mas_frecuente || 'Sin registros';
   } catch (_) { /* sin datos */ }
 })();
@@ -112,20 +120,22 @@ DiabCareCrud.mount({
   columns: [
     {
       key: 'paciente_nombre', label: 'Paciente',
-      render: r => r.paciente_nombre || r.paciente_label || '—'
+      render: r => r.paciente_nombre || r.paciente_label || '-'
     },
     {
       key: 'documento', label: 'Cédula',
-      render: r => r.documento || '—'
+      render: r => r.documento || '-'
     },
     {
       key: 'tipo', label: 'Complicación',
-      render: r => r.tipo_label || String(r.tipo || '—').replace(/_/g, ' ')
+      render: r => r.tipo_label || String(r.tipo || '-').replace(/_/g, ' ')
     },
+    { key: 'severidad', label: 'Severidad', badge: true, render: r => r.severidad_label || 'Moderada' },
     { key: 'fecha_deteccion', label: 'Detección' },
+    { key: 'proximo_control', label: 'Seguimiento', render: r => r.proximo_control || 'Sin programar' },
     {
       key: 'estado', label: 'Estado',
-      render: r => r.estado_label || r.estado || '—'
+      render: r => r.estado_label || r.estado || '-'
     },
   ],
   fields: [
@@ -142,9 +152,30 @@ DiabCareCrud.mount({
       ],
     },
     { key: 'fecha_deteccion', required: true, type: 'date', labelUi: 'Fecha detección' },
+    {
+      key: 'severidad', required: true, labelUi: 'Severidad', type: 'select',
+      options: [
+        { value: 'leve', label: 'Leve' },
+        { value: 'moderada', label: 'Moderada' },
+        { value: 'severa', label: 'Severa' },
+      ],
+    },
+    {
+      key: 'estado', required: true, labelUi: 'Estado', type: 'select',
+      options: [
+        { value: 'activa', label: 'Activa' },
+        { value: 'controlada', label: 'Controlada' },
+        { value: 'resuelta', label: 'Resuelta' },
+      ],
+    },
+    { key: 'proximo_control', type: 'date', labelUi: 'Próximo seguimiento' },
     { key: 'notas', labelUi: 'Notas', full: true },
   ],
 });
+
+const hoy = new Date().toISOString().slice(0, 10);
+document.getElementById('m-fecha_deteccion').max = hoy;
+document.getElementById('m-proximo_control').min = hoy;
 </script>
 </body>
 </html>

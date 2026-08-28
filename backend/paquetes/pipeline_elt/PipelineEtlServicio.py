@@ -335,7 +335,7 @@ def _fmt_pb_filter(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.000Z")
 
 
-def obtener_estado() -> dict:
+def obtener_estado(ligero: bool = False) -> dict:
     try:
         c = get_cliente()
         objetos = list(c.list_objects(MINIO_BUCKET, prefix=MINIO_STAGE_PATH, recursive=True))
@@ -361,14 +361,18 @@ def obtener_estado() -> dict:
 
         ultimo = parquets_sorted[0] if parquets_sorted else None
         sync = _leer_sync_state()
-        conn = _conectividad()
+        conn = (
+            {"minio": "conectado", "pocketbase": "no consultado", "airflow": "no consultado"}
+            if ligero else _conectividad()
+        )
 
-        total_registros = 0
-        try:
-            from paquetes.registros_clinicos import RegistrosClinicosServicio
-            total_registros = int(RegistrosClinicosServicio.estadisticas().get("total") or 0)
-        except Exception:
-            pass
+        total_registros = int(sync.get("registros_acumulados") or 0)
+        if not ligero:
+            try:
+                from paquetes.registros_clinicos import RegistrosClinicosServicio
+                total_registros = int(RegistrosClinicosServicio.estadisticas().get("total") or 0)
+            except Exception:
+                pass
 
         return {
             "estado": "activo" if conn["minio"] == "conectado" else "degradado",

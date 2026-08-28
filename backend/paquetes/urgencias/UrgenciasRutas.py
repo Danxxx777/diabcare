@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional
 from nucleo.utilidades.Dependencias import require_modulo
 from paquetes.urgencias import UrgenciasServicio as S
@@ -22,6 +22,25 @@ class UrgenciaIn(BaseModel):
     hora_llegada: str = ""
     desenlace: str = "en_espera"
     estado: str = "triage"
+
+    @validator("id_paciente", "motivo")
+    def validar_texto_obligatorio(cls, valor):
+        if not str(valor or "").strip():
+            raise ValueError("Este campo es obligatorio")
+        return str(valor).strip()
+
+    @validator("triage")
+    def validar_triage(cls, valor):
+        valor = str(valor or "").upper()
+        if valor not in {"I", "II", "III", "IV", "V"}:
+            raise ValueError("Seleccione una prioridad de triage válida")
+        return valor
+
+    @validator("via_llegada")
+    def validar_via_llegada(cls, valor):
+        if valor not in S.VIAS_LLEGADA:
+            raise ValueError("Seleccione una vía de llegada válida")
+        return valor
 
 class AtenderIn(BaseModel):
     desenlace: str = "alta"

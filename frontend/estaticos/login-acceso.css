@@ -623,6 +623,57 @@ html[data-tema="claro"] .btn.is-loading .btn__label {
   margin: 12px 0 0;
 }
 
+.auth__clinic-scene {
+  position: absolute;
+  inset: 150px clamp(20px, 3vw, 54px) clamp(24px, 4vh, 48px);
+  margin: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  isolation: isolate;
+}
+.auth__clinic-scene::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 0;
+  height: 24%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(143, 180, 190, .24), transparent 68%);
+  filter: blur(18px);
+  z-index: -1;
+}
+.auth__clinic-halo {
+  position: absolute;
+  width: min(38vw, 520px);
+  aspect-ratio: 1;
+  left: 50%;
+  top: 46%;
+  translate: -50% -50%;
+  border: 1px solid rgba(143, 180, 190, .18);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(90, 127, 140, .15), transparent 66%);
+  box-shadow: 0 0 0 38px rgba(143, 180, 190, .035), 0 0 0 76px rgba(143, 180, 190, .02);
+  z-index: -1;
+}
+.auth__clinic-scene img {
+  display: block;
+  width: min(100%, 760px);
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 24px 34px rgba(8, 18, 22, .28));
+}
+html[data-tema="claro"] .auth__clinic-scene img {
+  filter: drop-shadow(0 22px 30px rgba(47, 74, 84, .18));
+}
+html[data-tema="claro"] .auth__clinic-halo {
+  border-color: rgba(62, 92, 103, .16);
+  background: radial-gradient(circle, rgba(143, 180, 190, .24), transparent 66%);
+}
+
 .shot {
   position: absolute;
   left: clamp(28px, 3vw, 44px);
@@ -747,4 +798,53 @@ html[data-tema="claro"] .shot {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Cambio de tema rápido y compuesto desde el control de tema. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) {
+  z-index: 9999;
+  transform-origin: var(--dc-theme-x, calc(100% - 32px)) var(--dc-theme-y, 32px);
+  will-change: transform, opacity;
+  animation: dcThemeReveal .55s cubic-bezier(.2,.75,.3,1) both;
+}
+@keyframes dcThemeReveal {
+  from {
+    opacity: .35;
+    transform: scale(.992);
+  }
+  to { opacity: 1; transform: scale(1); }
+}
+html.dc-theme-changing body {
+  transition: background-color .42s ease, color .32s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none !important; }
+}
+
+/* Disolución suave del tema claro/oscuro. */
+html.dc-theme-changing::view-transition-old(root) {
+  z-index: 1;
+  animation: dcLoginThemeOut .6s ease-in-out both;
+}
+html.dc-theme-changing::view-transition-new(root) {
+  z-index: 9999;
+  animation: dcLoginThemeIn .68s cubic-bezier(.22,.78,.3,1) both;
+}
+@keyframes dcLoginThemeOut {
+  to { opacity: .08; filter: brightness(.96); }
+}
+@keyframes dcLoginThemeIn {
+  from { opacity: 0; filter: brightness(.94) saturate(.92); }
+  to { opacity: 1; filter: brightness(1) saturate(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.dc-theme-changing::view-transition-old(root),
+  html.dc-theme-changing::view-transition-new(root) { animation: none !important; }
 }

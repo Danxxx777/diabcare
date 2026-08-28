@@ -25,6 +25,14 @@ DESENLACES_LABEL = {
     "hospitalizacion": "Hospitalización",
     "referencia": "Referencia",
 }
+VIAS_LLEGADA = {
+    "propia": "Por sus medios",
+    "ambulancia": "Ambulancia",
+    "referido": "Referido de otro centro",
+    "traslado_interno": "Traslado interno",
+    "rescate": "Rescate o bomberos",
+    "autoridad": "Policía o autoridad",
+}
 
 
 def _now():
@@ -67,6 +75,7 @@ def enriquecer(filas: list) -> list:
         x["estado_label"] = ESTADOS_LABEL.get(est, (est[:1].upper() + est[1:]) if est else "—")
         des = str(x.get("desenlace") or "").strip().lower()
         x["desenlace_label"] = DESENLACES_LABEL.get(des, des.replace("_", " ").title() if des else "—")
+        x["via_llegada_label"] = VIAS_LLEGADA.get(str(x.get("via_llegada") or "").lower(), "—")
         out.append(x)
     return out
 
@@ -95,8 +104,12 @@ def listar_enriquecido(**kwargs) -> dict:
 
 def crear_triage(datos: dict, id_enfermero: str) -> dict:
     via = str(datos.get("via_llegada") or "propia").lower()
-    if via not in ("propia", "ambulancia", "referido"):
-        via = "propia"
+    if via not in VIAS_LLEGADA:
+        return {"error": "Seleccione una vía de llegada válida"}
+    if not str(datos.get("id_paciente") or "").strip():
+        return {"error": "Seleccione el paciente antes de registrar el triage"}
+    if not str(datos.get("motivo") or "").strip():
+        return {"error": "Indique el motivo de la urgencia"}
     return urgencias.crear({
         "id_paciente": str(datos.get("id_paciente") or ""),
         "triage": str(datos.get("triage") or "III").upper(),

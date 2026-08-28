@@ -41,6 +41,18 @@ def estado_pipeline(payload: dict = Depends(require_modulo("pipeline_etl"))):
     return data
 
 
+@router.get("/estado-ligero")
+def estado_pipeline_ligero(payload: dict = Depends(require_modulo("pipeline_etl"))):
+    """Estado del almacenamiento sin esperar las sondas de Airflow."""
+    return obtener_estado(ligero=True)
+
+
+@router.get("/dags-configurados")
+def dags_configurados(payload: dict = Depends(require_modulo("pipeline_etl"))):
+    """Lista local de procesos sin consultar la API externa de Airflow."""
+    return {"dags": listar_dags_configurados()}
+
+
 @router.get("/estado-publico")
 def estado_pipeline_publico():
     """Sin JWT — usado por el healthcheck del DAG Airflow."""

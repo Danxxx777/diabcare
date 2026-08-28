@@ -224,9 +224,45 @@ def listar_por_medico(
     }
 
 
+def _recetas_de_cita(cita: dict) -> list[dict]:
+    from paquetes.farmacia import FarmaciaServicio as Farm
+    df = Farm.recetas.extraer(copiar=False)
+    if df.empty:
+        return []
+    cid = str(cita.get("id_cita") or "")
+    pid = str(cita.get("id_paciente") or "")
+    fecha = str(cita.get("fecha") or "")[:10]
+    estados = df["estado"].fillna("").astype(str).str.lower()
+    activas = ~estados.isin(["dispensada", "dispensado", "anulada", "anulado"])
+    por_cita = df["encounter_id"].fillna("").astype(str) == cid
+    por_paciente_fecha = (df["id_paciente"].fillna("").astype(str) == pid) & (df["fecha"].fillna("").astype(str).str[:10] == fecha)
+    filas = df[activas & (por_cita | por_paciente_fecha)].fillna("").to_dict(orient="records")
+    return Farm.enriquecer_recetas(filas)
+
+
+def _lineas_consulta_y_receta(cita: dict, concepto: str, precio: float) -> tuple[list[dict], list[str]]:
+    lineas = [{"concepto": concepto, "cantidad": 1, "precio_unitario": precio}]
+    ids = []
+    for receta in _recetas_de_cita(cita):
+        ids.append(str(receta.get("id_receta") or ""))
+        for med in receta.get("medicamentos") or []:
+            lineas.append({
+                "concepto": str(med.get("medicamento_nombre") or "Medicamento"),
+                "cantidad": float(med.get("cantidad") or 1),
+                "precio_unitario": float(med.get("precio_unitario") or 0),
+            })
+    return lineas, ids
+
+
+def marcar_recetas_pagadas_cita(cita: dict) -> None:
+    from paquetes.farmacia import FarmaciaServicio as Farm
+    for receta in _recetas_de_cita(cita):
+        Farm.recetas.actualizar(str(receta.get("id_receta") or ""), {"estado": "pagada"})
+
+
 def cobrar_consulta(id_cita: str, metodo: str = "efectivo", referencia: str = "") -> dict:
     """
-    RN-CIT-010: caja cobra la consulta (tarifa CONS-DM) antes de que el médico atienda.
+    Caja factura la atención y los medicamentos después de que el médico atiende.
     metodo=qr → emite factura y devuelve enlace/QR (el paciente paga; no se marca cobrada hasta el pago).
     efectivo | tarjeta | transferencia → registra el cobro ahora.
     """
@@ -236,8 +272,6 @@ def cobrar_consulta(id_cita: str, metodo: str = "efectivo", referencia: str = ""
     est = str(cita.get("estado") or "").lower()
     if est in ("cancelada", "anulada"):
         return {"error": "No se puede cobrar una cita cancelada"}
-    if est == "atendida":
-        return {"error": "La cita ya fue atendida"}
     if consulta_pagada(id_cita):
         if est == "programada":
             actualizar(id_cita, {"estado": "confirmada"})
@@ -289,29 +323,27 @@ def cobrar_consulta(id_cita: str, metodo: str = "efectivo", referencia: str = ""
             return {"error": "La tarifa CONS-DM no tiene precio válido"}
 
         concepto = str(tarifa.get("descripcion") or "Consulta médica")
+        lineas_factura, recetas_asociadas = _lineas_consulta_y_receta(cita, concepto, precio)
+        subtotal = round(sum(float(x.get("cantidad") or 1) * float(x.get("precio_unitario") or 0) for x in lineas_factura), 2)
         fac = Fact.crear_factura({
             "encounter_id": str(id_cita),
             "id_paciente": str(cita.get("id_paciente") or ""),
-            "subtotal": precio,
+            "subtotal": subtotal,
             "descuento": 0,
-            "iva": round(precio * 0.15, 2),
-            "total": round(precio * 1.15, 2),
+            "iva": round(subtotal * 0.15, 2),
+            "total": round(subtotal * 1.15, 2),
             "estado": "emitida",
             "fecha": str(cita.get("fecha") or date.today().isoformat())[:10],
-            "lineas": [{
-                "concepto": concepto,
-                "cantidad": 1,
-                "precio_unitario": precio,
-            }],
+            "lineas": lineas_factura,
         })
         if fac.get("error"):
             return fac
         fid = fac.get("id_factura")
         reg = fac.get("registro") if isinstance(fac.get("registro"), dict) else {}
         try:
-            total = round(float(reg.get("total") or fac.get("total") or (precio * 1.15)), 2)
+            total = round(float(reg.get("total") or fac.get("total") or (subtotal * 1.15)), 2)
         except (TypeError, ValueError):
-            total = round(precio * 1.15, 2)
+            total = round(subtotal * 1.15, 2)
 
     metodo_n = str(metodo or "efectivo").strip().lower()
     if metodo_n in ("qr", "enlace", "digital"):
@@ -340,7 +372,9 @@ def cobrar_consulta(id_cita: str, metodo: str = "efectivo", referencia: str = ""
     if pago.get("error"):
         return pago
 
-    actualizar(id_cita, {"estado": "confirmada"})
+    if est != "atendida":
+        actualizar(id_cita, {"estado": "confirmada"})
+    marcar_recetas_pagadas_cita(cita)
     try:
         from paquetes.notificaciones.NotificacionesServicio import emitir_a_roles
         pac = str(cita.get("paciente_nombre") or cita.get("id_paciente") or "Paciente")
@@ -385,15 +419,19 @@ def preview_cobro(id_cita: str) -> dict:
     tarifas = Fact.tarifario.listar(offset=0, limit=200, incluir_inactivos=True).get("tarifas") or []
     tarifa = next((t for t in tarifas if str(t.get("codigo") or "").upper() == "CONS-DM"), None)
     precio = round(float((tarifa or {}).get("precio") or 35), 2)
-    iva = round(precio * 0.15, 2)
+    concepto = str((tarifa or {}).get("descripcion") or "Consulta endocrinología diabetes")
+    lineas, _ = _lineas_consulta_y_receta(cita, concepto, precio)
+    subtotal = round(sum(float(x.get("cantidad") or 1) * float(x.get("precio_unitario") or 0) for x in lineas), 2)
+    iva = round(subtotal * 0.15, 2)
     alcance = alcance_url()
     return {
         "id_cita": id_cita,
         "consulta_pagada": False,
-        "concepto": str((tarifa or {}).get("descripcion") or "Consulta endocrinología diabetes"),
-        "precio": precio,
+        "concepto": concepto,
+        "precio": subtotal,
+        "lineas": lineas,
         "iva": iva,
-        "total": round(precio + iva, 2),
+        "total": round(subtotal + iva, 2),
         "paciente": cita.get("paciente_nombre") or cita.get("id_paciente") or "Paciente",
         "fecha": cita.get("fecha"),
         "hora": cita.get("hora"),
@@ -423,10 +461,6 @@ def actualizar_estado_medico(
         return {"error": "La cita no está asignada a este médico"}
     if df.at[idx[0], "estado"] == "cancelada":
         return {"error": "La cita está cancelada"}
-    if estado == "atendida" and not consulta_pagada(id_cita):
-        return {
-            "error": "RN-CIT-010: debe cobrarse la consulta en caja antes de atender al paciente",
-        }
     return actualizar(id_cita, {"estado": estado})
 
 
