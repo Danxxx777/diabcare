@@ -30,7 +30,7 @@
         <button class="btn btn-primary btn-sm" onclick="abrirModal()">+ Registrar complicación</button>
       </div>
     </div>
-    <div class="dash-row dash-3" style="display:none!important">
+    <div class="dash-row dash-3">
       <div class="kpi-card red">
         <div class="kpi-label">Complicaciones</div>
         <div class="kpi-val red" id="k-com-total">-</div>
@@ -95,7 +95,6 @@ DiabCareNav.guardRol(['administrador', 'medico']);
 
 // Informe simple: complicaciones por tipo y pacientes afectados
 (async function kpisComorbilidades() {
-  if (document.querySelector('.dash-row')?.style.display === 'none') return;
   try {
     const r = await fetch(`${DiabCareNav.getApi()}/api/comorbilidades/resumen`, {
       headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }, cache: 'no-store'
@@ -112,6 +111,26 @@ DiabCareCrud.mount({
   listUrl: '/api/comorbilidades/', listKey: 'comorbilidades', idField: 'id_comorbilidad',
   itemUrl: id => '/api/comorbilidades/' + id, createUrl: '/api/comorbilidades/',
   searchPlaceholder: 'Buscar por paciente, cédula o tipo…',
+  // Filtros por columna: ver de un vistazo las severas sin controlar.
+  filtros: [
+    { param: 'tipo', label: 'Toda complicación', options: [
+      { value: 'cardiovascular', label: 'Cardiovascular' },
+      { value: 'nefropatia', label: 'Nefropatía' },
+      { value: 'neuropatia', label: 'Neuropatía' },
+      { value: 'pie_diabetico', label: 'Pie diabético' },
+      { value: 'retinopatia', label: 'Retinopatía' },
+    ]},
+    { param: 'severidad', label: 'Toda severidad', options: [
+      { value: 'leve', label: 'Leve' },
+      { value: 'moderada', label: 'Moderada' },
+      { value: 'severa', label: 'Severa' },
+    ]},
+    { param: 'estado', label: 'Todo estado', options: [
+      { value: 'activa', label: 'Activa' },
+      { value: 'controlada', label: 'Controlada' },
+      { value: 'resuelta', label: 'Resuelta' },
+    ]},
+  ],
   lookups: [{
     field: 'id_paciente', url: '/api/pacientes/?limit=200', listKey: 'pacientes',
     idKey: 'id_paciente',

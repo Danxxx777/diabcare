@@ -105,8 +105,15 @@ def del_pr(id_prueba: str, payload=Depends(require_modulo("laboratorio_ordenar")
     S.pruebas.auditar(_u(payload), "delete", f"Prueba {id_prueba}", "laboratorio"); return r
 
 @router.get("/ordenes")
-def list_or(offset: int = 0, limit: int = 50, q: str = "", payload=Depends(require_modulo("laboratorio"))):
-    return S.listar_ordenes(offset=offset, limit=limit, q=q, incluir_inactivos=True)
+def list_or(
+    offset: int = 0, limit: int = 50, q: str = "", estado: str = "",
+    payload=Depends(require_modulo("laboratorio")),
+):
+    return S.listar_ordenes(
+        offset=offset, limit=limit, q=q,
+        filtros={"estado": estado} if estado else None,
+        incluir_inactivos=True,
+    )
 
 @router.get("/ordenes/{id_orden}")
 def get_or(id_orden: str, payload=Depends(require_modulo("laboratorio"))):

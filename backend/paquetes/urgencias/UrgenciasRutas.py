@@ -52,9 +52,18 @@ def resumen(payload=Depends(require_modulo("urgencias"))):
 
 @router.get("")
 @router.get("/")
-def listar(offset: int = 0, limit: int = 50, q: str = "", payload=Depends(require_modulo("urgencias"))):
+def listar(
+    offset: int = 0, limit: int = 50, q: str = "",
+    triage: str = "", estado: str = "", via_llegada: str = "", desenlace: str = "",
+    payload=Depends(require_modulo("urgencias")),
+):
+    filtros = {k: v for k, v in (
+        ("triage", triage), ("estado", estado),
+        ("via_llegada", via_llegada), ("desenlace", desenlace),
+    ) if v}
     return S.listar_enriquecido(
         offset=offset, limit=limit, q=q,
+        filtros=filtros or None,
         q_campos=["motivo", "id_paciente", "triage", "estado", "desenlace"],
         incluir_inactivos=True,
     )

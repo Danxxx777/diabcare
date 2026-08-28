@@ -15,16 +15,16 @@
 <script src="/estaticos/api.js?v=text-36"></script>
 <style>
 .badge-tipo { font-size:10px; padding:2px 8px; border-radius:999px; font-family:var(--mono); text-transform:uppercase; }
-.badge-warning { background:rgba(251,191,36,.15); color:var(--dc-alerta); }
-.badge-error, .badge-critico { background:rgba(248,113,113,.15); color:var(--dc-riesgo); }
-.badge-success, .badge-info { background:rgba(0, 229, 255, .12); color:var(--cyan); }
+.badge-warning { background:var(--st-warning-bg); color:var(--dc-alerta); }
+.badge-error, .badge-critico { background:var(--st-critical-bg); color:var(--dc-riesgo); }
+.badge-success, .badge-info { background:var(--ia-subtle); color:var(--cyan); }
 .badge-rol {
   font-size:10px; padding:2px 8px; border-radius:999px;
-  background:rgba(0, 229, 255, .12); color:var(--accent2);
+  background:var(--ia-subtle); color:var(--accent2);
   font-weight:600; white-space:nowrap;
 }
 .notif-row { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:flex-start; }
-.notif-row.unread { background:rgba(0, 229, 255, .04); }
+.notif-row.unread { background:var(--ia-subtle); }
 .notif-row:last-child { border-bottom:none; }
 .notif-body { flex:1; min-width:0; }
 .notif-title { font-size:13px; font-weight:600; margin-bottom:4px; }
@@ -32,7 +32,7 @@
 .notif-meta { font-size:10px; color:var(--text3); font-family:var(--mono); margin-top:6px; }
 .notif-rol-banner {
   margin-bottom:14px; padding:10px 14px; border-radius:10px;
-  border:1px solid rgba(0, 229, 255, .2); background:rgba(0, 229, 255, .06);
+  border:1px solid var(--ia-subtle); background:var(--ia-subtle);
   font-size:12px; color:var(--text2);
 }
 .notif-rol-banner strong { color:var(--cyan); }
@@ -59,11 +59,12 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="evaluar()">⚡ Evaluar umbrales</button>
         <button class="btn btn-ghost btn-sm" onclick="marcarTodas()">✓ Marcar todas leídas</button>
+        <button class="btn btn-ghost btn-sm" onclick="vaciarLeidas()">🗑 Vaciar leídas</button>
         <button class="btn btn-ghost btn-sm" onclick="cargar()">↺ Recargar</button>
       </div>
     </div>
 
-    <div class="stats-grid" style="display:none!important">
+    <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value blue" id="st-total">-</div></div>
       <div class="stat-card"><div class="stat-label">No leídas</div><div class="stat-value" id="st-unread">-</div></div>
       <div class="stat-card"><div class="stat-label">Hoy</div><div class="stat-value green" id="st-hoy">-</div></div>
@@ -220,6 +221,16 @@ async function marcar(id) {
   await fetch(`${API}/api/notificaciones/${id}/leida`, {
     method: 'PATCH', headers: { Authorization: 'Bearer ' + token }
   });
+  cargar();
+}
+
+async function vaciarLeidas() {
+  if (!confirm('Se eliminarán las notificaciones ya leídas. Las no leídas se conservan. ¿Continuar?')) return;
+  const r = await fetch(`${API}/api/notificaciones/leidas`, {
+    method: 'DELETE', headers: { Authorization: 'Bearer ' + token }, credentials: 'include'
+  });
+  const d = await r.json().catch(() => ({}));
+  toast(d.mensaje || 'Bandeja depurada', r.ok ? 'success' : 'error');
   cargar();
 }
 

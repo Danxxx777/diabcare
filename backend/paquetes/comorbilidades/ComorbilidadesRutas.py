@@ -67,9 +67,16 @@ class ComIn(BaseModel):
 
 @router.get("")
 @router.get("/")
-def listar(offset: int = 0, limit: int = 50, q: str = "", payload=Depends(require_modulo("comorbilidades"))):
+def listar(
+    offset: int = 0, limit: int = 50, q: str = "",
+    tipo: str = "", severidad: str = "", estado: str = "",
+    payload=Depends(require_modulo("comorbilidades")),
+):
+    filtros = {k: v for k, v in
+               (("tipo", tipo), ("severidad", severidad), ("estado", estado)) if v}
     return S.listar_enriquecido(
         offset=offset, limit=limit, q=q,
+        filtros=filtros or None,
         q_campos=["tipo", "id_paciente", "notas"],
         incluir_inactivos=True,
     )

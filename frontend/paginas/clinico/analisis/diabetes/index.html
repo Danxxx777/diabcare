@@ -20,10 +20,10 @@
   margin-bottom: 16px;
   padding: 18px 20px;
   border-radius: 14px;
-  border: 1px solid rgba(0, 229, 255, 0.2);
+  border: 1px solid var(--ia-subtle);
   background:
-    radial-gradient(90% 120% at 0% 0%, rgba(0, 229, 255, 0.12), transparent 55%),
-    radial-gradient(70% 100% at 100% 0%, rgba(248, 113, 113, 0.08), transparent 50%),
+    radial-gradient(90% 120% at 0% 0%, var(--ia-subtle), transparent 55%),
+    radial-gradient(70% 100% at 100% 0%, var(--st-critical-bg), transparent 50%),
     rgba(0, 0, 0, 0.22);
 }
 .an-hero h1 {
@@ -43,7 +43,7 @@
 .an-tip {
   padding: 10px 12px;
   border-left: 3px solid var(--cyan);
-  background: rgba(0, 229, 255, 0.06);
+  background: var(--ia-subtle);
   border-radius: 0 8px 8px 0;
   font-size: 12px;
   color: var(--text2);
@@ -54,13 +54,13 @@
   height: 10px;
   border-radius: 999px;
   overflow: hidden;
-  background: rgba(255,255,255,0.06);
+  background: var(--sf-overlay);
   margin: 10px 0 6px;
 }
 .an-bar span { display: block; height: 100%; }
-.an-bar .ok { background: rgba(74, 222, 128, 0.85); }
-.an-bar .mid { background: rgba(251, 191, 36, 0.85); }
-.an-bar .bad { background: rgba(248, 113, 113, 0.85); }
+.an-bar .ok { background: var(--st-ok-line); }
+.an-bar .mid { background: var(--st-warning-line); }
+.an-bar .bad { background: var(--st-critical-line); }
 .an-legend {
   display: flex;
   flex-wrap: wrap;

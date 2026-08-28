@@ -248,7 +248,45 @@ window.DiabCareCrud = {
       input.style.minWidth = '220px';
       input.style.flex = '1';
       top.prepend(input);
+      asegurarFiltros(top);
       return input;
+    }
+
+    /** Selects de filtro declarados en cfg.filtros: {param, label, options[]}. */
+    function asegurarFiltros(top) {
+      const defs = cfg.filtros || [];
+      if (!defs.length || !top) return;
+      if (top.querySelector('[data-crud-filtro]')) return;
+      for (const def of defs) {
+        const sel = document.createElement('select');
+        sel.className = 'search';
+        sel.dataset.crudFiltro = def.param;
+        sel.style.minWidth = '150px';
+        sel.style.flex = '0 0 auto';
+        sel.setAttribute('aria-label', def.label || def.param);
+        const todas = document.createElement('option');
+        todas.value = '';
+        todas.textContent = def.label || def.param;
+        sel.appendChild(todas);
+        for (const op of (def.options || [])) {
+          const o = document.createElement('option');
+          o.value = op.value;
+          o.textContent = op.label;
+          sel.appendChild(o);
+        }
+        sel.addEventListener('change', () => { pag = 1; cargar(); });
+        top.appendChild(sel);
+      }
+    }
+
+    /** Los filtros activos, como query string. */
+    function queryFiltros() {
+      const partes = [];
+      document.querySelectorAll('[data-crud-filtro]').forEach(sel => {
+        const valor = String(sel.value || '').trim();
+        if (valor) partes.push(encodeURIComponent(sel.dataset.crudFiltro) + '=' + encodeURIComponent(valor));
+      });
+      return partes.join('&');
     }
 
     function aplicarFiltroLocal() {
@@ -293,7 +331,8 @@ window.DiabCareCrud = {
             const sep = base.includes('?') ? '&' : '?';
             return `${base}${sep}limit=${pageSize}&offset=${(pag - 1) * pageSize}${q ? `&q=${encodeURIComponent(q)}` : ''}&_=${Date.now()}`;
           })();
-      const url = `${API}${rel}`;
+      const qf = queryFiltros();
+      const url = `${API}${rel}${qf ? (rel.includes('?') ? '&' : '?') + qf : ''}`;
       try {
         const r = await fetchConTimeout(url, 20000);
         if (!sigueActivo()) return;

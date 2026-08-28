@@ -45,7 +45,7 @@
     </div>
     <div class="urgencias-workspace">
       <aside class="urgencias-rail">
-        <div class="stats-grid" style="display:none!important">
+        <div class="stats-grid">
           <div class="stat-card"><div class="stat-label">Casos activos</div><div class="stat-value blue" id="st-total">-</div></div>
           <div class="stat-card"><div class="stat-label">En triage / espera</div><div class="stat-value amber" id="st-espera">-</div></div>
           <div class="stat-card"><div class="stat-label">Atendidas</div><div class="stat-value green" id="st-atendidas">-</div></div>
@@ -203,6 +203,28 @@ DiabCareCrud.mount({
     idKey: 'id_paciente', typeahead: true,
     label: p => (p.nombre_completo || ((p.nombre||'') + ' ' + (p.apellido||'')).trim() || 'Paciente')
   }],
+  filtros: [
+    { param: 'triage', label: 'Toda prioridad', options: [
+      { value: 'I', label: 'I - Crítico' },
+      { value: 'II', label: 'II - Emergencia' },
+      { value: 'III', label: 'III - Urgente' },
+      { value: 'IV', label: 'IV - Menos urgente' },
+      { value: 'V', label: 'V - No urgente' },
+    ]},
+    { param: 'estado', label: 'Todo estado', options: [
+      { value: 'triage', label: 'En triage' },
+      { value: 'en_espera', label: 'En espera' },
+      { value: 'atendida', label: 'Atendida' },
+    ]},
+    { param: 'via_llegada', label: 'Toda llegada', options: [
+      { value: 'propia', label: 'Por sus medios' },
+      { value: 'ambulancia', label: 'Ambulancia' },
+      { value: 'referido', label: 'Referido' },
+      { value: 'traslado_interno', label: 'Traslado interno' },
+      { value: 'rescate', label: 'Rescate o bomberos' },
+      { value: 'autoridad', label: 'Policía o autoridad' },
+    ]},
+  ],
   columns: [
     { key: 'paciente_nombre', label: 'Paciente', render: r => r.paciente_nombre || r.paciente_label || (r.id_paciente ? String(r.id_paciente).slice(0, 8) + '…' : '-') },
     { key: 'documento', label: 'Cédula', render: r => r.documento || '-' },

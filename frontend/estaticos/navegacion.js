@@ -1190,8 +1190,11 @@ window.DiabCareNav = {
         { modulo: 'dataset', modulos: ['dataset', 'pipeline', 'modelo', 'prediccion'], label: 'Plataforma de datos', icon: 'dataset', subs: [
           { modulo: 'dataset', href: '/paginas/datos/dataset/index.html', labelKey: 'sub_hechos' },
           { modulo: 'pipeline', href: '/paginas/datos/pipeline_elt/index.html', labelKey: 'sub_estado' },
-          { modulo: 'modelo', href: '/paginas/datos/modelo_ml/index.html', labelKey: 'sub_entrenamiento' },
-          { modulo: 'prediccion', href: '/paginas/clinico/prediccion/index.html', labelKey: 'sub_inferencia' },
+          // Un solo acceso al modelo: la propia página alterna entre
+          // Entrenamiento e Inferencia con sus pestañas. Quien puede entrenar
+          // entra por Entrenamiento; el médico entra directo a Inferencia.
+          { modulo: 'modelo', href: '/paginas/datos/modelo_ml/index.html', labelKey: 'sub_modelo_predictivo' },
+          { modulo: 'prediccion', excluyeModulo: 'modelo', href: '/paginas/clinico/prediccion/index.html', labelKey: 'sub_modelo_predictivo' },
         ]},
       ],
     },
@@ -1346,7 +1349,10 @@ window.DiabCareNav = {
     const rol = String((JSON.parse(localStorage.getItem('usuario') || '{}').rol || '')).toLowerCase();
     return (subs || []).filter(s =>
       (!s.roles || s.roles.includes(rol)) &&
-      (!s.modulo || !permitidos || permitidos.includes(s.modulo))
+      (!s.modulo || !permitidos || permitidos.includes(s.modulo)) &&
+      // Para no duplicar una entrada cuando dos páginas son el mismo módulo:
+      // quien tiene el permiso "grande" no ve además la versión reducida.
+      (!s.excluyeModulo || !permitidos || !permitidos.includes(s.excluyeModulo))
     );
   },
 

@@ -34,16 +34,16 @@
   margin-top:16px; animation:fadeUp .3s ease;
 }
 .result-box.show { display:block; }
-.result-box.verde { background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.2); }
-.result-box.rojo  { background:rgba(248,113,113,0.06);  border:1px solid rgba(248,113,113,0.2); }
+.result-box.verde { background:var(--st-ok-bg); border:1px solid var(--st-ok-line); }
+.result-box.rojo  { background:var(--st-critical-bg);  border:1px solid var(--st-critical-line); }
 @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
 
 .result-diag {
   font-size:22px; font-weight:700; font-family:var(--mono);
   margin-bottom:6px;
 }
-.result-diag.verde { color:rgba(74,222,128,0.9); }
-.result-diag.rojo  { color:rgba(248,113,113,0.9); }
+.result-diag.verde { color:var(--st-ok-fg); }
+.result-diag.rojo  { color:var(--st-critical-fg); }
 
 .result-row { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--border); font-size:12px; }
 .result-row:last-child { border-bottom:none; }
@@ -51,18 +51,18 @@
 .result-val   { font-family:var(--mono); font-weight:600; color:var(--text); }
 
 /* Barra probabilidad */
-.prob-track { height:6px; background:rgba(255,255,255,0.06); border-radius:3px; margin:10px 0 4px; overflow:hidden; }
+.prob-track { height:6px; background:var(--sf-overlay); border-radius:3px; margin:10px 0 4px; overflow:hidden; }
 .prob-fill  { height:100%; border-radius:3px; transition:width .6s ease; }
-.prob-fill.verde { background:rgba(74,222,128,0.7); }
-.prob-fill.rojo  { background:rgba(248,113,113,0.7); }
+.prob-fill.verde { background:var(--st-ok-line); }
+.prob-fill.rojo  { background:var(--st-critical-line); }
 
 /* Métricas */
 .metricas-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
 .metrica-card {
-  background:rgba(255,255,255,0.02); border:1px solid var(--border);
+  background:var(--sf-sunken); border:1px solid var(--border);
   border-radius:8px; padding:14px; text-align:center;
 }
-.metrica-val { font-size:24px; font-weight:700; font-family:var(--mono); color:rgba(0, 229, 255, 0.9); }
+.metrica-val { font-size:24px; font-weight:700; font-family:var(--mono); color:var(--ia-base); }
 .metrica-lbl { font-size:10px; color:var(--muted,var(--text3)); text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
 
 .info-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:12px; }
@@ -74,14 +74,14 @@
   display:inline-block; padding:2px 10px; border-radius:12px;
   font-size:11px; font-family:var(--mono); font-weight:600;
 }
-.badge-riesgo.Alto   { background:rgba(248,113,113,0.1);  color:rgba(248,113,113,0.9);  border:1px solid rgba(248,113,113,0.2); }
-.badge-riesgo.Medio  { background:rgba(251,191,36,0.1); color:rgba(251,191,36,0.9); border:1px solid rgba(251,191,36,0.2); }
-.badge-riesgo.Bajo   { background:rgba(74,222,128,0.1);  color:rgba(74,222,128,0.9);  border:1px solid rgba(74,222,128,0.2); }
+.badge-riesgo.Alto   { background:var(--st-critical-bg);  color:var(--st-critical-fg);  border:1px solid var(--st-critical-line); }
+.badge-riesgo.Medio  { background:var(--st-warning-bg); color:var(--st-warning-fg); border:1px solid var(--st-warning-line); }
+.badge-riesgo.Bajo   { background:var(--st-ok-bg);  color:var(--st-ok-fg);  border:1px solid var(--st-ok-line); }
 .factor-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:11px; }
 .factor-row:last-child { border-bottom:none; }
 .factor-nivel { font-size:10px; font-family:var(--mono); padding:2px 7px; border-radius:8px; }
-.factor-nivel.alto  { background:rgba(248,113,113,0.1); color:rgba(248,113,113,0.9); }
-.factor-nivel.medio { background:rgba(251,191,36,0.1); color:rgba(251,191,36,0.9); }
+.factor-nivel.alto  { background:var(--st-critical-bg); color:var(--st-critical-fg); }
+.factor-nivel.medio { background:var(--st-warning-bg); color:var(--st-warning-fg); }
 
 .no-modelo {
   display:none;
@@ -91,14 +91,14 @@
 .modelo-status {
   display:flex; align-items:center; gap:12px; flex-wrap:wrap;
   padding:12px 16px; margin-bottom:16px;
-  background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:10px;
+  background:var(--sf-sunken); border:1px solid var(--border); border-radius:10px;
 }
 .modelo-pill {
   display:inline-flex; align-items:center; gap:6px;
   padding:4px 10px; border-radius:20px; font-size:11px; font-family:var(--mono);
 }
-.modelo-pill.ok  { background:rgba(74,222,128,0.1); color:rgba(74,222,128,0.95); border:1px solid rgba(74,222,128,0.25); }
-.modelo-pill.warn{ background:rgba(251,191,36,0.1); color:rgba(251,191,36,0.95); border:1px solid rgba(251,191,36,0.25); }
+.modelo-pill.ok  { background:var(--st-ok-bg); color:var(--st-ok-fg); border:1px solid var(--st-ok-line); }
+.modelo-pill.warn{ background:var(--st-warning-bg); color:var(--st-warning-fg); border:1px solid var(--st-warning-line); }
 .modelo-status-hint { font-size:11px; color:var(--muted); flex:1; min-width:200px; }
 .link-gestion { font-size:11px; color:var(--cyan); text-decoration:none; white-space:nowrap; }
 .link-gestion:hover { text-decoration:underline; }

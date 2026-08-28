@@ -195,7 +195,6 @@
           <div class="rep-row"><span data-i18n="pa_r_cobradas">Consultas cobradas</span><b id="s-citas-pagadas" class="td-green">-</b></div>
           <div class="rep-row"><span data-i18n="pa_r_cobro_pend">Cobro pendiente</span><b id="s-citas-pend" class="td-amber">-</b></div>
         </div>
-        <a class="rep-link" href="/paginas/clinico/agenda/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
       </div>
 
       <div class="rep-card" id="card-urg">
@@ -205,7 +204,6 @@
           <div class="rep-row"><span data-i18n="pa_r_triage">En triage / espera</span><b id="s-urg-espera" class="td-amber">-</b></div>
           <div class="rep-row"><span data-i18n="pa_r_atendidas">Atendidas</span><b id="s-urg-atend" class="td-green">-</b></div>
         </div>
-        <a class="rep-link" href="/paginas/clinico/urgencias/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
       </div>
 
       <div class="rep-card" id="card-lab">
@@ -215,7 +213,6 @@
           <div class="rep-row"><span data-i18n="pa_r_ord_comp">Órdenes completadas</span><b id="s-lab-comp" class="td-green">-</b></div>
           <div class="rep-row"><span data-i18n="pa_r_resultados">Resultados registrados</span><b id="s-lab-res">-</b></div>
         </div>
-        <a class="rep-link" href="/paginas/clinico/laboratorio/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
       </div>
 
       <div class="rep-card" id="card-caja">
@@ -225,7 +222,6 @@
           <div class="rep-row"><span data-i18n="pa_r_pagadas">Pagadas</span><b id="s-fac-pagadas" class="td-green">-</b></div>
           <div class="rep-row"><span data-i18n="pa_r_monto_pend">Monto pendiente</span><b id="s-fac-pend" class="td-amber">-</b></div>
         </div>
-        <a class="rep-link" href="/paginas/negocio/facturacion/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
       </div>
 
       <div class="rep-card" id="card-pac">
@@ -235,7 +231,6 @@
           <div class="rep-row"><span data-i18n="pa_r_activos">Activos</span><b id="s-pac-act" class="td-green">-</b></div>
           <div class="rep-row"><span data-i18n="pa_r_inactivos">Inactivos</span><b id="s-pac-inact" class="td-amber">-</b></div>
         </div>
-        <a class="rep-link" href="/paginas/clinico/pacientes/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
       </div>
 
       <div class="rep-card" id="card-adm">
@@ -245,7 +240,6 @@
           <div class="rep-row"><span data-i18n="pa_r_hosp">Hospitalizados</span><b id="s-adm-act" class="td-amber">-</b></div>
           <div class="rep-row"><span data-i18n="pa_r_altas">Altas</span><b id="s-adm-altas" class="td-green">-</b></div>
         </div>
-        <a class="rep-link" href="/paginas/clinico/admisiones/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
       </div>
 
       <div class="rep-card" id="card-farm">
@@ -255,7 +249,6 @@
           <div class="rep-row"><span data-i18n="pa_r_stock">Stock bajo mínimo</span><b id="s-farm-stock" class="td-red">-</b></div>
           <div class="rep-row"><span data-i18n="pa_r_vendido">Total vendido</span><b id="s-farm-ventas" class="td-green">-</b></div>
         </div>
-        <a class="rep-link" href="/paginas/negocio/farmacia/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
       </div>
 
       <div class="rep-card" id="card-rrhh">
@@ -265,7 +258,6 @@
           <div class="rep-row"><span data-i18n="pa_r_consultas_per">Consultas del periodo</span><b id="s-rh-consultas">-</b></div>
           <div class="rep-row"><span data-i18n="pa_r_ingreso_gen">Ingreso generado</span><b id="s-rh-ingreso" class="td-green">-</b></div>
         </div>
-        <a class="rep-link" href="/paginas/negocio/rrhh/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
       </div>
 
       <div class="rep-card" id="card-com">
@@ -275,7 +267,6 @@
           <div class="rep-row"><span>Pacientes afectados</span><b id="s-com-pac" class="td-amber">-</b></div>
           <div class="rep-row"><span>Tipo más frecuente</span><b id="s-com-tipo" class="td-green">-</b></div>
         </div>
-        <a class="rep-link" href="/paginas/clinico/comorbilidades/index.html" data-i18n="pa_abrir">Abrir módulo →</a>
       </div>
 
       <div class="rep-card" id="card-fac">
@@ -285,7 +276,6 @@
           <div class="rep-row"><span data-i18n="pa_r_tipo">Tipo</span><b data-i18n="pa_r_inf_simple">Informe simple</b></div>
           <div class="rep-row"><span data-i18n="pa_r_donde">Dónde</span><b data-i18n="pa_r_caja_farm">Caja / Farmacia</b></div>
         </div>
-        <a class="rep-link" href="/paginas/negocio/facturacion/index.html" data-i18n="pa_abrir_caja">Abrir caja →</a>
       </div>
 
     </div>
@@ -451,7 +441,6 @@ async function cargarSimples() {
     // Médico: su propia agenda, no la global
     const card = document.getElementById('card-citas');
     card.querySelector('.rep-title').textContent = DiabCareI18n.t('pa_c_citas_mias');
-    card.querySelector('.rep-link').href = '/paginas/clinico/mis_citas/index.html';
     card.querySelector('.rep-rows').innerHTML = `
       <div class="rep-row"><span data-i18n="pa_r_turnos">Turnos del día</span><b id="s-citas-total">-</b></div>
       <div class="rep-row"><span data-i18n="pa_r_atendidas">Atendidas</span><b id="s-citas-pagadas" class="td-green">-</b></div>
@@ -517,7 +506,7 @@ async function cargarSimples() {
     tareas.push(getJson('/api/admisiones/resumen').then(a => {
       if (!a) return;
       set('s-adm-total', a.total ?? 0);
-      set('s-adm-act', a.activas ?? 0);
+      set('s-adm-act', a.internados ?? 0);
       set('s-adm-altas', a.altas ?? 0);
     }));
   }
@@ -577,7 +566,7 @@ async function cargarComplejos() {
   // Productividad médica
   const prod = d.productividad_medica || [];
   document.getElementById('t-prod').innerHTML = prod.length ? prod.map(r => fila([
-    `<td>${esc(String(r.id_personal || '').slice(0, 8))}</td>`,
+    `<td>${esc(r.personal_nombre || String(r.id_personal || '').slice(0, 8))}</td>`,
     `<td>${esc(r.periodo)}</td>`,
     `<td class="num">${r.num_consultas}</td>`,
     `<td class="num">${r.num_procedimientos}</td>`,

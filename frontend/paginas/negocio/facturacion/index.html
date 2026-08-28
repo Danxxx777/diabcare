@@ -15,7 +15,8 @@
 <script src="/estaticos/crud-modulo.js?v=text-36"></script>
 <style>
 .caja-shell { width: 100%; max-width: none; box-sizing: border-box; }
-.content.caja-shell { padding: 16px 18px 20px; }
+/* El padding lo pone .content global: pisarlo aqui hacia que el modulo
+   se viera mas estrecho que los demas al navegar entre pantallas. */
 .caja-top {
   display: flex;
   flex-wrap: wrap;
@@ -78,9 +79,9 @@
   display:inline-block; font-size:10px; font-family:var(--mono);
   padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.04em;
 }
-.badge-estado.pagada { background:rgba(74,222,128,.12); color:var(--dc-ok); border:1px solid rgba(74,222,128,.3); }
-.badge-estado.emitida { background:rgba(251,191,36,.12); color:var(--dc-alerta); border:1px solid rgba(251,191,36,.3); }
-.badge-estado.anulada { background:rgba(248,113,113,.12); color:var(--dc-riesgo); border:1px solid rgba(248,113,113,.3); }
+.badge-estado.pagada { background:var(--st-ok-line); color:var(--dc-ok); border:1px solid var(--st-ok-line); }
+.badge-estado.emitida { background:var(--st-warning-line); color:var(--dc-alerta); border:1px solid var(--st-warning-line); }
+.badge-estado.anulada { background:var(--st-critical-line); color:var(--dc-riesgo); border:1px solid var(--st-critical-line); }
 .pac-cell { display:flex; flex-direction:column; gap:2px; }
 .pac-cell strong { font-size:13px; font-weight:700; color:var(--text); }
 .pac-cell span { font-size:11px; font-family:var(--mono); color:var(--text2); font-weight:650; }
@@ -443,7 +444,7 @@ DiabCareCrud.mountTabs({
       },
     },
     {
-      id: 'facturas', label: 'Facturas', sub: 'Cartera',
+      id: 'facturas', label: 'Facturas', sub: 'Documentos emitidos y su saldo: emitidas, pagadas y anuladas.',
       listUrl: '/api/facturas', listKey: 'facturas', idField: 'id_factura',
       itemUrl: id => '/api/facturas/' + id,
       listLimit: 150,
@@ -489,7 +490,7 @@ DiabCareCrud.mountTabs({
       ],
     },
     {
-      id: 'seguros', label: 'Seguros', sub: 'Planes de cobertura',
+      id: 'seguros', label: 'Seguros', sub: 'Aseguradoras y el porcentaje que cubren de cada atención.',
       listUrl: '/api/seguros', listKey: 'seguros', idField: 'id_seguro',
       itemUrl: id => '/api/seguros/' + id,
       searchPlaceholder: 'Buscar plan…',
@@ -515,7 +516,7 @@ DiabCareCrud.mountTabs({
       }
     },
     {
-      id: 'tarifario', label: 'Tarifario', sub: 'Tarifas',
+      id: 'tarifario', label: 'Tarifario', sub: 'Precio oficial de cada servicio: consulta, laboratorio y procedimientos.',
       listUrl: '/api/tarifario', listKey: 'tarifas', idField: 'id_tarifa',
       itemUrl: id => '/api/tarifario/' + id,
       searchPlaceholder: 'Código o servicio…',
@@ -543,7 +544,7 @@ DiabCareCrud.mountTabs({
       }
     },
     {
-      id: 'pagos', label: 'Cobros', sub: 'Registrar pago',
+      id: 'pagos', label: 'Cobros', sub: 'Pagos recibidos contra una factura: efectivo, tarjeta o transferencia.',
       listUrl: '/api/facturas', listKey: 'facturas', idField: 'id_factura',
       itemUrl: id => '/api/pagos/' + id,
       listLimit: 150,

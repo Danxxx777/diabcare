@@ -906,6 +906,9 @@ body {
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  /* Reservar el canal de la barra siempre: si no, cada submodulo se corre
+     horizontalmente segun tenga scroll o no y la interfaz "baila" al navegar. */
+  scrollbar-gutter: stable;
   padding: 28px clamp(18px, 2.4vw, 36px) 36px;
   box-sizing: border-box;
   width: 100%;

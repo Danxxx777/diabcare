@@ -117,8 +117,19 @@ def informes_complejos() -> dict:
                 work["_ord"] = work["ingreso_generado"].fillna(0).astype(float)
                 work = work.sort_values("_ord", ascending=False)
             rows = work.head(15).fillna("")
+            # El panel mostraba el UUID recortado del profesional. Resolverlo a nombre.
+            nombres_personal = {}
+            try:
+                from paquetes.dataset.DatasetHospitalServicio import nombres_de_personal
+                nombres_personal = nombres_de_personal()
+            except Exception:
+                pass
             out["productividad_medica"] = [{
                 "id_personal": r.get("id_personal"),
+                "personal_nombre": (
+                    nombres_personal.get(str(r.get("id_personal") or ""))
+                    or "Profesional " + str(r.get("id_personal") or "")[:8]
+                ),
                 "periodo": r.get("periodo"),
                 "num_consultas": int(r.get("num_consultas") or 0),
                 "num_procedimientos": int(r.get("num_procedimientos") or 0),

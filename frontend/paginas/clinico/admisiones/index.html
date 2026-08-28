@@ -42,7 +42,7 @@
       <a class="btn btn-ghost btn-sm" href="/paginas/clinico/habitaciones/index.html">Mapa de Camas</a>
       <a class="btn btn-ghost btn-sm" href="/paginas/clinico/instrumental/index.html">Equipos</a>
     </nav>
-    <div class="stats-grid" style="display:none!important">
+    <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Admisiones registradas</div><div class="stat-value blue" id="st-total">-</div></div>
       <div class="stat-card"><div class="stat-label">Activas</div><div class="stat-value green" id="st-activas">-</div></div>
       <div class="stat-card"><div class="stat-label">Ingresos de hoy</div><div class="stat-value" id="st-hoy">-</div></div>
@@ -171,7 +171,6 @@ async function cargarMedicos() {
 
 /* ── Indicadores de cabecera ── */
 async function cargarResumen() {
-  if (document.querySelector('.stats-grid')?.style.display === 'none') return;
   const r = await apiFetch('/api/admisiones/resumen');
   if (!r.ok) return;
   const d = await r.json();

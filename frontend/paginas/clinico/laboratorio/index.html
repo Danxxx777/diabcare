@@ -41,7 +41,7 @@
         <button class="btn btn-primary btn-sm" id="btnNuevo" onclick="abrirModal()">+ Nueva orden</button>
       </div>
     </div>
-    <div class="stats-grid" style="display:none!important">
+    <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Órdenes pendientes</div><div class="stat-value amber" id="st-pend">-</div></div>
       <div class="stat-card"><div class="stat-label">Completadas</div><div class="stat-value green" id="st-comp">-</div></div>
       <div class="stat-card"><div class="stat-label">Resultados</div><div class="stat-value blue" id="st-res">-</div></div>
@@ -224,7 +224,6 @@ function descargarResultadoActual() {
 }
 
 async function cargarResumenLab() {
-  if (document.querySelector('.stats-grid')?.style.display === 'none') return;
   const API = DiabCareNav.getApi();
   const token = localStorage.getItem('token');
   const r = await fetch(`${API}/api/laboratorio/resumen`, { headers: { Authorization: 'Bearer '+token } });
@@ -239,6 +238,13 @@ const tabs = [
   {
     id: 'ordenes', label: 'Órdenes', sub: 'Solicitudes pendientes o completadas',
     listUrl: '/api/laboratorio/ordenes', listKey: 'ordenes', idField: 'id_orden',
+    filtros: [
+      { param: 'estado', label: 'Todo estado', options: [
+        { value: 'pendiente', label: 'Pendiente' },
+        { value: 'completada', label: 'Completada' },
+        { value: 'anulada', label: 'Anulada' },
+      ]},
+    ],
     itemUrl: id => '/api/laboratorio/ordenes/' + id,
     createUrl: '/api/laboratorio/ordenes',
     seedUrl: puedeOrdenar ? '/api/laboratorio/seed' : undefined,
