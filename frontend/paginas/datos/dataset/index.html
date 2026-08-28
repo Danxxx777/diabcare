@@ -110,7 +110,7 @@ DiabCareNav.init();
 DiabCareNav.guardRol(['administrador', 'analista']);
 const API = DiabCareNav.getApi();
 const token = localStorage.getItem('token');
-let pag = 1, tablaActual = 'hechos_diabetes', esquema = null;
+let pag = 1, tablaActual = 'hechos_diabetes', esquema = null, tablaCargadaUnaVez = false;
 const LIMIT = 50;
 
 const GRUPO_LABEL = {
@@ -150,7 +150,9 @@ async function cargarEsquema() {
     if (!tablaActual && esquema.grupos?.hechos?.[0]) {
       tablaActual = esquema.grupos.hechos[0].id;
     }
-    seleccionarTabla(tablaActual, false);
+    // Primer arranque: hay que traer las filas. En refrescos posteriores no,
+    // para no sacar al usuario de la pagina que esta mirando.
+    seleccionarTabla(tablaActual, !tablaCargadaUnaVez);
   } catch {}
 }
 
@@ -317,6 +319,7 @@ async function reconstruirDwh() {
 
 async function cargarTabla() {
   if (!tablaActual) return;
+  tablaCargadaUnaVez = true;
   document.getElementById('tablaBody').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
   try {
     const url = `${API}/api/dataset/dwh/tabla/${tablaActual}?skip=${(pag-1)*LIMIT}&limit=${LIMIT}&_=${Date.now()}`;
