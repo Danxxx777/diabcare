@@ -409,6 +409,28 @@ def obtener_estado(ligero: bool = False) -> dict:
         return {"estado": "error", "detalle": str(e), "conectividad": _conectividad()}
 
 
+def historial_corridas(limite: int = 20) -> dict:
+    """Historial del ELT con su tendencia, para seguimiento del analista."""
+    try:
+        from paquetes.pipeline_elt.PipelineEtlPasos import leer_historial_corridas
+        corridas = leer_historial_corridas(limite) or []
+    except Exception:
+        corridas = []
+
+    total = len(corridas)
+    fallidas = sum(1 for c in corridas if not c.get("ok"))
+    duraciones = [float(c.get("duracion_seg") or 0) for c in corridas if c.get("duracion_seg")]
+    filas = [int(c.get("registros") or 0) for c in corridas]
+    return {
+        "corridas": corridas,
+        "total": total,
+        "fallidas": fallidas,
+        "exito_pct": round((total - fallidas) * 100.0 / total, 1) if total else 0.0,
+        "duracion_promedio_seg": round(sum(duraciones) / len(duraciones), 1) if duraciones else 0.0,
+        "filas_ultima": filas[0] if filas else 0,
+    }
+
+
 def _ultima_corrida_segura() -> dict:
     try:
         from paquetes.pipeline_elt.PipelineEtlPasos import leer_ultima_corrida

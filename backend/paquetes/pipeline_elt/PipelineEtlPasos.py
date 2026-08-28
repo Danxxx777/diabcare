@@ -37,6 +37,8 @@ SYNC_STATE_KEY = "pipeline/sync_state.json"
 WORK_PREFIX = "pipeline/work/"
 BENCHMARK_KEY = "pipeline/benchmark_ultimo.json"
 LAST_RUN_KEY = "pipeline/ultima_corrida.json"
+HISTORIAL_KEY = "pipeline/historial_corridas.json"
+MAX_HISTORIAL = 50
 # Landing fuera de stage/ para no contaminar lecturas clínicas (RegistrosClinicos).
 LANDING_PATH = "landing/"
 
@@ -78,6 +80,15 @@ def guardar_sync_state(state: dict) -> None:
 
 def leer_ultima_corrida() -> dict:
     return _leer_json(LAST_RUN_KEY)
+
+
+def leer_historial_corridas(limite: int = MAX_HISTORIAL) -> list:
+    """Corridas mas recientes primero."""
+    datos = _leer_json(HISTORIAL_KEY) or {}
+    corridas = datos.get("corridas") if isinstance(datos, dict) else None
+    if not isinstance(corridas, list):
+        return []
+    return corridas[: max(1, int(limite or MAX_HISTORIAL))]
 
 
 def leer_benchmark_ultimo() -> dict:
@@ -432,18 +443,36 @@ def _fallo(pasos: list[dict], error: str | None, inicio: float, run_id: str) -> 
 
 
 def _guardar_corrida(out: dict, usuario: str) -> None:
+    resumen = {
+        "ok": out.get("ok"),
+        "usuario": usuario,
+        "run_id": out.get("run_id"),
+        "registros": out.get("registros"),
+        "duracion_seg": out.get("duracion_seg"),
+        "tiempos": out.get("tiempos"),
+        "patron": out.get("patron", "ELT"),
+        "mensaje": out.get("mensaje") or out.get("error"),
+        "fin": datetime.now(timezone.utc).isoformat(),
+    }
     try:
-        _guardar_json(LAST_RUN_KEY, {
-            "ok": out.get("ok"),
-            "usuario": usuario,
-            "run_id": out.get("run_id"),
-            "registros": out.get("registros"),
-            "duracion_seg": out.get("duracion_seg"),
-            "tiempos": out.get("tiempos"),
-            "patron": out.get("patron", "ELT"),
-            "mensaje": out.get("mensaje") or out.get("error"),
-            "fin": datetime.now(timezone.utc).isoformat(),
-        })
+        _guardar_json(LAST_RUN_KEY, resumen)
+    except Exception:
+        pass
+    # Y al historial, que es lo que permite ver la tendencia y los fallos.
+    try:
+        previas = leer_historial_corridas(MAX_HISTORIAL) or []
+        pasos = out.get("pasos") or []
+        breve = dict(resumen)
+        breve["pasos"] = [
+            {
+                "nombre": pa.get("nombre") or pa.get("paso"),
+                "ok": pa.get("ok", True),
+                "filas": pa.get("filas") or pa.get("registros"),
+                "duracion_seg": pa.get("duracion_seg"),
+            }
+            for pa in pasos if isinstance(pa, dict)
+        ]
+        _guardar_json(HISTORIAL_KEY, {"corridas": ([breve] + previas)[:MAX_HISTORIAL]})
     except Exception:
         pass
 

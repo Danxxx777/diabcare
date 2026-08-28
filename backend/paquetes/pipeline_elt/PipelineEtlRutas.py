@@ -176,3 +176,10 @@ def benchmark_sql_ultimo(payload: dict = Depends(require_modulo("pipeline_etl"))
 @router.get("/ultima-corrida")
 def ultima_corrida_elt(payload: dict = Depends(require_modulo("pipeline_etl"))):
     return {"ok": True, "corrida": leer_ultima_corrida() or {}}
+
+
+@router.get("/historial")
+def historial_elt(limite: int = 20, payload: dict = Depends(require_modulo("pipeline_etl"))):
+    """Corridas anteriores del ELT: tendencia, fallos y filas movidas."""
+    from paquetes.pipeline_elt.PipelineEtlServicio import historial_corridas
+    return historial_corridas(limite)

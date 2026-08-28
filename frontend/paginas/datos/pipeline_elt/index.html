@@ -114,6 +114,12 @@
 .pipe-tab:hover { background:color-mix(in srgb,var(--accent) 8%,transparent); transform:translateY(-1px); }
 .pipe-tab.active { background:color-mix(in srgb,var(--accent) 16%,var(--bg2)); border-color:color-mix(in srgb,var(--accent) 48%,var(--border)); color:var(--text); }
 .pipe-tab .ico-svg { flex:0 0 auto; color:var(--accent); }
+.solo-historial { display: none; }
+body.vista-historial .solo-historial { display: block; }
+body.vista-historial .pipe-workspace,
+body.vista-historial .status-grid,
+body.vista-historial .solo-proceso,
+body.vista-historial .solo-rendimiento { display: none !important; }
 .pipe-tab-copy { display:grid; gap:2px; }
 .pipe-tab-copy strong { font-size:12px; }
 .pipe-tab-copy small { color:var(--text3); font-size:10px; font-weight:400; }
@@ -176,6 +182,25 @@
         <span data-icon="benchmarking" data-icon-size="18"></span>
         <span class="pipe-tab-copy"><strong>Rendimiento</strong><small>Comparar SQL y Parquet</small></span>
       </button>
+      <button class="pipe-tab" type="button" data-pipe-tab="historial" onclick="cambiarVista('historial')">
+        <span data-icon="pipeline" data-icon-size="18"></span>
+        <span class="pipe-tab-copy"><strong>Historial</strong><small>Corridas, fallos y tendencia</small></span>
+      </button>
+    </div>
+
+    <div class="panel solo-historial" style="margin-bottom:14px;padding:18px 20px">
+      <div class="panel-title" style="margin-bottom:4px">Historial de corridas del ELT</div>
+      <p style="margin:0 0 12px;font-size:12px;color:var(--text3)">
+        Cada ejecución del pipeline, con las filas que movió y el tiempo que tardó.
+        Sirve para detectar cargas que fallan o que se están degradando.
+      </p>
+      <div class="stats-grid" style="margin-bottom:14px">
+        <div class="stat-card"><div class="stat-label">Corridas</div><div class="stat-value blue" id="h-total">-</div></div>
+        <div class="stat-card"><div class="stat-label">Tasa de éxito</div><div class="stat-value green" id="h-exito">-</div></div>
+        <div class="stat-card"><div class="stat-label">Fallidas</div><div class="stat-value red" id="h-fallidas">-</div></div>
+        <div class="stat-card"><div class="stat-label">Duración media</div><div class="stat-value" id="h-dur">-</div></div>
+      </div>
+      <div class="tabla-wrap"><div id="historialBody"><div class="loading"><div class="spinner"></div>Cargando historial…</div></div></div>
     </div>
 
     <div class="panel pipe-workspace" style="margin-bottom:14px;padding:18px 20px">
@@ -379,13 +404,51 @@ const DAGS_LOCALES = [
 
 function cambiarVista(vista) {
   const rendimiento = vista === 'rendimiento';
+  const historial = vista === 'historial';
   document.body.classList.toggle('vista-rendimiento', rendimiento);
-  document.body.classList.toggle('vista-procesos', !rendimiento);
+  document.body.classList.toggle('vista-historial', historial);
+  document.body.classList.toggle('vista-procesos', !rendimiento && !historial);
   document.querySelectorAll('[data-pipe-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.pipeTab === vista);
   });
   const titulo = document.getElementById('pipe-control-title');
   if (titulo) titulo.textContent = rendimiento ? 'Comparación de rendimiento' : 'Procesos disponibles';
+  if (historial) cargarHistorial();
+}
+
+async function cargarHistorial() {
+  const body = document.getElementById('historialBody');
+  if (!body) return;
+  try {
+    const r = await fetch(`${API}/api/pipeline/historial?limite=20`, { credentials: 'include' });
+    if (!r.ok) throw new Error('sin historial');
+    const d = await r.json();
+    document.getElementById('h-total').textContent = d.total ?? 0;
+    document.getElementById('h-exito').textContent = (d.exito_pct ?? 0) + '%';
+    document.getElementById('h-fallidas').textContent = d.fallidas ?? 0;
+    document.getElementById('h-dur').textContent = (d.duracion_promedio_seg ?? 0) + ' s';
+    const filas = d.corridas || [];
+    if (!filas.length) {
+      body.innerHTML = '<div class="loading">Todavía no se ha ejecutado el pipeline. Use “Sincronizar” en Procesos ELT.</div>';
+      return;
+    }
+    body.innerHTML = `<table class="tabla" style="width:100%">
+      <thead><tr><th>Fecha</th><th>Ejecutó</th><th>Resultado</th><th class="num">Filas</th><th class="num">Duración</th><th>Detalle</th></tr></thead>
+      <tbody>${filas.map(c => `<tr>
+        <td>${esc(String(c.fin || '').replace('T', ' ').slice(0, 19))}</td>
+        <td>${esc(c.usuario || '-')}</td>
+        <td>${c.ok ? '<span class="badge-estado pagada">Correcta</span>' : '<span class="badge-estado anulada">Fallida</span>'}</td>
+        <td class="num">${Number(c.registros || 0).toLocaleString('es-EC')}</td>
+        <td class="num">${Number(c.duracion_seg || 0).toFixed(1)} s</td>
+        <td>${esc(String(c.mensaje || '').slice(0, 70))}</td>
+      </tr>`).join('')}</tbody></table>`;
+  } catch (_) {
+    body.innerHTML = '<div class="loading">No se pudo leer el historial.</div>';
+  }
+}
+
+function esc(v) {
+  return String(v ?? '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 }
 
 async function mostrarDetallesTecnicos() {
