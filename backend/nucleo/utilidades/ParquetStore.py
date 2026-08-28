@@ -14,6 +14,21 @@ from nucleo.utilidades.ParquetCache import leer, escribir
 BUCKET_APP = "diabcare-app"
 
 
+def _valor_simple(v):
+    """Valor legible para el registro de auditoria (sin tipos de pandas)."""
+    if v is None:
+        return ""
+    try:
+        import pandas as _pd
+        if _pd.isna(v):
+            return ""
+    except Exception:
+        pass
+    if isinstance(v, (str, int, float, bool)):
+        return v
+    return str(v)
+
+
 def _now() -> str:
     return datetime.utcnow().isoformat()
 
@@ -121,12 +136,19 @@ class ParquetStore:
         idx = df.index[df[self.id_campo].astype(str) == str(id_valor)].tolist()
         if not idx:
             return {"error": "no encontrado"}
+        antes, despues = {}, {}
         for k, v in cambios.items():
             if k in self.columnas and k not in (self.id_campo, "creado_en"):
+                previo = df.at[idx[0], k]
+                # Solo lo que de verdad cambia: el evento debe leerse de un vistazo.
+                if str(previo) != str(v):
+                    antes[k] = _valor_simple(previo)
+                    despues[k] = _valor_simple(v)
                 df.at[idx[0], k] = v
         if "actualizado_en" in self.columnas:
             df.at[idx[0], "actualizado_en"] = _now()
         self.cargar(df)
+        self._pendiente_diff = {"antes": antes, "despues": despues} if antes else None
         return {"mensaje": "actualizado", self.id_campo: id_valor}
 
     def eliminar_logico(self, id_valor: str) -> dict:
@@ -134,6 +156,7 @@ class ParquetStore:
         idx = df.index[df[self.id_campo].astype(str) == str(id_valor)].tolist()
         if not idx:
             return {"error": "no encontrado"}
+        estado_previo = df.at[idx[0], "activo" if self.modo_borrado == "activo" else "estado"]
         if self.modo_borrado == "activo":
             df.at[idx[0], "activo"] = False
         else:
@@ -149,11 +172,22 @@ class ParquetStore:
         if "actualizado_en" in self.columnas:
             df.at[idx[0], "actualizado_en"] = _now()
         self.cargar(df)
+        campo = "activo" if self.modo_borrado == "activo" else "estado"
+        self._pendiente_diff = {
+            "antes": {campo: _valor_simple(estado_previo)},
+            "despues": {campo: _valor_simple(df.at[idx[0], campo])},
+        }
         return {"mensaje": "eliminado_logico", self.id_campo: id_valor}
 
     def auditar(self, usuario: str, tipo: str, detalle: str, modulo: str) -> None:
+        diff = getattr(self, "_pendiente_diff", None)
+        self._pendiente_diff = None
         try:
             from paquetes.auditoria.AuditoriaServicio import registrar
-            registrar(usuario, tipo, modulo, detalle)
+            registrar(
+                usuario, tipo, modulo, detalle,
+                antes=(diff or {}).get("antes"),
+                despues=(diff or {}).get("despues"),
+            )
         except Exception:
             pass
