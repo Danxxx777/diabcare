@@ -5,6 +5,7 @@ from paquetes.notificaciones.NotificacionesServicio import (
     listar,
     marcar_leida,
     marcar_todas_leidas,
+    purgar_leidas,
     estadisticas,
     evaluar_alertas_clinicas,
     emitir,
@@ -55,6 +56,16 @@ def leida(notif_id: str, payload: dict = Depends(require_modulo("notificaciones"
     if resultado.get("error"):
         raise HTTPException(status_code=404, detail=resultado["error"])
     return resultado
+
+
+@router.delete("/leidas")
+def borrar_leidas(dias: int = 0, payload: dict = Depends(require_modulo("notificaciones"))):
+    """Vacía las notificaciones ya leídas (opcionalmente conserva las de N días)."""
+    return purgar_leidas(
+        user_id=payload.get("sub") or "",
+        rol=payload.get("rol") or "",
+        dias=dias,
+    )
 
 
 @router.post("/leer-todas")

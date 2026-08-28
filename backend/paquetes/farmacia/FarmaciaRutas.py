@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Any
 from datetime import date
 from nucleo.utilidades.Dependencias import require_modulo, require_escritura
@@ -19,9 +19,9 @@ class MedIn(BaseModel):
     nombre: str = ""
     principio_activo: str = ""
     forma: str = "unidad"
-    precio_venta: float = 0
-    precio_costo: float = 0
-    stock_minimo: float = 0
+    precio_venta: float = Field(0, ge=0)
+    precio_costo: float = Field(0, ge=0)
+    stock_minimo: float = Field(0, ge=0)
     venta_libre: bool = False
     activo: Optional[bool] = True
 
@@ -38,14 +38,14 @@ class InventarioIn(BaseModel):
     id_medicamento: str
     lote: str = ""
     fecha_vencimiento: str = ""
-    cantidad: float = 0
-    costo_unitario: float = 0
+    cantidad: float = Field(0, gt=0)
+    costo_unitario: float = Field(0, ge=0)
     activo: Optional[bool] = True
 
 class DispensarIn(BaseModel):
     id_receta: str = ""
     id_medicamento: str
-    cantidad: float
+    cantidad: float = Field(..., gt=0)
 
 class CobrarRecetaIn(BaseModel):
     metodo: str = "efectivo"
@@ -69,7 +69,7 @@ class VentaIn(BaseModel):
     tipo: str = "venta_libre"
     id_receta: str = ""
     id_factura: str = ""
-    descuento: float = 0
+    descuento: float = Field(0, ge=0)
     fecha: str = ""
     lineas: list[dict[str, Any]] = []
 
@@ -78,24 +78,24 @@ class NotaIn(BaseModel):
     id_venta: str = ""
     id_compra: str = ""
     motivo: str = ""
-    monto: float = 0
+    monto: float = Field(0, ge=0)
     fecha: str = ""
     estado: str = "registrada"
 
 class CxpIn(BaseModel):
     id_compra: str = ""
-    monto_pendiente: float = 0
+    monto_pendiente: float = Field(0, ge=0)
     fecha_vencimiento: str = ""
     estado: str = "vigente"
 
 class CierreIn(BaseModel):
     fecha: str = ""
     id_personal: str = ""
-    total_ventas_efectivo: float = 0
-    total_ventas_tarjeta: float = 0
-    total_ventas_seguro: float = 0
-    monto_esperado: float = 0
-    monto_contado: float = 0
+    total_ventas_efectivo: float = Field(0, ge=0)
+    total_ventas_tarjeta: float = Field(0, ge=0)
+    total_ventas_seguro: float = Field(0, ge=0)
+    monto_esperado: float = Field(0, ge=0)
+    monto_contado: float = Field(0, ge=0)
 
 # Medicamentos
 @router.get("/medicamentos")

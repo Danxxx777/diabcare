@@ -366,8 +366,15 @@ def obtener_estado(ligero: bool = False) -> dict:
             if ligero else _conectividad()
         )
 
-        total_registros = int(sync.get("registros_acumulados") or 0)
-        if not ligero:
+        # Lo que ha traido la sincronizacion no es el total del almacen.
+        registros_sincronizados = int(sync.get("registros_acumulados") or 0)
+        total_registros = 0
+        try:
+            from paquetes.dataset.DatasetDwhServicio import contar_stage_plano
+            total_registros = int(contar_stage_plano())
+        except Exception:
+            total_registros = registros_sincronizados
+        if not total_registros and not ligero:
             try:
                 from paquetes.registros_clinicos import RegistrosClinicosServicio
                 total_registros = int(RegistrosClinicosServicio.estadisticas().get("total") or 0)
@@ -383,6 +390,7 @@ def obtener_estado(ligero: bool = False) -> dict:
             "total_generador": len(archivos_gen),
             "total_stage": len(parquets),
             "total_registros": total_registros,
+            "registros_sincronizados": registros_sincronizados,
             "ultimo_archivo": ultimo.object_name.replace(MINIO_STAGE_PATH, "") if ultimo else None,
             "ultima_fecha": ultimo.last_modified.strftime("%Y-%m-%d %H:%M:%S") if ultimo and ultimo.last_modified else None,
             "archivos": archivos,

@@ -86,6 +86,7 @@ def _cargar(df: pd.DataFrame) -> None:
     for col in COLUMNAS:
         if col not in df.columns:
             df[col] = False if col in ("leida", "email_enviado") else ""
+    df = _podar(df)
     escribir(BUCKET_APP, ARCHIVO, df[COLUMNAS])
 
 
@@ -417,6 +418,54 @@ def marcar_todas_leidas(user_id: str = "", rol: str = "") -> dict:
             df.at[i, "leida"] = True
     _cargar(df)
     return {"mensaje": "Todas marcadas como leídas"}
+
+
+# Tope de la bandeja. Por encima de esto se descartan las leidas mas viejas:
+# 12 000 avisos acumulados no le sirven a nadie y ralentizan cada carga.
+MAX_NOTIFICACIONES = 2000
+
+
+def _podar(df: pd.DataFrame) -> pd.DataFrame:
+    """Recorta la bandeja al tope, sacrificando primero las leidas mas viejas."""
+    if len(df) <= MAX_NOTIFICACIONES:
+        return df
+    orden = df.sort_values("creado_en", ascending=False)
+    leidas = orden["leida"].fillna(False).astype(bool) if "leida" in orden.columns else False
+    no_leidas = orden[~leidas]
+    resto = orden[leidas]
+    cupo = max(0, MAX_NOTIFICACIONES - len(no_leidas))
+    return pd.concat([no_leidas, resto.head(cupo)], ignore_index=True)
+
+
+def purgar_leidas(user_id: str = "", rol: str = "", dias: int = 0) -> dict:
+    """Elimina las notificaciones ya leidas visibles para el usuario.
+
+    Con `dias`, conserva las leidas mas recientes que ese umbral.
+    """
+    df = _extraer()
+    if df.empty:
+        return {"mensaje": "Sin notificaciones", "eliminadas": 0}
+    es_admin = str(rol).lower() == "administrador"
+    corte = ""
+    if dias and int(dias) > 0:
+        corte = (datetime.now() - timedelta(days=int(dias))).isoformat()
+
+    conservar = []
+    eliminadas = 0
+    for _, row in df.iterrows():
+        leida = bool(row.get("leida"))
+        visible = _visible_para(row, user_id, rol, es_admin)
+        reciente = bool(corte) and str(row.get("creado_en") or "") >= corte
+        if leida and visible and not reciente:
+            eliminadas += 1
+            continue
+        conservar.append(row)
+
+    if not eliminadas:
+        return {"mensaje": "No hay notificaciones leídas para eliminar", "eliminadas": 0}
+    nuevo = pd.DataFrame(conservar, columns=df.columns) if conservar else pd.DataFrame(columns=COLUMNAS)
+    _cargar(nuevo)
+    return {"mensaje": f"{eliminadas} notificación(es) eliminada(s)", "eliminadas": eliminadas}
 
 
 def estadisticas(user_id: str = "", rol: str = "") -> dict:

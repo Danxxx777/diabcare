@@ -268,6 +268,24 @@ def listar_pagos_factura(id_factura: str) -> dict:
     return pagos.listar(limit=200, filtros={"id_factura": id_factura}, incluir_inactivos=True)
 
 
+def _emisor() -> dict:
+    """Identidad de la institucion para los documentos impresos."""
+    try:
+        from paquetes.configuracion.ConfiguracionServicio import obtener_configuracion
+        cfg = obtener_configuracion() or {}
+    except Exception:
+        cfg = {}
+    partes = [
+        ("RUC " + str(cfg.get("institucion_ruc") or "").strip()) if cfg.get("institucion_ruc") else "",
+        str(cfg.get("institucion_direccion") or "").strip(),
+        str(cfg.get("institucion_telefono") or "").strip(),
+    ]
+    return {
+        "nombre": str(cfg.get("institucion_nombre") or "DiabCare Hospital").strip(),
+        "linea": " · ".join([x for x in partes if x]),
+    }
+
+
 def obtener_comprobante(id_factura: str) -> dict:
     """Comprobante / factura para el cliente (consulta, farmacia u otro cobro)."""
     f = facturas.obtener(id_factura)
@@ -399,7 +417,8 @@ def html_comprobante(data: dict) -> str:
   <div class="actions"><button onclick="window.print()">Imprimir / guardar PDF</button></div>
   <div class="head">
     <div>
-      <div class="brand">DiabCare Hospital</div>
+      <div class="brand">{e(_emisor()["nombre"])}</div>
+      <div style="font-size:12px;color:#64748b">{e(_emisor()["linea"])}</div>
       <div style="font-size:12px;color:#64748b">Comprobante para el cliente</div>
     </div>
     <div class="meta">

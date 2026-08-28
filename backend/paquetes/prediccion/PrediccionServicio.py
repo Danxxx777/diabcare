@@ -82,7 +82,15 @@ def entrenar() -> dict:
             X, y, test_size=0.2, random_state=42, stratify=y
         )
 
-        modelo = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        # Profundidad acotada: sin limite, sobre millones de filas el bosque
+        # crece hasta gigabytes y tarda mas en cargarse que en predecir.
+        modelo = RandomForestClassifier(
+            n_estimators=60,
+            max_depth=14,
+            min_samples_leaf=25,
+            random_state=42,
+            n_jobs=-1,
+        )
         modelo.fit(X_train, y_train)
 
         y_pred = modelo.predict(X_test)
@@ -99,7 +107,10 @@ def entrenar() -> dict:
         c = get_cliente()
         if not c.bucket_exists(BUCKET_APP):
             c.make_bucket(BUCKET_APP)
-        buf = io.BytesIO(pickle.dumps({"modelo": modelo, "metricas": metricas}))
+        crudo = pickle.dumps({"modelo": modelo, "metricas": metricas})
+        metricas["tamano_modelo_mb"] = round(len(crudo) / (1024 * 1024), 1)
+        crudo = pickle.dumps({"modelo": modelo, "metricas": metricas})
+        buf = io.BytesIO(crudo)
         buf.seek(0)
         c.put_object(BUCKET_APP, MODELO_PATH, buf, buf.getbuffer().nbytes)
 
@@ -166,4 +177,15 @@ def obtener_metricas() -> dict:
 
 
 def modelo_disponible() -> bool:
-    return _cargar_modelo() is not None
+    """Si hay modelo entrenado, sin traerlo a memoria.
+
+    Antes esto deserializaba el pickle completo; con un artefacto grande, abrir
+    la pantalla de Prediccion se quedaba colgado casi un minuto.
+    """
+    if _modelo_cache["modelo"] is not None:
+        return True
+    try:
+        get_cliente().stat_object(BUCKET_APP, MODELO_PATH)
+        return True
+    except Exception:
+        return False

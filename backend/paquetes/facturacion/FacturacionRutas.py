@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Any
 from nucleo.utilidades.Dependencias import require_modulo, require_escritura
 from paquetes.facturacion import FacturacionServicio as S
@@ -22,8 +22,8 @@ class FacturaIn(BaseModel):
     id_orden_venta: Optional[str] = None
     id_paciente: str = ""
     id_seguro: str = ""
-    subtotal: float = 0
-    descuento: float = 0
+    subtotal: float = Field(0, ge=0)
+    descuento: float = Field(0, ge=0)
     iva: Optional[float] = None
     total: Optional[float] = None
     estado: str = "emitida"
@@ -31,7 +31,7 @@ class FacturaIn(BaseModel):
     lineas: list[dict[str, Any]] = []
 
 class PagoIn(BaseModel):
-    monto: float
+    monto: float = Field(..., gt=0)
     metodo: str = "efectivo"
     fecha: str = ""
     estado: str = "registrado"
@@ -185,12 +185,12 @@ def pago_publico_simular(token: str):
 
 # ── Turno de caja ──────────────────────────────────────────────────────────
 class AperturaIn(BaseModel):
-    fondo_inicial: float = 0.0
+    fondo_inicial: float = Field(0.0, ge=0)
     notas: str = ""
 
 
 class CierreIn(BaseModel):
-    contado_efectivo: float = 0.0
+    contado_efectivo: float = Field(0.0, ge=0)
     notas: str = ""
 
 

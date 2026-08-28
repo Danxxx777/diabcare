@@ -44,6 +44,14 @@ DEFAULTS = {
     "horario_apertura": "08:00",
     "horario_cierre": "18:00",
     "horario_dias": [0, 1, 2, 3, 4],
+    # Identidad de la institucion: sale impresa en facturas y comprobantes.
+    "institucion_nombre": "DiabCare Hospital",
+    "institucion_ruc": "",
+    "institucion_direccion": "",
+    "institucion_telefono": "",
+    "institucion_email": "",
+    # Dias que se conservan las notificaciones ya leidas antes de poder purgarlas.
+    "notificaciones_retencion_dias": 30,
 }
 
 # Claves que nunca se persisten aunque lleguen en el payload (seguridad).

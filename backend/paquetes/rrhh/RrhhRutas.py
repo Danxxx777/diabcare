@@ -3,7 +3,7 @@ import io
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from nucleo.utilidades.Dependencias import require_modulo, require_escritura
 from paquetes.rrhh import RrhhServicio as S
@@ -31,7 +31,7 @@ class TurnoIn(BaseModel):
 class PersonalIn(BaseModel):
     id_personal: str
     id_cargo: str
-    costo_hora: float = 0
+    costo_hora: float = Field(0, ge=0)
     fecha_vigencia: str = ""
     activo: Optional[bool] = True
 

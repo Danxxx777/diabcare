@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from nucleo.utilidades.Dependencias import require_modulo
 from paquetes.instrumental import InstrumentalServicio as S
@@ -13,7 +13,7 @@ class InstrumentalEntrada(BaseModel):
     tipo: str = "instrumental"
     serie: str = ""
     ubicacion: str = "Almacén clínico"
-    existencia: int = 1
+    existencia: int = Field(1, ge=1)
     notas: str = ""
 
 
