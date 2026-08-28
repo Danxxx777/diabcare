@@ -1255,7 +1255,8 @@ window.DiabCareNav = {
       'analisis', 'prediccion', 'reportes', 'notificaciones',
     ],
     enfermero: [
-      'pacientes', 'admisiones', 'citas', 'laboratorio', 'urgencias', 'instrumental', 'habitaciones', 'notificaciones',
+      'pacientes', 'admisiones', 'citas', 'laboratorio', 'urgencias', 'instrumental', 'habitaciones',
+      'comorbilidades', 'notificaciones',
     ],
     farmaceutico: [
       'pacientes', 'admisiones', 'citas', 'urgencias', 'instrumental', 'habitaciones',
@@ -1264,7 +1265,7 @@ window.DiabCareNav = {
     ],
     analista: [
       'analisis', 'prediccion', 'reportes',
-      'facturacion', 'rrhh',
+      'facturacion', 'rrhh', 'comorbilidades',
       'dataset', 'pipeline', 'modelo', 'notificaciones',
     ],
   },

@@ -91,7 +91,13 @@
 </div>
 <script>
 DiabCareNav.init();
-DiabCareNav.guardRol(['administrador', 'medico']);
+DiabCareNav.guardRol(['administrador', 'medico', 'enfermero', 'analista']);
+
+// Quien hace que: el medico diagnostica, enfermeria da seguimiento y el
+// analista solo mira. Es el mismo reparto que ya existe en laboratorio.
+const _rolCom = String((JSON.parse(localStorage.getItem('usuario') || '{}').rol || '')).toLowerCase();
+const puedeDiagnosticar = ['administrador', 'medico'].includes(_rolCom);
+const puedeSeguimiento = ['administrador', 'medico', 'enfermero'].includes(_rolCom);
 
 // Informe simple: complicaciones por tipo y pacientes afectados
 (async function kpisComorbilidades() {
@@ -107,10 +113,52 @@ DiabCareNav.guardRol(['administrador', 'medico']);
   } catch (_) { /* sin datos */ }
 })();
 
+async function abrirSeguimiento(row, ctx) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const actual = row.proximo_control || '';
+  const fecha = prompt(
+    `Control de ${row.paciente_nombre || 'paciente'} — ${row.tipo_label || row.tipo}\n\n` +
+    `Fecha del próximo control (AAAA-MM-DD), vacío para dejarlo igual:`,
+    actual || hoy);
+  if (fecha === null) return;
+  const estado = prompt(
+    'Estado tras el control: activa, controlada o resuelta\n(vacío para dejarlo igual)',
+    row.estado || 'activa');
+  if (estado === null) return;
+
+  const cuerpo = {};
+  if (fecha.trim()) cuerpo.proximo_control = fecha.trim();
+  if (estado.trim()) cuerpo.estado = estado.trim().toLowerCase();
+  if (!Object.keys(cuerpo).length) return;
+
+  const r = await fetch(`${DiabCareNav.getApi()}/api/comorbilidades/${row.id_comorbilidad}/seguimiento`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(cuerpo),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    DiabCareAPI.toast(d.detail || d.error || 'No se pudo registrar el control', 'error');
+    return;
+  }
+  DiabCareAPI.toast('Control registrado');
+  if (ctx && ctx.cargar) ctx.cargar();
+}
+
 DiabCareCrud.mount({
   listUrl: '/api/comorbilidades/', listKey: 'comorbilidades', idField: 'id_comorbilidad',
   itemUrl: id => '/api/comorbilidades/' + id, createUrl: '/api/comorbilidades/',
   searchPlaceholder: 'Buscar por paciente, cédula o tipo…',
+  hideCreate: !puedeDiagnosticar,
+  hideEdit: !puedeDiagnosticar,
+  hideDelete: !puedeDiagnosticar,
+  rowActions: puedeSeguimiento ? [{
+    id: 'seguimiento',
+    label: 'Registrar control',
+    show: (row) => String(row.estado || '').toLowerCase() !== 'resuelta',
+    onClick: (row, ctx) => abrirSeguimiento(row, ctx),
+  }] : [],
   // Filtros por columna: ver de un vistazo las severas sin controlar.
   filtros: [
     { param: 'tipo', label: 'Toda complicación', options: [

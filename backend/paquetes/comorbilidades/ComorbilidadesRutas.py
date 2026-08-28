@@ -81,6 +81,47 @@ def listar(
         incluir_inactivos=True,
     )
 
+class SeguimientoIn(BaseModel):
+    proximo_control: Optional[str] = None
+    estado: Optional[str] = None
+    notas: str = ""
+
+    @validator("estado")
+    def validar_estado(cls, valor):
+        if valor and valor not in {"activa", "controlada", "resuelta"}:
+            raise ValueError("Estado clínico inválido")
+        return valor
+
+    @validator("proximo_control")
+    def validar_control(cls, valor):
+        if not valor:
+            return valor
+        try:
+            date.fromisoformat(valor)
+        except ValueError:
+            raise ValueError("La fecha del próximo control no es válida")
+        return valor
+
+
+@router.put("/{id_comorbilidad}/seguimiento")
+def seguimiento(
+    id_comorbilidad: str,
+    d: SeguimientoIn,
+    payload=Depends(require_modulo("comorbilidades_seguimiento")),
+):
+    """Registrar el control de una complicación ya diagnosticada.
+
+    Enfermería hace el seguimiento; el diagnóstico y la severidad los cambia el
+    médico desde la edición completa.
+    """
+    cambios = {k: v for k, v in d.dict().items() if v not in (None, "")}
+    if not cambios:
+        raise HTTPException(400, detail="Indique el próximo control, el estado o una nota")
+    r = _nf(S.comorbilidades.actualizar(id_comorbilidad, cambios))
+    S.comorbilidades.auditar(_u(payload), "update", f"Seguimiento {id_comorbilidad}", "comorbilidades")
+    return r
+
+
 @router.get("/resumen")
 def resumen(payload=Depends(require_modulo("comorbilidades"))):
     return S.resumen_operativo()
@@ -99,7 +140,7 @@ def obtener(id_comorbilidad: str, payload=Depends(require_modulo("comorbilidades
 
 @router.post("")
 @router.post("/")
-def crear(d: ComIn, payload=Depends(require_modulo("comorbilidades"))):
+def crear(d: ComIn, payload=Depends(require_modulo("comorbilidades_diagnosticar"))):
     data = d.dict()
     if not data.get("id_medico"):
         data["id_medico"] = str(payload.get("sub") or "")
@@ -108,7 +149,7 @@ def crear(d: ComIn, payload=Depends(require_modulo("comorbilidades"))):
     return r
 
 @router.put("/{id_comorbilidad}")
-def actualizar(id_comorbilidad: str, d: ComIn, payload=Depends(require_modulo("comorbilidades"))):
+def actualizar(id_comorbilidad: str, d: ComIn, payload=Depends(require_modulo("comorbilidades_diagnosticar"))):
     cambios = d.dict(exclude_none=True)
     if not cambios.get("id_medico"):
         cambios.pop("id_medico", None)
@@ -117,7 +158,7 @@ def actualizar(id_comorbilidad: str, d: ComIn, payload=Depends(require_modulo("c
     return r
 
 @router.delete("/{id_comorbilidad}")
-def eliminar(id_comorbilidad: str, payload=Depends(require_modulo("comorbilidades"))):
+def eliminar(id_comorbilidad: str, payload=Depends(require_modulo("comorbilidades_diagnosticar"))):
     r = _nf(S.comorbilidades.eliminar_logico(id_comorbilidad))
     S.comorbilidades.auditar(_u(payload), "delete", f"Comorbilidad {id_comorbilidad}", "comorbilidades")
     return r
