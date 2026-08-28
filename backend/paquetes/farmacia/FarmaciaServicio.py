@@ -774,11 +774,14 @@ def dispensar_receta(id_receta: str) -> dict:
     receta = recetas.obtener(id_receta)
     if receta.get("error"):
         return receta
-    estado = str(receta.get("estado") or "").lower()
-    if estado in ("dispensada", "dispensado"):
+    estado = estado_receta(receta.get("estado"))
+    if estado == "dispensada":
         return {"error": "La receta ya fue dispensada"}
-    if estado in ("anulada", "anulado"):
+    if estado == "anulada":
         return {"error": "La receta está anulada"}
+    # En farmacia no se cobra: se entrega lo que caja ya facturo.
+    if not receta_ya_cobrada(receta):
+        return {"error": "La receta aún no está pagada. Debe cobrarse en Caja antes de entregarla."}
     lineas = detalles_receta(id_receta)
     if not lineas:
         return {"error": "La receta antigua no tiene medicamentos estructurados; dispénsela manualmente"}
@@ -811,56 +814,12 @@ def dispensar_receta(id_receta: str) -> dict:
 
 
 def receta_ya_cobrada(receta: dict) -> bool:
-    """La receta ya se pago en caja junto con la consulta.
+    """La receta ya se pago en caja.
 
     Caja factura la atencion completa -consulta, laboratorio y medicamentos- y
-    deja la receta en "pagada". Volver a cobrarla en el mostrador seria cobrarle
-    dos veces al paciente.
+    deja la receta en "pagada". Es la unica puerta de cobro del sistema.
     """
     return estado_receta(receta.get("estado")) == "pagada"
-
-
-def dispensar_y_cobrar_receta(id_receta: str, metodo: str) -> dict:
-    receta = obtener_receta_completa(id_receta)
-    if receta.get("error"):
-        return receta
-    lineas = receta.get("medicamentos") or []
-    if not lineas:
-        return {"error": "La receta no tiene medicamentos. Debe corregirse desde la consulta médica"}
-
-    # Ya pagada en caja: aqui solo se entrega.
-    if receta_ya_cobrada(receta):
-        entrega = dispensar_receta(id_receta)
-        if entrega.get("error"):
-            return entrega
-        entrega["mensaje"] = "Receta entregada. Ya estaba cobrada en caja con la consulta."
-        entrega["cobrada_en_caja"] = True
-        return entrega
-
-    metodo_n = str(metodo or "efectivo").lower()
-    if metodo_n not in ("efectivo", "tarjeta", "transferencia"):
-        return {"error": "Método de pago no válido"}
-    from paquetes.facturacion.CajaServicio import exigir_caja_abierta
-    cerrada = exigir_caja_abierta()
-    if cerrada:
-        return {"error": cerrada}
-    venta = registrar_venta({
-        "id_paciente": receta.get("id_paciente") or "", "tipo": "con_receta", "id_receta": id_receta,
-        "lineas": [{"id_medicamento": x.get("id_medicamento"), "cantidad": x.get("cantidad"), "precio_unitario": x.get("precio_unitario")} for x in lineas],
-        "emitir_factura": True,
-    })
-    if venta.get("error"):
-        return venta
-    id_factura = str(venta.get("id_factura") or "")
-    if not id_factura:
-        return {"error": "No se pudo emitir la factura de farmacia"}
-    from paquetes.facturacion.FacturacionServicio import crear_pago
-    total_venta = float(venta.get("total_neto") or (venta.get("registro") or {}).get("total_neto") or 0)
-    pago = crear_pago(id_factura, {"monto": total_venta, "metodo": metodo_n})
-    if pago.get("error"):
-        return pago
-    recetas.actualizar(id_receta, {"estado": "dispensada"})
-    return {"mensaje": "Receta dispensada y cobrada", "venta": venta, "pago": pago, "id_factura": id_factura}
 
 
 def resumen_margen() -> dict:

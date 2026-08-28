@@ -220,12 +220,6 @@ def post_disp_receta(id_receta: str, payload=Depends(require_modulo("farmacia"))
     S.dispensaciones.auditar(_u(payload), "create", f"Receta completa {id_receta}", "farmacia")
     return r
 
-@router.post("/farmacia/recetas/{id_receta}/dispensar-cobrar")
-def post_disp_cobrar_receta(id_receta: str, d: CobrarRecetaIn, payload=Depends(require_escritura("farmacia_caja"))):
-    r = _ok(S.dispensar_y_cobrar_receta(id_receta, d.metodo))
-    S.dispensaciones.auditar(_u(payload), "create", f"Receta cobrada {id_receta}", "farmacia")
-    return r
-
 @router.get("/farmacia/dispensaciones")
 def list_disp(offset: int = 0, limit: int = 50, payload=Depends(require_modulo("farmacia"))):
     return S.dispensaciones.listar(offset, limit, incluir_inactivos=True)

@@ -305,19 +305,21 @@ function pagadaEnCaja(row) {
   return String(row?.estado || '').toLowerCase() === 'pagada';
 }
 
-/** Deja claro si aqui se cobra o solo se entrega: evita cobrar dos veces. */
+/** En farmacia no se cobra: se entrega lo que caja ya facturo. */
 function cobroLeyenda(row) {
   if (!row) return '';
   if (pagadaEnCaja(row)) {
     return `<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--st-ok-line);
       background:var(--st-ok-bg);font-size:12px;color:var(--text2)">
-      <strong>Ya cobrada en caja</strong> junto con la consulta. Aquí solo se entrega: no se emite otra factura.</div>`;
+      <strong>Pagada en caja.</strong> Lista para entregar.</div>`;
   }
   const total = (row.medicamentos || []).reduce((a, m) => a + Number(m.subtotal || 0), 0);
+  const importe = (typeof DiabCareAPI !== 'undefined' && DiabCareAPI.money)
+    ? DiabCareAPI.money(total) : total.toFixed(2);
   return `<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--st-warning-line);
     background:var(--st-warning-bg);font-size:12px;color:var(--text2)">
-    <strong>Pendiente de cobro</strong> — no pasó por caja. Se cobrará en el mostrador:
-    <b>${DiabCareAPI.money ? DiabCareAPI.money(total) : total.toFixed(2)}</b>.</div>`;
+    <strong>Todavía no está pagada.</strong> El paciente debe pasar por Caja
+    (<b>${importe}</b> en medicamentos) y volver. Aquí no se cobra.</div>`;
 }
 
 async function abrirDetalleReceta(row) {
@@ -333,9 +335,12 @@ async function abrirDetalleReceta(row) {
     ${cobroLeyenda(row)}
     ${row?.indicaciones ? `<div style="margin-top:12px"><strong>Indicaciones generales</strong><p>${row.indicaciones}</p></div>` : ''}`;
   const btn = document.getElementById('btnDispensarCompleta');
-  btn.disabled = !lineas.length;
-  btn.textContent = pagadaEnCaja(row) ? 'Confirmar entrega' : 'Cobrar y entregar';
-  btn.title = lineas.length ? '' : 'La receta debe corregirse desde la consulta médica';
+  const lista = lineas.length && pagadaEnCaja(row);
+  btn.disabled = !lista;
+  btn.textContent = 'Confirmar entrega';
+  btn.title = !lineas.length
+    ? 'La receta debe corregirse desde la consulta médica'
+    : (pagadaEnCaja(row) ? '' : 'Debe cobrarse en Caja antes de entregarla');
   document.getElementById('rxDetalleModal').style.display = 'flex';
 }
 
@@ -349,22 +354,17 @@ async function dispensarRecetaCompleta() {
   const btn = document.getElementById('btnDispensarCompleta');
   btn.disabled = true;
   const original = btn.textContent;
-  const yaPagada = pagadaEnCaja(recetaSeleccionada);
-  btn.textContent = yaPagada ? 'Entregando...' : 'Cobrando...';
+  btn.textContent = 'Entregando...';
   try {
-    // Pagada en caja: solo se entrega. Sin cobrar: el mostrador la factura.
-    // El backend vuelve a comprobarlo, asi que no se puede cobrar dos veces.
-    const ruta = yaPagada ? 'dispensar' : 'dispensar-cobrar';
+    // En farmacia solo se entrega. El cobro es de Caja, y el servidor lo exige.
     const id = encodeURIComponent(recetaSeleccionada.id_receta);
-    const cab = yaPagada ? hdr() : { ...hdr(), 'Content-Type': 'application/json' };
-    const r = await fetch(`${API}/api/farmacia/recetas/${id}/${ruta}`, {
-      method: 'POST', headers: cab, credentials: 'include',
-      body: yaPagada ? undefined : JSON.stringify({ metodo: 'efectivo' })
+    const r = await fetch(`${API}/api/farmacia/recetas/${id}/dispensar`, {
+      method: 'POST', headers: hdr(), credentials: 'include'
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.detail || data.error || 'No se pudo dispensar');
     cerrarDetalleReceta();
-    toast(data.mensaje || (yaPagada ? 'Medicamentos entregados' : 'Receta cobrada y entregada'));
+    toast(data.mensaje || 'Medicamentos entregados');
     if (farmTabs) await farmTabs.switchTab('historial');
     cargarKpisFarm();
   } catch (error) {
