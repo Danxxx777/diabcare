@@ -81,7 +81,8 @@ def crear_factura(datos: dict) -> dict:
             max_desc = subtotal * (float(seg.get("cobertura_pct") or 0) / 100.0)
             if descuento > max_desc + 0.01:
                 return {"error": "RN-FACT-003: descuento excede cobertura_pct del seguro"}
-    iva = float(datos.get("iva") or round(max(subtotal - descuento, 0) * 0.15, 2))
+    from paquetes.configuracion.ConfiguracionServicio import iva_pct
+    iva = float(datos.get("iva") or round(max(subtotal - descuento, 0) * iva_pct() / 100.0, 2))
     total = float(datos.get("total") or round(subtotal - descuento + iva, 2))
     res = facturas.crear({
         "encounter_id": str(datos.get("encounter_id") or ""),

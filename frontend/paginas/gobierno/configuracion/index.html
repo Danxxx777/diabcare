@@ -409,6 +409,16 @@
       </div>
 
       <div class="config-section">
+        <div class="config-title">Parámetros clínicos y tributarios</div>
+        <div class="config-sub">El IVA se aplica a las facturas; los umbrales disparan la alerta clínica automática.</div>
+        <div class="config-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:12px">
+          <div class="fg"><label class="fl" for="iva-pct">IVA (%)</label><input class="fi" id="iva-pct" type="number" min="0" max="100" step="0.5" value="15"></div>
+          <div class="fg"><label class="fl" for="umbral-hba1c">Umbral HbA1c (%)</label><input class="fi" id="umbral-hba1c" type="number" min="4" max="20" step="0.1" value="7.5"></div>
+          <div class="fg"><label class="fl" for="umbral-glucosa">Umbral glucosa (mg/dL)</label><input class="fi" id="umbral-glucosa" type="number" min="50" max="600" step="1" value="180"></div>
+        </div>
+      </div>
+
+      <div class="config-section">
         <div class="config-title">Horario de Atención</div>
         <div class="config-sub">Se aplica a agenda y consultas. Urgencias permanece disponible las 24 horas.</div>
         <div class="config-grid" style="grid-template-columns:1fr 1fr;margin-top:12px">
@@ -770,6 +780,9 @@ async function cargarConfig() {
     setToggle('t-cache', c.cache !== false);
     setToggle('t-email', c.email);
     setToggle('t-email-tls', c.email_smtp_tls !== false);
+    document.getElementById('iva-pct').value = c.iva_pct ?? 15;
+    document.getElementById('umbral-hba1c').value = c.umbral_hba1c ?? 7.5;
+    document.getElementById('umbral-glucosa').value = c.umbral_glucosa ?? 180;
     document.getElementById('inst-nombre').value = c.institucion_nombre || '';
     document.getElementById('inst-ruc').value = c.institucion_ruc || '';
     document.getElementById('inst-direccion').value = c.institucion_direccion || '';
@@ -882,6 +895,9 @@ function leerConfigFormulario() {
     url_publica: (document.getElementById('url-publica')?.value || '').trim(),
     stripe_publishable_key: (document.getElementById('stripe-pk')?.value || '').trim(),
     stripe_secret_key: document.getElementById('stripe-sk')?.value || '',
+    iva_pct: Math.max(0, Math.min(100, parseFloat(document.getElementById('iva-pct').value) || 15)),
+    umbral_hba1c: Math.max(4, Math.min(20, parseFloat(document.getElementById('umbral-hba1c').value) || 7.5)),
+    umbral_glucosa: Math.max(50, Math.min(600, parseInt(document.getElementById('umbral-glucosa').value, 10) || 180)),
     institucion_nombre: document.getElementById('inst-nombre').value.trim(),
     institucion_ruc: document.getElementById('inst-ruc').value.trim(),
     institucion_direccion: document.getElementById('inst-direccion').value.trim(),

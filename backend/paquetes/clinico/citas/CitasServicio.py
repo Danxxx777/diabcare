@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import date, datetime
 from nucleo.utilidades.ParquetCache import leer, escribir
 from nucleo.utilidades.Validaciones import horario_consulta_ok
+from paquetes.configuracion.ConfiguracionServicio import iva_pct, iva_factor
 
 BUCKET_APP = "diabcare-app"
 ARCHIVO = "operativo/citas.parquet"
@@ -435,8 +436,8 @@ def cobrar_consulta(id_cita: str, metodo: str = "efectivo", referencia: str = ""
             "id_seguro": cobertura.get("id_seguro") or "",
             "subtotal": subtotal,
             "descuento": descuento,
-            "iva": round(base * 0.15, 2),
-            "total": round(base * 1.15, 2),
+            "iva": round(base * iva_pct() / 100.0, 2),
+            "total": round(base * iva_factor(), 2),
             "estado": "emitida",
             "fecha": str(cita.get("fecha") or date.today().isoformat())[:10],
             "lineas": lineas_factura,
@@ -446,9 +447,9 @@ def cobrar_consulta(id_cita: str, metodo: str = "efectivo", referencia: str = ""
         fid = fac.get("id_factura")
         reg = fac.get("registro") if isinstance(fac.get("registro"), dict) else {}
         try:
-            total = round(float(reg.get("total") or fac.get("total") or (base * 1.15)), 2)
+            total = round(float(reg.get("total") or fac.get("total") or (base * iva_factor())), 2)
         except (TypeError, ValueError):
-            total = round(base * 1.15, 2)
+            total = round(base * iva_factor(), 2)
 
     metodo_n = str(metodo or "efectivo").strip().lower()
     if metodo_n in ("qr", "enlace", "digital"):
@@ -532,7 +533,7 @@ def preview_cobro(id_cita: str) -> dict:
     pct = float(cobertura.get("cobertura_pct") or 0)
     descuento = round(subtotal * pct / 100.0, 2)
     base = round(subtotal - descuento, 2)
-    iva = round(base * 0.15, 2)
+    iva = round(base * iva_pct() / 100.0, 2)
     alcance = alcance_url()
     return {
         "id_cita": id_cita,

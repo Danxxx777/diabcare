@@ -52,6 +52,11 @@ DEFAULTS = {
     "institucion_email": "",
     # Dias que se conservan las notificaciones ya leidas antes de poder purgarlas.
     "notificaciones_retencion_dias": 30,
+    # IVA vigente (Ecuador paso de 12% a 15%): no deberia exigir tocar codigo.
+    "iva_pct": 15.0,
+    # Umbrales que disparan la alerta clinica automatica.
+    "umbral_hba1c": 7.5,
+    "umbral_glucosa": 180,
 }
 
 # Claves que nunca se persisten aunque lleguen en el payload (seguridad).
@@ -148,6 +153,29 @@ def _enmascarar(cfg: dict) -> dict:
     else:
         out["stripe_listo"] = env_sk.startswith("sk_")
     return out
+
+
+def _num_config(clave: str, reserva: float) -> float:
+    try:
+        valor = (obtener_configuracion() or {}).get(clave)
+        return float(valor) if valor not in (None, "") else float(reserva)
+    except Exception:
+        return float(reserva)
+
+
+def iva_pct() -> float:
+    """IVA vigente en tanto por ciento."""
+    return max(0.0, min(100.0, _num_config("iva_pct", 15.0)))
+
+
+def iva_factor() -> float:
+    """Multiplicador para aplicar el IVA (1,15 con IVA al 15%)."""
+    return 1.0 + iva_pct() / 100.0
+
+
+def umbrales_clinicos() -> tuple:
+    """(HbA1c, glucosa) a partir de los cuales se emite alerta."""
+    return _num_config("umbral_hba1c", 7.5), _num_config("umbral_glucosa", 180)
 
 
 def obtener_configuracion(enmascarar_secretos: bool = True) -> dict:
