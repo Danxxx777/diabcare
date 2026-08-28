@@ -238,7 +238,7 @@ const provLookup = {
   idKey: 'id_proveedor', labelKey: 'nombre'
 };
 const recLookup = {
-  field: 'id_receta', url: '/api/farmacia/recetas?limit=200&estado=emitida', listKey: 'recetas',
+  field: 'id_receta', url: '/api/farmacia/recetas?limit=200', listKey: 'recetas',
   idKey: 'id_receta',
   label: r => {
     const doc = r.paciente_documento || r.paciente_nombre || '';

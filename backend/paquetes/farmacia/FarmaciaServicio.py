@@ -6,13 +6,26 @@ from nucleo.utilidades.PacientesLookup import mapa_pacientes
 
 _SIN_TOPE = 10**9
 
+# Ciclo de vida de una receta:
+#   emitida  -> el medico la firmo, falta cobrar la consulta
+#   pagada   -> consulta cobrada, el mostrador ya puede entregar
+#   dispensada / anulada -> cerrada
+# "pendiente" es vocabulario viejo (datos sinteticos antiguos): se lee como emitida.
 ESTADOS_RECETA = {
     "emitida": "Emitida",
-    "pendiente": "Pendiente",
+    "pagada": "Lista para retirar",
     "dispensada": "Dispensada",
     "anulada": "Anulada",
-    "anulado": "Anulada",
 }
+_ALIAS_ESTADO_RECETA = {"": "emitida", "pendiente": "emitida", "anulado": "anulada"}
+# Lo que el mostrador tiene que atender mientras no se cierre la receta.
+ESTADOS_RECETA_ABIERTA = ("emitida", "pagada")
+
+
+def estado_receta(valor) -> str:
+    """Estado canonico de una receta, absorbiendo el vocabulario viejo."""
+    v = str(valor or "").strip().lower()
+    return _ALIAS_ESTADO_RECETA.get(v, v)
 
 
 def _now():
@@ -600,9 +613,13 @@ def enriquecer_recetas(filas: list) -> list:
         x["paciente_documento"] = doc
         x["paciente_label"] = x["paciente_nombre"]
         x["tiene_foto"] = bool(p.get("tiene_foto"))
-        est = str(x.get("estado") or "").lower()
+        est = estado_receta(x.get("estado"))
+        x["estado"] = est
         x["estado_label"] = ESTADOS_RECETA.get(est, (est[:1].upper() + est[1:]) if est else "—")
         x["medicamentos"] = detalles.get(str(x.get("id_receta") or ""), [])
+        # El mostrador entrega solo lo cobrado; lo emitido queda a la vista pero en espera.
+        x["lista_para_dispensar"] = est == "pagada"
+        x["espera_cobro"] = est == "emitida"
         out.append(x)
     return out
 
@@ -709,14 +726,14 @@ def listar_recetas_mostrador(offset: int = 0, limit: int = 50, q: str = "", esta
         df = recetas.extraer(copiar=False)
         if df.empty:
             return {"total": 0, "recetas": []}
-        estados = df["estado"].fillna("").astype(str).str.lower()
+        estados = df["estado"].fillna("").map(estado_receta)
         if estado:
-            df = df[estados == str(estado).lower()]
+            df = df[estados == estado_receta(estado)]
         else:
-            df = df[estados == "pagada"]
-            det = recetas_detalle.extraer(copiar=False)
-            ids_con_detalle = set(det["id_receta"].dropna().astype(str)) if not det.empty else set()
-            df = df[df["id_receta"].astype(str).isin(ids_con_detalle)]
+            # Sin filtro, el mostrador ve su trabajo pendiente: lo emitido y lo
+            # ya cobrado. Antes exigia estado "pagada" y linea de detalle, y con
+            # los datos sinteticos (estado "pendiente") la bandeja salia vacia.
+            df = df[estados.isin(ESTADOS_RECETA_ABIERTA)]
         if "fecha" in df.columns:
             df = df.sort_values("fecha", ascending=False)
         total = int(len(df))
@@ -731,13 +748,10 @@ def listar_recetas_mostrador(offset: int = 0, limit: int = 50, q: str = "", esta
     )
     rows = enriquecer_recetas(list(base.get("recetas") or []))
     if estado:
-        rows = [x for x in rows if str(x.get("estado") or "").lower() == str(estado).lower()]
+        objetivo = estado_receta(estado)
+        rows = [x for x in rows if estado_receta(x.get("estado")) == objetivo]
     else:
-        rows = [
-            x for x in rows
-            if str(x.get("estado") or "").lower() == "pagada"
-            and bool(x.get("medicamentos"))
-        ]
+        rows = [x for x in rows if estado_receta(x.get("estado")) in ESTADOS_RECETA_ABIERTA]
     toks = [t for t in ql.replace(",", " ").split() if len(t) >= 2]
     filtradas = []
     for item in rows:
