@@ -147,23 +147,15 @@
   </div>
 </div>
 <script>
-const MODO_GESTION = new URLSearchParams(location.search).get('area') === 'gestion';
-const ORDEN_TABS = MODO_GESTION
-  ? ['proveedores', 'compras', 'inventario', 'ventas', 'kardex', 'cxp']
-  : ['rx', 'historial', 'meds'];
+// Un solo modulo de farmacia. El orden sigue el turno real: primero lo que
+// espera al paciente en el mostrador, despues el almacen.
+const ORDEN_TABS = [
+  'rx', 'historial', 'ventas',
+  'meds', 'inventario', 'kardex',
+  'compras', 'proveedores', 'cxp',
+];
 DiabCareNav.init();
 DiabCareNav.guardRol(['administrador','farmaceutico']);
-
-if (MODO_GESTION) {
-  document.title = 'DiabCare - Negocio y almacén';
-  const topPage = document.querySelector('.tb-page');
-  if (topPage) topPage.textContent = 'Negocio y almacén';
-  document.getElementById('farmPageTitle').textContent = 'Negocio y almacén';
-  document.getElementById('farmPageSub').textContent = 'Abastecimiento, inventario y control financiero';
-  document.querySelector('.farm-control').style.display = 'none';
-  document.getElementById('farmPageActions').innerHTML = `
-    <button class="btn btn-primary btn-sm" type="button" onclick="abrirModal()">+ Nuevo</button>`;
-}
 
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 const volverArriba = () => {
@@ -662,9 +654,7 @@ DiabCareCrud.mountTabs({
   const kpiRx = document.getElementById('kpi-rx');
   const kpiStock = document.getElementById('kpi-stock');
   if (kpiRx) kpiRx.addEventListener('click', () => farmTabs && farmTabs.switchTab('rx'));
-  if (kpiStock) kpiStock.addEventListener('click', () => {
-    location.href = '/paginas/negocio/farmacia/index.html?area=gestion';
-  });
+  if (kpiStock) kpiStock.addEventListener('click', () => farmTabs && farmTabs.switchTab('inventario'));
 });
 </script>
 </body>

@@ -1157,7 +1157,7 @@ window.DiabCareNav = {
       labelKey: 'cat_farmacia_rx',
       items: [
         { modulo: 'farmacia', labelKey: 'farmacia', subs: [
-          { href: '/paginas/negocio/farmacia/index.html', labelKey: 'sub_dispensacion' },
+          { href: '/paginas/negocio/farmacia/index.html', labelKey: 'sub_farmacia_todo' },
         ]},
       ],
     },
@@ -1165,9 +1165,10 @@ window.DiabCareNav = {
       id: 'negocio',
       labelKey: 'cat_negocio',
       items: [
-        { modulo: 'facturacion', modulos: ['farmacia', 'facturacion', 'rrhh'], label: 'Gestión administrativa', icon: 'facturacion', subs: [
+        // Farmacia ya no cuelga tambien de aqui: era la misma pagina con otro
+        // nombre. Este grupo es lo administrativo puro.
+        { modulo: 'facturacion', modulos: ['facturacion', 'rrhh'], label: 'Gestión administrativa', icon: 'facturacion', subs: [
           { modulo: 'facturacion', href: '/paginas/negocio/facturacion/index.html', labelKey: 'sub_facturacion' },
-          { modulo: 'farmacia', href: '/paginas/negocio/farmacia/index.html?area=gestion', labelKey: 'sub_operaciones' },
           { modulo: 'rrhh', href: '/paginas/negocio/rrhh/index.html', labelKey: 'sub_costeo' },
         ]},
       ],
