@@ -24,6 +24,38 @@ MOTIVOS = [
     "Pie diabético", "Hipoglucemia reciente", "Primera consulta endocrino",
 ]
 
+# Contenido de la consulta. Sin esto, el módulo de Consultas clínicas mostraba
+# el paciente y el resto de columnas en blanco.
+SINTOMAS = [
+    "Poliuria y polidipsia", "Astenia y pérdida de peso",
+    "Parestesias en miembros inferiores", "Visión borrosa intermitente",
+    "Sin síntomas; control programado", "Mareo y sudoración matutina",
+]
+DIAGNOSTICOS_DM = [
+    ("E11.9", "Diabetes mellitus tipo 2 sin complicaciones"),
+    ("E11.2", "Diabetes tipo 2 con complicación renal"),
+    ("E11.4", "Diabetes tipo 2 con complicación neurológica"),
+    ("E11.5", "Diabetes tipo 2 con complicación circulatoria"),
+    ("E10.9", "Diabetes mellitus tipo 1 sin complicaciones"),
+]
+DIAGNOSTICOS_NO_DM = [
+    ("R73.0", "Glucemia alterada en ayunas"),
+    ("E66.9", "Obesidad no especificada"),
+    ("I10", "Hipertensión esencial"),
+    ("Z13.1", "Tamizaje de diabetes: resultado normal"),
+]
+TRATAMIENTOS_DM = [
+    "Metformina 850 mg cada 12 h + plan nutricional",
+    "Insulina NPH 10 UI en la noche; titular según glucemia",
+    "Metformina 1 g/12 h + empagliflozina 10 mg/día",
+    "Ajuste de insulina glargina y educación diabetológica",
+]
+TRATAMIENTOS_NO_DM = [
+    "Plan de alimentación y actividad física 150 min/semana",
+    "Control de peso; nueva glucemia en 6 meses",
+    "Medidas higiénico-dietéticas; sin farmacoterapia",
+]
+
 
 def _now() -> str:
     return datetime.utcnow().isoformat()
@@ -60,6 +92,30 @@ def _personal() -> dict[str, list[dict]]:
                 out["medico"].append({"id": str(r["id"]), "nombre": str(r.get("nombre") or "Médico")})
     except Exception:
         pass
+
+    # Nómina de RRHH: hay decenas de profesionales aunque existan pocas cuentas.
+    # Sin esto, toda la agenda queda firmada por el único usuario con rol Médico.
+    try:
+        from paquetes.rrhh import RrhhServicio as Rh
+        nomina = Rh.empleados.extraer(copiar=False)
+        if not nomina.empty:
+            claves = {"medico": "medico", "enfermero": "enfermero",
+                      "farmaceutico": "farmaceutico", "administrador": "admin"}
+            vistos = {k: {x["id"] for x in v} for k, v in out.items()}
+            for fila in nomina.fillna("").to_dict(orient="records"):
+                if str(fila.get("estado_laboral") or "").lower() != "activo":
+                    continue
+                key = claves.get(str(fila.get("rol_sugerido") or "").lower())
+                eid = str(fila.get("id_empleado") or "")
+                if not key or not eid or eid in vistos[key]:
+                    continue
+                completo = (str(fila.get("nombre") or "").strip() + " "
+                            + str(fila.get("apellido") or "").strip()).strip()
+                out[key].append({"id": eid, "nombre": completo or "Profesional"})
+                vistos[key].add(eid)
+    except Exception:
+        pass
+
     for k in out:
         if not out[k]:
             out[k] = [{"id": _uid(), "nombre": k.capitalize()}]
@@ -254,6 +310,11 @@ def _batch_citas_admisiones(pacientes: list[dict], personal: dict, year: int, rn
     from paquetes.clinico.citas import CitasServicio as CS
     from paquetes.clinico.admisiones import AdmisionesServicio as AS
 
+    # El Mapa de camas solo conoce estos códigos; inventar otros deja admisiones
+    # apuntando a camas inexistentes. Y son pocas: se reparten sin repetir, así
+    # que ninguna cama termina con dos pacientes encima.
+    camas_libres = list(AS.CAMAS)
+
     now = _now()
     citas_rows = []
     adm_rows = []
@@ -268,6 +329,7 @@ def _batch_citas_admisiones(pacientes: list[dict], personal: dict, year: int, rn
             "id_cita": _uid(),
             "id_paciente": p["id_paciente"],
             "paciente_nombre": p["nombre_completo"],
+            "id_medico": med["id"],
             "medico": med["nombre"],
             "fecha": fecha,
             "hora": hora,
@@ -280,9 +342,15 @@ def _batch_citas_admisiones(pacientes: list[dict], personal: dict, year: int, rn
             "creado_en": now,
             "actualizado_en": now,
         })
-        # ~40% también con admisión (urgencia o ambulatoria)
+        # ~40% también con admisión (ambulatoria, urgencia u hospitalización)
         if rng.random() < 0.45 or p.get("_diabetes"):
-            tipo = "urgencia" if rng.random() < 0.25 else "ambulatoria"
+            sorteo_tipo = rng.random()
+            if sorteo_tipo < 0.15:
+                tipo = "hospitalizacion"
+            elif sorteo_tipo < 0.40:
+                tipo = "urgencia"
+            else:
+                tipo = "ambulatoria"
             estado_adm = "alta" if estado_cita == "atendida" else "activa"
             adm_rows.append({
                 "id_admision": _uid(),
@@ -294,7 +362,11 @@ def _batch_citas_admisiones(pacientes: list[dict], personal: dict, year: int, rn
                 "medico_id": med["id"],
                 "medico_nombre": med["nombre"],
                 "sede": p.get("sede") or "Sede principal",
-                "habitacion": f"A-{int(rng.integers(101, 320))}" if tipo != "ambulatoria" else "",
+                "habitacion": (
+                    camas_libres.pop(0)
+                    if tipo == "hospitalizacion" and estado_adm == "activa" and camas_libres
+                    else ""
+                ),
                 "estado": estado_adm,
                 "motivo": motivo,
                 "fecha_ingreso": fecha,
@@ -306,6 +378,10 @@ def _batch_citas_admisiones(pacientes: list[dict], personal: dict, year: int, rn
         p["_medico_id"] = med["id"]
         p["_medico_nombre"] = med["nombre"]
         p["_fecha_visita"] = fecha
+        p["_motivo"] = motivo
+        p["_proximo_control"] = (
+            (datetime(year, 1, 1) + timedelta(days=day + 90)).strftime("%Y-%m-%d")
+        )
         p["_encounter"] = f"ENC-{year}-{i + 1:06d}"
 
     # una sola escritura por store
@@ -343,6 +419,36 @@ def _batch_registros_clinicos(pacientes: list[dict], year: int) -> dict:
     return {"registros": linked, "escritos_stage": 0, "reutilizados": True}
 
 
+CAMPOS_CONSULTA = (
+    "encounter_date", "motivo_consulta", "sintomas", "diagnostico",
+    "codigo_cie10", "tratamiento", "observaciones", "medico_nombre",
+    "proximo_control",
+)
+
+
+def _contenido_consulta(p: dict, i: int) -> dict:
+    """Documenta la consulta del paciente con datos coherentes con su perfil."""
+    diabetico = bool(p.get("_diabetes"))
+    catalogo = DIAGNOSTICOS_DM if diabetico else DIAGNOSTICOS_NO_DM
+    codigo, diagnostico = catalogo[i % len(catalogo)]
+    tratamientos = TRATAMIENTOS_DM if diabetico else TRATAMIENTOS_NO_DM
+    fecha = str(p.get("_fecha_visita") or "")[:10]
+    return {
+        "encounter_date": fecha,
+        "motivo_consulta": str(p.get("_motivo") or MOTIVOS[i % len(MOTIVOS)]),
+        "sintomas": SINTOMAS[i % len(SINTOMAS)],
+        "diagnostico": diagnostico,
+        "codigo_cie10": codigo,
+        "tratamiento": tratamientos[i % len(tratamientos)],
+        "observaciones": (
+            "Paciente educado en automonitoreo; se refuerza adherencia."
+            if diabetico else "Se explican factores de riesgo metabólico."
+        ),
+        "medico_nombre": str(p.get("_medico_nombre") or ""),
+        "proximo_control": str(p.get("_proximo_control") or ""),
+    }
+
+
 def _vincular_id_paciente_en_stage(stage_path: str, pacientes: list[dict]) -> dict:
     """Anota id_paciente en las filas YA existentes del parquet generado (sin filas nuevas)."""
     if not stage_path or not pacientes:
@@ -365,6 +471,9 @@ def _vincular_id_paciente_en_stage(stage_path: str, pacientes: list[dict]) -> di
         df["id_paciente"] = ""
     if "paciente_nombre" not in df.columns:
         df["paciente_nombre"] = ""
+    for col in CAMPOS_CONSULTA:
+        if col not in df.columns:
+            df[col] = ""
 
     enc_to_idx = {}
     for idx, eid in enumerate(df["encounter_id"].tolist()):
@@ -390,6 +499,8 @@ def _vincular_id_paciente_en_stage(stage_path: str, pacientes: list[dict]) -> di
             continue
         df.at[pos, "id_paciente"] = str(p["id_paciente"])
         df.at[pos, "paciente_nombre"] = str(p.get("nombre_completo") or "")
+        for campo, valor in _contenido_consulta(p, vinculados).items():
+            df.at[pos, campo] = valor
         vinculados += 1
 
     if vinculados:
@@ -398,6 +509,143 @@ def _vincular_id_paciente_en_stage(stage_path: str, pacientes: list[dict]) -> di
         buf.seek(0)
         c.put_object(MINIO_BUCKET, stage_path, buf, buf.getbuffer().nbytes)
     return {"vinculados": vinculados}
+
+
+def documentar_consultas_en_stage(limite_archivos: int = 0) -> dict:
+    """Rellena el contenido clínico de los encuentros ya vinculados en stage/.
+
+    Recorre los parquets de stage, toma las filas que tienen `id_paciente` y les
+    escribe motivo, síntomas, diagnóstico CIE-10, tratamiento, médico y fecha.
+    El médico y la fecha salen de la cita real del paciente cuando existe.
+
+    La asignación es vectorizada a propósito: stage tiene millones de filas y
+    escribir celda a celda no termina en un tiempo razonable.
+    """
+    import io as _io
+    from paquetes.configuracion.ConfiguracionClienteMinio import get_cliente
+    from paquetes.configuracion.ConfiguracionAjustes import MINIO_BUCKET, MINIO_STAGE_PATH
+
+    c = get_cliente()
+    try:
+        objetos = [
+            o.object_name for o in c.list_objects(MINIO_BUCKET, prefix=MINIO_STAGE_PATH, recursive=True)
+            if str(o.object_name).endswith(".parquet")
+        ]
+    except Exception:
+        return {"documentadas": 0, "error": "No se pudo listar stage/"}
+    if limite_archivos:
+        objetos = objetos[:limite_archivos]
+
+    # Médico y fecha reales del paciente, tomados de su cita.
+    medico_de, fecha_de, motivo_de = {}, {}, {}
+    try:
+        from paquetes.clinico.citas import CitasServicio as CS
+        df_citas = CS._extraer(copiar=False)
+        if not df_citas.empty:
+            base = df_citas.fillna("")
+            for pid, medico, fecha, motivo in zip(
+                base.get("id_paciente", pd.Series(dtype=str)).astype(str),
+                base.get("medico", pd.Series(dtype=str)).astype(str),
+                base.get("fecha", pd.Series(dtype=str)).astype(str),
+                base.get("motivo", pd.Series(dtype=str)).astype(str),
+            ):
+                if pid and pid not in medico_de:
+                    medico_de[pid] = medico
+                    fecha_de[pid] = fecha[:10]
+                    motivo_de[pid] = motivo
+    except Exception:
+        pass
+
+    documentadas = 0
+    archivos_tocados = 0
+    for nombre in objetos:
+        try:
+            obj = c.get_object(MINIO_BUCKET, nombre)
+            df = pd.read_parquet(_io.BytesIO(obj.read()))
+        except Exception:
+            continue
+        if df.empty or "id_paciente" not in df.columns:
+            continue
+
+        ids = df["id_paciente"].fillna("").astype(str).str.strip()
+        vinculadas = ids.ne("") & ids.str.lower().ne("nan")
+        if not bool(vinculadas.any()):
+            continue
+
+        for col in CAMPOS_CONSULTA:
+            if col not in df.columns:
+                df[col] = ""
+
+        # Filas vinculadas a las que les falte algún campo de la consulta. El
+        # relleno respeta lo que ya esté escrito, así que volver a correrlo es
+        # seguro: solo completa huecos.
+        falta = None
+        for col in CAMPOS_CONSULTA:
+            vacio = df[col].fillna("").astype(str).str.strip().eq("")
+            falta = vacio if falta is None else (falta | vacio)
+        mask = vinculadas & falta
+        if not bool(mask.any()):
+            continue
+
+        sub_ids = ids[mask]
+        n = len(sub_ids)
+        orden = np.arange(n)
+        if "diabetes" in df.columns:
+            dm = pd.to_numeric(df.loc[mask, "diabetes"], errors="coerce").fillna(0).astype(int).to_numpy() == 1
+        else:
+            dm = np.zeros(n, dtype=bool)
+
+        def _elegir(catalogo, indices):
+            return np.array([catalogo[i % len(catalogo)] for i in indices], dtype=object)
+
+        cod_dm = _elegir([x[0] for x in DIAGNOSTICOS_DM], orden)
+        dia_dm = _elegir([x[1] for x in DIAGNOSTICOS_DM], orden)
+        cod_no = _elegir([x[0] for x in DIAGNOSTICOS_NO_DM], orden)
+        dia_no = _elegir([x[1] for x in DIAGNOSTICOS_NO_DM], orden)
+
+        valores = {
+            "sintomas": _elegir(SINTOMAS, orden),
+            "codigo_cie10": np.where(dm, cod_dm, cod_no),
+            "diagnostico": np.where(dm, dia_dm, dia_no),
+            "tratamiento": np.where(dm, _elegir(TRATAMIENTOS_DM, orden), _elegir(TRATAMIENTOS_NO_DM, orden)),
+            "observaciones": np.where(
+                dm,
+                "Paciente educado en automonitoreo; se refuerza adherencia.",
+                "Se explican factores de riesgo metabólico.",
+            ),
+            "medico_nombre": sub_ids.map(medico_de).fillna("").to_numpy(),
+            "encounter_date": sub_ids.map(fecha_de).fillna("").to_numpy(),
+        }
+        motivo_cita = sub_ids.map(motivo_de).fillna("").to_numpy()
+        motivo_fallback = _elegir(MOTIVOS, orden)
+        valores["motivo_consulta"] = np.where(motivo_cita != "", motivo_cita, motivo_fallback)
+
+        # Control a 90 días de la consulta; las citas históricas no lo traen.
+        fechas = pd.to_datetime(pd.Series(valores["encounter_date"]), errors="coerce")
+        valores["proximo_control"] = (
+            (fechas + pd.Timedelta(days=90)).dt.strftime("%Y-%m-%d").fillna("").to_numpy()
+        )
+
+        for campo, arr in valores.items():
+            actual = df.loc[mask, campo].fillna("").astype(str).to_numpy()
+            nuevo = np.asarray(arr, dtype=object)
+            df.loc[mask, campo] = np.where(actual != "", actual, nuevo)
+
+        documentadas += int(n)
+
+        buf = _io.BytesIO()
+        df.to_parquet(buf, index=False)
+        buf.seek(0)
+        c.put_object(MINIO_BUCKET, nombre, buf, buf.getbuffer().nbytes)
+        archivos_tocados += 1
+
+    if documentadas:
+        try:
+            from paquetes.registros_clinicos.RegistrosClinicosServicio import invalidar_cache
+            invalidar_cache()
+        except Exception:
+            pass
+    return {"documentadas": documentadas, "archivos": archivos_tocados}
 
 
 def expandir_flujo_operativo(
@@ -452,6 +700,10 @@ def expandir_flujo_operativo(
     stage_path = opts.get("stage_path")
     if stage_path:
         vinculo = _vincular_id_paciente_en_stage(str(stage_path), pacientes)
+    elif opts.get("documentar_consultas", True):
+        # Sin stage nuevo, al menos documentar los encuentros ya vinculados:
+        # de lo contrario Consultas clínicas sigue mostrando todo en blanco.
+        vinculo = documentar_consultas_en_stage()
 
     from paquetes.dataset.DatasetHospitalServicio import generar_hospital
     hospital = generar_hospital(

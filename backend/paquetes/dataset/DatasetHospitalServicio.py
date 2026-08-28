@@ -95,6 +95,13 @@ def _asegurar_pacientes(n: int, year: int, rng: np.random.Generator) -> list[str
 
 
 def _ids_personal(rng: np.random.Generator) -> dict[str, list[str]]:
+    """Personal por rol, desde las cuentas de usuario y la nómina de RRHH.
+
+    Las cuentas suelen ser dos o tres; la nómina tiene decenas de empleados.
+    Usar ambas evita que toda la actividad clínica quede firmada por el único
+    usuario con rol Médico, y evita inventar identificadores que después no
+    corresponden a nadie en el sistema.
+    """
     out = {"medico": [], "enfermero": [], "farmaceutico": [], "admin": []}
     try:
         from paquetes.usuarios.UsuariosServicio import listar_activos_por_rol, obtener_usuarios
@@ -111,10 +118,427 @@ def _ids_personal(rng: np.random.Generator) -> dict[str, list[str]]:
             out["medico"] = [str(r["id"]) for r in todos][:5]
     except Exception:
         pass
+
+    # Completar con la nómina de RRHH (empleados activos).
+    try:
+        from paquetes.rrhh import RrhhServicio as Rh
+        nomina = Rh.empleados.extraer(copiar=False)
+        if not nomina.empty:
+            claves = {"medico": "medico", "enfermero": "enfermero",
+                      "farmaceutico": "farmaceutico", "administrador": "admin"}
+            for fila in nomina.fillna("").to_dict(orient="records"):
+                if str(fila.get("estado_laboral") or "").lower() != "activo":
+                    continue
+                key = claves.get(str(fila.get("rol_sugerido") or "").lower())
+                eid = str(fila.get("id_empleado") or "")
+                if key and eid and eid not in out[key]:
+                    out[key].append(eid)
+    except Exception:
+        pass
+
     for k in out:
         if not out[k]:
             out[k] = [_uid()]
     return out
+
+
+def nombres_de_personal() -> dict:
+    """id -> nombre, uniendo cuentas de usuario y nómina de RRHH."""
+    nombres = {}
+    try:
+        from paquetes.usuarios import UsuariosServicio as U
+        padron = U._extraer()
+        if not padron.empty and "id" in padron.columns:
+            for r in padron.fillna("").to_dict(orient="records"):
+                nombre = str(r.get("nombre") or "").strip()
+                if nombre:
+                    nombres[str(r.get("id"))] = nombre
+    except Exception:
+        pass
+    try:
+        from paquetes.rrhh import RrhhServicio as Rh
+        nomina = Rh.empleados.extraer(copiar=False)
+        if not nomina.empty:
+            for r in nomina.fillna("").to_dict(orient="records"):
+                completo = (str(r.get("nombre") or "").strip() + " "
+                            + str(r.get("apellido") or "").strip()).strip()
+                if completo:
+                    nombres[str(r.get("id_empleado"))] = completo
+    except Exception:
+        pass
+    return nombres
+
+
+# -- Fase clinica hospitalaria -------------------------------------------------
+# Estas 13 tablas estaban declaradas en el catalogo del DWH pero nadie las
+# escribia nunca: el resumen las mostraba en 0 y no habia forma de medir la app
+# con el modelo completo. Se derivan de lo operativo cuando existe (admisiones,
+# camas, instrumental) y se sintetizan cuando no.
+
+_CIE10 = [
+    ("E10.9", "Diabetes mellitus tipo 1 sin complicaciones", "IV Endocrinas"),
+    ("E11.9", "Diabetes mellitus tipo 2 sin complicaciones", "IV Endocrinas"),
+    ("E11.2", "Diabetes tipo 2 con complicacion renal", "IV Endocrinas"),
+    ("E11.3", "Diabetes tipo 2 con complicacion oftalmica", "IV Endocrinas"),
+    ("E11.4", "Diabetes tipo 2 con complicacion neurologica", "IV Endocrinas"),
+    ("E11.5", "Diabetes tipo 2 con complicacion circulatoria", "IV Endocrinas"),
+    ("E66.9", "Obesidad no especificada", "IV Endocrinas"),
+    ("I10", "Hipertension esencial", "IX Circulatorio"),
+    ("N18.3", "Enfermedad renal cronica estadio 3", "XIV Genitourinario"),
+    ("H36.0", "Retinopatia diabetica", "VII Ojo y anexos"),
+]
+
+_ESPECIALIDADES = [
+    ("Endocrinologia", "Endocrinologia"),
+    ("Medicina interna", "Medicina interna"),
+    ("Nutricion clinica", "Endocrinologia"),
+    ("Nefrologia", "Medicina interna"),
+    ("Oftalmologia", "Medicina interna"),
+    ("Enfermeria", "Hospitalizacion"),
+]
+
+_DEPARTAMENTOS = [
+    ("Consulta externa", "asistencial"),
+    ("Hospitalizacion", "asistencial"),
+    ("Emergencia", "asistencial"),
+    ("Laboratorio clinico", "apoyo diagnostico"),
+    ("Farmacia", "apoyo terapeutico"),
+    ("Admisiones", "administrativo"),
+    ("Facturacion", "administrativo"),
+    ("Talento humano", "administrativo"),
+]
+
+_DIETAS = [
+    ("Diabetica 1800 kcal", "Sin azucares simples; 6 tomas"),
+    ("Diabetica 1500 kcal", "Sin azucares simples; control de porciones"),
+    ("Hiposodica", "Menos de 2 g de sodio al dia"),
+    ("Hipoproteica", "Restriccion proteica por dano renal"),
+    ("Blanda", "Textura modificada, sin irritantes"),
+    ("Liquida amplia", "Solo liquidos claros y espesados"),
+    ("Absoluta", "Nada por via oral"),
+]
+
+_PROCEDIMIENTOS = [
+    ("Fondo de ojo", "H36.0"),
+    ("Curacion de pie diabetico", "E11.5"),
+    ("Colocacion de via periferica", "E11.9"),
+    ("Monitoreo continuo de glucosa", "E11.9"),
+    ("Tamizaje de nefropatia", "E11.2"),
+    ("Educacion diabetologica", "E11.9"),
+]
+
+_INSULINAS = ["NPH", "Glargina", "Regular", "Lispro", "Detemir"]
+
+# (nombre, tipo, area por defecto, unidades)
+_EQUIPOS = [
+    ("Glucómetro capilar", "dispositivo", "Consulta externa", 6),
+    ("Bomba de infusión de insulina", "equipo", "Hospitalización", 4),
+    ("Monitor de signos vitales", "equipo", "Hospitalización", 4),
+    ("Tensiómetro digital", "dispositivo", "Consulta externa", 5),
+    ("Oxímetro de pulso", "dispositivo", "Emergencia", 5),
+    ("Balanza con tallímetro", "equipo", "Consulta externa", 2),
+    ("Retinógrafo no midriático", "equipo", "Oftalmología", 1),
+    ("Doppler vascular portátil", "equipo", "Consulta externa", 2),
+    ("Monofilamento Semmes-Weinstein", "instrumental", "Consulta externa", 4),
+    ("Diapasón 128 Hz", "instrumental", "Consulta externa", 3),
+    ("Set de curación de pie diabético", "instrumental", "Hospitalización", 4),
+    ("Electrocardiógrafo de 12 derivaciones", "equipo", "Emergencia", 2),
+    ("Bomba de nutrición enteral", "equipo", "Hospitalización", 2),
+    ("Carro de paro", "equipo", "Emergencia", 2),
+    ("Analizador de HbA1c de mesa", "equipo", "Laboratorio clínico", 1),
+    ("Centrífuga de laboratorio", "equipo", "Laboratorio clínico", 2),
+    ("Refrigerador de insulinas", "equipo", "Farmacia", 2),
+    ("Nevera de cadena de frío", "equipo", "Farmacia", 1),
+]
+
+
+def _store_dwh(archivo: str, columnas: list, id_campo: str, coleccion: str) -> ParquetStore:
+    return ParquetStore(archivo, columnas, id_campo, coleccion, modo_borrado="activo")
+
+
+def _sembrar_instrumental(rng: np.random.Generator, now: str) -> int:
+    """Inventario de equipos, con parte asignado a las camas ocupadas.
+
+    Reemplaza lo que haya: el catálogo es determinista y no tiene sentido
+    acumular duplicados en cada generación.
+    """
+    from paquetes.clinico.admisiones import AdmisionesServicio as Adm
+    from paquetes.instrumental import InstrumentalServicio as Ins
+
+    # Camas ocupadas ahora mismo, para repartir equipo a pie de cama.
+    internados = []
+    try:
+        df = Adm._extraer(copiar=False)
+        if not df.empty:
+            for fila in df.fillna("").to_dict(orient="records"):
+                if (str(fila.get("tipo")) == "hospitalizacion"
+                        and str(fila.get("estado")) == "activa"
+                        and str(fila.get("habitacion") or "")):
+                    internados.append(fila)
+    except Exception:
+        pass
+
+    filas = []
+    contadores = {"instrumental": 0, "equipo": 0, "dispositivo": 0}
+    prefijos = {"instrumental": "INS", "equipo": "EQP", "dispositivo": "DIS"}
+    idx_cama = 0
+    for nombre, tipo, area, unidades in _EQUIPOS:
+        for _ in range(unidades):
+            contadores[tipo] += 1
+            codigo = "%s-%04d" % (prefijos[tipo], contadores[tipo])
+            estado, ubicacion = "disponible", area
+            id_admision = id_paciente = paciente_nombre = habitacion = ""
+            # A pie de cama: el equipo de hospitalización sigue al internado.
+            if area == "Hospitalización" and idx_cama < len(internados):
+                adm = internados[idx_cama]
+                idx_cama += 1
+                estado = "asignado"
+                habitacion = str(adm.get("habitacion") or "")
+                ubicacion = "Habitación %s" % habitacion
+                id_admision = str(adm.get("id_admision") or "")
+                id_paciente = str(adm.get("id_paciente") or "")
+                paciente_nombre = str(adm.get("paciente_nombre") or "")
+            elif rng.random() < 0.12:
+                estado, ubicacion = "mantenimiento", "Taller biomédico"
+            filas.append({
+                "id_instrumental": _uid(), "codigo": codigo, "nombre": nombre,
+                "tipo": tipo, "serie": "SN-%06d" % int(rng.integers(1, 999999)),
+                "estado": estado, "ubicacion": ubicacion,
+                "responsable": "Enfermería" if estado == "asignado" else "",
+                "id_admision": id_admision, "id_paciente": id_paciente,
+                "paciente_nombre": paciente_nombre, "habitacion": habitacion,
+                "existencia": 1, "notas": "", "activo": True,
+                "creado_en": now, "actualizado_en": now,
+            })
+
+    _escribir(Ins.instrumentos, filas)
+    return len(filas)
+
+
+def generar_fase_clinica(
+    rng: np.random.Generator,
+    pacientes: list,
+    medicos: list,
+    year: int,
+    now: str,
+    fecha_de,
+    n_ops: int,
+) -> dict:
+    """Puebla las tablas clinicas del catalogo DWH que quedaban vacias."""
+    from paquetes.clinico.admisiones import AdmisionesServicio as Adm
+
+    medicos = list(medicos) or ["medico-demo"]
+    pacientes = list(pacientes)
+
+    # -- Dimensiones de catalogo ---------------------------------------------
+    dim_cie10 = [
+        {"codigo_cie10": cod, "descripcion": desc, "capitulo": cap,
+         "activo": True, "creado_en": now, "actualizado_en": now}
+        for cod, desc, cap in _CIE10
+    ]
+    dim_especialidad = [
+        {"id_especialidad": "ESP-%02d" % i, "nombre": nombre, "servicio": serv,
+         "activo": True, "creado_en": now, "actualizado_en": now}
+        for i, (nombre, serv) in enumerate(_ESPECIALIDADES, start=1)
+    ]
+    dim_departamento = [
+        {"id_departamento": "DEP-%02d" % i, "nombre": nombre, "tipo": tipo,
+         "activo": True, "creado_en": now, "actualizado_en": now}
+        for i, (nombre, tipo) in enumerate(_DEPARTAMENTOS, start=1)
+    ]
+    dim_dieta = [
+        {"id_dieta": "DIE-%02d" % i, "nombre": nombre, "restricciones": restr,
+         "activo": True, "creado_en": now, "actualizado_en": now}
+        for i, (nombre, restr) in enumerate(_DIETAS, start=1)
+    ]
+
+    # -- Habitaciones: el catalogo real de camas, no uno inventado ------------
+    estados_cama = {}
+    try:
+        for fila in (Adm.listar_camas().get("camas") or []):
+            estados_cama[str(fila.get("codigo") or "")] = str(fila.get("estado") or "disponible")
+    except Exception:
+        pass
+    dim_habitacion = []
+    for codigo in Adm.CAMAS:
+        sufijo = codigo.split("-")[1] if "-" in codigo else codigo
+        piso = sufijo[0]
+        numero = sufijo[1:] or "1"
+        try:
+            individual = int(numero) <= 3
+        except ValueError:
+            individual = True
+        dim_habitacion.append({
+            "id_habitacion": codigo, "piso": piso, "numero": numero,
+            "tipo": "individual" if individual else "compartida",
+            "estado": estados_cama.get(codigo, "disponible"),
+            "activo": True, "creado_en": now, "actualizado_en": now,
+        })
+
+    # -- Equipos: sembrar el inventario y luego espejarlo en la dimensión -----
+    _sembrar_instrumental(rng, now)
+    dim_equipo = []
+    try:
+        from paquetes.instrumental import InstrumentalServicio as Ins
+        for item in (Ins.listar(limit=500).get("instrumentos") or []):
+            dim_equipo.append({
+                "id_equipo": str(item.get("id_instrumental") or _uid()),
+                "nombre": str(item.get("nombre") or "Equipo"),
+                "ubicacion": str(item.get("habitacion") or item.get("ubicacion") or "Almacen clinico"),
+                "estado_mantenimiento": str(item.get("estado") or "disponible"),
+                "activo": True, "creado_en": now, "actualizado_en": now,
+            })
+    except Exception:
+        pass
+
+    # -- Admisiones: hechos derivados de lo operativo -------------------------
+    hechos_admision, hechos_hosp = [], []
+    try:
+        df_adm = Adm._extraer(copiar=False)
+    except Exception:
+        df_adm = pd.DataFrame()
+    if not df_adm.empty:
+        for fila in df_adm.fillna("").to_dict(orient="records"):
+            ingreso = str(fila.get("fecha_ingreso") or "")[:10]
+            egreso = str(fila.get("fecha_egreso") or "")[:10]
+            tipo = str(fila.get("tipo") or "ambulatoria")
+            hechos_admision.append({
+                "id_admision": str(fila.get("id_admision") or _uid()),
+                "id_paciente": str(fila.get("id_paciente") or ""),
+                "id_servicio": str(fila.get("servicio") or "Medicina interna"),
+                "id_hospital": str(fila.get("sede") or "HOSP-001"),
+                "tipo": tipo, "fecha_ingreso": ingreso,
+                "activo": True, "creado_en": now, "actualizado_en": now,
+            })
+            if tipo != "hospitalizacion":
+                continue
+            dias = 0
+            if ingreso and egreso:
+                try:
+                    dias = max(0, (datetime.fromisoformat(egreso) - datetime.fromisoformat(ingreso)).days)
+                except ValueError:
+                    dias = 0
+            hechos_hosp.append({
+                "id_estadia": _uid(),
+                "id_paciente": str(fila.get("id_paciente") or ""),
+                "id_habitacion": str(fila.get("habitacion") or ""),
+                "fecha_ingreso": ingreso, "fecha_egreso": egreso,
+                "dias_estadia": int(dias),
+                "activo": True, "creado_en": now, "actualizado_en": now,
+            })
+
+    # -- Ocupacion de camas por dia, a partir de las estadias -----------------
+    camas_totales = max(1, len(Adm.CAMAS))
+    ocupadas_por_dia = {}
+    for est in hechos_hosp:
+        f = str(est.get("fecha_ingreso") or "")[:10]
+        if f:
+            ocupadas_por_dia[f] = ocupadas_por_dia.get(f, 0) + 1
+    agg_ocupacion = [
+        {
+            "fecha": f, "id_hospital": "HOSP-001",
+            "camas_totales": camas_totales,
+            "camas_ocupadas": min(int(n), camas_totales),
+            "pct_ocupacion": round(min(int(n), camas_totales) * 100.0 / camas_totales, 2),
+            "activo": True, "creado_en": now, "actualizado_en": now,
+        }
+        for f, n in sorted(ocupadas_por_dia.items())
+    ]
+
+    # -- Medico <-> servicio --------------------------------------------------
+    servicios = ["Endocrinologia", "Medicina interna", "Emergencia"]
+    bridge_med_serv = [
+        {
+            "id_medico": mid, "id_servicio": servicios[i % len(servicios)],
+            "fecha_desde": "%d-01-01" % year, "fecha_hasta": "",
+            "activo": True, "creado_en": now, "actualizado_en": now,
+        }
+        for i, mid in enumerate(medicos)
+    ]
+
+    # -- Hechos sinteticos por paciente ---------------------------------------
+    signos, procedimientos, insulina = [], [], []
+    muestra = pacientes[: max(30, min(len(pacientes), n_ops))]
+    for i, pac in enumerate(muestra):
+        fecha = fecha_de(pac, i)
+        signos.append({
+            "id_registro": _uid(), "id_paciente": pac, "fecha": fecha,
+            "presion_sistolica": int(rng.integers(100, 165)),
+            "presion_diastolica": int(rng.integers(60, 100)),
+            "frecuencia_cardiaca": int(rng.integers(58, 105)),
+            "frecuencia_respiratoria": int(rng.integers(12, 22)),
+            "temperatura": round(float(rng.uniform(36.0, 38.2)), 1),
+            "saturacion": int(rng.integers(92, 100)),
+            "activo": True, "creado_en": now, "actualizado_en": now,
+        })
+        if i % 3 == 0:
+            nombre, cod = _PROCEDIMIENTOS[i % len(_PROCEDIMIENTOS)]
+            procedimientos.append({
+                "id_procedimiento": _uid(), "id_paciente": pac,
+                "codigo_cie10": cod, "descripcion": nombre, "fecha": fecha,
+                "id_medico": medicos[i % len(medicos)],
+                "activo": True, "creado_en": now, "actualizado_en": now,
+            })
+        if i % 2 == 0:
+            insulina.append({
+                "id_tratamiento": _uid(), "id_paciente": pac,
+                "tipo_insulina": _INSULINAS[i % len(_INSULINAS)],
+                "dosis": "%d UI" % int(rng.integers(6, 34)),
+                "frecuencia": str(rng.choice(["1/dia", "2/dia", "3/dia"])),
+                "fecha_inicio": fecha,
+                "activo": True, "creado_en": now, "actualizado_en": now,
+            })
+
+    tareas = [
+        ("dim_cie10", _store_dwh("dimensiones/dim_cie10.parquet",
+            ["codigo_cie10", "descripcion", "capitulo", "activo", "creado_en", "actualizado_en"],
+            "codigo_cie10", "cie10"), dim_cie10),
+        ("dim_especialidad", _store_dwh("dimensiones/dim_especialidad.parquet",
+            ["id_especialidad", "nombre", "servicio", "activo", "creado_en", "actualizado_en"],
+            "id_especialidad", "especialidades"), dim_especialidad),
+        ("dim_departamento_hospital", _store_dwh("dimensiones/dim_departamento_hospital.parquet",
+            ["id_departamento", "nombre", "tipo", "activo", "creado_en", "actualizado_en"],
+            "id_departamento", "departamentos"), dim_departamento),
+        ("dim_dieta", _store_dwh("dimensiones/dim_dieta.parquet",
+            ["id_dieta", "nombre", "restricciones", "activo", "creado_en", "actualizado_en"],
+            "id_dieta", "dietas"), dim_dieta),
+        ("dim_habitacion", _store_dwh("dimensiones/dim_habitacion.parquet",
+            ["id_habitacion", "piso", "numero", "tipo", "estado", "activo", "creado_en", "actualizado_en"],
+            "id_habitacion", "habitaciones"), dim_habitacion),
+        ("dim_equipo_medico", _store_dwh("dimensiones/dim_equipo_medico.parquet",
+            ["id_equipo", "nombre", "ubicacion", "estado_mantenimiento", "activo", "creado_en", "actualizado_en"],
+            "id_equipo", "equipos"), dim_equipo),
+        ("hechos_admision", _store_dwh("hechos/hechos_admision.parquet",
+            ["id_admision", "id_paciente", "id_servicio", "id_hospital", "tipo", "fecha_ingreso",
+             "activo", "creado_en", "actualizado_en"],
+            "id_admision", "admisiones"), hechos_admision),
+        ("hechos_hospitalizacion", _store_dwh("hechos/hechos_hospitalizacion.parquet",
+            ["id_estadia", "id_paciente", "id_habitacion", "fecha_ingreso", "fecha_egreso",
+             "dias_estadia", "activo", "creado_en", "actualizado_en"],
+            "id_estadia", "estadias"), hechos_hosp),
+        ("hechos_signos_vitales", _store_dwh("hechos/hechos_signos_vitales.parquet",
+            ["id_registro", "id_paciente", "fecha", "presion_sistolica", "presion_diastolica",
+             "frecuencia_cardiaca", "frecuencia_respiratoria", "temperatura", "saturacion",
+             "activo", "creado_en", "actualizado_en"],
+            "id_registro", "signos"), signos),
+        ("hechos_procedimiento", _store_dwh("hechos/hechos_procedimiento.parquet",
+            ["id_procedimiento", "id_paciente", "codigo_cie10", "descripcion", "fecha", "id_medico",
+             "activo", "creado_en", "actualizado_en"],
+            "id_procedimiento", "procedimientos"), procedimientos),
+        ("hechos_tratamiento_insulina", _store_dwh("hechos/hechos_tratamiento_insulina.parquet",
+            ["id_tratamiento", "id_paciente", "tipo_insulina", "dosis", "frecuencia", "fecha_inicio",
+             "activo", "creado_en", "actualizado_en"],
+            "id_tratamiento", "tratamientos"), insulina),
+        ("agg_ocupacion_camas", _store_dwh("agregados/agg_ocupacion_camas.parquet",
+            ["fecha", "id_hospital", "camas_totales", "camas_ocupadas", "pct_ocupacion",
+             "activo", "creado_en", "actualizado_en"],
+            "fecha", "ocupacion"), agg_ocupacion),
+        ("bridge_medico_servicio", _store_dwh("puentes/bridge_medico_servicio.parquet",
+            ["id_medico", "id_servicio", "fecha_desde", "fecha_hasta",
+             "activo", "creado_en", "actualizado_en"],
+            "id_medico", "medico_servicio"), bridge_med_serv),
+    ]
+    return _escribir_lote(tareas)
 
 
 def generar_hospital(
@@ -381,11 +805,19 @@ def generar_hospital(
         med = _medico_pac(pac)
         mid = med_ids[int(rng.integers(0, len(med_ids)))]
         fecha = _fecha_pac(pac, i)
+        # El estado sigue el ciclo real (emitida -> pagada -> dispensada), no el
+        # viejo "pendiente": la bandeja de farmacia filtra por este vocabulario.
+        entregada = rng.random() < 0.7
+        if entregada:
+            estado_receta = "dispensada"
+        else:
+            sorteo = rng.random()
+            estado_receta = "pagada" if sorteo < 0.6 else ("emitida" if sorteo < 0.95 else "anulada")
         recetas_rows.append({
             "id_receta": rid, "id_paciente": pac, "id_medico": med,
             "encounter_id": _enc(pac, i),
             "indicaciones": "Según protocolo diabetes",
-            "estado": "dispensada" if rng.random() < 0.7 else "pendiente",
+            "estado": estado_receta,
             "fecha": fecha, "creado_en": now, "actualizado_en": now,
         })
         recetas_det_rows.append({
@@ -394,7 +826,7 @@ def generar_hospital(
             "cantidad": 2.0, "indicaciones": "Administrar según indicación médica",
             "estado": "emitida", "creado_en": now, "actualizado_en": now,
         })
-        if rng.random() < 0.7 and inv_rows:
+        if entregada and inv_rows:
             lot = inv_rows[int(rng.integers(0, len(inv_rows)))]
             cant = float(int(rng.integers(1, 5)))
             disp_rows.append({
@@ -680,17 +1112,44 @@ def generar_hospital(
 
     # ── Comorbilidades ──────────────────────────────────────────────────────
     tipos = ["retinopatia", "nefropatia", "neuropatia", "cardiovascular", "pie_diabetico"]
+    severidades = ["leve", "moderada", "severa"]
+    # La severa se controla y se cita antes; la leve puede quedar resuelta.
+    notas_por_tipo = {
+        "retinopatia": "Control oftalmológico anual; fondo de ojo en la última visita.",
+        "nefropatia": "Microalbuminuria en seguimiento; ajustar IECA.",
+        "neuropatia": "Exploración con monofilamento; educación en cuidado de pies.",
+        "cardiovascular": "Riesgo cardiovascular alto; control de perfil lipídico.",
+        "pie_diabetico": "Curaciones programadas; vigilar signos de infección.",
+    }
     com_rows = []
-    for pac in pacientes[: max(20, n_pac // 2)]:
-        if rng.random() < 0.55:
-            com_rows.append({
-                "id_comorbilidad": _uid(), "id_paciente": pac,
-                "tipo": tipos[int(rng.integers(0, len(tipos)))],
-                "fecha_deteccion": _fecha(rng, year, int(rng.integers(0, 280))),
-                "id_medico": personal["medico"][0],
-                "notas": "", "estado": "activa",
-                "creado_en": now, "actualizado_en": now,
-            })
+    for idx, pac in enumerate(pacientes[: max(20, n_pac // 2)]):
+        if rng.random() >= 0.55:
+            continue
+        tipo = tipos[int(rng.integers(0, len(tipos)))]
+        severidad = severidades[int(rng.integers(0, len(severidades)))]
+        sorteo = rng.random()
+        if severidad == "severa":
+            estado = "activa" if sorteo < 0.8 else "controlada"
+            dias_control = 30
+        elif severidad == "moderada":
+            estado = "activa" if sorteo < 0.5 else ("controlada" if sorteo < 0.9 else "resuelta")
+            dias_control = 90
+        else:
+            estado = "controlada" if sorteo < 0.5 else ("resuelta" if sorteo < 0.85 else "activa")
+            dias_control = 180
+        dia = int(rng.integers(0, 280))
+        deteccion = _fecha(rng, year, dia)
+        com_rows.append({
+            "id_comorbilidad": _uid(), "id_paciente": pac,
+            "tipo": tipo,
+            "severidad": severidad,
+            "fecha_deteccion": deteccion,
+            # Una complicación resuelta ya no necesita control programado.
+            "proximo_control": "" if estado == "resuelta" else _fecha(rng, year, dia + dias_control),
+            "id_medico": personal["medico"][idx % len(personal["medico"])],
+            "notas": notas_por_tipo.get(tipo, ""), "estado": estado,
+            "creado_en": now, "actualizado_en": now,
+        })
     if not com_rows and pacientes:
         com_rows.append({
             "id_comorbilidad": _uid(), "id_paciente": pacientes[0],
@@ -768,6 +1227,18 @@ def generar_hospital(
         ("bridge_tratamiento_medicamento", bridge_tx, tx_rows),
         ("agg_medicamentos_top", top_store, top_rows),
     ]))
+
+    # Tablas clinicas del catalogo DWH (camas, equipos, estadias, signos, CIE-10).
+    # Sin esto quedaban declaradas en el esquema y siempre en cero.
+    conteos.update(generar_fase_clinica(
+        rng=rng,
+        pacientes=pacientes,
+        medicos=personal["medico"],
+        year=year,
+        now=now,
+        fecha_de=_fecha_pac,
+        n_ops=n_ops,
+    ))
 
     tablas_vacias = sorted(k for k, v in conteos.items() if int(v or 0) <= 0)
     return {
