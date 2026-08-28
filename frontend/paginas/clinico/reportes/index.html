@@ -275,11 +275,13 @@
 .rep-note { margin-top:12px; font-size:11px; color:var(--muted); line-height:1.45; }
 
 /* Modo completo: densificar para no dejar huecos */
-.rep-shell.modo-completo .rep-tipos { gap:10px; margin-bottom:12px; }
+/* El gap exterior no cambia entre tipos: mover el marco al cambiar de
+   informe es lo que hacia que la interfaz "bailara". */
+.rep-shell.modo-completo .rep-tipos { margin-bottom:12px; }
 .rep-shell.modo-completo .tipo-pick { padding:12px 12px 10px; }
 .rep-shell.modo-completo .tipo-pick .tp-title { font-size:15px; margin-bottom:4px; }
 .rep-shell.modo-completo .tipo-pick .tp-desc { font-size:11px; margin-bottom:8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.rep-shell.modo-completo .rep-main { gap:12px; margin-bottom:12px; align-items:start; }
+.rep-shell.modo-completo .rep-main { margin-bottom:12px; align-items:start; }
 .rep-shell.modo-completo .panel { padding:14px 16px; }
 .rep-shell.modo-completo .panel-title { margin-bottom:10px; font-size:14px; }
 .rep-shell.modo-completo .depto-chip { padding:6px 10px; font-size:11px; }

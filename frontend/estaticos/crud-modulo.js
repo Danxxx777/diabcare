@@ -230,7 +230,11 @@ window.DiabCareCrud = {
     function asegurarBuscador() {
       if (cfg.hideSearch) return null;
       let input = document.getElementById('crud-live-search');
-      if (input) return input;
+      if (input) {
+        // La barra ya existe (cambio de pestana): refrescar sus filtros.
+        asegurarFiltros(input.parentElement);
+        return input;
+      }
       const card = document.querySelector('.tabla-card');
       if (!card) return null;
       let top = card.querySelector('.tabla-top');
@@ -254,9 +258,12 @@ window.DiabCareCrud = {
 
     /** Selects de filtro declarados en cfg.filtros: {param, label, options[]}. */
     function asegurarFiltros(top) {
+      if (!top) return;
+      // Cada pestana trae los suyos: arrastrar los de la anterior mandaria
+      // parametros que el nuevo listado no entiende.
+      top.querySelectorAll('[data-crud-filtro]').forEach(el => el.remove());
       const defs = cfg.filtros || [];
-      if (!defs.length || !top) return;
-      if (top.querySelector('[data-crud-filtro]')) return;
+      if (!defs.length) return;
       for (const def of defs) {
         const sel = document.createElement('select');
         sel.className = 'search';
