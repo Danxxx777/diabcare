@@ -254,8 +254,11 @@ def seed_basico() -> dict:
             creados["seguros"] += 1
     if not (tarifario.listar(limit=1).get("tarifas") or []):
         for codigo, desc, precio in [
-            ("CONS-DM", "Consulta endocrinología diabetes", 35.0),
-            ("LAB-HBA1C", "HbA1c laboratorio", 18.5),
+            ("CONS-GEN", "Consulta general", 25.0),
+            ("CONS-ENDO", "Consulta endocrinología", 45.0),
+            ("LAB-HBA1C", "HbA1c laboratorio", 18.0),
+            ("URG-TRIAGE", "Triage urgencias", 15.0),
+            ("FARM-DISP", "Dispensación farmacia", 5.0),
             ("PROC-PIE", "Curación pie diabético", 42.0),
             ("EDU-DM", "Educación diabetológica", 20.0),
         ]:
@@ -266,6 +269,127 @@ def seed_basico() -> dict:
 
 def listar_pagos_factura(id_factura: str) -> dict:
     return pagos.listar(limit=200, filtros={"id_factura": id_factura}, incluir_inactivos=True)
+
+
+def asegurar_polizas(ids_paciente, rng=None) -> int:
+    """Da poliza a los pacientes que no tengan, con reparto realista.
+
+    Aproximadamente 6 de cada 10 al IESS, 2 a un seguro privado y 2 particulares.
+    Devuelve cuantas polizas nuevas se crearon.
+    """
+    import pandas as pd
+
+    catalogo = seguros.listar(limit=50, incluir_inactivos=True).get("seguros") or []
+    if not catalogo:
+        seed_basico()
+        catalogo = seguros.listar(limit=50, incluir_inactivos=True).get("seguros") or []
+    if not catalogo:
+        return 0
+
+    def _buscar(nombre_parcial):
+        for s_ in catalogo:
+            if nombre_parcial in str(s_.get("nombre") or "").lower():
+                return s_
+        return None
+
+    iess = _buscar("iess")
+    privado = next((s_ for s_ in catalogo
+                    if "particular" not in str(s_.get("nombre") or "").lower()
+                    and s_ is not iess), None)
+    # Sin aseguradora privada distinta, el reparto es IESS o particular.
+    reparto = [iess, iess, iess, iess, iess, iess, privado, privado, None, None]
+    reparto = [x for x in reparto if x is not None or True]
+
+    existentes = set()
+    try:
+        df = bridge_seguro.extraer(copiar=False)
+        if not df.empty:
+            existentes = set(df["id_paciente"].astype(str))
+    except Exception:
+        pass
+
+    faltan = [str(x) for x in ids_paciente if str(x) and str(x) not in existentes]
+    if not faltan:
+        return 0
+
+    filas = []
+    for i, pid in enumerate(faltan):
+        elegido = reparto[i % len(reparto)]
+        if elegido is None:  # particular: no se registra poliza
+            continue
+        filas.append({
+            "id_bridge": str(__import__("uuid").uuid4()),
+            "id_paciente": pid,
+            "id_seguro": str(elegido.get("id_seguro") or ""),
+            "poliza": "POL-%08d" % (i + 1),
+            "activo": True,
+            "creado_en": _now(),
+            "actualizado_en": _now(),
+        })
+    if not filas:
+        return 0
+
+    try:
+        actual = bridge_seguro.extraer()
+        nuevo_df = pd.DataFrame(filas)
+        bridge_seguro.cargar(pd.concat([actual, nuevo_df], ignore_index=True)
+                             if not actual.empty else nuevo_df)
+    except Exception:
+        return 0
+    return len(filas)
+
+
+def cobertura_paciente(id_paciente: str) -> dict:
+    """Seguro vigente del paciente y el porcentaje que cubre.
+
+    Sin poliza se devuelve cobertura 0: el paciente es particular y paga todo.
+    """
+    vacio = {"id_seguro": "", "nombre": "Particular", "cobertura_pct": 0.0}
+    pid = str(id_paciente or "").strip()
+    if not pid:
+        return vacio
+    try:
+        df = bridge_seguro.extraer(copiar=False)
+        if df.empty:
+            return vacio
+        activos = df
+        if "activo" in df.columns:
+            activos = df[df["activo"].fillna(True).astype(bool)]
+        fila = activos[activos["id_paciente"].astype(str) == pid]
+        if fila.empty:
+            return vacio
+        id_seguro = str(fila.iloc[0].get("id_seguro") or "")
+    except Exception:
+        return vacio
+    if not id_seguro:
+        return vacio
+    seg = seguros.obtener(id_seguro)
+    if not seg or seg.get("error"):
+        return vacio
+    try:
+        pct = float(seg.get("cobertura_pct") or 0)
+    except (TypeError, ValueError):
+        pct = 0.0
+    return {
+        "id_seguro": id_seguro,
+        "nombre": str(seg.get("nombre") or "Seguro"),
+        "cobertura_pct": max(0.0, min(100.0, pct)),
+    }
+
+
+def tarifa_por_codigo(codigo: str) -> dict:
+    """Tarifa del catalogo por codigo, o {} si no esta cargada."""
+    objetivo = str(codigo or "").strip().upper()
+    if not objetivo:
+        return {}
+    try:
+        filas = tarifario.listar(offset=0, limit=500, incluir_inactivos=True).get("tarifas") or []
+    except Exception:
+        return {}
+    for t in filas:
+        if str(t.get("codigo") or "").strip().upper() == objetivo:
+            return t
+    return {}
 
 
 def _emisor() -> dict:

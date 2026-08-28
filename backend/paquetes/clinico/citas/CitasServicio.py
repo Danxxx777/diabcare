@@ -273,6 +273,85 @@ def _recetas_de_cita(cita: dict) -> list[dict]:
     return Farm.enriquecer_recetas(filas)
 
 
+def _tarifa_consulta(cita: dict) -> dict:
+    """Tarifa de la consulta segun el servicio que atendio.
+
+    Endocrinologia y medicina interna no cuestan lo mismo; antes todo se cobraba
+    a un unico codigo generico que ni figuraba en el tarifario.
+    """
+    from paquetes.facturacion import FacturacionServicio as Fact
+
+    texto = " ".join([
+        str(cita.get("servicio") or ""),
+        str(cita.get("motivo") or ""),
+    ]).lower()
+    codigo = "CONS-ENDO" if ("endocrino" in texto or "diabet" in texto) else "CONS-GEN"
+    tarifa = Fact.tarifa_por_codigo(codigo)
+    if not tarifa:
+        tarifa = Fact.tarifa_por_codigo("CONS-GEN") or Fact.tarifa_por_codigo("CONS-ENDO")
+    return tarifa or {}
+
+
+def _ordenes_lab_de_cita(cita: dict) -> list[dict]:
+    """Ordenes de laboratorio del paciente ese dia, aun sin facturar."""
+    from paquetes.laboratorio import LaboratorioServicio as Lab
+
+    pid = str(cita.get("id_paciente") or "")
+    fecha = str(cita.get("fecha") or "")[:10]
+    if not pid or not fecha:
+        return []
+    try:
+        df = Lab.ordenes.extraer(copiar=False)
+    except Exception:
+        return []
+    if df.empty:
+        return []
+    estados = df["estado"].fillna("").astype(str).str.lower()
+    vivas = ~estados.isin(["anulada", "anulado", "facturada"])
+    mismas = (df["id_paciente"].fillna("").astype(str) == pid) & (
+        df["fecha"].fillna("").astype(str).str[:10] == fecha)
+    return df[vivas & mismas].fillna("").to_dict(orient="records")
+
+
+def _lineas_laboratorio(cita: dict) -> tuple[list[dict], list[str]]:
+    """Una linea por orden de laboratorio, con la tarifa de su prueba."""
+    from paquetes.facturacion import FacturacionServicio as Fact
+    from paquetes.laboratorio import LaboratorioServicio as Lab
+
+    ordenes = _ordenes_lab_de_cita(cita)
+    if not ordenes:
+        return [], []
+    try:
+        pruebas = {
+            str(p.get("id_prueba")): p
+            for p in (Lab.pruebas.listar(limit=500, incluir_inactivos=True).get("pruebas") or [])
+        }
+    except Exception:
+        pruebas = {}
+
+    lineas, ids = [], []
+    for orden in ordenes:
+        prueba = pruebas.get(str(orden.get("id_prueba") or "")) or {}
+        codigo_prueba = str(prueba.get("codigo") or "").strip().upper()
+        # LAB-HBA1C para HbA1c; si esa prueba no tiene tarifa propia, la generica.
+        tarifa = Fact.tarifa_por_codigo("LAB-" + codigo_prueba) if codigo_prueba else {}
+        if not tarifa:
+            tarifa = Fact.tarifa_por_codigo("LAB-HBA1C")
+        try:
+            precio = round(float(tarifa.get("precio") or 0), 2)
+        except (TypeError, ValueError):
+            precio = 0.0
+        if precio <= 0:
+            continue
+        lineas.append({
+            "concepto": "Laboratorio: " + str(prueba.get("nombre") or codigo_prueba or "prueba"),
+            "cantidad": 1,
+            "precio_unitario": precio,
+        })
+        ids.append(str(orden.get("id_orden") or ""))
+    return lineas, ids
+
+
 def _lineas_consulta_y_receta(cita: dict, concepto: str, precio: float) -> tuple[list[dict], list[str]]:
     lineas = [{"concepto": concepto, "cantidad": 1, "precio_unitario": precio}]
     ids = []
@@ -329,42 +408,35 @@ def cobrar_consulta(id_cita: str, metodo: str = "efectivo", referencia: str = ""
             return {"error": "La factura abierta no tiene total válido"}
         concepto = Fact.concepto_factura(str(fid))
     else:
-        tarifas = Fact.tarifario.listar(offset=0, limit=200, incluir_inactivos=True).get("tarifas") or []
-        tarifa = next(
-            (t for t in tarifas if str(t.get("codigo") or "").upper() == "CONS-DM"),
-            None,
-        )
-        if not tarifa:
-            creada = Fact.tarifario.crear({
-                "codigo": "CONS-DM",
-                "descripcion": "Consulta endocrinología diabetes",
-                "precio": 35.0,
-                "activo": True,
-            })
-            if creada.get("error"):
-                return {"error": "No hay tarifa CONS-DM. Cargue el catálogo en Facturación."}
-            tarifa = creada.get("registro") or {
-                "codigo": "CONS-DM",
-                "descripcion": "Consulta endocrinología diabetes",
-                "precio": 35.0,
-            }
+        tarifa = _tarifa_consulta(cita)
         try:
             precio = round(float(tarifa.get("precio") or 0), 2)
         except (TypeError, ValueError):
             precio = 0.0
         if precio <= 0:
-            return {"error": "La tarifa CONS-DM no tiene precio válido"}
+            return {"error": "No hay tarifa de consulta cargada. Revise el Tarifario en Facturación."}
 
         concepto = str(tarifa.get("descripcion") or "Consulta médica")
         lineas_factura, recetas_asociadas = _lineas_consulta_y_receta(cita, concepto, precio)
+        # Lo que se le hizo al paciente ese dia tambien se cobra: hasta ahora las
+        # ordenes de laboratorio quedaban fuera de la factura.
+        lineas_lab, ordenes_lab = _lineas_laboratorio(cita)
+        lineas_factura.extend(lineas_lab)
+
         subtotal = round(sum(float(x.get("cantidad") or 1) * float(x.get("precio_unitario") or 0) for x in lineas_factura), 2)
+        # Cobertura de la poliza del paciente: antes todos pagaban el 100%.
+        cobertura = Fact.cobertura_paciente(str(cita.get("id_paciente") or ""))
+        pct = float(cobertura.get("cobertura_pct") or 0)
+        descuento = round(subtotal * pct / 100.0, 2)
+        base = round(subtotal - descuento, 2)
         fac = Fact.crear_factura({
             "encounter_id": str(id_cita),
             "id_paciente": str(cita.get("id_paciente") or ""),
+            "id_seguro": cobertura.get("id_seguro") or "",
             "subtotal": subtotal,
-            "descuento": 0,
-            "iva": round(subtotal * 0.15, 2),
-            "total": round(subtotal * 1.15, 2),
+            "descuento": descuento,
+            "iva": round(base * 0.15, 2),
+            "total": round(base * 1.15, 2),
             "estado": "emitida",
             "fecha": str(cita.get("fecha") or date.today().isoformat())[:10],
             "lineas": lineas_factura,
@@ -374,9 +446,9 @@ def cobrar_consulta(id_cita: str, metodo: str = "efectivo", referencia: str = ""
         fid = fac.get("id_factura")
         reg = fac.get("registro") if isinstance(fac.get("registro"), dict) else {}
         try:
-            total = round(float(reg.get("total") or fac.get("total") or (subtotal * 1.15)), 2)
+            total = round(float(reg.get("total") or fac.get("total") or (base * 1.15)), 2)
         except (TypeError, ValueError):
-            total = round(subtotal * 1.15, 2)
+            total = round(base * 1.15, 2)
 
     metodo_n = str(metodo or "efectivo").strip().lower()
     if metodo_n in ("qr", "enlace", "digital"):
@@ -449,13 +521,18 @@ def preview_cobro(id_cita: str) -> dict:
     from paquetes.facturacion import FacturacionServicio as Fact
     from nucleo.utilidades.UrlPublica import alcance_url
     Fact.seed_basico()
-    tarifas = Fact.tarifario.listar(offset=0, limit=200, incluir_inactivos=True).get("tarifas") or []
-    tarifa = next((t for t in tarifas if str(t.get("codigo") or "").upper() == "CONS-DM"), None)
-    precio = round(float((tarifa or {}).get("precio") or 35), 2)
-    concepto = str((tarifa or {}).get("descripcion") or "Consulta endocrinología diabetes")
+    tarifa = _tarifa_consulta(cita)
+    precio = round(float(tarifa.get("precio") or 0), 2)
+    concepto = str(tarifa.get("descripcion") or "Consulta médica")
     lineas, _ = _lineas_consulta_y_receta(cita, concepto, precio)
+    lineas_lab, _ordenes = _lineas_laboratorio(cita)
+    lineas.extend(lineas_lab)
     subtotal = round(sum(float(x.get("cantidad") or 1) * float(x.get("precio_unitario") or 0) for x in lineas), 2)
-    iva = round(subtotal * 0.15, 2)
+    cobertura = Fact.cobertura_paciente(str(cita.get("id_paciente") or ""))
+    pct = float(cobertura.get("cobertura_pct") or 0)
+    descuento = round(subtotal * pct / 100.0, 2)
+    base = round(subtotal - descuento, 2)
+    iva = round(base * 0.15, 2)
     alcance = alcance_url()
     return {
         "id_cita": id_cita,
@@ -463,8 +540,11 @@ def preview_cobro(id_cita: str) -> dict:
         "concepto": concepto,
         "precio": subtotal,
         "lineas": lineas,
+        "seguro": cobertura.get("nombre"),
+        "cobertura_pct": pct,
+        "descuento": descuento,
         "iva": iva,
-        "total": round(subtotal + iva, 2),
+        "total": round(base + iva, 2),
         "paciente": cita.get("paciente_nombre") or cita.get("id_paciente") or "Paciente",
         "fecha": cita.get("fecha"),
         "hora": cita.get("hora"),

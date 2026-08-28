@@ -375,6 +375,16 @@ def generar_fase_clinica(
             "activo": True, "creado_en": now, "actualizado_en": now,
         })
 
+    # Cobertura de seguro para todo el padron, no solo para el lote nuevo.
+    try:
+        from paquetes.clinico.pacientes import PacientesServicio as Pac
+        from paquetes.facturacion import FacturacionServicio as Fact
+        todos = [p.get("id_paciente") for p in
+                 (Pac.listar(limit=100000).get("pacientes") or [])]
+        Fact.asegurar_polizas(todos)
+    except Exception:
+        pass
+
     # -- Equipos: sembrar el inventario y luego espejarlo en la dimensión -----
     _sembrar_instrumental(rng, now)
     dim_equipo = []
