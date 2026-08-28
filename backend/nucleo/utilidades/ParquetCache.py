@@ -120,6 +120,7 @@ def escribir(bucket: str, archivo: str, df: pd.DataFrame) -> None:
     c.put_object(bucket, archivo, buf, buf.getbuffer().nbytes)
     k = _key(bucket, archivo)
     with _lock:
+        _conteos[k] = (time.monotonic(), int(len(df)))
         if _tamano(df) <= MAX_BYTES:
             _guardar(k, df.copy())
         else:
@@ -136,14 +137,62 @@ def invalidar(bucket: str | None = None, archivo: str | None = None) -> None:
     with _lock:
         if bucket is None and archivo is None:
             _frames.clear()
+            _conteos.clear()
             return
         if archivo is None:
             prefix = f"{bucket}::"
             for k in list(_frames):
                 if k.startswith(prefix):
                     _frames.pop(k, None)
+            for k in list(_conteos):
+                if k.startswith(prefix):
+                    _conteos.pop(k, None)
             return
-        _frames.pop(_key(bucket or "diabcare-app", archivo), None)
+        clave = _key(bucket or "diabcare-app", archivo)
+        _frames.pop(clave, None)
+        _conteos.pop(clave, None)
+
+
+_conteos: dict[str, tuple[float, int]] = {}
+TTL_CONTEO = 60.0
+
+
+def contar_filas(bucket: str, archivo: str, *, ttl: float = TTL_CONTEO) -> int:
+    """Filas de un Parquet sin materializarlo.
+
+    El catalogo del DWH son 69 tablas; contarlas con len(read_parquet(...))
+    obligaba a construir DataFrames de millones de filas solo para mostrar un
+    numero. Aqui se lee unicamente el footer del Parquet.
+    """
+    k = _key(bucket, archivo)
+    now = time.monotonic()
+    with _lock:
+        hit = _frames.get(k)
+        if hit is not None and (now - hit[0]) < TTL_DEFAULT:
+            return int(len(hit[1]))
+        cached = _conteos.get(k)
+        if cached is not None and (now - cached[0]) < ttl:
+            return cached[1]
+
+    try:
+        import pyarrow.parquet as pq
+
+        asegurar_bucket(bucket)
+        c = get_cliente()
+        obj = c.get_object(bucket, archivo)
+        raw = obj.read()
+        try:
+            obj.close()
+            obj.release_conn()
+        except Exception:
+            pass
+        total = int(pq.ParquetFile(io.BytesIO(raw)).metadata.num_rows)
+    except Exception:
+        return 0
+
+    with _lock:
+        _conteos[k] = (time.monotonic(), total)
+    return total
 
 
 def get_cache_stats() -> dict:

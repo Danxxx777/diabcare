@@ -35,7 +35,7 @@ TABLAS: list[TablaDwh] = [
         ("CU-O03", "CU-O04", "CU-O07"), ("OO5.2.1", "OO5.5.1"), "P3", "implementado",
         ("encounter_id", "year", "age", "bmi", "hbA1c_level", "blood_glucose_level",
          "diabetes", "hypertension", "heart_disease",
-         "id_paciente", "id_ubicacion", "id_raza", "id_condicion", "id_tiempo"),
+         "id_paciente", "id_paciente_op", "id_ubicacion", "id_raza", "id_condicion", "id_tiempo"),
     ),
     TablaDwh(
         "hechos_consulta", "Hechos consulta", "hechos",
@@ -489,9 +489,9 @@ TABLAS: list[TablaDwh] = [
     ),
     TablaDwh(
         "oper_auditoria_eventos", "Eventos auditoría", "operativo",
-        "operativo/auditoria.parquet", "Trazabilidad de acciones.",
+        "auditoria/eventos.parquet", "Trazabilidad de acciones.",
         ("CU-O01",), ("OO5.1.1",), "P11", "implementado",
-        ("id", "usuario", "tipo", "modulo", "detalle", "fecha"),
+        ("id", "fecha", "usuario", "tipo", "modulo", "detalle", "resultado", "antes", "despues"),
     ),
 ]
 

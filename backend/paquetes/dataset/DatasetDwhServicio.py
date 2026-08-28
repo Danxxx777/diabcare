@@ -82,6 +82,37 @@ def _leer_stage_plano() -> pd.DataFrame:
     return fusionar_stage_dataframes(dfs)
 
 
+_memo_stage: dict[str, object] = {"firma": None, "total": 0}
+
+
+def _firma_stage() -> str:
+    """Huella de stage/ (nombre + etag + tamano) para saber si cambio."""
+    c = get_cliente()
+    partes = []
+    for o in c.list_objects(MINIO_BUCKET, prefix=MINIO_STAGE_PATH, recursive=True):
+        if str(o.object_name).endswith(".parquet"):
+            partes.append(f"{o.object_name}:{getattr(o, 'etag', '')}:{getattr(o, 'size', '')}")
+    return "|".join(sorted(partes))
+
+
+def contar_stage_plano() -> int:
+    """Filas del stage fusionado, memoizado por firma.
+
+    El resumen del DWH pedia este numero en cada carga y eso obligaba a bajar y
+    fusionar todo stage/. Mientras stage no cambie, el valor se reutiliza.
+    """
+    try:
+        firma = _firma_stage()
+    except Exception:
+        return int(_memo_stage.get("total") or 0)
+    if firma == _memo_stage.get("firma"):
+        return int(_memo_stage.get("total") or 0)
+    total = len(_normalizar_plano(_leer_stage_plano()))
+    _memo_stage["firma"] = firma
+    _memo_stage["total"] = total
+    return total
+
+
 def _normalizar_plano(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -148,6 +179,10 @@ def _construir_hechos(
     tiempos: pd.DataFrame,
 ) -> pd.DataFrame:
     merged = df.copy()
+    # El stage trae el UUID operativo con este mismo nombre: apartarlo antes del
+    # merge, o pandas lo renombra y la clave sustituta se pierde.
+    if "id_paciente" in merged.columns:
+        merged = merged.rename(columns={"id_paciente": "id_paciente_op"})
     merged = merged.merge(pac, on=["gender", "age"], how="left")
     merged = merged.merge(locs, on="location", how="left")
     merged = merged.merge(raz, on=RAZA_COLS, how="left")
@@ -158,7 +193,7 @@ def _construir_hechos(
     cols_hecho = [
         "encounter_id", "year", "age", "bmi", "hbA1c_level", "blood_glucose_level",
         "diabetes", "hypertension", "heart_disease",
-        "id_paciente", "id_ubicacion", "id_raza", "id_condicion", "id_tiempo",
+        "id_paciente", "id_paciente_op", "id_ubicacion", "id_raza", "id_condicion", "id_tiempo",
     ]
     for c in cols_hecho:
         if c not in merged.columns:
@@ -581,12 +616,15 @@ def materializar_dwh(plano: pd.DataFrame | None = None) -> dict:
 
 def esquema_dwh() -> dict:
     """Catálogo completo del DWH hospitalario + conteos actuales (una sola pasada)."""
+    from nucleo.utilidades.ParquetCache import contar_filas
+
     c = get_cliente()
     tablas = []
     conteos = {}
     total_filas = 0
     for t in TABLAS:
-        filas = len(_leer_df(c, t.path))
+        # Solo el footer del Parquet: no hace falta traer las filas para contarlas.
+        filas = contar_filas(BUCKET_APP, t.path)
         conteos[t.id] = filas
         total_filas += filas
         tablas.append({
@@ -659,13 +697,15 @@ def leer_tabla(tabla_id: str, skip: int = 0, limit: int = 50) -> dict:
 
 def resumen_dwh() -> dict:
     """Conteos de todas las tablas del catálogo + metadata."""
-    c = get_cliente()
+    from nucleo.utilidades.ParquetCache import contar_filas
+
     conteos = {}
     total_filas = 0
     for t in TABLAS:
-        n = len(_leer_df(c, t.path))
+        n = contar_filas(BUCKET_APP, t.path)
         conteos[t.id] = n
         total_filas += n
+    c = get_cliente()
 
     meta = {}
     try:
@@ -674,7 +714,7 @@ def resumen_dwh() -> dict:
     except Exception:
         pass
 
-    stage_total = len(_normalizar_plano(_leer_stage_plano()))
+    stage_total = contar_stage_plano()
     return {
         "conteos": conteos,
         "total_hechos": conteos.get("hechos_diabetes", 0),
