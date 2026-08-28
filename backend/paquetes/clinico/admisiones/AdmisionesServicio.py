@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 from nucleo.utilidades.ParquetCache import leer, escribir
 from nucleo.utilidades.Validaciones import rango_fechas_ok
+from nucleo.modelos.catalogo.ViasLlegada import VIAS as VIAS_COMPARTIDAS
 
 BUCKET_APP = "diabcare-app"
 ARCHIVO = "operativo/admisiones.parquet"
@@ -14,7 +15,7 @@ COLUMNAS = [
 ]
 ESTADOS = {"programada", "activa", "alta", "cancelada"}
 TIPOS = {"ambulatoria", "urgencia", "hospitalizacion"}
-VIAS = {"propia", "ambulancia", "referido"}
+VIAS = VIAS_COMPARTIDAS  # catálogo único con Urgencias
 CAMAS = [f"H-{piso}{numero:02d}" for piso in (1, 2) for numero in range(1, 7)]
 
 
@@ -187,7 +188,7 @@ def crear(datos: dict) -> dict:
         return {"error": f"tipo inválido. Use: {', '.join(sorted(TIPOS))}"}
     via = str(datos.get("via_llegada") or "propia").lower()
     if via not in VIAS:
-        return {"error": "Vía de llegada inválida. Use: propia, ambulancia o referido."}
+        return {"error": "Vía de llegada inválida. Use: " + ", ".join(sorted(VIAS)) + "."}
     if via == "ambulancia" and tipo == "ambulatoria":
         tipo = "urgencia"
     estado = str(datos.get("estado") or "activa")
@@ -250,7 +251,7 @@ def actualizar(id_admision: str, cambios: dict) -> dict:
     if cambios.get("tipo") and str(cambios["tipo"]) not in TIPOS:
         return {"error": f"tipo inválido. Use: {', '.join(sorted(TIPOS))}"}
     if cambios.get("via_llegada") and str(cambios["via_llegada"]).lower() not in VIAS:
-        return {"error": "Vía de llegada inválida. Use: propia, ambulancia o referido."}
+        return {"error": "Vía de llegada inválida. Use: " + ", ".join(sorted(VIAS)) + "."}
     via_prev = ""
     if "via_llegada" in df.columns:
         via_prev = df.at[idx[0], "via_llegada"]

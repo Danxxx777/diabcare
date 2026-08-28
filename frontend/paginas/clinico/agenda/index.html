@@ -190,14 +190,18 @@ async function cargar() {
 
 function llenarMedicos(selected) {
   const sel = document.getElementById('m-medico');
+  // El valor es el id: el nombre puede cambiar o repetirse entre dos médicos.
   sel.innerHTML = _medicos.length
-    ? _medicos.map(m => `<option value="${(m.nombre || '').replace(/"/g, '&quot;')}">${m.nombre || 'Médico sin nombre'}</option>`).join('')
+    ? _medicos.map(m => `<option value="${String(m.id || '').replace(/"/g, '&quot;')}">${m.nombre || 'Médico sin nombre'}</option>`).join('')
     : '<option value="">- Registre un usuario con rol Médico -</option>';
   if (selected) {
-    const match = [...sel.options].find(o => o.value === selected);
-    sel.value = match ? selected : (sel.options[0]?.value || '');
+    // `selected` puede venir como id (turnos nuevos) o como nombre (turnos viejos).
+    const porId = _medicos.find(m => String(m.id) === String(selected));
+    const porNombre = _medicos.find(m => (m.nombre || '') === selected);
+    const elegido = porId || porNombre;
+    sel.value = elegido ? String(elegido.id || '') : (sel.options[0]?.value || '');
   } else if (_medicos.length) {
-    sel.value = _medicos[0].nombre || '';
+    sel.value = String(_medicos[0].id || '');
   }
 }
 
@@ -213,7 +217,7 @@ async function abrirModal(c) {
   } else {
     _pacTA.clear();
   }
-  llenarMedicos(c?.medico || '');
+  llenarMedicos(c?.id_medico || c?.medico || '');
   document.getElementById('m-fecha').value = (c?.fecha || new Date().toISOString().slice(0, 10)).slice(0, 10);
   document.getElementById('m-hora').value = c?.hora || '09:00';
   document.getElementById('m-motivo').value = c?.motivo || '';
@@ -235,7 +239,8 @@ async function guardar() {
   const id = document.getElementById('f-id').value;
   const body = {
     id_paciente: document.getElementById('m-paciente').value.trim(),
-    medico: document.getElementById('m-medico').value.trim(),
+    id_medico: document.getElementById('m-medico').value.trim(),
+    medico: (document.getElementById('m-medico').selectedOptions[0]?.textContent || '').trim(),
     fecha: document.getElementById('m-fecha').value,
     hora: document.getElementById('m-hora').value,
     motivo: document.getElementById('m-motivo').value.trim(),
@@ -244,7 +249,7 @@ async function guardar() {
   // Nuevo turno siempre programada; cobro en caja → confirmada; médico → atendida.
   if (!id) body.estado = 'programada';
   if (!body.id_paciente) { toast('Busque y seleccione un paciente por cédula', 'error'); return; }
-  if (!body.medico) { toast('Seleccione un médico', 'error'); return; }
+  if (!body.id_medico) { toast('Seleccione un médico', 'error'); return; }
   const errH = DiabCareAPI.enHorarioConsulta(body.fecha, body.hora);
   if (errH) { toast(errH, 'error'); return; }
   const url = id ? `${API}/api/citas/${id}` : `${API}/api/citas/`;

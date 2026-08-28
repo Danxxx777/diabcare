@@ -31,6 +31,7 @@ def _auditar(usuario: str, tipo: str, detalle: str):
 
 class CitaEntrada(BaseModel):
     id_paciente: str
+    id_medico: str = ""
     medico: str = ""
     fecha: str = ""
     hora: str = "09:00"
@@ -43,6 +44,7 @@ class CitaEntrada(BaseModel):
 
 class CitaActualizar(BaseModel):
     id_paciente: Optional[str] = None
+    id_medico: Optional[str] = None
     medico: Optional[str] = None
     fecha: Optional[str] = None
     hora: Optional[str] = None

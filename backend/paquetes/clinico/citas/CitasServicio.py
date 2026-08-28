@@ -7,7 +7,7 @@ from nucleo.utilidades.Validaciones import horario_consulta_ok
 BUCKET_APP = "diabcare-app"
 ARCHIVO = "operativo/citas.parquet"
 COLUMNAS = [
-    "id_cita", "id_paciente", "paciente_nombre", "medico", "fecha", "hora",
+    "id_cita", "id_paciente", "paciente_nombre", "id_medico", "medico", "fecha", "hora",
     "estado", "motivo", "sede", "notas", "proximo_control", "creado_en", "actualizado_en",
 ]
 ESTADOS = {"programada", "confirmada", "atendida", "cancelada", "no_asistio"}
@@ -178,6 +178,31 @@ def listar(offset: int = 0, limit: int = 50, fecha: str = "", estado: str = "", 
     return {"total": int(total), "citas": enriquecer_citas(chunk.fillna("").to_dict(orient="records"))}
 
 
+def resolver_medico(datos: dict) -> tuple[str, str]:
+    """(id_medico, nombre) a partir de lo que mande el formulario.
+
+    Acepta id o nombre: la agenda vieja solo enviaba el nombre.
+    """
+    id_medico = str(datos.get("id_medico") or "").strip()
+    nombre = str(datos.get("medico") or "").strip()
+    try:
+        from paquetes.usuarios.UsuariosServicio import listar_activos_por_rol
+        medicos = listar_activos_por_rol("medico") or []
+    except Exception:
+        medicos = []
+    if id_medico:
+        for u in medicos:
+            if str(u.get("id")) == id_medico:
+                return id_medico, str(u.get("nombre") or nombre)
+        return id_medico, nombre
+    if nombre:
+        objetivo = nombre.lower()
+        for u in medicos:
+            if str(u.get("nombre") or "").strip().lower() == objetivo:
+                return str(u.get("id") or ""), str(u.get("nombre") or nombre)
+    return "", nombre
+
+
 def _nombre_medico(id_usuario: str) -> str:
     try:
         from paquetes.usuarios.UsuariosServicio import obtener_usuario
@@ -199,13 +224,21 @@ def listar_por_medico(
     q: str = "",
 ) -> dict:
     nombre = _nombre_medico(id_usuario) or str(nombre_jwt or "").strip()
-    if not nombre:
+    if not nombre and not id_usuario:
         return {"total": 0, "medico": "", "citas": []}
     df = _extraer(copiar=False)
     if df.empty:
         return {"total": 0, "medico": nombre, "citas": []}
-    nl = nombre.lower()
-    df = df[df["medico"].astype(str).str.strip().str.lower() == nl]
+    # Por id cuando la cita lo tiene; por nombre solo para las citas viejas,
+    # que se agendaron cuando la agenda no guardaba el id del médico.
+    uid = str(id_usuario or "").strip()
+    ids = (df["id_medico"].astype(str).str.strip()
+           if "id_medico" in df.columns else pd.Series("", index=df.index))
+    nombres = df["medico"].astype(str).str.strip().str.lower()
+    coincide = (ids == uid) if uid else pd.Series(False, index=df.index)
+    if nombre:
+        coincide = coincide | (ids.eq("") & nombres.eq(nombre.lower()))
+    df = df[coincide]
     if fecha:
         df = df[df["fecha"].astype(str).str.startswith(fecha)]
     if estado:
@@ -481,6 +514,7 @@ def crear(datos: dict) -> dict:
     err = horario_consulta_ok(fecha, hora)
     if err:
         return {"error": err}
+    id_medico, nombre_medico = resolver_medico(datos)
     # Recepción solo agenda: el estado lo cambia el médico (o Cancelar).
     estado = "programada"
     now = datetime.utcnow().isoformat()
@@ -488,7 +522,8 @@ def crear(datos: dict) -> dict:
         "id_cita": str(uuid.uuid4()),
         "id_paciente": str(datos["id_paciente"]),
         "paciente_nombre": str(datos.get("paciente_nombre") or ""),
-        "medico": str(datos.get("medico") or ""),
+        "id_medico": id_medico,
+        "medico": nombre_medico,
         "fecha": fecha,
         "hora": hora,
         "estado": estado,
@@ -516,6 +551,10 @@ def actualizar(id_cita: str, cambios: dict) -> dict:
         err = horario_consulta_ok(fecha, hora)
         if err:
             return {"error": err}
+    if cambios.get("medico") or cambios.get("id_medico"):
+        # Reasignar médico: id y nombre viajan siempre juntos.
+        cambios = dict(cambios)
+        cambios["id_medico"], cambios["medico"] = resolver_medico(cambios)
     for k, v in cambios.items():
         if k in COLUMNAS and k not in ("id_cita", "creado_en"):
             df.at[idx[0], k] = v

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from nucleo.utilidades.ParquetStore import ParquetStore
 from nucleo.utilidades.PacientesLookup import mapa_pacientes
+from nucleo.modelos.catalogo.ViasLlegada import VIAS_LLEGADA
 
 TRIAGE_LABEL = {
     "I": "I · Crítico (inmediato)",
@@ -25,14 +26,7 @@ DESENLACES_LABEL = {
     "hospitalizacion": "Hospitalización",
     "referencia": "Referencia",
 }
-VIAS_LLEGADA = {
-    "propia": "Por sus medios",
-    "ambulancia": "Ambulancia",
-    "referido": "Referido de otro centro",
-    "traslado_interno": "Traslado interno",
-    "rescate": "Rescate o bomberos",
-    "autoridad": "Policía o autoridad",
-}
+
 
 
 def _now():
