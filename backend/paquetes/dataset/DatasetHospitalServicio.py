@@ -741,9 +741,13 @@ def generar_hospital(
 
     # ── Inventario + compras ────────────────────────────────────────────────
     inv_rows, mov_rows, kardex_rows = [], [], []
-    for mid in med_ids:
+    entradas_kardex = []
+    for pos_med, mid in enumerate(med_ids):
+        # Dos articulos arrancan con poco stock: sin eso ningun medicamento se
+        # acerca nunca al minimo y el indicador "Stock bajo" no dice nada.
+        escaso = pos_med % 4 == 0
         for lote_i in range(2):
-            cant = float(int(rng.integers(40, 200)))
+            cant = float(int(rng.integers(22, 36) if escaso else rng.integers(40, 200)))
             costo = float(rng.uniform(1.0, 18.0))
             iid = _uid()
             fv = _fecha(rng, year + 1, int(rng.integers(30, 300)))
@@ -757,19 +761,13 @@ def generar_hospital(
                 "cantidad": cant, "fecha": _fecha(rng, year, int(rng.integers(0, 60))),
                 "referencia": "seed", "estado": "registrado", "creado_en": now, "actualizado_en": now,
             })
-            kardex_rows.append({
-                "id_movimiento_kardex": _uid(), "id_medicamento": mid,
-                "fecha": _fecha(rng, year, int(rng.integers(0, 60))),
-                "tipo_movimiento": "entrada", "cantidad": cant, "costo_unitario": round(costo, 2),
-                "costo_total": round(cant * costo, 2), "saldo_cantidad": cant,
-                "saldo_valorizado": round(cant * costo, 2), "referencia": "seed",
-                "estado": "registrado", "creado_en": now, "actualizado_en": now,
+            entradas_kardex.append({
+                "id_medicamento": mid, "fecha": _fecha(rng, year, int(rng.integers(0, 60))),
+                "cantidad": cant, "costo_unitario": round(costo, 2),
+                "referencia": iid, "id_inventario": iid,
             })
-    conteos.update(_escribir_lote([
-        ("oper_inventario", Farm.inventario, inv_rows),
-        ("oper_movimientos_inventario", Farm.movimientos, mov_rows),
-        ("oper_kardex", Farm.kardex, kardex_rows),
-    ]))
+    # El inventario y el kardex se escriben mas abajo, cuando ya se conocen las
+    # salidas: el stock tiene que ser consecuencia de los movimientos.
 
     compras_rows, compras_det, cxp_rows = [], [], []
     for i in range(max(5, n_ops // 20)):
@@ -904,6 +902,95 @@ def generar_hospital(
             "monto": 1.0, "fecha": venta["fecha"], "estado": "emitida",
             "creado_en": now, "actualizado_en": now,
         })
+    # ── Cuadre del inventario ───────────────────────────────────────────────
+    # Las salidas (dispensaciones y ventas) se aplican FIFO contra los lotes y
+    # el kardex se reconstruye en orden con saldo corrido, como haria la app.
+    salidas = []
+    for d in disp_rows:
+        salidas.append({"id_medicamento": str(d.get("id_medicamento") or ""),
+                        "cantidad": float(d.get("cantidad") or 0),
+                        "fecha": str(d.get("fecha") or ""),
+                        "referencia": d.get("id_dispensacion") or ""})
+    for det in ov_det:
+        salidas.append({"id_medicamento": str(det.get("id_medicamento") or ""),
+                        "cantidad": float(det.get("cantidad") or 0),
+                        "fecha": "", "referencia": det.get("id_orden_venta") or ""})
+    for sal in salidas:
+        if not sal["fecha"]:
+            sal["fecha"] = _fecha(rng, year, int(rng.integers(60, 330)))
+
+    lotes_por_med: dict[str, list] = {}
+    for lote in inv_rows:
+        lotes_por_med.setdefault(str(lote["id_medicamento"]), []).append(lote)
+    for lotes in lotes_por_med.values():
+        lotes.sort(key=lambda x: str(x.get("fecha_vencimiento") or ""))
+
+    salidas_kardex = []
+    for sal in sorted(salidas, key=lambda x: x["fecha"]):
+        restante = sal["cantidad"]
+        for lote in lotes_por_med.get(sal["id_medicamento"], []):
+            if restante <= 0:
+                break
+            disponible = float(lote["cantidad"])
+            if disponible <= 0:
+                continue
+            usado = min(disponible, restante)
+            lote["cantidad"] = disponible - usado
+            restante -= usado
+            salidas_kardex.append({
+                "id_medicamento": sal["id_medicamento"], "fecha": sal["fecha"],
+                "cantidad": usado, "costo_unitario": float(lote["costo_unitario"]),
+                "referencia": sal["referencia"],
+            })
+            mov_rows.append({
+                "id_movimiento": _uid(), "id_medicamento": sal["id_medicamento"],
+                "tipo": "salida", "cantidad": usado, "fecha": sal["fecha"],
+                "referencia": sal["referencia"], "estado": "registrado",
+                "creado_en": now, "actualizado_en": now,
+            })
+
+    # Kardex en orden cronologico y con saldo corrido por medicamento.
+    movimientos = (
+        [dict(x, tipo_movimiento="entrada") for x in entradas_kardex]
+        + [dict(x, tipo_movimiento="salida") for x in salidas_kardex]
+    )
+    # Las entradas son el stock de apertura: van antes que cualquier salida,
+    # aunque una dispensacion herede una fecha de visita anterior al lote.
+    movimientos.sort(key=lambda x: (
+        str(x["id_medicamento"]),
+        0 if x["tipo_movimiento"] == "entrada" else 1,
+        str(x["fecha"]),
+    ))
+    kardex_rows = []
+    saldo_c: dict[str, float] = {}
+    saldo_v: dict[str, float] = {}
+    for m_ in movimientos:
+        mid_ = str(m_["id_medicamento"])
+        cant_ = float(m_["cantidad"])
+        costo_ = float(m_["costo_unitario"])
+        if m_["tipo_movimiento"] == "entrada":
+            saldo_c[mid_] = saldo_c.get(mid_, 0.0) + cant_
+            saldo_v[mid_] = saldo_v.get(mid_, 0.0) + cant_ * costo_
+        else:
+            saldo_c[mid_] = max(0.0, saldo_c.get(mid_, 0.0) - cant_)
+            saldo_v[mid_] = max(0.0, saldo_v.get(mid_, 0.0) - cant_ * costo_)
+        kardex_rows.append({
+            "id_movimiento_kardex": _uid(), "id_medicamento": mid_,
+            "fecha": m_["fecha"], "tipo_movimiento": m_["tipo_movimiento"],
+            "cantidad": cant_, "costo_unitario": round(costo_, 2),
+            "costo_total": round(cant_ * costo_, 2),
+            "saldo_cantidad": round(saldo_c[mid_], 2),
+            "saldo_valorizado": round(saldo_v[mid_], 2),
+            "referencia": m_["referencia"], "estado": "registrado",
+            "creado_en": now, "actualizado_en": now,
+        })
+
+    conteos.update(_escribir_lote([
+        ("oper_inventario", Farm.inventario, inv_rows),
+        ("oper_movimientos_inventario", Farm.movimientos, mov_rows),
+        ("oper_kardex", Farm.kardex, kardex_rows),
+    ]))
+
     conteos.update(_escribir_lote([
         ("oper_ordenes_venta", Farm.ordenes_venta, ov_rows),
         ("oper_ordenes_venta_detalle", Farm.ordenes_venta_det, ov_det),
