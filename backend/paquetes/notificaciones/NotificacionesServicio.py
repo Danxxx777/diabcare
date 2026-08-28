@@ -31,10 +31,43 @@ ARCHIVO = "notificaciones/alertas.parquet"
 COLUMNAS = [
     "id", "titulo", "mensaje", "tipo", "leida", "creado_en", "email_enviado",
     "destinatario_tipo", "destinatario", "canal", "referencia_tipo", "referencia_id",
+    "categoria",
 ]
 
+# Avisos que son rastro de una accion propia, no algo que alguien deba atender.
+# Siguen guardandose (y en Auditoria), pero no compiten con lo accionable.
+TITULOS_REGISTRO = (
+    "reporte generado",
+    "modelo reentrenado",
+    "modelo ml reentrenado",
+    "flujo sintetico generado",
+    "flujo sintético generado",
+    "dataset generado",
+    "dwh reconstruido",
+    "backup",
+)
+
+
+def clasificar_aviso(titulo: str, referencia_tipo: str = "") -> str:
+    """"accion" si alguien tiene que hacer algo; "registro" si es solo rastro."""
+    t = str(titulo or "").strip().lower()
+    for marca in TITULOS_REGISTRO:
+        if t.startswith(marca):
+            return "registro"
+    return "accion"
+
+# Reserva; el valor vigente sale de Configuracion -> Sistema.
 UMBRAL_HBA1C = 7.5
 UMBRAL_GLUCOSA = 180
+
+
+def _umbrales():
+    """(HbA1c, glucosa) configurados, con reserva a los valores de arriba."""
+    try:
+        from paquetes.configuracion.ConfiguracionServicio import umbrales_clinicos
+        return umbrales_clinicos()
+    except Exception:
+        return UMBRAL_HBA1C, UMBRAL_GLUCOSA
 TIPOS_EMAIL = {"warning", "error", "critico", "critical", "alerta"}
 
 # Tope de alertas creadas por corrida. Materializar 50.000 registros llegaba a
@@ -86,6 +119,11 @@ def _cargar(df: pd.DataFrame) -> None:
     for col in COLUMNAS:
         if col not in df.columns:
             df[col] = False if col in ("leida", "email_enviado") else ""
+    # Datos anteriores a la clasificacion: deducirla del titulo.
+    if "categoria" in df.columns and not df.empty:
+        vacias = df["categoria"].fillna("").astype(str).str.strip().eq("")
+        if bool(vacias.any()):
+            df.loc[vacias, "categoria"] = df.loc[vacias, "titulo"].map(clasificar_aviso)
     df = _podar(df)
     escribir(BUCKET_APP, ARCHIVO, df[COLUMNAS])
 
@@ -166,6 +204,7 @@ def _fila_notificacion(
         "titulo": str(titulo or "Notificación"),
         "mensaje": str(mensaje or ""),
         "tipo": (tipo or "info").lower(),
+        "categoria": clasificar_aviso(titulo, referencia_tipo),
         "leida": bool(leida),
         "creado_en": datetime.now().isoformat(),
         "email_enviado": bool(email_enviado),
@@ -359,11 +398,13 @@ def listar(
     *,
     user_id: str = "",
     rol: str = "",
+    incluir_registros: bool = False,
 ) -> dict:
     df = _extraer()
     if df.empty:
-        return {"total": 0, "no_leidas": 0, "notificaciones": []}
+        return {"total": 0, "no_leidas": 0, "registros_ocultos": 0, "notificaciones": []}
 
+    registros_ocultos = 0
     es_admin = str(rol).lower() == "administrador"
     rol_u = str(rol or "").lower()
     if user_id or rol:
@@ -379,6 +420,21 @@ def listar(
         )
         df = df[mask]
 
+    # La bandeja avisa de lo que hay que atender. El rastro de acciones propias
+    # (reportes, reentrenamientos, generaciones) solo aparece si se pide. Se
+    # cuenta despues del filtro por rol, para que la cifra sea la que ve quien
+    # mira la bandeja.
+    if "categoria" in df.columns and not df.empty:
+        cat = df["categoria"].fillna("").astype(str)
+        cat = cat.where(cat.ne(""), df["titulo"].map(clasificar_aviso))
+        if not incluir_registros:
+            registros_ocultos = int((cat == "registro").sum())
+            df = df[cat != "registro"]
+
+    if df.empty:
+        return {"total": 0, "no_leidas": 0, "registros_ocultos": registros_ocultos,
+                "notificaciones": []}
+
     if solo_no_leidas and "leida" in df.columns:
         df = df[df["leida"] != True]  # noqa: E712
     df = df.sort_values("creado_en", ascending=False)
@@ -389,6 +445,7 @@ def listar(
     return {
         "total": total,
         "no_leidas": no_leidas,
+        "registros_ocultos": registros_ocultos,
         "notificaciones": notifs,
         "rol": rol_u,
         "rol_label": etiqueta_rol(rol_u),
@@ -536,8 +593,9 @@ def evaluar_alertas_clinicas(limite: int = MAX_ALERTAS_POR_CORRIDA) -> dict:
 
     hba = _num("hbA1c_level")
     glc = _num("blood_glucose_level")
+    umbral_hba1c, umbral_glucosa = _umbrales()
     # NaN > umbral es False, así que los faltantes quedan fuera solos.
-    candidatos = df.loc[(hba > UMBRAL_HBA1C) | (glc > UMBRAL_GLUCOSA)]
+    candidatos = df.loc[(hba > umbral_hba1c) | (glc > umbral_glucosa)]
     if candidatos.empty:
         return {"evaluadas": total, "alertas_nuevas": 0, "truncado": False}
 
@@ -574,13 +632,13 @@ def evaluar_alertas_clinicas(limite: int = MAX_ALERTAS_POR_CORRIDA) -> dict:
             break
         paciente = nombre.strip() or "Paciente"
 
-        if h > UMBRAL_HBA1C:
+        if h > umbral_hba1c:
             titulo = f"Alerta HbA1c - encuentro {eid}"
             if titulo not in vistos:
                 vistos.add(titulo)
                 filas.append(_fila_notificacion(
                     titulo,
-                    f"{paciente}: HbA1c {h:.1f}% supera umbral {UMBRAL_HBA1C}%.",
+                    f"{paciente}: HbA1c {h:.1f}% supera umbral {umbral_hba1c}%.",
                     "warning",
                     destinatario_tipo="rol", destinatario="medico",
                     canal="in_app", referencia_tipo="encuentro", referencia_id=str(eid),
@@ -588,13 +646,13 @@ def evaluar_alertas_clinicas(limite: int = MAX_ALERTAS_POR_CORRIDA) -> dict:
                 if correo.strip():
                     avisos_paciente.append((correo.strip(), paciente, f"{h:.1f}"))
 
-        if g > UMBRAL_GLUCOSA:
+        if g > umbral_glucosa:
             titulo = f"Alerta glucosa - encuentro {eid}"
             if titulo not in vistos:
                 vistos.add(titulo)
                 filas.append(_fila_notificacion(
                     titulo,
-                    f"{paciente}: glucosa {g:.0f} mg/dL supera umbral {UMBRAL_GLUCOSA}.",
+                    f"{paciente}: glucosa {g:.0f} mg/dL supera umbral {umbral_glucosa}.",
                     "warning",
                     destinatario_tipo="rol", destinatario="medico",
                     canal="in_app", referencia_tipo="encuentro", referencia_id=str(eid),
@@ -625,7 +683,7 @@ def evaluar_alertas_clinicas(limite: int = MAX_ALERTAS_POR_CORRIDA) -> dict:
             if _enviar_email_alerta(
                 f"DiabCare - {len(filas)} alertas clínicas nuevas",
                 f"Se detectaron {len(filas)} encuentros fuera de umbral "
-                f"(HbA1c > {UMBRAL_HBA1C}% o glucosa > {UMBRAL_GLUCOSA} mg/dL) "
+                f"(HbA1c > {umbral_hba1c}% o glucosa > {umbral_glucosa} mg/dL) "
                 f"sobre {total} registros. Revise la bandeja de notificaciones.",
                 None,
                 plantilla="alerta",

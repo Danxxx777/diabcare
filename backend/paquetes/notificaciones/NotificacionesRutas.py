@@ -22,12 +22,16 @@ def listar_notificaciones(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
     solo_no_leidas: bool = False,
+    incluir_registros: bool = False,
     payload: dict = Depends(require_modulo("notificaciones")),
 ):
+    """Bandeja del rol. Por defecto solo lo accionable; incluir_registros suma
+    el rastro de acciones propias (reportes, reentrenamientos, generaciones)."""
     return listar(
         skip=skip,
         limit=limit,
         solo_no_leidas=solo_no_leidas,
+        incluir_registros=incluir_registros,
         user_id=str(payload.get("sub", "")),
         rol=str(payload.get("rol", "")),
     )

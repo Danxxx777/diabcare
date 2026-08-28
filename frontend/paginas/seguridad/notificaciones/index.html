@@ -79,6 +79,10 @@
         <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;">
           <input type="checkbox" id="f-solo" onchange="cargar()"> Solo no leídas
         </label>
+        <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;"
+               title="Reportes generados, reentrenamientos y generaciones de datos: rastro de lo que usted mismo hizo.">
+          <input type="checkbox" id="f-registros" onchange="cargar()"> Incluir registros
+        </label>
         <span class="tabla-info" id="info">-</span>
       </div>
       <div class="notif-tools">
@@ -155,15 +159,19 @@ async function cargarStats() {
 
 async function cargar() {
   const solo = document.getElementById('f-solo').checked;
+  const conRegistros = document.getElementById('f-registros').checked;
   const lista = document.getElementById('lista');
   lista.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando...</div>';
   try {
-    const r = await fetch(`${API}/api/notificaciones/?limit=100&solo_no_leidas=${solo}`, {
+    const r = await fetch(`${API}/api/notificaciones/?limit=100&solo_no_leidas=${solo}&incluir_registros=${conRegistros}`, {
       headers: { Authorization: 'Bearer ' + token }
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || 'Error');
-    document.getElementById('info').textContent = `${d.total} notificación(es)`;
+    const ocultos = d.registros_ocultos || 0;
+    document.getElementById('info').textContent = ocultos && !conRegistros
+      ? `${d.total} por atender · ${ocultos} registro(s) oculto(s)`
+      : `${d.total} notificación(es)`;
     pintarStatsDesdeLista(d);
     notificaciones = d.notificaciones || [];
     renderNotificaciones();
