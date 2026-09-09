@@ -12,7 +12,7 @@ Repositorio: [github.com/Danxxx777/diabcare](https://github.com/Danxxx777/diabca
 | Frontend | HTML5 + CSS3 + JavaScript (Vanilla) |
 | Backend | Python 3 + FastAPI + Uvicorn |
 | Almacenamiento | MinIO (Parquet columnar) |
-| Orquestación ETL | Apache Airflow *(opcional, ver `_futuro/`)* |
+| Orquestación ELT | Apache Airflow *(opcional, ver `_futuro/`)* |
 | Fuente de datos | PocketBase |
 | Machine Learning | scikit-learn |
 

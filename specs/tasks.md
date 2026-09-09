@@ -125,7 +125,7 @@ Las tareas T1–T10 (núcleo analytics) y T16–T20 (hospital) están completada
 
 ---
 
-### ✅ Tarea 8: Pipeline ETL Visual
+### ✅ Tarea 8: Pipeline ELT Visual
 
 - [x] 8.1 Implementar `GET /api/pipeline/estado` que lista archivos `.parquet` en MinIO `stage/` con nombre, tamaño MB y fecha, ordenados por fecha descendente, retorna top 10.
 - [x] 8.2 Frontend `pipeline_etl/index.html` con flujo visual 5 nodos: PocketBase → Airflow → MinIO → Parquet → FastAPI con iconos y colores diferenciados.
@@ -279,7 +279,7 @@ Las tareas T1–T10 (núcleo analytics) y T16–T20 (hospital) están completada
 | T5 — Estadísticas clínicas y Dashboard | ✅ Completado |
 | T6 — Infraestructura y Sistema | ✅ Completado |
 | T7 — Predicción ML | ✅ Completado |
-| T8 — Pipeline ETL visual | ✅ Completado |
+| T8 - Pipeline ELT visual | ✅ Completado |
 | T9 — Control de roles en sidebar | ✅ Completado |
 | T10 — Conteo eficiente con pyarrow | ✅ Completado |
 | T11 — Reportes PDF | ✅ Completado (fpdf2) |

@@ -1,0 +1,42 @@
+schema: spec-driven
+
+context: |
+  Language: es
+  All artifacts must be written in es.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  Project: DiabCare Analytics, sistema web hospitalario para atención clínica, operación y analítica de diabetes.
+  Architecture: frontend multipágina en HTML, CSS y JavaScript; API REST en FastAPI; persistencia operativa y analítica en Parquet mediante MinIO.
+  Backend entrypoint: backend/Principal.py. Local launcher: servidor.py.
+  Frontend root: frontend/paginas. Shared browser client: frontend/estaticos/api.js.
+  Backend modules: backend/paquetes. Shared infrastructure: backend/nucleo.
+  Authentication: sesiones y JWT con autorización por rol y módulo.
+  Main roles: administrador, medico and analista. Preserve existing permission checks.
+  Data integrity: logical deletion, audit relevant mutations, preserve identifiers and existing Parquet schemas unless a change explicitly migrates them.
+  Specification source: openspec/specs is the behavioral source of truth. Existing specs under specs/ remain historical input.
+  Architecture reference: openspec/ARQUITECTURA.md.
+  Traceability reference: openspec/TRAZABILIDAD.md.
+
+# Per-artifact rules (optional)
+rules:
+  proposal:
+    - Identificar las capacidades afectadas y evitar cambios fuera de alcance.
+    - Indicar impacto en backend, frontend, datos y pruebas.
+  specs:
+    - Cada requisito debe ser observable y tener al menos un escenario verificable.
+    - Conservar los identificadores RF, RN o CA existentes cuando estén disponibles.
+  design:
+    - Reutilizar la arquitectura modular y las utilidades existentes antes de crear abstracciones.
+    - Documentar cualquier cambio de esquema Parquet, permisos o dependencias.
+  tasks:
+    - Cada tarea debe incluir una comprobación concreta.
+    - Incluir pruebas enfocadas y validación visual cuando haya cambios de interfaz.
+
+# Per-operation guidance (optional)
+operations:
+  apply:
+    guidance:
+      - Mantener cambios mínimos y no modificar datos de demostración sin necesidad.
+      - Ejecutar primero las pruebas relacionadas con la capacidad afectada.
+  archive:
+    guidance:
+      - Sincronizar las especificaciones antes de archivar cambios completados.

@@ -10,7 +10,7 @@ Plataforma SaaS de análisis clínico de datos de diabetes hospitalaria.
 | Frontend | HTML5 + CSS3 + JavaScript Vanilla |
 | Backend | Python 3 + FastAPI + Uvicorn |
 | Almacenamiento | MinIO (Parquet columnar) |
-| Orquestación ETL | Apache Airflow |
+| Orquestación ELT | Apache Airflow |
 | Fuente de datos | PocketBase |
 | Machine Learning | scikit-learn |
 
@@ -46,7 +46,7 @@ El sistema cuenta con **59 casos de uso** organizados en **15 paquetes funcional
 | P5 | Análisis y visualización | `analisis` | CU18–CU21 |
 | P6 | Predicción ML | `prediccion` | CU22–CU25 |
 | P7 | Reportes | `reportes` | CU26–CU29 |
-| P8 | Pipeline ETL | `pipeline_etl` | CU30–CU33 |
+| P8 | Pipeline ELT | `pipeline_etl` | CU30-CU33 |
 | P9 | Información corporativa | `corporativo` | CU34–CU36 |
 | P10 | Notificaciones y alertas | `notificaciones` | CU37–CU40 |
 | P11 | Auditoría y trazabilidad | `auditoria` | CU41–CU44 |
@@ -78,7 +78,7 @@ diabcare/
 ├── pruebas/               pytest (API por módulo)
 ├── ml/                    Entrenamiento y evaluación ML
 ├── docker-compose.yaml    MinIO, PocketBase, Airflow
-└── pipeline_diabetes.py   DAG ETL de referencia
+└── pipeline_diabetes.py   DAG ELT de referencia
 ```
 
 ## Actores del Sistema
@@ -88,7 +88,7 @@ diabcare/
 | Médico | Registros clínicos, predicciones, reportes |
 | Administrador | Usuarios, configuración, auditoría, dataset |
 | Analista | Dashboards, benchmarking, modelo ML |
-| Sistema (Airflow) | Pipeline ETL automatizado |
+| Sistema (Airflow) | Pipeline ELT automatizado |
 
 ## Arranque rápido
 

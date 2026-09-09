@@ -31,6 +31,41 @@ def estado_receta(valor) -> str:
 def _now():
     return datetime.utcnow().isoformat()
 
+
+def clasificar_vencimiento(fecha_vencimiento, fecha_referencia: date | None = None) -> str:
+    """Clasifica un lote sin modificar sus datos persistidos."""
+    try:
+        vencimiento = date.fromisoformat(str(fecha_vencimiento or "").strip())
+    except ValueError:
+        return "Sin fecha"
+
+    hoy = fecha_referencia or date.today()
+    dias_restantes = (vencimiento - hoy).days
+    if dias_restantes < 0:
+        return "Vencido"
+    if dias_restantes <= 30:
+        return "Próximo a vencer"
+    return "Vigente"
+
+
+def listar_inventario(offset: int = 0, limit: int = 50, q: str = ""):
+    """Devuelve el inventario con el estado de vencimiento derivado."""
+    resultado = inventario.listar(
+        offset,
+        limit,
+        q=q,
+        q_campos=["lote", "id_medicamento"],
+        incluir_inactivos=True,
+    )
+    resultado["lotes"] = [
+        {
+            **lote,
+            "estado_vencimiento": clasificar_vencimiento(lote.get("fecha_vencimiento")),
+        }
+        for lote in resultado.get("lotes", [])
+    ]
+    return resultado
+
 medicamentos = ParquetStore(
     "negocio/dim_medicamento.parquet",
     ["id_medicamento", "nombre", "principio_activo", "forma", "precio_venta", "precio_costo",

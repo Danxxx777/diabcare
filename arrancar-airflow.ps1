@@ -16,7 +16,7 @@ Write-Host "  - diabcare_elt            @hourly     (E->L->T incremental)" -Fore
 Write-Host "  - diabcare_elt_historico   0 3 * * 0   (historico domingo)" -ForegroundColor Green
 Write-Host "  - diabcare_benchmark_sql   @daily      (SQL vs Parquet)" -ForegroundColor Green
 Write-Host ""
-Write-Host "Carpeta ETL: .\etl\  |  DAGs: .\dags\" -ForegroundColor Yellow
+Write-Host "Carpeta ELT: .\etl\  |  DAGs: .\dags\" -ForegroundColor Yellow
 Write-Host "En DiabCare: Datos -> Orquestador (elige DAG + benchmark)" -ForegroundColor Yellow
 Write-Host "Si el iframe no carga, reinicie Airflow tras actualizar docker-compose" -ForegroundColor DarkYellow
 

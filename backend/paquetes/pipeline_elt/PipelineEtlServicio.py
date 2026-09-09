@@ -713,7 +713,7 @@ def _paso_materializar_dwh() -> dict:
 
 
 def ejecutar_elt(usuario: str = "sistema", historico: bool = False) -> dict:
-    """Delega en pasos E·T·L (carpeta etl/ + PipelineEtlPasos)."""
+    """Delega en pasos E-L-T (carpeta etl/ + PipelineEtlPasos)."""
     conn = _conectividad()
     if conn["minio"] != "conectado":
         return {"ok": False, "error": "MinIO no disponible.", "pasos": [], "conectividad": conn}

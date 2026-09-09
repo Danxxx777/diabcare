@@ -512,6 +512,7 @@ DiabCareCrud.mountTabs({
       columns: [
         {key:'id_medicamento', label:'Medicamento', lookup:'id_medicamento'},
         {key:'lote', label:'Lote'}, {key:'fecha_vencimiento', label:'Vence'},
+        {key:'estado_vencimiento', label:'Estado de vencimiento', badge:true},
         {key:'cantidad', label:'Cantidad'},
         {key:'costo_unitario', label:'Costo u.', render: r => money(r.costo_unitario)}
       ],

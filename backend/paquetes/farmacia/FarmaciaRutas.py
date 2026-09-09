@@ -187,7 +187,7 @@ def get_rec_mostrador(id_receta: str, payload=Depends(require_modulo("farmacia")
 # Inventario
 @router.get("/farmacia/inventario")
 def list_inv(offset: int = 0, limit: int = 50, q: str = "", payload=Depends(require_modulo("farmacia"))):
-    return S.inventario.listar(offset, limit, q=q, q_campos=["lote", "id_medicamento"], incluir_inactivos=True)
+    return S.listar_inventario(offset, limit, q=q)
 
 @router.get("/farmacia/inventario/{id_inventario}")
 def get_inv(id_inventario: str, payload=Depends(require_modulo("farmacia"))):

@@ -263,7 +263,7 @@ function aplicarRoles() {
 | Generador | `/paginas/dataset/generador.html` | `POST /api/dataset/generar` |
 | Usuarios | `/paginas/seguridad/usuarios/index.html` | `GET/POST/PUT/DELETE /api/usuarios/` |
 | Predicción ML | `/paginas/prediccion/index.html` | `POST /api/prediccion/entrenar`, `POST /api/prediccion/`, `GET /api/prediccion/metricas`, `GET /api/prediccion/estado` |
-| Pipeline ETL | `/paginas/pipeline_etl/index.html` | `GET /api/pipeline/estado`, `GET /api/registros/estadisticas` |
+| Pipeline ELT | `/paginas/pipeline_etl/index.html` | `GET /api/pipeline/estado`, `GET /api/registros/estadisticas` |
 
 ---
 

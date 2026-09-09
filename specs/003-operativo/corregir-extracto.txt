@@ -683,7 +683,7 @@ Flujo principal
 1. Analista abre Pipeline ELT.
 2. Consulta estado ultima ejecución (GET /api/pipeline/estado).
 3. Presiona Ejecutar → POST /api/pipeline/ejecutar.
-4. ETL extrae, transforma a Hecho-Dimensión y carga Parquet.
+4. ELT extrae, carga en Parquet y transforma a Hecho-Dimensión.
 5. UI muestra logs, duración y filas procesadas.
 6. objetivo definido en el avance anterior: 600K registros < 15 minutos.
 Flujos alternos y excepciones

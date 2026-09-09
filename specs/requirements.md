@@ -164,7 +164,7 @@ DiabCare Analytics / **DiabCare Hospital** es una plataforma SaaS académica (6t
 
 ---
 
-### Requirement 8: Pipeline ETL
+### Requirement 8: Pipeline ELT
 
 **User Story:** Como administrador, quiero ver y ejecutar el pipeline ELT para verificar el flujo de datos.
 
@@ -174,7 +174,7 @@ DiabCare Analytics / **DiabCare Hospital** es una plataforma SaaS académica (6t
 2. THE Frontend SHALL mostrar un flujo visual con exactamente 5 nodos en secuencia: "PocketBase" → "Airflow" → "MinIO" → "Parquet" → "FastAPI", con líneas de conexión entre nodos adyacentes.
 3. THE Frontend SHALL mostrar 4 KPI cards con: estado de MinIO ("Operacional" / "No disponible"), cantidad de archivos Parquet en `stage/`, nombre del último archivo subido, y fecha de la última carga en formato legible.
 4. THE Frontend SHALL mostrar la lista de archivos Parquet retornada por el endpoint con columnas: nombre del archivo, tamaño en MB y fecha de modificación.
-5. THE Frontend SHALL mostrar los 4 pasos del pipeline ETL numerados (1–4) con descripción textual y el comando técnico asociado a cada paso.
+5. THE Frontend SHALL mostrar los 4 pasos del pipeline ELT numerados (1-4) con descripción textual y el comando técnico asociado a cada paso.
 6. WHEN el usuario hace clic en "Ejecutar pipeline", THE Frontend SHALL ejecutar los 4 pasos en secuencia, mostrando animación pulse (CSS `animation: pulse`) en el número del paso activo.
 7. WHEN cada paso completa, THE Frontend SHALL cambiar el número del paso a color verde (#22c55e) con símbolo ✓, y avanzar al siguiente paso. Los pasos 3 y 4 verifican el estado real llamando a `GET /api/pipeline/estado` y `GET /api/registros/estadisticas` respectivamente, completando exitosamente si reciben HTTP 200.
 8. IF cualquier paso del pipeline falla (recibe HTTP distinto de 200 o timeout > 30 segundos), THE Frontend SHALL mostrar el número del paso en rojo con símbolo ✗ y detener la secuencia mostrando un mensaje de error con el paso que falló.
